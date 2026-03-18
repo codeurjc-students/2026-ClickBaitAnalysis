@@ -2,13 +2,14 @@
 
 
 from mcp.server.fastmcp import FastMCP
-from api.weather_api import get_alerts_API
+from api.weather_api import get_alerts_API, get_forecast_API, get_zone_by_points
+from backend.models import ToolResult
 
 
 
 def register(mcp: FastMCP):
     @mcp.tool()
-    async def get_alerts(state: str) -> str:
+    async def get_alerts(state: str) -> ToolResult:
         """Get weather alerts for a US state.
 
         Args:
@@ -28,21 +29,16 @@ def register(mcp: FastMCP):
             longitude: Longitude of the location
         """
         # First get the forecast grid endpoint
-        points_url = f"{NWS_API_BASE}/points/{latitude},{longitude}"
-        points_data = await make_nws_request(points_url)
+        zone_url = get_zone_by_points(latitude, longitude)
 
-        if not points_data:
+        if not zone_url:
             return "Unable to fetch forecast data for this location."
 
         # Get the forecast URL from the points response
-        forecast_url = points_data["properties"]["forecast"]
-        forecast_data = await make_nws_request(forecast_url)
-
-        if not forecast_data:
-            return "Unable to fetch detailed forecast."
-
-        # Format the periods into a readable forecast
-        periods = forecast_data["properties"]["periods"]
+        response = await get_forecast_API(zone_url)
+        
+        
+        periods = response["properties"]["periods"]
         forecasts = []
         for period in periods[:5]:  # Only show next 5 periods
             forecast = f"""
@@ -52,7 +48,8 @@ def register(mcp: FastMCP):
     Forecast: {period["detailedForecast"]}
     """
             forecasts.append(forecast)
+        
 
-        return "\n---\n".join(forecasts)
+        return response
 
 
