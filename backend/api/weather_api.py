@@ -58,7 +58,7 @@ async def get_zone_by_points(latitude: float, longitude: float) -> ToolResult:
     endpoint = f"/points/{latitude},{longitude}"
     points_json =  await make_request(endpoint, "get")
     
-    if not points_json.success or not points_json.data:
+    if not points_json.success or not points_json.has_content():
         return ToolResult.fail("Unable to find requested zone")
     
     #Eliminamos la URL Base ya que el json contiene la URL completa y no solo el endpoint

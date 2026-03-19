@@ -16,3 +16,6 @@ class ToolResult(BaseModel):
     @classmethod
     def fail(cls, error_message: str) -> "ToolResult":
         return cls(success=False, error=error_message)
+    
+    def has_content(self) -> bool:
+        return self.success and self.data is not None
