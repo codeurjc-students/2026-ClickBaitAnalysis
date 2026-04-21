@@ -3,7 +3,7 @@
 
 import httpx
 
-from backend.models import ToolResult
+from backend.core.models import ToolResult
 
 
 class BaseAPI:

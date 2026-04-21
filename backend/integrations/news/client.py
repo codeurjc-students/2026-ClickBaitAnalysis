@@ -2,8 +2,8 @@
 # Constants
 from typing import Optional
 
-from backend.api.base_api import BaseAPI
-from backend.models import ToolResult
+from backend.core.base_api import BaseAPI
+from backend.core.models import ToolResult
 from datetime import date
 from datetime import timedelta
 

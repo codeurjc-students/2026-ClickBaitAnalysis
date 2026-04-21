@@ -7,8 +7,8 @@ News API for The Guardian
 import json
 
 from mcp.server.fastmcp import FastMCP
-from backend.api.the_guardian_api import GuardianAPI
-from backend.models import ToolResult
+from backend.integrations.news.client import GuardianAPI
+from backend.core.models import ToolResult
 
 
 #TODO: Implementar validador? Acaso hay campos cerrados
