@@ -6,7 +6,8 @@ import logging
 
 from mcp.server.fastmcp import FastMCP
 
-from backend.tools import the_guardian_tool, weather_tool
+from backend.integrations.news import tool as news_tool
+from backend.integrations.weather import tool as weather_tool
 
 
 
@@ -14,7 +15,7 @@ mcp = FastMCP("tfg-mcp-server")
 
 #TODO: Implementar register dinámico
 weather_tool.register(mcp)
-the_guardian_tool.register(mcp)
+news_tool.register(mcp)
 
 
 def main():

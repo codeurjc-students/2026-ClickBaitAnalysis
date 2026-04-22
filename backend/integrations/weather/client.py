@@ -1,8 +1,8 @@
 import httpx
 from typing import Any
 
-from backend.api.base_api import BaseAPI
-from backend.models import ToolResult
+from backend.core.base_api import BaseAPI
+from backend.core.models import ToolResult
 
 
 

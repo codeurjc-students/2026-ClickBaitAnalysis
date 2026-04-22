@@ -2,7 +2,7 @@
 
 
 from mcp.server.fastmcp import FastMCP
-from backend.api.weather_api import WeatherAPI
+from backend.integrations.weather.client import WeatherAPI
 
 
 
