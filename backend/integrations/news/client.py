@@ -8,11 +8,17 @@ from datetime import date
 from datetime import timedelta
 
 
+
+from backend.config.settings import settings
+
+
+
 class GuardianAPI(BaseAPI):
 
 
     BASE_URL  = "https://content.guardianapis.com/"
-    API_KEY  = "bd23a1f1-6f0a-4bc8-a757-a68a996c3d4b"
+    
+    API_KEY  = settings.guardian_api_key #Key ya validada
     API_KEY_PARAM = "api-key"
             
         
