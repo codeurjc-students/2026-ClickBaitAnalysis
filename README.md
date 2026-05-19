@@ -138,7 +138,9 @@ Ejemplos:
 feat(integrations): añadir tool get_news_this_week para Guardian API
 chore(settings): configurar pydantic-settings con validación al inicio
 
+#### 1.5 — E1-09 · Configurar pytest y estructura de tests
 
+Se instalaron pytest, pytest-asyncio y pytest-cov como dependencias de desarrollo. Se creó `pytest.ini` en la raíz del proyecto con configuración mínima (testpaths y pythonpath). Se añadió un smoke test (`tests/test_smoke.py`) que verifica que el servidor MCP importa sin errores.
 
 ### Decisiones de diseño relevantes
 
