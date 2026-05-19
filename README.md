@@ -60,7 +60,25 @@ Objetivo: validar la viabilidad de construir un servidor MCP en Python que expon
 
 #### 1.1 — Incidente: filtración de API key y rotación
 
+Debido a un descuido y una experimentación algo apresurada, la clave API fue filtrada en github y tuve que cambiarla. Este error fue un toque de conciencia para empezar a definir una estructura completa del proyecto en épicas y priorizar las más relevantes. 
+
 #### 1.2 — E1-01 + E1-03 · Migración de estructura a `core/` + `integrations/<nombre>/`
+
+Antes de crear nuevos archivos y carpetas, decidí definir la estructura del proyecto primero, pero con un enfasis en YAGNI, la estrucutra podría ser modificada SOLO cuando sea necesario, sin intentar predecir como será a futuro:
+
+Por el momento dentro de backend tenemos:
+- Core: Con una clase API para hacer peticiones básicas y un archivo de modelos personalizados para las tools.
+
+- Integration: que contiene varias subcarpetas, cada una relacionada con un API y que a su vez contiene las peticiones (client) y las tools que expone al MCP (tool)
+
+- Test: Carpeta que contendrá tests en el futuro, por ahora un placeholder
+
+Ya que en la próxima épica se tratarán las variables de configuracion, se creó la carpeta config.
+
+
+
+
+
 
 #### 1.3 — E1-04 · Gestión de configuración con `pydantic-settings`
 
@@ -70,6 +88,19 @@ Para evitar nuevas filtraciones accidentales de la API key en el código, doy pr
 La clase settings.py maneja ahora todas las variables de configuración y seguridad, conectandose con el archivo .env (el cual nunca está en el git ignore)
 
 Siguiente paso: Manejo de tests para depurar llamadas a API, pues algo falla.
+
+
+### 1.4 - E1-02 · Formalizar convención de ramas y commits
+
+Aunque se trate de un paso pequeño, antes de seguir trabajando en las épicas pensé que sería necesario formalizar la creación de ramas y commits para mejorar la organización del proyecto a largo plazo
+
+Se usará Conventional Commits por simplicidad, empezando cada rama por el tipo de épica al que hace referencia (chore, fix, fet, docs) y con commits usando "scopes" que vienen a indicar sobre que parte del proyecto se trabajó. Esto es también útil para no subir macro-commits que afecten a demasiados archivos y poder hacer "rollback" de ser necesario.
+
+Ejemplos: 
+
+feat(integrations): añadir tool get_news_this_week para Guardian API
+chore(settings): configurar pydantic-settings con validación al inicio
+
 
 
 ### Decisiones de diseño relevantes
