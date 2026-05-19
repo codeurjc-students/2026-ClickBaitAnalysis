@@ -4,6 +4,43 @@ Version de Python: 3.12.3
 
 ---
 
+## Convenciones de desarrollo
+
+### Ramas
+
+Cada rama parte de `main` y sigue el patrón `<tipo>/<descripción-corta>`:
+
+| Prefijo | Uso |
+|---|---|
+| `feature/` | Nueva funcionalidad |
+| `fix/` | Corrección de bug |
+| `chore/` | Setup, estructura, mantenimiento |
+| `docs/` | Documentación |
+| `test/` | Tests nuevos o mejoras de cobertura |
+
+### Commits — Conventional Commits
+
+Formato: `tipo(scope): descripción`
+
+**Tipos:** `feat`, `fix`, `chore`, `docs`, `test`, `refactor`
+
+**Scopes:** `core`, `integrations`, `settings`, `tests`, `docs`
+
+Ejemplos:
+```
+feat(integrations): añadir tool get_news_this_week para Guardian API
+chore(settings): configurar pydantic-settings con validación al inicio
+fix(core): corregir serialización de ToolResult en tools MCP
+test(integrations): añadir tests unitarios para weather tools
+```
+
+### Merge a main
+
+- Se usa **squash merge** vía Pull Request.
+- Cada PR debe estar vinculado a una issue con `Closes #N`.
+
+---
+
 ## Recopilación de épicas
 
 Aquí se documentan las épicas y las iteraciones realizadas durante el desarrollo del proyecto. No se trata de un documento final sino simplemente un histórico de progreso para la memoria final.
