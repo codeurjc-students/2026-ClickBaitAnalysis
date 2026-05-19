@@ -142,6 +142,10 @@ chore(settings): configurar pydantic-settings con validación al inicio
 
 Se instalaron pytest, pytest-asyncio y pytest-cov como dependencias de desarrollo. Se creó `pytest.ini` en la raíz del proyecto con configuración mínima (testpaths y pythonpath). Se añadió un smoke test (`tests/test_smoke.py`) que verifica que el servidor MCP importa sin errores.
 
+#### 1.6 — E1-10 · Tests unitarios para weather tools (en progreso)
+
+Se añadió `respx` para mockear llamadas HTTP en tests. Primer test implementado: verificación de respuesta válida para `get_alerts_API` usando fixtures con datos falsos. Pendientes: casos de respuesta vacía, error de red, y tests para `get_forecast`.
+
 ### Decisiones de diseño relevantes
 
 | Decisión | Motivo |
