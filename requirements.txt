@@ -69,6 +69,7 @@ httpx==0.28.1
     #   -r requirements.in
     #   fastmcp
     #   mcp
+    #   respx
 httpx-sse==0.4.3
     # via mcp
 idna==3.11
@@ -176,6 +177,8 @@ referencing==0.37.0
     #   jsonschema
     #   jsonschema-path
     #   jsonschema-specifications
+respx==0.23.1
+    # via -r requirements.in
 rich==14.3.3
     # via
     #   cyclopts

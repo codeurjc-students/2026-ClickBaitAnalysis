@@ -6,3 +6,5 @@ pydantic-settings
 pytest
 pytest-asyncio
 pytest-cov
+
+respx 

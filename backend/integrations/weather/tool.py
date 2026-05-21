@@ -1,16 +1,11 @@
-
-
-
 from mcp.server.fastmcp import FastMCP
 from backend.integrations.weather.client import WeatherAPI
 
 
-
 def register(mcp: FastMCP):
-    
+
     api = WeatherAPI()
-    
-    
+
     @mcp.tool()
     async def get_alerts(state: str) -> str | dict:
         """Get weather alerts for a US state.
@@ -21,11 +16,8 @@ def register(mcp: FastMCP):
         response = await api.get_alerts_API(state)
         if not response.has_content():
             return response.error or "Error fetching alerts"
-        
-        
-        return response.data # type: ignore
-        
 
+        return response.data  # type: ignore
 
     @mcp.tool()
     async def get_forecast(latitude: float, longitude: float) -> str:
@@ -37,18 +29,19 @@ def register(mcp: FastMCP):
         """
         # First get the forecast grid endpoint
         zone_url = await api.get_zone_by_points(latitude, longitude)
-        
+
         if not zone_url.has_content():
             return zone_url.error or "Unknown error while fetching zone"
-            
 
         # Get the forecast URL from the points response
-        response = await api.get_forecast_API(zone_url.data) # type: ignore
+        response = await api.get_forecast_API(zone_url.data)  # type: ignore
         if not response.has_content():
-            return response.error or "Unknown error while retreiving forecast"
-        
-        
-        periods = response.data.get("properties", {}).get("periods") # type: ignore
+            return response.error or "Unknown error while retrieving forecast"
+
+        periods = response.data.get("properties", {}).get("periods")  # type: ignore
+        if not periods:
+            return "No forecast periods available"
+
         forecasts = []
         for period in periods[:5]:  # Only show next 5 periods
             forecast = f"""
@@ -58,8 +51,5 @@ def register(mcp: FastMCP):
     Forecast: {period["detailedForecast"]}
     """
             forecasts.append(forecast)
-        
 
         return "\n---\n".join(forecasts)
-
-
