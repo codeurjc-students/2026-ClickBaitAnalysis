@@ -22,11 +22,21 @@ async def test_alert_exists(fake_alert):
             return_value=Response(200, json={"features": [fake_alert]})
         )
         
-        # Llamas a tu código normalmente
         api = WeatherAPI()
         result = await api.get_alerts_API("CA")
-        # print(result)
         
-        # Verificas
         assert result.success
         assert "Flood Warning" in result.data
+        
+        
+@pytest.mark.asyncio
+async def test_alerts_empty_features():
+    with respx.mock:
+        respx.get("https://api.weather.gov/alerts/active/area/CA").mock(
+            return_value=Response(200, json={"features": []})
+        )
+        
+        api = WeatherAPI()
+        result = await api.get_alerts_API("CA")
+        
+        assert "No active alerts for this state." in result.data
