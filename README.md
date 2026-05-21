@@ -144,7 +144,7 @@ Se instalaron pytest, pytest-asyncio y pytest-cov como dependencias de desarroll
 
 #### 1.6 — E1-10 · Tests unitarios para weather tools (en progreso)
 
-Se añadió `respx` para mockear llamadas HTTP en tests. Tests implementados para `get_alerts_API` (respuesta válida, vacía y error HTTP) y test de respuesta válida para `get_forecast` (mockeo de dos llamadas encadenadas). Durante el testing se descubrió y corrigió un bug en `get_zone_by_points` donde faltaba `/` en la URL construida. Se añadió validación de periods vacíos en `tool.py` mientras se intentaba hacer su test correspondiente, pero se ha aplazado al depender de tool y no client. Pendientes: tests de error de red para `get_forecast`.
+Se añadió `respx` para mockear llamadas HTTP en tests. Tests implementados para `get_alerts_API` (respuesta válida, vacía y error HTTP) y para `get_forecast` (respuesta válida con mockeo de dos llamadas encadenadas, error HTTP en `get_zone_by_points` y error HTTP en `get_forecast_API`). Durante el testing se descubrió y corrigió un bug en `get_zone_by_points` donde faltaba `/` en la URL construida. Se añadió validación de periods vacíos en `tool.py`, cuyo test queda pendiente al depender de la capa tool y no client.
 
 ### Decisiones de diseño relevantes
 

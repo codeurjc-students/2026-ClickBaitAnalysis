@@ -97,8 +97,6 @@ async def test_alerts_bad_response():
 
         api = WeatherAPI()
         result = await api.get_alerts_API("CA")
-        # print()
-        # print(result.error)
         assert not result.success
         assert "500" in result.error
 
@@ -126,7 +124,6 @@ async def test_get_forecast(fake_forecast_periods):
         api = WeatherAPI()
         zone_url = await api.get_zone_by_points(40.7128, -74.006)
 
-        print(zone_url)
         response = await api.get_forecast_API(zone_url.data)
 
         assert zone_url.success
@@ -135,3 +132,47 @@ async def test_get_forecast(fake_forecast_periods):
         assert response.success
         assert response.data is not None
         assert "periods" in response.data.get("properties", {})
+
+
+@pytest.mark.asyncio
+async def test_get_zone_by_points_bad_response():
+    with respx.mock:
+        respx.get("https://api.weather.gov/points/40.7128,-74.006").mock(
+            return_value=Response(500)
+        )
+
+        api = WeatherAPI()
+        zone_url = await api.get_zone_by_points(40.7128, -74.006)
+        assert not zone_url.success
+        assert "Unable to find requested zone" in zone_url.error
+
+
+@pytest.mark.asyncio
+async def test_get_forecast_API_bad_response():
+    with respx.mock:
+        respx.get("https://api.weather.gov/points/40.7128,-74.006").mock(
+            return_value=Response(
+                200,
+                json={
+                    "properties": {
+                        "forecast": "https://api.weather.gov/gridpoints/OKX/33,42/forecast",
+                    }
+                },
+            )
+        )
+
+        respx.get("https://api.weather.gov/gridpoints/OKX/33,42/forecast").mock(
+            return_value=Response(500)
+        )
+
+        api = WeatherAPI()
+        zone_url = await api.get_zone_by_points(40.7128, -74.006)
+
+        response = await api.get_forecast_API(zone_url.data)
+
+        assert zone_url.success
+        assert "gridpoints" in zone_url.data
+
+        assert not response.success
+        assert not response.data
+        assert "Unable to fetch detailed forecast" in response.error
