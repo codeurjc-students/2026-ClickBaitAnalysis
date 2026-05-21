@@ -36,9 +36,12 @@ def register(mcp: FastMCP):
         # Get the forecast URL from the points response
         response = await api.get_forecast_API(zone_url.data)  # type: ignore
         if not response.has_content():
-            return response.error or "Unknown error while retreiving forecast"
+            return response.error or "Unknown error while retrieving forecast"
 
         periods = response.data.get("properties", {}).get("periods")  # type: ignore
+        if not periods:
+            return "No forecast periods available"
+
         forecasts = []
         for period in periods[:5]:  # Only show next 5 periods
             forecast = f"""
