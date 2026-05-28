@@ -19,6 +19,7 @@ mcp = FastMCP("tfg-mcp-server")
 
 weather_tool.register(mcp)
 news_tool.register(mcp)
+health.register(mcp)
 
 
 def main():
