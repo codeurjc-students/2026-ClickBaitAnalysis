@@ -1,0 +1,109 @@
+from datetime import date, timedelta
+
+from backend.integrations.news.client import GuardianAPI
+import respx
+import pytest
+from httpx import Response
+
+# TODO: Better tests organizations and integration tests.
+
+
+@pytest.fixture
+def fake_payload():
+    return {
+        "webTitle": "‘We’re expanding the cinematic toolbox’: AI fault lines on show at Cannes",
+        "webUrl": "https://www.theguardian.com/technology/2026/may/24/cinematic-toolbox-ai-fault-lines-cannes",
+        "webPublicationDate": "2026-05-24T05:00:48Z",
+    }
+
+
+@pytest.fixture
+def fake_forecast_periods():
+    return [
+        {
+            "number": 1,
+            "name": "This Afternoon",
+            "startTime": "2026-05-21T12:00:00-04:00",
+            "endTime": "2026-05-21T18:00:00-04:00",
+            "isDaytime": True,
+            "temperature": 63,
+            "temperatureUnit": "F",
+            "temperatureTrend": None,
+            "probabilityOfPrecipitation": {
+                "unitCode": "wmoUnit:percent",
+                "value": 92,
+            },
+            "windSpeed": "7 to 10 mph",
+            "windDirection": "NE",
+            "icon": "https://api.weather.gov/icons/land/day/rain,90?size=medium",
+            "shortForecast": "Light Rain",
+            "detailedForecast": "Rain. Cloudy, with a high near 63. Northeast wind 7 to 10 mph. Chance of precipitation is 90%. New rainfall amounts between a tenth and quarter of an inch possible.",
+        },
+        {
+            "number": 2,
+            "name": "Tonight",
+            "startTime": "2026-05-21T18:00:00-04:00",
+            "endTime": "2026-05-22T06:00:00-04:00",
+            "isDaytime": False,
+            "temperature": 54,
+            "temperatureUnit": "F",
+            "temperatureTrend": None,
+            "probabilityOfPrecipitation": {
+                "unitCode": "wmoUnit:percent",
+                "value": 27,
+            },
+            "windSpeed": "2 to 9 mph",
+            "windDirection": "E",
+            "icon": "https://api.weather.gov/icons/land/night/rain,30/bkn?size=medium",
+            "shortForecast": "Chance Light Rain then Mostly Cloudy",
+            "detailedForecast": "A chance of rain before 8pm. Mostly cloudy. Low around 54, with temperatures rising to around 57 overnight. East wind 2 to 9 mph. Chance of precipitation is 30%.",
+        },
+    ]
+
+
+@pytest.mark.asyncio
+async def test_article_valid_response(fake_payload):
+
+    with respx.mock:
+        respx.get("https://content.guardianapis.com/search").mock(
+            return_value=Response(200, json={"response": {"results": [fake_payload]}})
+        )
+
+        api = GuardianAPI()
+        result = await api.get_news_this_week_call("technology")
+
+        assert result.success
+        assert len(result.data) == 1
+        assert result.success
+        assert len(result.data) == 1
+        assert result.data[0]["title"] == fake_payload["webTitle"]
+        assert result.data[0]["url"] == fake_payload["webUrl"]
+        assert result.data[0]["date"] == fake_payload["webPublicationDate"]
+
+
+@pytest.mark.asyncio
+async def test_article_no_results():
+    with respx.mock:
+        respx.get("https://content.guardianapis.com/search").mock(
+            return_value=Response(200, json={"response": {"results": []}})
+        )
+
+        api = GuardianAPI()
+        result = await api.get_news_this_week_call("asdfghjkl")
+
+        assert not result.success
+        assert "No articles found" in result.error
+
+
+@pytest.mark.asyncio
+async def test_article_missing_results_key():
+    with respx.mock:
+        respx.get("https://content.guardianapis.com/search").mock(
+            return_value=Response(200, json={"response": {}})
+        )
+
+        api = GuardianAPI()
+        result = await api.get_news_this_week_call("anything")
+
+        assert not result.success
+        assert "No articles found" in result.error
