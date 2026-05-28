@@ -4,6 +4,7 @@ Servidor MCP principal.
 
 from backend.core.logging import configure_logging
 import structlog
+from backend.core import health
 
 
 from mcp.server.fastmcp import FastMCP
@@ -15,6 +16,7 @@ log = structlog.get_logger()
 mcp = FastMCP("tfg-mcp-server")
 
 # TODO: Implementar register dinámico
+
 weather_tool.register(mcp)
 news_tool.register(mcp)
 
