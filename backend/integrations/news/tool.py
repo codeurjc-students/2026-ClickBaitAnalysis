@@ -7,6 +7,8 @@ News API for The Guardian
 import json
 
 from mcp.server.fastmcp import FastMCP
+
+from backend.core.observability import log_tool_invocation
 from backend.integrations.news.client import GuardianAPI
 from backend.core.models import ToolResult
 
@@ -14,10 +16,11 @@ from backend.core.models import ToolResult
 #TODO: Implementar validador? Acaso hay campos cerrados
 #TODO: Esta tool podría inferir! (Preguntar que temas quiere)
 def register(mcp: FastMCP):
-    
+
     api = GuardianAPI()
-    
+
     @mcp.tool()
+    @log_tool_invocation
     async def get_news_this_week(topic: str) -> str:
         
         """Get latest news.
