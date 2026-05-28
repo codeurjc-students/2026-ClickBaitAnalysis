@@ -14,7 +14,9 @@ def configure_logging():
         structlog.processors.add_log_level,
         structlog.processors.TimeStamper(fmt="iso", utc=True),
     ]
-
+    logging.getLogger("httpx").setLevel(
+        logging.WARNING
+    )  # Evita Filtraciones de API KEY por logs.
     if settings.log_format == "console":
         renderer = structlog.dev.ConsoleRenderer()
     elif settings.log_format == "json":
