@@ -1,5 +1,3 @@
-from datetime import date, timedelta
-
 from backend.integrations.nyt.client import NYTAPI
 import respx
 import pytest
@@ -35,29 +33,43 @@ async def test_search_articles_valid_response(fake_payload):
         assert result.data[0]["date"] == fake_payload["pub_date"]
 
 
-# @pytest.mark.asyncio
-# async def test_article_no_results():
-#     with respx.mock:
-#         respx.get("https://content.guardianapis.com/search").mock(
-#             return_value=Response(200, json={"response": {"results": []}})
-#         )
+@pytest.mark.asyncio
+async def test_search_articles_no_results():
+    with respx.mock:
+        respx.get(f"{NYTAPI.BASE_URL}articlesearch.json").mock(
+            return_value=Response(200, json={"response": {"docs": []}})
+        )
 
-#         api = GuardianAPI()
-#         result = await api.get_news_this_week_call("asdfghjkl")
+        api = NYTAPI()
+        result = await api.search_articles("anything")
 
-#         assert not result.success
-#         assert "No articles found" in result.error
+        assert not result.success
+        assert "No articles found" in result.error
 
 
-# @pytest.mark.asyncio
-# async def test_article_missing_results_key():
-#     with respx.mock:
-#         respx.get("https://content.guardianapis.com/search").mock(
-#             return_value=Response(200, json={"response": {}})
-#         )
+@pytest.mark.asyncio
+async def test_search_articles_missing_docs_key():
+    with respx.mock:
+        respx.get(f"{NYTAPI.BASE_URL}articlesearch.json").mock(
+            return_value=Response(200, json={"response": {}})
+        )
 
-#         api = GuardianAPI()
-#         result = await api.get_news_this_week_call("anything")
+        api = NYTAPI()
+        result = await api.search_articles("anything")
 
-#         assert not result.success
-#         assert "No articles found" in result.error
+        assert not result.success
+        assert "No articles found" in result.error
+
+
+@pytest.mark.asyncio
+async def test_search_articles_http_error():
+    with respx.mock:
+        respx.get(f"{NYTAPI.BASE_URL}articlesearch.json").mock(
+            return_value=Response(500, json={"response": {}})
+        )
+
+        api = NYTAPI()
+        result = await api.search_articles("anything")
+
+        assert not result.success
+        assert "No articles found" in result.error
