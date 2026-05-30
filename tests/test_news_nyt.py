@@ -73,3 +73,30 @@ async def test_search_articles_http_error():
 
         assert not result.success
         assert "No articles found" in result.error
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_search_articles_valid_use():
+
+    api = NYTAPI()
+    result = await api.search_articles("technology")
+
+    assert result.success
+    # print(result.data)
+    assert result.data[0]["title"] is not None
+    assert result.data[0]["url"] is not None
+    assert result.data[0]["date"] is not None
+
+
+# WARNING!!!!
+# COMPROBAR MANUALMENTE QUE EL TEMA SELECCIONADO NO EXISTE Y NO DEVUELVE RESULTADOS
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_search_articles_invalid_topic():
+
+    api = NYTAPI()
+    result = await api.search_articles("nonexistingtopicabcde")
+    # print(result.data)
+    assert not result.success
+    assert result.error
