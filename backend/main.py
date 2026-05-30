@@ -11,6 +11,7 @@ from mcp.server.fastmcp import FastMCP
 
 from backend.integrations.news import tool as news_tool
 from backend.integrations.weather import tool as weather_tool
+from backend.integrations.nyt import tool as nyt_tool
 
 log = structlog.get_logger()
 mcp = FastMCP("tfg-mcp-server")
@@ -20,8 +21,10 @@ mcp = FastMCP("tfg-mcp-server")
 weather_tool.register(mcp)
 news_tool.register(mcp)
 health.register(mcp)
+nyt_tool.register(mcp)
 
 
+# TODO: Start más descriptivo
 def main():
     # Initialize and run the server
     configure_logging()
