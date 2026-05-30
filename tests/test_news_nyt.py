@@ -100,3 +100,4 @@ async def test_search_articles_invalid_topic():
     # print(result.data)
     assert not result.success
     assert result.error
+    assert "No articles found" in result.error
