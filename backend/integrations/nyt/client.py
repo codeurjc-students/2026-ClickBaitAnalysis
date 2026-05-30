@@ -65,3 +65,19 @@ class NYTAPI(BaseAPI):
         ]
 
         return ToolResult.ok(articles)
+
+
+# {
+#   "response": {
+#     "docs": [
+#       {
+#         "web_url": "https://...",
+#         "headline": {"main": "Title"},
+#         "pub_date": "2026-05-28T10:30:00+0000",
+#         "section_name": "Technology",
+#         "byline": {"original": "By X"}
+#       }
+#     ],
+#     "meta": {"hits": 1234}
+#   }
+# }
