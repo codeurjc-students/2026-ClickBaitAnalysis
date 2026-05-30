@@ -14,6 +14,7 @@ class Settings(BaseSettings):
     log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR"] = "INFO"
     log_format: Literal["console", "json"] = "console"
     guardian_api_key: str  # PS mapea automáticamente
+    nyt_api_key: str
 
 
 settings = Settings()  # type: ignore #Activa la validación al importar
