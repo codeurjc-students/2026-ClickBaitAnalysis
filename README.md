@@ -272,9 +272,9 @@ Se añade `backend/integrations/nyt/tool.py` con la función `register(mcp)`, si
 - `test_search_articles_valid_use` — drift detection del schema: con la API key real, asserta que cada artículo de la respuesta contiene `title`, `url` y `date`. Si NYT renombra o anida distinto algún campo, el test falla y se entera el dev.
 - `test_search_articles_invalid_topic` — topic improbable (`"nonexistingtopicabcde"`) que actualmente no devuelve resultados; asserta `not result.success` y `"No articles found" in result.error`, conectando el contrato del cliente con el string que finalmente recibe el LLM. **Aceptado como potencialmente flaky** (algún día puede aparecer un artículo con ese topic); documentado en el propio archivo como warning.
 
+#### 2.4 — E1-13 · Tests de integración para Guardian (cierre de asimetría)
 
-AÑADIDO TAMBIEN TESTS DE INTEGRACIÓN PARA GUARDIAN API
-
+Como follow-up de E2-03 se replicó el patrón mixto unit + integration en `tests/test_news_guardian.py`, que hasta entonces solo tenía cobertura con mocks. Cierra la asimetría: ahora las dos integraciones de noticias (Guardian y NYT) tienen el mismo nivel de cobertura, incluyendo drift detection del contrato real con la API.
 
 ### Decisiones de diseño relevantes
 
@@ -282,3 +282,41 @@ AÑADIDO TAMBIEN TESTS DE INTEGRACIÓN PARA GUARDIAN API
 |---|---|
 | Schema común `{title, url, date}` entre Guardian y NYT | Permite que la futura tool MCP (E2-02) y el analizador NLP (E3) consuman datos sin ramificar lógica por fuente |
 | Hereda de `BaseAPI` igual que Guardian/Weather | Reutiliza la inyección automática de `api-key`, manejo uniforme de timeout y errores HTTP; cualquier mejora futura en `BaseAPI` aplica a las tres integraciones |
+
+---
+
+## Refactor transversal de coherencia (post-MVP)
+
+Tras cerrar E2, un repaso del proyecto destapó deuda e inconsistencias acumuladas entre épicas. Se abordaron en un PR de refactor (sin nueva funcionalidad de producto), agrupadas por tema.
+
+### Health check dinámico (+ NYT)
+
+`backend/core/health.py` tenía una función `_probe_*` por integración (`_probe_weather`, `_probe_guardian`) con estructura `try/except/raise_for_status` **idéntica** — repetición real. Se extrajo un único `_probe(url, params)` genérico y las integraciones se declaran como **datos** en un diccionario `PROBES`. Beneficio doble: añadir una API = una entrada (no más funciones), y **NYT entró de paso** (el health check ignoraba NYT pese a ser la tercera integración — incoherencia heredada de cuando se diseñó E1-08, antes de que NYT existiera). Los integration tests pasaron a `@pytest.mark.parametrize` sobre `PROBES`, generándose uno por integración automáticamente.
+
+Se distinguió esta repetición **real** de la **aparente** del registro de tools en `main.py`: ahí cada `*.register(mcp)` invoca módulos distintos sin patrón que extraer, así que el "register dinámico" se descartó (YAGNI) — explícito es más legible que un loop o autodescubrimiento mágico con `importlib`.
+
+### `topic` opcional + `days` configurable en clientes y tools
+
+Los clientes de noticias tenían `topic` obligatorio y rango temporal fijo (7 días hardcodeado). Se hizo `topic: str | None = None` (si se omite, devuelve lo más reciente sin filtrar) y `days: int = 7` configurable. Los params se construyen condicionalmente: la clave `q` solo se envía si hay `topic`.
+
+Decisión clave de **frontera de confianza**: al exponer `days` también en las tools (para que el usuario final pueda pedir rangos vía el LLM), `days` pasó de input interno a input **no confiable** del LLM. Por eso se validó **en la tool** con `pydantic.Field(ge=1, le=30)` — el rango aparece en el schema que ve el LLM y FastMCP rechaza valores fuera de rango antes de ejecutar. El cliente no revalida: la frontera ya filtró.
+
+### Rename por coherencia
+
+`get_news_this_week_call` (cliente Guardian) pasó a `search_articles`, idéntico a NYT — ambos clientes exponen ahora la misma interfaz, reforzando el schema común. La tool `get_news_this_week` pasó a `get_guardian_news`, simétrica con `get_nyt_news` y nombrando la fuente para que el LLM desambigüe mejor. El nombre viejo (`this_week`) además se había vuelto engañoso al hacer `days` configurable.
+
+### Limpieza
+
+- Eliminado `tests/simple_test.py` (código muerto de E0: importaba de `backend.api.the_guardian_api`, ruta que desapareció en la migración E1-03; pytest no lo recogía por no matchear `test_*.py`).
+- `tests/test_logging.py` y `tests/test_observability.py` leían `capsys` desde **stdout**, pero desde el fix de stderr de E1-08 los logs salen por **stderr**. Tests desincronizados (latentes hasta correrlos juntos): se corrigieron a `captured.err`. Ahora además verifican que los logs van a stderr, justo lo que el protocolo MCP stdio exige.
+- Start del servidor más descriptivo: el log `server.start` incluye ahora `log_level` y `log_format` (QoL para diagnóstico al arrancar).
+- Imports muertos (`Optional`, `ToolResult` sin usar), `f""` sin interpolación y TODOs vagos eliminados.
+
+### Decisiones de diseño relevantes
+
+| Decisión | Motivo |
+|---|---|
+| `_probe` genérico + dict `PROBES` (health) | Repetición real entre probes; añadir integración = una entrada de datos. Distinto del register de `main.py`, donde la repetición es aparente y explícito gana |
+| Validar `days` con `Field` en la tool, no en el cliente | La frontera de confianza está en la tool (input del LLM); validar una vez en el borde, el cliente confía en lo que recibe |
+| `topic` opcional construyendo params condicionalmente | Evita enviar `q=None` a la API; permite el caso "titulares recientes sin tema" |
+| Rename a `search_articles` / `get_guardian_news` | Interfaz idéntica entre clientes y tools simétricas que nombran la fuente; el nombre viejo era engañoso con `days` configurable |
