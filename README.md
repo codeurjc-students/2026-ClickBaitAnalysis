@@ -273,6 +273,9 @@ Se añade `backend/integrations/nyt/tool.py` con la función `register(mcp)`, si
 - `test_search_articles_invalid_topic` — topic improbable (`"nonexistingtopicabcde"`) que actualmente no devuelve resultados; asserta `not result.success` y `"No articles found" in result.error`, conectando el contrato del cliente con el string que finalmente recibe el LLM. **Aceptado como potencialmente flaky** (algún día puede aparecer un artículo con ese topic); documentado en el propio archivo como warning.
 
 
+AÑADIDO TAMBIEN TESTS DE INTEGRACIÓN PARA GUARDIAN API
+
+
 ### Decisiones de diseño relevantes
 
 | Decisión | Motivo |

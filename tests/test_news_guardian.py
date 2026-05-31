@@ -107,3 +107,31 @@ async def test_article_missing_results_key():
 
         assert not result.success
         assert "No articles found" in result.error
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_get_news_real_schema_contract():
+
+    api = GuardianAPI()
+    result = await api.get_news_this_week_call("technology")
+
+    assert result.success
+    # print(result.data)
+    assert result.data[0]["title"] is not None
+    assert result.data[0]["url"] is not None
+    assert result.data[0]["date"] is not None
+
+
+# WARNING!!!!
+# COMPROBAR MANUALMENTE QUE EL TEMA SELECCIONADO NO EXISTE Y NO DEVUELVE RESULTADOS
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_get_news_invalid_topic():
+
+    api = GuardianAPI()
+    result = await api.get_news_this_week_call("nonexistingtopicabcde")
+    # print(result.data)
+    assert not result.success
+    assert result.error
+    assert "No articles found" in result.error
