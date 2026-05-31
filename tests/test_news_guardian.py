@@ -70,7 +70,7 @@ async def test_article_valid_response(fake_payload):
         )
 
         api = GuardianAPI()
-        result = await api.get_news_this_week_call("technology")
+        result = await api.search_articles("technology")
 
         assert result.success
         assert len(result.data) == 1
@@ -89,7 +89,7 @@ async def test_article_no_results():
         )
 
         api = GuardianAPI()
-        result = await api.get_news_this_week_call("asdfghjkl")
+        result = await api.search_articles("asdfghjkl")
 
         assert not result.success
         assert "No articles found" in result.error
@@ -103,7 +103,7 @@ async def test_article_missing_results_key():
         )
 
         api = GuardianAPI()
-        result = await api.get_news_this_week_call("anything")
+        result = await api.search_articles("anything")
 
         assert not result.success
         assert "No articles found" in result.error
@@ -114,7 +114,7 @@ async def test_article_missing_results_key():
 async def test_get_news_real_schema_contract():
 
     api = GuardianAPI()
-    result = await api.get_news_this_week_call("technology")
+    result = await api.search_articles("technology")
 
     assert result.success
     # print(result.data)
@@ -130,7 +130,7 @@ async def test_get_news_real_schema_contract():
 async def test_get_news_invalid_topic():
 
     api = GuardianAPI()
-    result = await api.get_news_this_week_call("nonexistingtopicabcde")
+    result = await api.search_articles("nonexistingtopicabcde")
     # print(result.data)
     assert not result.success
     assert result.error

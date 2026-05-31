@@ -2,35 +2,38 @@
 News API for The Guardian
 """
 
-
-
 import json
 
 from mcp.server.fastmcp import FastMCP
+from pydantic import Field
 
 from backend.core.observability import log_tool_invocation
 from backend.integrations.news.client import GuardianAPI
-from backend.core.models import ToolResult
 
 
-#TODO: Implementar validador? Acaso hay campos cerrados
-#TODO: Esta tool podría inferir! (Preguntar que temas quiere)
 def register(mcp: FastMCP):
 
     api = GuardianAPI()
 
     @mcp.tool()
     @log_tool_invocation
-    async def get_news_this_week(topic: str) -> str:
-        
-        """Get latest news.
+    async def get_guardian_news(
+        topic: str | None = None,
+        days: int = Field(
+            default=7, ge=1, le=30, description="Días hacia atrás desde hoy (1-30)."
+        ),
+    ) -> str:
+        """Busca noticias de The Guardian. Se puede indicar de hace cuantos días buscar(por defecto, última semana)
 
         Args:
-            topic: the topic to search for
+            topic (str, Optional): keyword(s) sobre los que buscar artículos (ej. "AI", "elecciones", "climate change").
+            days (int, Optional): número de días que se incluyen en la busqueda desde hoy (Default = 7)
+
+        Returns:
+            JSON serializado con lista de artículos {title, url, date}, o un mensaje de error
+            si no hay resultados o la API falla
         """
-        response = await api.get_news_this_week_call(topic)
+        response = await api.search_articles(topic, days)
         if not response.has_content():
             return response.error or "Error fetching news"
         return json.dumps(response.data)
-        
-        
