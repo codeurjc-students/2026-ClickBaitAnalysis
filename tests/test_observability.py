@@ -20,7 +20,7 @@ async def test_log_tool_invocation_logs_success(monkeypatch, capsys):
     assert result == "alerts for CA"
 
     captured = capsys.readouterr()
-    payload = json.loads(captured.out)
+    payload = json.loads(captured.err)
 
     assert payload["event"] == "tool.invoke"
     assert payload["tool"] == "fake_tool"
@@ -46,7 +46,7 @@ async def test_log_tool_invocation_logs_failure(monkeypatch, capsys):
 
     captured = capsys.readouterr()
 
-    payload = json.loads(captured.out)
+    payload = json.loads(captured.err)
     # print(payload)
     assert payload["event"] == "tool.invoke.failed"
     assert payload["tool"] == "failing_tool"

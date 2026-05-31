@@ -14,19 +14,25 @@ class NYTAPI(BaseAPI):
     API_KEY = settings.nyt_api_key  # Key ya validada
     API_KEY_PARAM = "api-key"
 
-    async def search_articles(self, topic: str) -> ToolResult:
-        """Buscar artículos del NYT de la última semana por topic.
+    async def search_articles(
+        self, topic: str | None = None, days: int = 7
+    ) -> ToolResult:
+        """Buscar artículos del NYT.
 
 
         Llama a Article Search API (https://developer.nytimes.com/docs/articlesearch-product/1/overview).
 
 
         Args:
-            topic (str): keyword(s) de búsqueda libre (param `q`).
+            topic (str, optional): keyword(s) de búsqueda libre. Si se omite, devuelve
+                los artículos más recientes sin filtrar por tema. Defaults to None.
+
+            days (int, optional): número de días hacia atrás desde hoy para acotar la
+                búsqueda. Defaults to 7.
 
         Params enviados:
-            - q: <topic>
-            - begin_date: YYYYMMDD (hoy menos 7 días) #TODO: Configurar fecha dinámica (dejar semana por defecto)
+            - q: <topic> CONDICIONAL!
+            - begin_date: YYYYMMDD
             - sort: newest
 
         Respuesta de llamada a endpoint (campos consumidos):
@@ -39,8 +45,10 @@ class NYTAPI(BaseAPI):
             ToolResult.fail("No articles found") si docs está vacío o ausente.
         """
         today = date.today()
-        new_date = (today - timedelta(days=7)).strftime("%Y%m%d")  # Formato YYYYMMDD
-        params = {"q": topic, "begin_date": new_date, "sort": "newest"}
+        new_date = (today - timedelta(days=days)).strftime("%Y%m%d")  # Formato YYYYMMDD
+        params = {"begin_date": new_date, "sort": "newest"}
+        if topic:
+            params["q"] = topic
 
         endpoint = "articlesearch.json"
         response = await self.make_request(endpoint, "get", params)
@@ -55,9 +63,8 @@ class NYTAPI(BaseAPI):
 
         articles = [
             {
-                "title": article.get("headline", {}).get(
-                    "main"
-                ),  # De nuevo, sin {}, el primer get devuelve none y ahí no se puede hacer get.
+                "title": article.get("headline", {}).get("main"),
+                # De nuevo, sin {}, el primer get devuelve none y ahí no se puede hacer get.
                 "url": article.get("web_url"),
                 "date": article.get("pub_date"),
             }
@@ -65,19 +72,3 @@ class NYTAPI(BaseAPI):
         ]
 
         return ToolResult.ok(articles)
-
-
-# {
-#   "response": {
-#     "docs": [
-#       {
-#         "web_url": "https://...",
-#         "headline": {"main": "Title"},
-#         "pub_date": "2026-05-28T10:30:00+0000",
-#         "section_name": "Technology",
-#         "byline": {"original": "By X"}
-#       }
-#     ],
-#     "meta": {"hits": 1234}
-#   }
-# }

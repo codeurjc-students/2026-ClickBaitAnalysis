@@ -10,27 +10,27 @@ from backend.core.observability import log_tool_invocation
 
 PROBE_TIMEOUT = 5
 
+PROBES = {
+    "weather": {
+        "url": "https://api.weather.gov/",
+    },
+    "guardian": {
+        "url": "https://content.guardianapis.com/search",
+        "params": {"page-size": 1, "api-key": settings.guardian_api_key},
+    },
+    "nyt": {
+        "url": "https://api.nytimes.com/svc/search/v2/articlesearch.json",
+        "params": {"api-key": settings.nyt_api_key},
+    },
+}
 
-async def _probe_weather() -> dict:
-    """Probe weather.gov homepage (no auth required)."""
+
+async def _probe(url: str, params: dict | None = None) -> dict:
+    """Hace una petición ligera a una API y reporta si responde correctamente."""
     try:
         async with httpx.AsyncClient(timeout=PROBE_TIMEOUT) as client:
-            response = await client.get("https://api.weather.gov/")
-            response.raise_for_status()  # EVita que se trate 500 como respuesta aceptable
-        return {"reachable": True, "error": None}
-    except httpx.HTTPError as exc:
-        return {"reachable": False, "error": str(exc)}
-
-
-async def _probe_guardian() -> dict:
-    """Probe Guardian search endpoint with the configured API key."""
-    try:
-        async with httpx.AsyncClient(timeout=PROBE_TIMEOUT) as client:
-            response = await client.get(
-                "https://content.guardianapis.com/search",
-                params={"page-size": 1, "api-key": settings.guardian_api_key},
-            )
-            response.raise_for_status()
+            response = await client.get(url, params=params)
+            response.raise_for_status()  # Evita tratar 4xx/5xx como respuesta aceptable
         return {"reachable": True, "error": None}
     except httpx.HTTPError as exc:
         return {"reachable": False, "error": str(exc)}
@@ -46,7 +46,6 @@ def _aggregate_status(integrations: dict) -> Literal["ok", "degraded", "down"]:
     return "degraded"
 
 
-# TODO: Estático, pasar a dinamico si se incorporan más APIs.
 def register(mcp: FastMCP):
     @mcp.tool()
     @log_tool_invocation
@@ -56,11 +55,8 @@ def register(mcp: FastMCP):
         Returns:
             dict: Diccionario con estado, timestamp e integraciones
         """
-        weather, guardian = await asyncio.gather(
-            _probe_weather(),
-            _probe_guardian(),
-        )
-        integrations = {"weather": weather, "guardian": guardian}
+        results = await asyncio.gather(*(_probe(**cfg) for cfg in PROBES.values()))
+        integrations = dict(zip(PROBES, results))
         return {
             "status": _aggregate_status(integrations),
             "timestamp": datetime.now(timezone.utc).isoformat(),

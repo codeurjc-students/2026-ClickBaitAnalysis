@@ -15,7 +15,7 @@ def test_logger_emits_structured_output_with_kwargs(monkeypatch, capsys):
     log.info("test", key="value")
 
     captured = capsys.readouterr()
-    payload = json.loads(captured.out)
+    payload = json.loads(captured.err)
 
     assert payload["event"] == "test"
     assert payload["key"] == "value"
