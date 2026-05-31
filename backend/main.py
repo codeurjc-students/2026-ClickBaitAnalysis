@@ -18,10 +18,13 @@ mcp = FastMCP("tfg-mcp-server")
 
 # TODO: Implementar register dinámico
 
+# APIS
 weather_tool.register(mcp)
 news_tool.register(mcp)
-health.register(mcp)
 nyt_tool.register(mcp)
+
+# Health check
+health.register(mcp)
 
 
 # TODO: Start más descriptivo
