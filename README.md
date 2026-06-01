@@ -329,3 +329,9 @@ Decisión clave de **frontera de confianza**: al exponer `days` también en las 
 
 Se añadió `.github/workflows/ci.yml`, un workflow que ejecuta la suite de tests en cada `pull_request` hacia `main` (y en `push` a `main`). El job configura Python 3.12, instala `requirements.txt` y corre `pytest -m "not integration"`. Es la red de seguridad que da sentido al esfuerzo de testing acumulado: un cambio que rompa el código se detecta en el PR, antes del merge.
 
+### E1-15 · Renombrar paquete `news/` → `guardian/`
+
+El paquete `backend/integrations/news/` contenía en realidad la integración de The Guardian, mientras NYT vivía en `backend/integrations/nyt/`: asimetría `news`=Guardian vs `nyt`=NYT. Se renombró a `backend/integrations/guardian/` para que el nombre del paquete refleje la fuente, igual que NYT. Cambios asociados: imports en `main.py` (incluido el alias `news_tool` → `guardian_tool`), el import interno de `guardian/tool.py`, y el test `tests/test_news_guardian.py` renombrado a `tests/test_guardian.py`. El movimiento se hizo preservando el historial git de los archivos.
+
+Fue el **primer PR validado por el CI de E1-14** antes del merge — estreno de la red de seguridad sobre un cambio mecánico pero con riesgo real de romper imports.
+
