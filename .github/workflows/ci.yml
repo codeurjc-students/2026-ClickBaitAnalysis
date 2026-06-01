@@ -1,0 +1,24 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+jobs:
+  test:
+    env: #Usar env para evadir fallo fail fast por falta de keys
+      GUARDIAN_API_KEY: dummy
+      NYT_API_KEY: dummy
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4 # usando organización actions por defecto
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip #Evita instalación en cada run
+      - name: Instalando dependencias...
+      - run: pip install -r requirements.txt
+      - name: Corriendo tests...
+      - run: pytest -m "not integration"
