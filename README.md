@@ -320,3 +320,12 @@ Decisión clave de **frontera de confianza**: al exponer `days` también en las 
 | Validar `days` con `Field` en la tool, no en el cliente | La frontera de confianza está en la tool (input del LLM); validar una vez en el borde, el cliente confía en lo que recibe |
 | `topic` opcional construyendo params condicionalmente | Evita enviar `q=None` a la API; permite el caso "titulares recientes sin tema" |
 | Rename a `search_articles` / `get_guardian_news` | Interfaz idéntica entre clientes y tools simétricas que nombran la fuente; el nombre viejo era engañoso con `days` configurable |
+
+---
+
+## Integración continua
+
+### E1-14 · CI con GitHub Actions
+
+Se añadió `.github/workflows/ci.yml`, un workflow que ejecuta la suite de tests en cada `pull_request` hacia `main` (y en `push` a `main`). El job configura Python 3.12, instala `requirements.txt` y corre `pytest -m "not integration"`. Es la red de seguridad que da sentido al esfuerzo de testing acumulado: un cambio que rompa el código se detecta en el PR, antes del merge.
+
