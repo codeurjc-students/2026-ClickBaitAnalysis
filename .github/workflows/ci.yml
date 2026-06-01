@@ -19,6 +19,6 @@ jobs:
           python-version: "3.12"
           cache: pip #Evita instalación en cada run
       - name: Instalando dependencias...
-      - run: pip install -r requirements.txt
+        run: pip install -r requirements.txt
       - name: Corriendo tests...
-      - run: pytest -m "not integration"
+        run: pytest -m "not integration"
