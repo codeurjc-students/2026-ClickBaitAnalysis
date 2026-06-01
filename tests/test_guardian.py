@@ -1,6 +1,6 @@
 from datetime import date, timedelta
 
-from backend.integrations.news.client import GuardianAPI
+from backend.integrations.guardian.client import GuardianAPI
 import respx
 import pytest
 from httpx import Response

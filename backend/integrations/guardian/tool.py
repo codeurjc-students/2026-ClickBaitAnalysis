@@ -8,7 +8,7 @@ from mcp.server.fastmcp import FastMCP
 from pydantic import Field
 
 from backend.core.observability import log_tool_invocation
-from backend.integrations.news.client import GuardianAPI
+from backend.integrations.guardian.client import GuardianAPI
 
 
 def register(mcp: FastMCP):
