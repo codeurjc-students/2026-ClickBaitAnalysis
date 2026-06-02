@@ -426,3 +426,14 @@ Tool `analyze_sentiment(text)` que **reutiliza `classify`** (es *text-classifica
 **Por qué `cardiffnlp` (3 vías) y no `distilbert` (binario):** en titulares de noticias el **neutral** es frecuente (enunciados factuales); forzarlos a *positive/negative* distorsiona. cardiffnlp clasifica en `positive` / `neutral` / `negative`. Verificado: *"The committee will meet on Tuesday"* → `neutral` (0.94). Ambos están servidos en remoto; `distilbert` quedaría como opción si se priorizara latencia.
 
 > **Fiabilidad:** la inferencia remota da *timeouts* puntuales (HF); el cliente ya los reporta como `ToolResult.fail("Request timed out.")`. El reintento queda como mejora futura.
+
+### E3-04 · Tests NLP
+
+`tests/test_nlp.py` con **respx** (mockeando el `POST` al router de HF), cubriendo las dos formas de respuesta:
+
+- **`classify`:** etiqueta ganadora `data[0][0]`; forma inesperada → `fail` (no excepción); HTTP `503` → propaga el error.
+- **`zero_shot`:** etiqueta ganadora `data[0]`, y que la petición incluye `parameters.candidate_labels`.
+- Que la petición lleva el header `Authorization: Bearer` (cubre `_apply_auth`).
+- **Integration** (marcados `@pytest.mark.integration`): llamadas reales a `classify` y `zero_shot` que validan el contrato `{label, score}`, fuera de la CI.
+
+Cierra la **Épica 3** (las 2 tools núcleo —clickbait y sentimiento— sobre el cliente HF, con tests).
