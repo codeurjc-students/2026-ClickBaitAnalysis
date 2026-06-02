@@ -12,6 +12,7 @@ from mcp.server.fastmcp import FastMCP
 from backend.integrations.guardian import tool as guardian_tool
 from backend.integrations.weather import tool as weather_tool
 from backend.integrations.nyt import tool as nyt_tool
+from backend.integrations.nlp import tool as nlp_tool
 
 log = structlog.get_logger()
 mcp = FastMCP("tfg-mcp-server")
@@ -21,6 +22,9 @@ mcp = FastMCP("tfg-mcp-server")
 weather_tool.register(mcp)
 guardian_tool.register(mcp)
 nyt_tool.register(mcp)
+
+# NLP
+nlp_tool.register(mcp)
 
 # Health check
 health.register(mcp)
