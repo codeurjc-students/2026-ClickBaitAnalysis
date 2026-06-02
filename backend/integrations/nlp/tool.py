@@ -40,3 +40,26 @@ def register(mcp: FastMCP):
         if not response.has_content():
             return response.error or "Error al analizar el titular"
         return json.dumps(response.data)
+
+    @mcp.tool()
+    @log_tool_invocation
+    async def analyze_sentiment(text: str) -> str:
+        """Analiza el sentimiento de un texto (p.ej. un titular de noticia).
+
+        Clasifica en tres clases: positive, neutral o negative (modelo en
+        inglés, afinado para texto corto). Útil para medir el tono.
+
+        Args:
+            text (str): texto a analizar (en inglés).
+
+        Returns:
+            JSON con la etiqueta ganadora y su confianza (0-1),
+            p.ej. {"label": "neutral", "score": 0.62}. Devuelve un mensaje
+            de error si la llamada al modelo falla.
+        """
+        response = await api.classify(
+            text, "cardiffnlp/twitter-roberta-base-sentiment-latest"
+        )
+        if not response.has_content():
+            return response.error or "Error al analizar el sentimiento"
+        return json.dumps(response.data)
