@@ -335,9 +335,43 @@ El paquete `backend/integrations/news/` contenía en realidad la integración de
 
 Fue el **primer PR validado por el CI de E1-14** antes del merge — estreno de la red de seguridad sobre un cambio mecánico pero con riesgo real de romper imports.
 
-## Épica 3 — NLP via HuggingFace (en planificación)
+## Épica 3 — NLP via HuggingFace
 
-> Estado: épica definida (issues #36–#39), implementación no iniciada. Esta sección recoge las decisiones de diseño previas a codificar.
+> **Estado:** E3-01 (cliente `HFClient`) ✅ mergeado (PR #40). E3-02 (detección de clickbait, zero-shot) en curso. E3-03 (sentimiento) y E3-04 (tests) pendientes.
+
+### Conceptos NLP (sin asumir experiencia previa)
+
+**1. Clasificar texto = ponerle una etiqueta.** Un clasificador recibe un texto (un titular) y le asigna una etiqueta de un conjunto, con un *score* de confianza (0–1). Ej.: clickbait → `{clickbait, no-clickbait}`.
+
+**2. Modelo *fine-tuned* específico** (lo que son `elozano` o `distilbert-sst2`). Se entrena con miles de ejemplos **ya etiquetados** de **una** tarea. La aprende muy bien, pero: sus etiquetas son **fijas**, necesitas un modelo por tarea, y —clave aquí— alguien tiene que tenerlo **desplegado** para usarlo por API. Los de clickbait no lo están en el serverless de HF.
+
+**3. *Zero-shot classification* = clasificar SIN haber entrenado para esas etiquetas.** Le pasas el texto **y** las etiquetas candidatas *en el momento de la consulta* (`["clickbait", "factual"]`) y el modelo puntúa cuánto encaja cada una. No fue entrenado para "clickbait"; razona sobre la marcha. Por eso puedes **cambiar las etiquetas sin reentrenar nada**.
+
+**4. ¿Cómo hace esa "magia"? Con NLI (*Natural Language Inference*).** NLI es una tarea clásica: dadas dos frases —una **premisa** y una **hipótesis**— decidir si la premisa **implica** (*entailment*), **contradice** o es **neutral** respecto a la hipótesis. Ej.: premisa *"El gato duerme en el sofá"* → hipótesis *"Hay un animal en el sofá"* = *entailment*.
+
+El truco del zero-shot es **reformular la clasificación como NLI**:
+- **Premisa** = el titular.
+- **Hipótesis** = una plantilla por etiqueta: *"Este texto es clickbait"*, *"Este texto es una noticia factual"*.
+- La probabilidad de *entailment* de cada hipótesis se usa como **score** de esa etiqueta; la de mayor *entailment* gana.
+
+Por eso los modelos zero-shot son en realidad modelos **entrenados en NLI**, como `facebook/bart-large-mnli` (entrenado en el dataset MNLI).
+
+**5. *Cross-encoder* vs *bi-encoder*.** Es **cómo** el modelo compara las dos frases:
+- **Cross-encoder:** mete premisa + hipótesis **juntas** en la misma pasada; las "lee" a la vez y da un score de relación. Muy **preciso**, pero **lento**: hay que reprocesar por cada par → con N etiquetas, N pasadas. Los `cross-encoder/nli-deberta-...` son esto.
+- **Bi-encoder:** codifica cada frase **por separado** en un vector y compara vectores. **Rápido** y reutilizable, pero menos preciso en juicios par-a-par.
+
+Para clasificar pocos titulares con pocas etiquetas, el coste de las N pasadas del cross-encoder es asumible y **ganas precisión**.
+
+**6. Ejemplo real** (zero-shot con `facebook/bart-large-mnli`, etiquetas `["clickbait", "factual news"]`):
+
+| Titular | `clickbait` | `factual news` |
+| :--- | :---: | :---: |
+| *"You will not believe what happened next"* | **0.79** | 0.21 |
+| *"Federal Reserve raises interest rates by a quarter point"* | 0.17 | **0.83** |
+
+Sin entrenar nada específico de clickbait, el modelo discrimina correctamente.
+
+> **Estado de diseño:** decisiones tomadas antes de codificar. La elección final de modelo de cada tarea se documenta en su iteración (E3-02 clickbait, E3-03 sentimiento).
 
 ### Evaluación de modelos candidatos
 
@@ -351,15 +385,36 @@ Para el análisis de los titulares en el servidor MCP se han evaluado las siguie
 | **Clickbait (Zero-Shot)** | `cross-encoder/nli-deberta-v3-small` | • Control total: permite definir tus propias etiquetas (ej. `["factual", "sensationalism"]`).<br>• Excelente capacidad de razonamiento lógico e inferencia. | • Requiere afinar empíricamente las etiquetas de entrada.<br>• Inferencia ligeramente más computacional al evaluar múltiples etiquetas. |
 | **Traducción (EN ➔ ES)** | `Helsinki-NLP/opus-mt-en-es` | • Ejecución 100% local y privada (sin costes de API externa).<br>• Extremadamente ligero (~300MB).<br>• Traducciones rápidas de oraciones cortas. | • Calidad ligeramente inferior a APIs comerciales (DeepL/OpenAI) en textos muy literarios.<br>• Añade un paso extra de procesamiento al pipeline del MCP. |
 
-#### Backend de inferencia: pendiente (remoto vs local)
+#### Backend de inferencia: remoto ahora, local pendiente
 
-Dónde se ejecutan estos modelos está **sin decidir**, a la espera de confirmar si hay infraestructura de cómputo disponible (p. ej. de la universidad):
+Para el MVP se ejecutan en **remoto**; el salto a **local** queda supeditado a si hay infraestructura de cómputo disponible (p. ej. de la universidad). Comparativa:
 
 - **Remoto — HF Inference API:** disponible ya, sin GPU propia. HF asume el cómputo; a cambio se paga en latencia de red, *rate limits* y dependencia de un token (`HF_TOKEN`). Encaja con `BaseAPI` (HTTP) extendiéndola a `POST` + header `Authorization: Bearer`.
 - **Local — `transformers`:** descarga los pesos y usa RAM/VRAM propias, pero da privacidad total y sin *rate limits*. No usa `BaseAPI`.
 
-**Decisión para no bloquear la épica:** el cliente NLP se programa contra una **interfaz estable** (`classify(text, model) → {label, score}`) y el backend se elige con un setting `nlp_backend: Literal["remote", "local"]`. Así las tools (`detect_clickbait`, `analyze_sentiment`) y sus tests dependen del *contrato*, no de la implementación: pasar de remoto a local más adelante es escribir otra implementación detrás de la misma interfaz, sin tocar las tools. Se empieza por **remoto**, que no depende de infraestructura externa.
+**Decisión para no bloquear la épica:** el cliente NLP se programa contra una **interfaz estable** (`classify` / `zero_shot` → `{label, score}`); las tools (`detect_clickbait`, `analyze_sentiment`) y sus tests dependen del *contrato*, no de la implementación: pasar de remoto a local más adelante es escribir otra implementación detrás de la misma interfaz, sin tocar las tools. Se empieza por **remoto**, que no depende de infraestructura externa. Un futuro selector `nlp_backend` (remoto/local) se añadirá **junto con** el backend local (hoy no lo leería nadie → aplazado, *YAGNI*).
 
 > **Sobre la tabla:** las ventajas/inconvenientes de **RAM/VRAM, "100% local" y tamaño en disco** solo aplican al backend local; en remoto ese coste lo absorbe HF. Los modelos son los mismos en ambos casos.
 
 > **Alcance:** la **traducción EN→ES** (`Helsinki-NLP/opus-mt-en-es`) es una capacidad candidata adicional, aún no comprometida en el MVP (las 2 tools núcleo son clickbait y sentimiento).
+
+### E3-01 · Cliente HuggingFace (`HFClient`) — realizado
+
+Primer cliente que rompe el patrón GET + api-key en query: HF exige **POST con body JSON** y **auth por header** `Authorization: Bearer`. Cambios:
+
+- **`Settings`:** nueva variable obligatoria `hf_token` (`HF_TOKEN` en `.env`), fail-fast.
+- **`BaseAPI`:** soporte de `POST` con body JSON, y auth delegada en un método sobreescribible `_apply_auth` (por defecto, api-key en query → Guardian/NYT intactos). La subclase decide *dónde* va la auth sin un solo `if` por tipo (polimorfismo).
+- **`HFClient(BaseAPI)`** (`backend/integrations/nlp/`): `classify(text, model)` hace POST y normaliza a `{label, score}` (clase ganadora) con parseo defensivo.
+- **CI:** `HF_TOKEN: dummy` añadido al workflow (la nueva key obligatoria rompería el fail-fast de `Settings` en CI).
+
+**Motivo del cambio de endpoint:** el endpoint clásico `api-inference.huggingface.co` está **deprecado** (ni resuelve DNS). Se migró al router del provider serverless: `https://router.huggingface.co/hf-inference/models/{model}`. *(De paso se detectó que WSL2 no tiene salida IPv6 — gotcha latente del entorno.)*
+
+### E3-02 · Detección de clickbait con zero-shot — decisión
+
+**Restricción descubierta probando:** el serverless `hf-inference` **no sirve ningún modelo de clickbait específico** — sondeados `elozano/bert-base-cased-clickbait-news`, `valurank/distilroberta-clickbait` y `Stremie/bert-base-uncased-clickbait-detection`, todos devuelven `400 "Model not supported by provider"`. El `cross-encoder/nli-deberta-v3-small` de la tabla **tampoco** está servido.
+
+Lo **único** viable para clickbait en remoto es **zero-shot vía `facebook/bart-large-mnli`** (confirmado servido; discrimina bien, ver ejemplo arriba).
+
+**Decisión:** zero-shot remoto con `bart-large-mnli` para el MVP. Definimos nosotros las etiquetas (`["clickbait", "factual"]`) y dejamos `elozano` (modelo dedicado, más preciso) como **mejora futura** en backend local, si llega la infra.
+
+**Implicación de código:** la respuesta zero-shot del router es una **lista plana** `[{label, score}, ...]` (ordenada), distinta del text-classification `[[...]]`. Por eso `classify` (que normaliza `data[0][0]`) **no sirve** tal cual: E3-02 añade una **variante `zero_shot(text, labels)`** que envía `parameters.candidate_labels` y normaliza `data[0]`.
