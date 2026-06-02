@@ -11,6 +11,7 @@ jobs:
     env: #Usar env para evadir fallo fail fast por falta de keys
       GUARDIAN_API_KEY: dummy
       NYT_API_KEY: dummy
+      HF_TOKEN: dummy
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4 # usando organización actions por defecto

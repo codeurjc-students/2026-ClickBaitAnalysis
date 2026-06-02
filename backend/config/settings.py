@@ -15,6 +15,7 @@ class Settings(BaseSettings):
     log_format: Literal["console", "json"] = "console"
     guardian_api_key: str  # PS mapea automáticamente
     nyt_api_key: str
+    hf_token: str
 
 
 settings = Settings()  # type: ignore #Activa la validación al importar
