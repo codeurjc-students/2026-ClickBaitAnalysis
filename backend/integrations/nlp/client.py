@@ -11,6 +11,13 @@ class HFClient(BaseAPI):
         headers["Authorization"] = f"Bearer {self.API_KEY}"
 
     async def classify(self, text: str, model: str) -> ToolResult:
-        return await self.make_request(
+        result = await self.make_request(
             endpoint=model, method="POST", json={"inputs": text}
         )
+
+        if not result.success:
+            return result
+        try:
+            return ToolResult.ok(result.data[0][0])
+        except (IndexError, KeyError, TypeError):
+            return ToolResult.fail(f"Respuesta inesperada de HF: {result.data}")
