@@ -335,3 +335,31 @@ El paquete `backend/integrations/news/` contenía en realidad la integración de
 
 Fue el **primer PR validado por el CI de E1-14** antes del merge — estreno de la red de seguridad sobre un cambio mecánico pero con riesgo real de romper imports.
 
+## Épica 3 — NLP via HuggingFace (en planificación)
+
+> Estado: épica definida (issues #36–#39), implementación no iniciada. Esta sección recoge las decisiones de diseño previas a codificar.
+
+### Evaluación de modelos candidatos
+
+Para el análisis de los titulares en el servidor MCP se han evaluado las siguientes opciones de modelos ligeros de Hugging Face, priorizando un balance entre baja latencia y precisión. Son **candidatos**: el modelo definitivo de cada tarea se fija en su issue (E3-02 clickbait, E3-03 sentimiento).
+
+| Categoría | Modelo (Hugging Face) | Ventajas (Pros) | Desventajas (Contras) |
+| :--- | :--- | :--- | :--- |
+| **Sentimiento (Inglés)** | `cardiffnlp/twitter-roberta-base-sentiment-latest` | • Excelente precisión con texto corto.<br>• Entiende matices periodísticos y sarcasmo.<br>• Clasificación en 3 vías (Positivo, Negativo, Neutral). | • Ligeramente más pesado en RAM/VRAM.<br>• Inferencia marginalmente más lenta que modelos destilados. |
+| **Sentimiento (Inglés)** | `distilbert/distilbert-base-uncased-finetuned-sst-2-english` | • Inferencia ultra-rápida (ideal para latencia crítica).<br>• Consumo mínimo de recursos (modelo *distilled*). | • Solo clasificación binaria (Positivo/Negativo, omite neutralidad).<br>• Menor capacidad para captar ironías complejas. |
+| **Clickbait (Específico)** | `elozano/bert-base-cased-clickbait-news` | • Solución "Plug & Play" (enchufar y listo).<br>• Entrenado específicamente con titulares de noticias. | • Difícil de ajustar (no puedes redefinir qué es "clickbait").<br>• Puede fallar con el clickbait sutil o "elegante" (ej. NYT). |
+| **Clickbait (Zero-Shot)** | `cross-encoder/nli-deberta-v3-small` | • Control total: permite definir tus propias etiquetas (ej. `["factual", "sensationalism"]`).<br>• Excelente capacidad de razonamiento lógico e inferencia. | • Requiere afinar empíricamente las etiquetas de entrada.<br>• Inferencia ligeramente más computacional al evaluar múltiples etiquetas. |
+| **Traducción (EN ➔ ES)** | `Helsinki-NLP/opus-mt-en-es` | • Ejecución 100% local y privada (sin costes de API externa).<br>• Extremadamente ligero (~300MB).<br>• Traducciones rápidas de oraciones cortas. | • Calidad ligeramente inferior a APIs comerciales (DeepL/OpenAI) en textos muy literarios.<br>• Añade un paso extra de procesamiento al pipeline del MCP. |
+
+#### Backend de inferencia: pendiente (remoto vs local)
+
+Dónde se ejecutan estos modelos está **sin decidir**, a la espera de confirmar si hay infraestructura de cómputo disponible (p. ej. de la universidad):
+
+- **Remoto — HF Inference API:** disponible ya, sin GPU propia. HF asume el cómputo; a cambio se paga en latencia de red, *rate limits* y dependencia de un token (`HF_TOKEN`). Encaja con `BaseAPI` (HTTP) extendiéndola a `POST` + header `Authorization: Bearer`.
+- **Local — `transformers`:** descarga los pesos y usa RAM/VRAM propias, pero da privacidad total y sin *rate limits*. No usa `BaseAPI`.
+
+**Decisión para no bloquear la épica:** el cliente NLP se programa contra una **interfaz estable** (`classify(text, model) → {label, score}`) y el backend se elige con un setting `nlp_backend: Literal["remote", "local"]`. Así las tools (`detect_clickbait`, `analyze_sentiment`) y sus tests dependen del *contrato*, no de la implementación: pasar de remoto a local más adelante es escribir otra implementación detrás de la misma interfaz, sin tocar las tools. Se empieza por **remoto**, que no depende de infraestructura externa.
+
+> **Sobre la tabla:** las ventajas/inconvenientes de **RAM/VRAM, "100% local" y tamaño en disco** solo aplican al backend local; en remoto ese coste lo absorbe HF. Los modelos son los mismos en ambos casos.
+
+> **Alcance:** la **traducción EN→ES** (`Helsinki-NLP/opus-mt-en-es`) es una capacidad candidata adicional, aún no comprometida en el MVP (las 2 tools núcleo son clickbait y sentimiento).
