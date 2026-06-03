@@ -2,7 +2,7 @@ import json
 
 import pytest
 import respx  # Usamos en vez de htttp, ya que no hacemos llamadas de verdad, mockeamos
-from httpx import Response
+from httpx import Response, TimeoutException
 
 from backend.integrations.nlp.client import HFClient
 
@@ -46,13 +46,16 @@ async def test_classify_unexpected_shape_returns_fail():
 async def test_classify_http_error_propagates():
     model = "some/model"
     with respx.mock:
-        respx.post(f"{MODELS_URL}{model}").mock(
-            return_value=Response(503, text="Model is currently loading")
+        route = respx.post(f"{MODELS_URL}{model}").mock(
+            return_value=Response(
+                500, text="Internal Server Error"
+            )  # 500 para no propagar
         )
         result = await HFClient().classify("text", model)
 
     assert not result.success
-    assert "503" in result.error
+    assert "500" in result.error
+    assert route.call_count == 1  # Solo se llama una vez (usar count en reintentos)
 
 
 # zero_shot
@@ -106,6 +109,67 @@ async def test_request_sends_bearer_header():
         await HFClient().classify("t", model)
 
     assert route.calls.last.request.headers["Authorization"].startswith("Bearer ")
+
+
+# retry: timeout y 503 se reintentan
+# RETRY_BACKOFF = 0 en la instancia solo `para tests`
+
+
+@pytest.mark.asyncio
+async def test_make_request_retries_on_503_then_succeeds():
+    # 503 luego 200
+    model = "facebook/bart-large-mnli"
+    with respx.mock:
+        route = respx.post(f"{MODELS_URL}{model}").mock(
+            side_effect=[  # Si pasa lista son side_effects, recorre en orden
+                Response(503, text="Model is currently loading"),
+                Response(200, json=[{"label": "clickbait", "score": 0.9}]),
+            ]
+        )
+        client = HFClient()
+        client.RETRY_BACKOFF = 0
+        result = await client.zero_shot("h", model, ["clickbait", "factual news"])
+
+    assert result.success
+    assert result.data == {"label": "clickbait", "score": 0.9}
+    assert route.call_count == 2
+
+
+@pytest.mark.asyncio
+async def test_make_request_retries_on_timeout_then_succeeds():
+    # Reintentos tambien para Timeouts
+    model = "some/model"
+    with respx.mock:
+        route = respx.post(f"{MODELS_URL}{model}").mock(
+            side_effect=[
+                TimeoutException("boom"),
+                Response(200, json=[[{"label": "OK", "score": 1.0}]]),
+            ]
+        )
+        client = HFClient()
+        client.RETRY_BACKOFF = 0
+        result = await client.classify("t", model)
+
+    assert result.success
+    assert result.data == {"label": "OK", "score": 1.0}
+    assert route.call_count == 2
+
+
+@pytest.mark.asyncio
+async def test_make_request_gives_up_after_max_retries():
+    # 503 pero agota intentos.
+    model = "some/model"
+    with respx.mock:
+        route = respx.post(f"{MODELS_URL}{model}").mock(
+            return_value=Response(503, text="Model is currently loading")
+        )
+        client = HFClient()
+        client.RETRY_BACKOFF = 0
+        result = await client.classify("t", model)
+
+    assert not result.success
+    assert "503" in result.error
+    assert route.call_count == client.MAX_RETRIES + 1
 
 
 # Integration
