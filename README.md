@@ -437,3 +437,17 @@ Tool `analyze_sentiment(text)` que **reutiliza `classify`** (es *text-classifica
 - **Integration** (marcados `@pytest.mark.integration`): llamadas reales a `classify` y `zero_shot` que validan el contrato `{label, score}`, fuera de la CI.
 
 Cierra la **Épica 3** (las 2 tools núcleo —clickbait y sentimiento— sobre el cliente HF, con tests).
+
+## Épica 4 — Validación E2E del MVP
+
+> Smoke test E2E del MVP OK (2026-06-03): `health_check` → `get_nyt_news` → `detect_clickbait`/`analyze_sentiment`, encadenado por el protocolo MCP real. Titulares del NYT salen `factual` (sin sobre-marcar; el *listicle* fue el de menor confianza factual); sentiment 3-vías discrimina bien. Dos hallazgos → issues **#44** (escenarios/evidencias) y **#45** (fiabilidad).
+
+### E4-02 · Reintento ante fallos transitorios de HF
+
+El smoke test confirmó que la inferencia remota de HF falla de forma **transitoria** (~1 de cada 5 llamadas dio *timeout*; recurrente durante E3). Se añadió un **reintento** en `BaseAPI.make_request`:
+
+- **Opt-in por clase:** `MAX_RETRIES` (default `0` → Guardian/NYT no reintentan) y `RETRY_BACKOFF`. `HFClient` lo activa con `MAX_RETRIES = 3`.
+- **Solo transitorios:** `httpx.TimeoutException` y HTTP `503`; cualquier otro error falla al instante (reintentar no lo arregla).
+- **Tests (`respx`):** `503→200` y `timeout→200` (recupera al reintentar), y `503` perpetuo → agota reintentos (`MAX_RETRIES + 1` intentos). Usan `RETRY_BACKOFF = 0` para no esperar de verdad.
+
+Motivo: mejorar la fiabilidad del MVP frente a la *flakiness* del backend remoto, sin romper el contrato (sigue devolviendo `ToolResult.fail` si se agotan los reintentos).
