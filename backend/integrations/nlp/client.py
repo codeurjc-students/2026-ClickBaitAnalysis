@@ -6,6 +6,7 @@ from backend.core.models import ToolResult
 class HFClient(BaseAPI):
     BASE_URL = "https://router.huggingface.co/hf-inference/models/"
     API_KEY = settings.hf_token
+    MAX_RETRIES = 3
 
     def _apply_auth(self, headers, params):
         headers["Authorization"] = f"Bearer {self.API_KEY}"

@@ -1,3 +1,5 @@
+import asyncio
+
 import httpx
 
 from backend.core.models import ToolResult
@@ -9,6 +11,10 @@ class BaseAPI:
     TIMEOUT: float = 30.0
     API_KEY_PARAM: str = "api-key"
 
+    # Variables para reintento
+    MAX_RETRIES: int = 0  # Guardian/NYT NO reintentan
+    RETRY_BACKOFF: float = 1.0  # segundos
+
     async def make_request(
         self,
         endpoint: str,
@@ -18,7 +24,6 @@ class BaseAPI:
     ) -> ToolResult:
         """Make a request to the  API with proper error handling."""
 
-        # Quizás tambíen sea condicional
         headers = {"Accept": "application/json"}
 
         params = params or {}
@@ -27,32 +32,39 @@ class BaseAPI:
         url = f"{self.BASE_URL}{endpoint}"
 
         async with httpx.AsyncClient() as client:
-            try:
-                if method.upper() == "GET":
-                    response = await client.get(
-                        url, headers=headers, params=params, timeout=self.TIMEOUT
+            for attempt in range(self.MAX_RETRIES + 1):
+                try:
+                    if method.upper() == "GET":
+                        response = await client.get(
+                            url, headers=headers, params=params, timeout=self.TIMEOUT
+                        )
+                        response.raise_for_status()
+                        return ToolResult.ok(response.json())
+                    elif method.upper() == "POST":
+                        response = await client.post(
+                            url,
+                            headers=headers,
+                            params=params,
+                            timeout=self.TIMEOUT,
+                            json=json,
+                        )
+                        response.raise_for_status()
+                        return ToolResult.ok(response.json())
+                    return ToolResult.fail(f"Unsupported HTTP method: {method}")
+                except httpx.TimeoutException:
+                    if attempt < self.MAX_RETRIES:
+                        await asyncio.sleep(self.RETRY_BACKOFF)
+                        continue
+                    return ToolResult.fail("Request timed out.")
+                except httpx.HTTPStatusError as e:
+                    if e.response.status_code == 503 and attempt < self.MAX_RETRIES:
+                        await asyncio.sleep(self.RETRY_BACKOFF)
+                        continue
+                    return ToolResult.fail(
+                        f"HTTP error: {e.response.status_code} - {e.response.text}"
                     )
-                    response.raise_for_status()
-                    return ToolResult.ok(response.json())
-                elif method.upper() == "POST":
-                    response = await client.post(
-                        url,
-                        headers=headers,
-                        params=params,
-                        timeout=self.TIMEOUT,
-                        json=json,
-                    )
-                    response.raise_for_status()
-                    return ToolResult.ok(response.json())
-                return ToolResult.fail(f"Unsupported HTTP method: {method}")
-            except httpx.TimeoutException:
-                return ToolResult.fail("Request timed out.")
-            except httpx.HTTPStatusError as e:
-                return ToolResult.fail(
-                    f"HTTP error: {e.response.status_code} - {e.response.text}"
-                )
-            except Exception as e:
-                return ToolResult.fail(f"An error occurred: {str(e)}")
+                except Exception as e:
+                    return ToolResult.fail(f"An error occurred: {str(e)}")
 
     # Luego reescribirmos en otra clase que herede de Base API y tenemos POLIMORFISMO!
 
