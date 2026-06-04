@@ -442,6 +442,35 @@ Cierra la **Épica 3** (las 2 tools núcleo —clickbait y sentimiento— sobre 
 
 > Smoke test E2E del MVP OK (2026-06-03): `health_check` → `get_nyt_news` → `detect_clickbait`/`analyze_sentiment`, encadenado por el protocolo MCP real. Titulares del NYT salen `factual` (sin sobre-marcar; el *listicle* fue el de menor confianza factual); sentiment 3-vías discrimina bien. Dos hallazgos → issues **#44** (escenarios/evidencias) y **#45** (fiabilidad).
 
+### E4-01 · Escenarios E2E + evidencias
+
+Desde un cliente MCP real, el LLM **orquesta** las tools para resolver la petición del usuario. Escenarios que soporta el MVP:
+
+| # | Escenario | Tools que encadena el LLM |
+| :--- | :--- | :--- |
+| 1 | **Flujo estrella:** "titulares del NYT sobre `<tema>` → ¿cuáles son clickbait?" | `get_nyt_news` / `get_guardian_news` → `detect_clickbait` |
+| 2 | "¿qué tono tienen esos titulares?" | `analyze_sentiment` |
+| 3 | Estado del servidor y sus integraciones | `health_check` |
+| 4 | Tema inexistente → mensaje claro, sin excepción | `get_*_news` (rama de error) |
+
+**Evidencia — smoke test E2E (2026-06-03)**, ejecutado por el protocolo MCP real (`health_check` → `get_nyt_news` → NLP):
+
+| Titular (NYT real) | `detect_clickbait` | `analyze_sentiment` |
+| :--- | :--- | :--- |
+| 5 Things to Know About Nithya Raman | factual **0.74** | — |
+| Scientists Find Way to Supercharge Dangerous Computer Worms With A.I. | factual 0.80 | — |
+| Political Newcomer Beats Trump-Backed Candidate in Iowa Governor Primary | factual 0.83 | `neutral` 0.86 |
+| U.S. Treasury Imposes Sanctions on Iran's Biggest Crypto Exchange | factual 0.88 | — |
+| Trump Has Failed as Commander in Chief | — | `negative` 0.91 |
+
+Conclusiones:
+- **Sin sobre-marcar:** los titulares del NYT (fuente reputada) salen `factual`; el *listicle* "5 Things to Know…" es el de **menor** confianza factual (0.74) — el modelo capta el estilo. Que sí marca clickbait se validó aparte ("You will not believe…" → `clickbait` 0.79).
+- **Sentiment de 3 vías** discrimina bien (opinión → `negative` 0.91; noticia → `neutral` 0.86).
+- **Fiabilidad:** 1 de 5 llamadas NLP dio *timeout* → motivó **E4-02** (reintento).
+- **Limitación:** con 2 fuentes reputadas (NYT/Guardian) apenas aparece clickbait; evaluarlo de verdad pide una fuente/dataset sensacionalista (E4-03, aparcado).
+
+> Las capturas desde Claude Desktop se adjuntan en la memoria del TFG; esta tabla es la transcripción de la validación in-session.
+
 ### E4-02 · Reintento ante fallos transitorios de HF
 
 El smoke test confirmó que la inferencia remota de HF falla de forma **transitoria** (~1 de cada 5 llamadas dio *timeout*; recurrente durante E3). Se añadió un **reintento** en `BaseAPI.make_request`:
