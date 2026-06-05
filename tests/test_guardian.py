@@ -5,7 +5,17 @@ import respx
 import pytest
 from httpx import Response
 
-# TODO: Better tests organizations and integration tests.
+TAGS_URL = "https://content.guardianapis.com/tags"
+SEARCH_URL = "https://content.guardianapis.com/search"
+
+
+def _mock_tags(tag_id="technology/test"):
+    """Mockea /tags: devuelve un tag (o ninguno si tag_id=None), para controlar
+    la rama tag vs fallback a `q` de search_articles."""
+    results = [{"id": tag_id}] if tag_id else []
+    respx.get(TAGS_URL).mock(
+        return_value=Response(200, json={"response": {"results": results}})
+    )
 
 
 @pytest.fixture
@@ -65,6 +75,7 @@ def fake_forecast_periods():
 async def test_article_valid_response(fake_payload):
 
     with respx.mock:
+        _mock_tags()
         respx.get("https://content.guardianapis.com/search").mock(
             return_value=Response(200, json={"response": {"results": [fake_payload]}})
         )
@@ -84,6 +95,7 @@ async def test_article_valid_response(fake_payload):
 @pytest.mark.asyncio
 async def test_article_no_results():
     with respx.mock:
+        _mock_tags()
         respx.get("https://content.guardianapis.com/search").mock(
             return_value=Response(200, json={"response": {"results": []}})
         )
@@ -98,6 +110,7 @@ async def test_article_no_results():
 @pytest.mark.asyncio
 async def test_article_missing_results_key():
     with respx.mock:
+        _mock_tags()
         respx.get("https://content.guardianapis.com/search").mock(
             return_value=Response(200, json={"response": {}})
         )
@@ -107,6 +120,40 @@ async def test_article_missing_results_key():
 
         assert not result.success
         assert "No articles found" in result.error
+
+
+@pytest.mark.asyncio
+async def test_topic_uses_tag(fake_payload):
+    # Con tag, búsqueda usa tag=<id> y NO q.
+    with respx.mock:
+        _mock_tags("technology/artificialintelligenceai")
+        search = respx.get(SEARCH_URL).mock(
+            return_value=Response(200, json={"response": {"results": [fake_payload]}})
+        )
+        api = GuardianAPI()
+        result = await api.search_articles("artificial intelligence")
+
+    assert result.success
+    sent = search.calls.last.request.url.params
+    assert sent["tag"] == "technology/artificialintelligenceai"
+    assert "q" not in sent
+
+
+@pytest.mark.asyncio
+async def test_no_tag_falls_back_to_q(fake_payload):
+    # Sin tag, fallback q=<topic>.
+    with respx.mock:
+        _mock_tags(None)
+        search = respx.get(SEARCH_URL).mock(
+            return_value=Response(200, json={"response": {"results": [fake_payload]}})
+        )
+        api = GuardianAPI()
+        result = await api.search_articles("tema-raro")
+
+    assert result.success
+    sent = search.calls.last.request.url.params
+    assert sent["q"] == "tema-raro"
+    assert "tag" not in sent
 
 
 @pytest.mark.integration
