@@ -75,6 +75,36 @@ async def test_search_articles_http_error():
         assert "No articles found" in result.error
 
 
+@pytest.mark.asyncio
+async def test_topic_uses_relevance_sort(fake_payload):
+    # Con topic, sort=relevance (el fix del bug) + q=<topic>.
+    with respx.mock:
+        route = respx.get(f"{NYTAPI.BASE_URL}articlesearch.json").mock(
+            return_value=Response(200, json={"response": {"docs": [fake_payload]}})
+        )
+        api = NYTAPI()
+        await api.search_articles("artificial intelligence")
+
+    sent = route.calls.last.request.url.params
+    assert sent["sort"] == "relevance"
+    assert sent["q"] == "artificial intelligence"
+
+
+@pytest.mark.asyncio
+async def test_no_topic_uses_newest_sort(fake_payload):
+    # Sin topic, sort=newest (lo más reciente) y sin q.
+    with respx.mock:
+        route = respx.get(f"{NYTAPI.BASE_URL}articlesearch.json").mock(
+            return_value=Response(200, json={"response": {"docs": [fake_payload]}})
+        )
+        api = NYTAPI()
+        await api.search_articles()
+
+    sent = route.calls.last.request.url.params
+    assert sent["sort"] == "newest"
+    assert "q" not in sent
+
+
 @pytest.mark.integration
 @pytest.mark.asyncio
 async def test_search_articles_valid_use():

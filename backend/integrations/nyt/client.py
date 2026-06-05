@@ -46,7 +46,7 @@ class NYTAPI(BaseAPI):
         """
         today = date.today()
         new_date = (today - timedelta(days=days)).strftime("%Y%m%d")  # Formato YYYYMMDD
-        params = {"begin_date": new_date, "sort": "newest"}
+        params = {"begin_date": new_date, "sort": "relevance" if topic else "newest"}
         if topic:
             params["q"] = topic
 

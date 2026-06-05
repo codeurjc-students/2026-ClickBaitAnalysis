@@ -480,3 +480,15 @@ El smoke test confirmó que la inferencia remota de HF falla de forma **transito
 - **Tests (`respx`):** `503→200` y `timeout→200` (recupera al reintentar), y `503` perpetuo → agota reintentos (`MAX_RETRIES + 1` intentos). Usan `RETRY_BACKOFF = 0` para no esperar de verdad.
 
 Motivo: mejorar la fiabilidad del MVP frente a la *flakiness* del backend remoto, sin romper el contrato (sigue devolviendo `ToolResult.fail` si se agotan los reintentos).
+
+### E4-04 · Ajustes de tools tras validación E2E
+
+La validación destapó tres problemas al buscar por tema (p.ej. "artificial intelligence"), todos corregidos:
+
+- **NYT — relevancia:** el cliente forzaba `sort=newest`, que hacía que `q` **no filtrara** (devolvía lo más nuevo sin relación). Ahora `sort = "relevance" if topic else "newest"`. *(Verificado: devuelve IA limpia.)*
+- **Guardian — precisión:** el `q` libre matchea palabras sueltas ("intelligence" arrastraba espías/música). Ahora filtra por **tag** curado: `/tags?q=<topic>` → top tag → `/search?tag=<id>`, con **fallback** a `q` si no hay tag.
+- **Usabilidad del LLM:** `topic` no tenía `description` en el schema (solo en el docstring), así que el LLM a veces inventaba parámetros (`query`). Ahora usa `Field(description=…)` en ambas tools.
+
+**Lección de la validación:** fueron un bug de **comportamiento de API externa** (NYT `sort`) y uno de **precisión de búsqueda** (Guardian) que un test **mockeado no destapa** — solo la llamada real. La validación garantiza *forma*, no *corrección*; por eso aquí pesa la verificación empírica/integración.
+
+Tests (`respx`): NYT manda `sort=relevance`/`newest` según haya topic; Guardian usa `tag` o cae a `q`.

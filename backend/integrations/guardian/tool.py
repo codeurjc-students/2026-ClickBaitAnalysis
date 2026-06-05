@@ -18,7 +18,10 @@ def register(mcp: FastMCP):
     @mcp.tool()
     @log_tool_invocation
     async def get_guardian_news(
-        topic: str | None = None,
+        topic: str | None = Field(
+            default=None,
+            description="Palabra(s) clave del tema a buscar, en inglés (ej. 'artificial intelligence', 'climate change'). Si se omite, devuelve las noticias más recientes.",
+        ),
         days: int = Field(
             default=7, ge=1, le=30, description="Días hacia atrás desde hoy (1-30)."
         ),
