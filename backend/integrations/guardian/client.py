@@ -15,6 +15,9 @@ class GuardianAPI(BaseAPI):
     API_KEY = settings.guardian_api_key  # Key ya validada
     API_KEY_PARAM = "api-key"
 
+    RATE_CALLS = 60
+    RATE_PERIOD = 60
+
     async def search_articles(
         self, topic: str | None = None, days: int = 7
     ) -> ToolResult:
