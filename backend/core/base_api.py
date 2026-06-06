@@ -23,6 +23,14 @@ class BaseAPI:
     def __init__(self):
         self._limiter = AsyncLimiter(self.RATE_CALLS, self.RATE_PERIOD)
         # formato (max llamadas en X secs)
+        self._call_count = 0
+
+    @property
+    def call_count(self) -> int:
+        return self._call_count
+
+    # Mejor atributo privado con método público para asegurarnos de que SOLO ES DE LECTURA (getter, no setter como en java).
+    # La otra clase no nota la diferencia ya que con @property se puede nombrar como si fuera atrbuto público.
 
     async def make_request(
         self,
@@ -44,6 +52,9 @@ class BaseAPI:
             for attempt in range(self.MAX_RETRIES + 1):
                 try:
                     async with self._limiter:
+                        self._call_count += (
+                            1  # Tambien registra reintentos por si acaso
+                        )
                         if method.upper() == "GET":
                             response = await client.get(
                                 url,
