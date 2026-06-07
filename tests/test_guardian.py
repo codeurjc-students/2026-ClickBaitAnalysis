@@ -156,6 +156,24 @@ async def test_no_tag_falls_back_to_q(fake_payload):
     assert "tag" not in sent
 
 
+@pytest.mark.asyncio
+async def test_tracking_and_quota_from_header(fake_payload):
+    with respx.mock:
+        _mock_tags("technology/test")
+        respx.get(SEARCH_URL).mock(
+            return_value=Response(
+                200,
+                json={"response": {"results": [fake_payload]}},
+                headers={"x-ratelimit-remaining-day": "42"},
+            )
+        )
+        api = GuardianAPI()
+        await api.search_articles("technology")
+
+    assert api.call_count == 2
+    assert api.remaining_quota == 42
+
+
 @pytest.mark.integration
 @pytest.mark.asyncio
 async def test_get_news_real_schema_contract():
