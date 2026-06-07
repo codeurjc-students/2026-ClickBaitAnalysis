@@ -20,16 +20,31 @@ class BaseAPI:
     RATE_CALLS: int = 5
     RATE_PERIOD: float = 1.0
 
+    # Daily limiting
+    DAILY_LIMIT: int | None = None  # Aplicamos polimorfismo de nuevo
+
     def __init__(self):
         self._limiter = AsyncLimiter(self.RATE_CALLS, self.RATE_PERIOD)
         # formato (max llamadas en X secs)
         self._call_count = 0
+        self._remaining: int | None = None
+
+    # Metodo polimórfico: Guardian usa x-ratelimit. Nyt es desconocido (dejamos none), cada api aplica por su cuenta.
+    def _read_quota(self, response: httpx.Response) -> None:
+        if self.DAILY_LIMIT is not None:
+            self._remaining = self.DAILY_LIMIT - self._call_count
+
+    # Vars de lectura
+
+    @property
+    def remaining_quota(self) -> int | None:
+        return self._remaining
 
     @property
     def call_count(self) -> int:
         return self._call_count
 
-    # Mejor atributo privado con método público para asegurarnos de que SOLO ES DE LECTURA (getter, no setter como en java).
+    # Mejor atributo privado con método público para asegurarnos de que SOLO ES DE LECTURA (getter).
     # La otra clase no nota la diferencia ya que con @property se puede nombrar como si fuera atrbuto público.
 
     async def make_request(
@@ -52,9 +67,8 @@ class BaseAPI:
             for attempt in range(self.MAX_RETRIES + 1):
                 try:
                     async with self._limiter:
-                        self._call_count += (
-                            1  # Tambien registra reintentos por si acaso
-                        )
+                        self._call_count += 1
+                        # Tambien registra reintentos por si acaso
                         if method.upper() == "GET":
                             response = await client.get(
                                 url,
@@ -62,8 +76,7 @@ class BaseAPI:
                                 params=params,
                                 timeout=self.TIMEOUT,
                             )
-                            response.raise_for_status()
-                            return ToolResult.ok(response.json())
+
                         elif method.upper() == "POST":
                             response = await client.post(
                                 url,
@@ -72,9 +85,12 @@ class BaseAPI:
                                 timeout=self.TIMEOUT,
                                 json=json,
                             )
-                            response.raise_for_status()
-                            return ToolResult.ok(response.json())
-                        return ToolResult.fail(f"Unsupported HTTP method: {method}")
+                        else:
+                            return ToolResult.fail(f"Unsupported HTTP method: {method}")
+                        response.raise_for_status()
+                        self._read_quota(response)  # Tras llamada exitosa
+                        return ToolResult.ok(response.json())
+
                 except httpx.TimeoutException:
                     if attempt < self.MAX_RETRIES:
                         await asyncio.sleep(self.RETRY_BACKOFF)

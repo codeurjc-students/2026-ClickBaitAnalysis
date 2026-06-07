@@ -85,3 +85,7 @@ class GuardianAPI(BaseAPI):
             return None
         tags = result.data.get("response", {}).get("results", [])
         return tags[0].get("id") if tags else None
+
+    def _read_quota(self, response):
+        val = response.headers.get("x-ratelimit-remaining-day")
+        self._remaining = int(val) if val is not None else None
