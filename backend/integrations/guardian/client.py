@@ -79,12 +79,21 @@ class GuardianAPI(BaseAPI):
         return ToolResult.ok(articles)
 
     # Busqueda por tags especifica de The guardian
+
+    # Fix: No coger tags[0] ya que suelen ser niches, para tema principal sistema X/X
     async def _find_tag(self, topic: str) -> str | None:
         result = await self.make_request("tags", "get", {"q": topic, "page-size": 10})
         if not result.success:
             return None
         tags = result.data.get("response", {}).get("results", [])
-        return tags[0].get("id") if tags else None
+        if not tags:
+            return None
+
+        for t in tags:
+            parts = t.get("id", "").split("/")  # Divid parts por /
+            if len(parts) == 2 and parts[0] == parts[1]:  # Si las dos coinciden
+                return t.get("id")
+        return tags[0].get("id")
 
     def _read_quota(self, response):
         val = response.headers.get("x-ratelimit-remaining-day")
