@@ -4,6 +4,9 @@ from aiolimiter import AsyncLimiter
 import httpx
 
 from backend.core.models import ToolResult
+import structlog
+
+log = structlog.get_logger()
 
 
 class BaseAPI:
@@ -89,6 +92,13 @@ class BaseAPI:
                             return ToolResult.fail(f"Unsupported HTTP method: {method}")
                         response.raise_for_status()
                         self._read_quota(response)  # Tras llamada exitosa
+                        log.info(
+                            "api.call",
+                            api=type(self).__name__,  # Nombre de la API que lo llama
+                            endpoint=endpoint,
+                            call_count=self._call_count,
+                            remaining_quota=self._remaining,  # None si la API no declara límite
+                        )
                         return ToolResult.ok(response.json())
 
                 except httpx.TimeoutException:

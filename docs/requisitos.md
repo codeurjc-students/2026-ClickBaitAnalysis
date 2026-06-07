@@ -43,8 +43,8 @@ Este documento define los requisitos para un Trabajo de Fin de Grado (TFG) que i
 3. CUANDO falle una solicitud de API, EL API_Consumer DEBERÁ gestionar el error correctamente y devolver un mensaje de error significativo.
 4. EL API_Consumer DEBERÁ incluir una limitación de velocidad para respetar las restricciones de uso de la API.
 5. CUANDO se reciban respuestas de la API, EL API_Consumer DEBERÁ validar la estructura de la respuesta antes de procesarla.
-6. CUANDO se realice una llamada a la API, EL API_Consumer DEBERÁ rastrear y devolver el número de tokens o llamadas a la API utilizadas.
-7. DONDE una API tenga límites de uso, EL API_Consumer DEBERÁ mostrar la cuota restante al usuario.
+6. CUANDO se realice una llamada a la API, EL API_Consumer DEBERÁ rastrear el número de llamadas a la API utilizadas y registrarlo como **observabilidad interna** (logs). _(No se devuelve en la salida de la tool para no ensuciar la respuesta — ver memoria de cambios.)_
+7. DONDE una API tenga límites de uso, EL API_Consumer DEBERÁ rastrear la cuota restante y registrarla como **observabilidad interna** (logs). _(Ver memoria de cambios.)_
 
 ### Requisito 3: Herramientas de análisis de texto con NLP
 
