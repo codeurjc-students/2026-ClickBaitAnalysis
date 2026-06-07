@@ -105,6 +105,24 @@ async def test_no_topic_uses_newest_sort(fake_payload):
     assert "q" not in sent
 
 
+@pytest.mark.asyncio
+async def test_tracking_and_derived_quota(fake_payload):
+    with respx.mock:
+        respx.get(f"{NYTAPI.BASE_URL}articlesearch.json").mock(
+            return_value=Response(200, json={"response": {"docs": [fake_payload]}})
+        )
+        api = NYTAPI()
+        assert api.remaining_quota is None  # sin llamadas aún
+
+        await api.search_articles("technology")
+
+    assert api.call_count == 1
+
+    # Forzar a declarar Limite en NYTAPI.
+    assert NYTAPI.DAILY_LIMIT is not None
+    assert api.remaining_quota == NYTAPI.DAILY_LIMIT - api.call_count
+
+
 @pytest.mark.integration
 @pytest.mark.asyncio
 async def test_search_articles_valid_use():

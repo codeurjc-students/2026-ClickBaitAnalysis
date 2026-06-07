@@ -492,3 +492,21 @@ La validación destapó tres problemas al buscar por tema (p.ej. "artificial int
 **Lección de la validación:** fueron un bug de **comportamiento de API externa** (NYT `sort`) y uno de **precisión de búsqueda** (Guardian) que un test **mockeado no destapa** — solo la llamada real. La validación garantiza *forma*, no *corrección*; por eso aquí pesa la verificación empírica/integración.
 
 Tests (`respx`): NYT manda `sort=relevance`/`newest` según haya topic; Guardian usa `tag` o cae a `q`.
+
+### Rate limiting, tracking de llamadas y cuota — R2.4 / R2.6 / R2.7 (issue #50)
+
+Endurecimiento del `API_Consumer` en `BaseAPI`, heredado por los tres clientes (NYT, Guardian, HF):
+
+- **R2.4 · Rate limiting** — `AsyncLimiter` (*token bucket*) **por instancia**, configurable por clase con `RATE_CALLS` / `RATE_PERIOD`. Límites reales: NYT `5/60s`, Guardian `60/60s`. Es **por instancia** (no atributo de clase compartido) para que cada cliente tenga su propio cupo y no se pisen entre ellos.
+- **R2.6 · Tracking** — `call_count` cuenta **cada intento real** a la API (incluidos los reintentos de E4-02). Property de solo lectura.
+- **R2.7 · Cuota restante** — `remaining_quota`, resuelta de forma **híbrida** según lo que cada API expone (polimorfismo con el hook `_read_quota`):
+  - **Guardian** lee el header real `x-ratelimit-remaining-day`.
+  - **NYT** no manda headers → la **deriva**: `DAILY_LIMIT − call_count` (con `DAILY_LIMIT = 500`).
+
+**Decisión de diseño — observabilidad, no payload.** R2.6/R2.7 se redactaron como "devolver/mostrar al usuario", pero meter el uso de API en la salida de cada tool **ensucia** la respuesta que lee el consumidor/LLM. Se expone como **observabilidad interna**: un evento estructurado `api.call` (`structlog` → stderr) con `api`, `endpoint`, `call_count` y `remaining_quota` en cada llamada exitosa. El requisito se ajustó en consecuencia (registrado en la memoria de cambios del TFG).
+
+Tests (`respx`): NYT deriva `DAILY_LIMIT − call_count`; Guardian lee la cuota del header; ambos cuentan llamadas (Guardian: **2** por búsqueda con `topic`, por el `/tags` + `/search`).
+
+> **Aislamiento de tests:** emitir el log `api.call` destapó un bug latente — `test_logging.py` configuraba structlog **global** apuntando al `stderr` temporal de `capsys`; al cerrarse ese buffer, cualquier test posterior que logueara petaba con `ValueError: I/O operation on closed file`. Se añadió `tests/conftest.py` con un fixture `autouse` que **resetea structlog tras cada test** (un fallo de logging quedaba además enmascarado por el `except Exception` de `make_request` como "No articles found" — doble disfraz).
+
+**Selección de tag de Guardian (afinada en este PR):** `_find_tag` ya no coge `tags[0]` a ciegas. Para temas que son una **sección** ("technology"), Guardian lista antes tags de **nicho** (`sustainable-business/technology`) que, con el filtro `from-date`, daban **0 resultados recientes**, dejando el canónico más abajo. Ahora `_find_tag` prefiere el tag **canónico de sección** (`id` con forma `X/X`, p.ej. `technology/technology`) y cae a `tags[0]` para temas multi-palabra (p.ej. `technology/artificialintelligenceai`, que no es `X/X`). *(Verificado contra la API real.)*

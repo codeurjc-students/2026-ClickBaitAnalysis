@@ -156,6 +156,85 @@ async def test_no_tag_falls_back_to_q(fake_payload):
     assert "tag" not in sent
 
 
+@pytest.mark.asyncio
+async def test_tracking_and_quota_from_header(fake_payload):
+    with respx.mock:
+        _mock_tags("technology/test")
+        respx.get(SEARCH_URL).mock(
+            return_value=Response(
+                200,
+                json={"response": {"results": [fake_payload]}},
+                headers={"x-ratelimit-remaining-day": "42"},
+            )
+        )
+        api = GuardianAPI()
+        await api.search_articles("technology")
+
+    assert api.call_count == 2
+    assert api.remaining_quota == 42
+
+
+@pytest.mark.asyncio
+async def test_find_tag_prefers_canonical_section(fake_payload):
+    # Encuentra el tag canónico
+    with respx.mock:
+        respx.get(TAGS_URL).mock(
+            return_value=Response(
+                200,
+                json={
+                    "response": {
+                        "results": [
+                            {"id": "sustainable-business/technology"},
+                            {"id": "society-professionals/technology"},
+                            {"id": "technology/technology"},
+                        ]
+                    }
+                },
+            )
+        )
+        search = respx.get(SEARCH_URL).mock(
+            return_value=Response(200, json={"response": {"results": [fake_payload]}})
+        )
+        api = GuardianAPI()
+        await api.search_articles("technology")
+
+    sent = search.calls.last.request.url.params
+    # Search = route de respx
+    #   -> .calls = lista de llamadas a esa ruta
+    #   -> .last = última llamada (hicimos dos)
+    #   -> .request = objeto request de esa llamada (no response)
+    #   -> .url = URL completo de esa request
+    #   -> .params = parámetros de query string enviados en esa request parseados como dict (no string)
+    assert sent["tag"] == "technology/technology"
+
+
+@pytest.mark.asyncio
+async def test_find_tag_falls_back_to_first_when_no_canonical(fake_payload):
+    # Sin tag canónico X/X = tags[0].
+    with respx.mock:
+        respx.get(TAGS_URL).mock(
+            return_value=Response(
+                200,
+                json={
+                    "response": {
+                        "results": [
+                            {"id": "technology/artificialintelligenceai"},
+                            {"id": "world/ai"},
+                        ]
+                    }
+                },
+            )
+        )
+        search = respx.get(SEARCH_URL).mock(
+            return_value=Response(200, json={"response": {"results": [fake_payload]}})
+        )
+        api = GuardianAPI()
+        await api.search_articles("artificial intelligence")
+
+    sent = search.calls.last.request.url.params
+    assert sent["tag"] == "technology/artificialintelligenceai"
+
+
 @pytest.mark.integration
 @pytest.mark.asyncio
 async def test_get_news_real_schema_contract():

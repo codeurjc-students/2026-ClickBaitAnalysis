@@ -14,6 +14,11 @@ class NYTAPI(BaseAPI):
     API_KEY = settings.nyt_api_key  # Key ya validada
     API_KEY_PARAM = "api-key"
 
+    RATE_CALLS = 5  # Crea una instancia nueva con rate calls, no pasar por atributo o todos usan el mismo objecto.
+    RATE_PERIOD = 60
+
+    DAILY_LIMIT = 500
+
     async def search_articles(
         self, topic: str | None = None, days: int = 7
     ) -> ToolResult:

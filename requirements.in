@@ -10,3 +10,5 @@ pytest-cov
 respx 
 
 structlog
+
+aiolimiter 
