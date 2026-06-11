@@ -2,6 +2,8 @@
 
 Version de Python: 3.12.3
 
+**Documentación:** [Requisitos](docs/requisitos.md) · [Arquitectura (UML + cierre del MVP)](docs/arquitectura.md)
+
 ---
 
 ## Convenciones de desarrollo

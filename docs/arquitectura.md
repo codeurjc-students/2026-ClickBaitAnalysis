@@ -28,33 +28,9 @@ Capas (de fuera hacia dentro):
 
 "Dame titulares del NYT sobre `<tema>`" (el primer paso del caso de uso clickbait). Los demás flujos de noticias/NLP siguen la misma forma `Tool → Client → BaseAPI → API`.
 
-```mermaid
-sequenceDiagram
-    autonumber
-    participant LLM as Cliente MCP (LLM)
-    participant Tool as nyt/tool · get_nyt_news
-    participant Cli as NYTAPI · search_articles
-    participant Base as BaseAPI · make_request
-    participant API as NYT API
+![Diagrama de secuencia del flujo get_nyt_news](img/secuencia.svg)
 
-    LLM->>Tool: get_nyt_news(topic, days)
-    activate Tool
-    Note over Tool: @log_tool_invocation<br/>(mide duración → log tool.invoke)
-    Tool->>Cli: search_articles(topic, days)
-    activate Cli
-    Cli->>Base: make_request("articlesearch.json", GET, params)
-    activate Base
-    Note over Base: _apply_auth (api-key)<br/>async with limiter (rate-limit R2.4)
-    Base->>API: GET articlesearch.json?q=..., sort=relevance
-    API-->>Base: 200 + JSON
-    Note over Base: raise_for_status<br/>_read_quota (header / DAILY_LIMIT − call_count)<br/>log "api.call" (call_count, remaining_quota)
-    Base-->>Cli: ToolResult.ok(data)
-    deactivate Base
-    Cli-->>Tool: ToolResult.ok([{title, url, date}])
-    deactivate Cli
-    Tool-->>LLM: JSON serializado
-    deactivate Tool
-```
+- **Dentro de `BaseAPI.make_request`** (el diagrama lo resume en la nota): además de `_apply_auth`, aplica **rate-limit** (`async with limiter`, R2.4) y, tras la respuesta, calcula la **cuota** (`_read_quota`, R2.7) y emite el log `api.call` con `call_count` / `remaining_quota` (R2.6).
 
 - **Reintento (E4-02):** el bucle de `make_request` reintenta solo ante `TimeoutException`/`503` y solo si `MAX_RETRIES > 0` (HF = 3; NYT/Guardian = 0, no reintentan).
 - **Encadenado:** para "¿cuáles son clickbait?", el LLM toma esos titulares y llama a `detect_clickbait`, que sigue el mismo camino contra el `HFClient` (zero-shot `facebook/bart-large-mnli`).
