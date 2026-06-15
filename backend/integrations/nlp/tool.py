@@ -6,12 +6,12 @@ import json
 
 from mcp.server.fastmcp import FastMCP
 from backend.core.observability import log_tool_invocation
-from backend.integrations.nlp.client import HFClient
+from backend.integrations.nlp.factory import get_nlp_backend
 
 
 def register(mcp: FastMCP):
 
-    api = HFClient()
+    api = get_nlp_backend()
 
     @mcp.tool()
     @log_tool_invocation

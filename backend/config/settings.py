@@ -16,6 +16,9 @@ class Settings(BaseSettings):
     guardian_api_key: str  # PS mapea automáticamente
     nyt_api_key: str
     hf_token: str
+    nlp_backend: Literal["remote", "local"] = (
+        "remote"  # Añadimos dos opciones de backend NLP, así mantenemos remoto sin cambiar mucho.
+    )
 
 
 settings = Settings()  # type: ignore #Activa la validación al importar
