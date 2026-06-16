@@ -512,3 +512,22 @@ Tests (`respx`): NYT deriva `DAILY_LIMIT − call_count`; Guardian lee la cuota 
 > **Aislamiento de tests:** emitir el log `api.call` destapó un bug latente — `test_logging.py` configuraba structlog **global** apuntando al `stderr` temporal de `capsys`; al cerrarse ese buffer, cualquier test posterior que logueara petaba con `ValueError: I/O operation on closed file`. Se añadió `tests/conftest.py` con un fixture `autouse` que **resetea structlog tras cada test** (un fallo de logging quedaba además enmascarado por el `except Exception` de `make_request` como "No articles found" — doble disfraz).
 
 **Selección de tag de Guardian (afinada en este PR):** `_find_tag` ya no coge `tags[0]` a ciegas. Para temas que son una **sección** ("technology"), Guardian lista antes tags de **nicho** (`sustainable-business/technology`) que, con el filtro `from-date`, daban **0 resultados recientes**, dejando el canónico más abajo. Ahora `_find_tag` prefiere el tag **canónico de sección** (`id` con forma `X/X`, p.ej. `technology/technology`) y cae a `tags[0]` para temas multi-palabra (p.ej. `technology/artificialintelligenceai`, que no es `X/X`). *(Verificado contra la API real.)*
+
+## Épica 5 — Núcleo NLP: backend local, incoherencia y explicabilidad
+
+> Fase B. Surge del **dilema HF**: la Inference API alojada de HuggingFace resultó poco fiable (timeouts ~1/5, caídas del proveedor, modelos de clickbait específicos no servidos). Issues #54–#58.
+
+### E5-01 · Backend NLP seleccionable (remoto / local)
+
+Desacopla el NLP del proveedor concreto para poder ejecutarlo **en local** (con `transformers`), eliminando la dependencia de la API alojada de HF.
+
+- **Interfaz `NLPBackend`** (ABC, `nlp/base.py`): contrato con `classify` y `zero_shot`, ambos devolviendo `ToolResult.ok({"label", "score"})`. Al ser clase **abstracta**, las implementaciones están obligadas a cumplir las dos firmas (*enforcement* en runtime al instanciar).
+- **Dos implementaciones, un contrato (polimorfismo):**
+  - `HFClient(BaseAPI, NLPBackend)` — backend **remoto** (HTTP a HF). Herencia múltiple: es a la vez cliente HTTP y backend NLP; `NLPBackend` actúa de interfaz (sin lógica), `BaseAPI` aporta el transporte.
+  - `LocalNLPClient(NLPBackend)` — backend **local** con `transformers.pipeline`. **Carga perezosa + cache** por clave `(task, model)` (cargar un modelo es caro → se crea una vez y se reutiliza), e **inferencia en hilo** (`asyncio.to_thread`) para no bloquear el *event loop*.
+- **Factoría `get_nlp_backend()`** (`nlp/factory.py`): elige `remote`/`local` según el setting `nlp_backend` (`Literal`, default `"remote"`). Las tools llaman a la factoría, no a una clase concreta.
+- **Las tools no cambian:** `detect_clickbait` / `analyze_sentiment` siguen llamando `api.zero_shot` / `api.classify`; como **ambos** backends cumplen el contrato, cambiar de backend es **una línea**. Ese es el premio del ABC + factoría.
+
+**Motivo:** mitigar el riesgo de fiabilidad/disponibilidad del backend remoto (ver Épicas 3 y 4) y ganar control total del modelo — precondición de **R3.7** (incoherencia) y del **fine-tuning** local. La inferencia local es viable en el hardware de desarrollo (GTX 1650 SUPER 4 GB / CPU Ryzen 5).
+
+**Dependencias y tests:** `transformers` (con sus dependencias) está en `requirements.txt`. **`torch`** es dependiente del hardware (CPU o CUDA), así que **no se fija** en `requirements.txt` — se instala aparte para usar el backend local (CI y los tests **no** lo necesitan, porque mockean el `pipeline`). Cobertura: `LocalNLPClient` (normalización de `classify`/`zero_shot`, manejo de errores, cache por `(task, model)`) y la factoría — todo sin descargar modelos ni tocar la red.

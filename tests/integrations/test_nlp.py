@@ -1,3 +1,4 @@
+import asyncio
 import json
 
 import pytest
@@ -5,10 +6,14 @@ import respx  # Usamos en vez de htttp, ya que no hacemos llamadas de verdad, mo
 from httpx import Response, TimeoutException
 
 from backend.integrations.nlp.client import HFClient
+from backend.integrations.nlp.local import LocalNLPClient
+from backend.integrations.nlp.factory import get_nlp_backend
+from backend.config.settings import settings
 
 MODELS_URL = "https://router.huggingface.co/hf-inference/models/"
 
 
+# -----HF CLIENT-----
 # classify
 @pytest.mark.asyncio
 async def test_classify_returns_top_label():
@@ -109,6 +114,107 @@ async def test_request_sends_bearer_header():
         await HFClient().classify("t", model)
 
     assert route.calls.last.request.headers["Authorization"].startswith("Bearer ")
+
+
+# ------ LocalNLPClient
+
+
+def fake_pipe_classify(text):
+    return [{"label": "POSITIVE", "score": 0.99}]
+
+
+# evitar error fake_pipe_classify() takes 0 positional arguments but 1 was given'
+
+
+@pytest.mark.asyncio
+async def test_classify_local(monkeypatch):
+
+    model = "cardiffnlp/twitter-roberta-base-sentiment-latest"
+    client = LocalNLPClient()
+    monkeypatch.setattr(client, "_get_pipeline", lambda task, model: fake_pipe_classify)
+    # client = Objeto que modificamos
+    # atributo como string
+    # lambda se usa porque get pipeline tambien devuelve un callable (pipe)
+
+    # Basicamente modifica _get_pipeline para que devuelva un callable (fake_pipe)
+
+    result = await client.classify("great movie", model)
+    assert result.success
+    assert result.data == {"label": "POSITIVE", "score": 0.99}
+
+
+def fake_pipe_zero_shot(text, candidate_labels):
+    return {"labels": ["clickbait", "factual news"], "scores": [0.79, 0.21]}
+
+
+@pytest.mark.asyncio
+async def test_zero_shot_local(monkeypatch):
+
+    model = "facebook/bart-large-mnli"
+    client = LocalNLPClient()
+    monkeypatch.setattr(
+        client, "_get_pipeline", lambda task, model: fake_pipe_zero_shot
+    )
+    result = await client.zero_shot(
+        "random_headline", model, ["clickbait", "factual news"]
+    )
+
+    assert result.success
+    assert result.data == {"label": "clickbait", "score": 0.79}
+
+
+# ------ Manejo de errores
+
+
+@pytest.mark.asyncio
+async def test_classify_error_returns_fail(monkeypatch):
+    # Si _get_pipeline falla classify devuelve fail, no revienta.
+    # lambda no puede raise (es una sola expresion) asi queusamos un def.
+    def boom(task, model):
+        raise RuntimeError("modelo no encontrado")
+
+    client = LocalNLPClient()
+    monkeypatch.setattr(client, "_get_pipeline", boom)
+    result = await client.classify("texto", "modelo-malo")
+
+    assert not result.success
+    assert "modelo-malo" in result.error
+
+
+def test_get_pipeline_caches(monkeypatch):
+    # _get_pipeline crea el pipeline UNA vez por (task, model) y lo reutiliza.
+    import sys
+    import types
+
+    fake_transformers = types.ModuleType("transformers")
+    calls = []
+
+    def fake_pipeline(task, model):
+        calls.append((task, model))
+        return object()  # un pipe falso cualquiera
+
+    fake_transformers.pipeline = fake_pipeline
+    monkeypatch.setitem(sys.modules, "transformers", fake_transformers)
+
+    client = LocalNLPClient()
+    p1 = client._get_pipeline("text-classification", "m")
+    p2 = client._get_pipeline("text-classification", "m")
+
+    assert p1 is p2  # mismo objeto
+    assert len(calls) == 1  # solo se creo una vez
+
+
+# ------ Factoria get_nlp_backend
+
+
+def test_factory_returns_local(monkeypatch):
+    monkeypatch.setattr(settings, "nlp_backend", "local")
+    assert isinstance(get_nlp_backend(), LocalNLPClient)
+
+
+def test_factory_returns_remote(monkeypatch):
+    monkeypatch.setattr(settings, "nlp_backend", "remote")
+    assert isinstance(get_nlp_backend(), HFClient)
 
 
 # retry: timeout y 503 se reintentan

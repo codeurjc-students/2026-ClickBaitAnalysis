@@ -1,9 +1,11 @@
 from backend.config.settings import settings
 from backend.core.base_api import BaseAPI
 from backend.core.models import ToolResult
+from backend.integrations.nlp.base import NLPBackend
 
 
-class HFClient(BaseAPI):
+class HFClient(BaseAPI, NLPBackend):
+    # Importante
     BASE_URL = "https://router.huggingface.co/hf-inference/models/"
     API_KEY = settings.hf_token
     MAX_RETRIES = 3
