@@ -8,10 +8,12 @@ from httpx import Response
 def fake_payload():
     return {
         "headline": {
-            "main": "Want to ‘Optimize’ Your Happiness? This Happiness Expert Says: Don’t."
+            "main": "Want to ‘Optimize’ Your Happiness? This Happiness Expert Says: Don’t.",
+            "print_headline": "The Happiness Expert",
         },
         "web_url": "https://www.nytimes.com/2026/05/30/magazine/laurie-santos-interview.html",
         "pub_date": "2026-03-10T19:03:21Z",
+        "abstract": "A happiness expert on why optimizing happiness backfires.",
     }
 
 
@@ -31,6 +33,11 @@ async def test_search_articles_valid_response(fake_payload):
         assert result.data[0]["title"] == fake_payload["headline"]["main"]
         assert result.data[0]["url"] == fake_payload["web_url"]
         assert result.data[0]["date"] == fake_payload["pub_date"]
+        assert result.data[0]["content"] == fake_payload["abstract"]
+        assert (
+            result.data[0]["print_headline"]
+            == fake_payload["headline"]["print_headline"]
+        )
 
 
 @pytest.mark.asyncio

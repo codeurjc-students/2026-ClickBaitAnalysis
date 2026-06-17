@@ -24,6 +24,7 @@ def fake_payload():
         "webTitle": "‘We’re expanding the cinematic toolbox’: AI fault lines on show at Cannes",
         "webUrl": "https://www.theguardian.com/technology/2026/may/24/cinematic-toolbox-ai-fault-lines-cannes",
         "webPublicationDate": "2026-05-24T05:00:48Z",
+        "fields": {"trailText": "AI fault lines on show at Cannes"},
     }
 
 
@@ -46,6 +47,7 @@ async def test_article_valid_response(fake_payload):
         assert result.data[0]["title"] == fake_payload["webTitle"]
         assert result.data[0]["url"] == fake_payload["webUrl"]
         assert result.data[0]["date"] == fake_payload["webPublicationDate"]
+        assert result.data[0]["content"] == fake_payload["fields"]["trailText"]
 
 
 @pytest.mark.asyncio

@@ -531,3 +531,14 @@ Desacopla el NLP del proveedor concreto para poder ejecutarlo **en local** (con 
 **Motivo:** mitigar el riesgo de fiabilidad/disponibilidad del backend remoto (ver Épicas 3 y 4) y ganar control total del modelo — precondición de **R3.7** (incoherencia) y del **fine-tuning** local. La inferencia local es viable en el hardware de desarrollo (GTX 1650 SUPER 4 GB / CPU Ryzen 5).
 
 **Dependencias y tests:** `transformers` (con sus dependencias) está en `requirements.txt`. **`torch`** es dependiente del hardware (CPU o CUDA), así que **no se fija** en `requirements.txt` — se instala aparte para usar el backend local (CI y los tests **no** lo necesitan, porque mockean el `pipeline`). Cobertura: `LocalNLPClient` (normalización de `classify`/`zero_shot`, manejo de errores, cache por `(task, model)`) y la factoría — todo sin descargar modelos ni tocar la red.
+
+### E5-02 · Enriquecer la salida de noticias con el contenido
+
+`get_guardian_news` y `get_nyt_news` ahora devuelven un campo **`content`** (el teaser/resumen del artículo) además de `title`/`url`/`date` — **prerequisito de la detección por incoherencia (E5-03)**, que compara titular ↔ contenido.
+
+- **Guardian:** el teaser **no viene por defecto** → se pide con el param `show-fields=trailText` y se extrae de `fields.trailText`.
+- **NYT:** el `abstract` **ya viene** en la respuesta → solo se extrae. Bonus: también se devuelve `print_headline` (titular impreso), que habilita la variante **titular web vs. impreso** de R3.7.
+- **Acceso defensivo:** el teaser está anidado (`fields.trailText`, `headline.print_headline`) → patrón `.get("...", {}).get(...)` para no petar si falta.
+- **Tests (`respx`):** los `fake_payload` incluyen los campos fuente y se verifica que el cliente los mapea a `content` (y `print_headline` en NYT).
+
+**Motivo:** sin el contenido no hay con qué comparar el titular; E5-02 es el **habilitador** de E5-03.
