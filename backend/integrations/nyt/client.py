@@ -43,10 +43,12 @@ class NYTAPI(BaseAPI):
         Respuesta de llamada a endpoint (campos consumidos):
             response.docs[].web_url    → url
             response.docs[].headline.main  → title
+            response.docs[].headline.print_headline  → print_headline
             response.docs[].pub_date   → date
+            response.docs[].abstract   → content
 
         Returns:
-            ToolResult.ok([{title, url, date}, ...]) si hay artículos.
+            ToolResult.ok([{title, print_headline, url, date, content}, ...]) si hay artículos.
             ToolResult.fail("No articles found") si docs está vacío o ausente.
         """
         today = date.today()
@@ -69,9 +71,11 @@ class NYTAPI(BaseAPI):
         articles = [
             {
                 "title": article.get("headline", {}).get("main"),
+                "print_headline": article.get("headline", {}).get("print_headline"),
                 # De nuevo, sin {}, el primer get devuelve none y ahí no se puede hacer get.
                 "url": article.get("web_url"),
                 "date": article.get("pub_date"),
+                "content": article.get("abstract"),
             }
             for article in results
         ]

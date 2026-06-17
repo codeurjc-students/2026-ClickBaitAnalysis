@@ -41,14 +41,15 @@ class GuardianAPI(BaseAPI):
             response.results[].webUrl    → url
             response.results[].webTitle  → title
             response.results[].webPublicationDate   → date
+            response.results[].fields.trailText   → content
 
         Returns:
-            ToolResult.ok([{title, url, date}, ...]) si hay artículos.
+            ToolResult.ok([{title, url, date, content}, ...]) si hay artículos.
             ToolResult.fail("No articles found") si results está vacío o ausente.
         """
         today = date.today()
         new_date = today - timedelta(days=days)
-        params = {"from-date": new_date}
+        params = {"from-date": new_date, "show-fields": "trailText"}
         if topic:  # Usa buscador de tags
             tag_id = await self._find_tag(topic)
             if tag_id:
@@ -72,6 +73,7 @@ class GuardianAPI(BaseAPI):
                 "title": article.get("webTitle"),
                 "url": article.get("webUrl"),
                 "date": article.get("webPublicationDate"),
+                "content": article.get("fields", {}).get("trailText"),
             }
             for article in results
         ]
