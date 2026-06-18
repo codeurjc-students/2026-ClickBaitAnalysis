@@ -9,9 +9,7 @@ class IncoherenceDetector:
     def __init__(self) -> None:
         self._model = None  # Singleton
 
-    def _get_model(
-        self,
-    ):
+    def _get_model(self):
         if self._model is None:
             from sentence_transformers import SentenceTransformer
 
@@ -21,10 +19,14 @@ class IncoherenceDetector:
     async def detect(self, headline: str, content: str) -> ToolResult:
         try:
             model = self._get_model()
-            embeding = await asyncio.to_thread(model.encode, [headline, content])
+            embedding = await asyncio.to_thread(model.encode, [headline, content])
 
             # Usa coseno por debajo
-            sim = model.similarity(embeding[0], embeding[1]).item()
+            sim = model.similarity(embedding[0], embedding[1]).item()
+            # Devuelve tensors, necesitamos .item
+
+            # Tensors: Array de Números de N dimensiones. En este caso 2 embeddings x 1-D Tensor de 384 floats de los cuales reducimos a 1 float x 1 Tensor con similarity (y que extraemos con item)
+
             inc = sim < self.THRESHOLD
             return ToolResult.ok(
                 {

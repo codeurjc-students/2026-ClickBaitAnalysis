@@ -542,3 +542,17 @@ Desacopla el NLP del proveedor concreto para poder ejecutarlo **en local** (con 
 - **Tests (`respx`):** los `fake_payload` incluyen los campos fuente y se verifica que el cliente los mapea a `content` (y `print_headline` en NYT).
 
 **Motivo:** sin el contenido no hay con qué comparar el titular; E5-02 es el **habilitador** de E5-03.
+
+### E5-03 · Detección de clickbait por incoherencia (R3.7)
+
+Segunda señal de clickbait, **complementaria** a `detect_clickbait` (que juzga el titular de forma aislada con zero-shot): mide si el **titular se corresponde con el contenido**. La esencia del clickbait es prometer algo que el cuerpo no cumple → un titular *incoherente* con su contenido es sospechoso.
+
+- **Componente `IncoherenceDetector`** (`nlp/incoherence.py`): usa `sentence-transformers` **directamente**, sin pasar por el contrato `NLPBackend` — no es clasificación, sino *embeddings* + similitud. Mismo patrón que `LocalNLPClient`: **carga perezosa + cache** del modelo `all-MiniLM-L6-v2` (instancia única creada en `register` → se carga **una sola vez por proceso**) e **inferencia en hilo** (`asyncio.to_thread`) para no bloquear el *event loop*.
+- **Técnica:** se generan los *embeddings* del titular y del contenido y se calcula su **similitud del coseno**. Similitud baja = el titular no encaja con lo que cuenta la noticia = señal de incoherencia. El umbral (`THRESHOLD`) decide el flag `incoherent`. Coseno porque es la métrica con la que se entrena SBERT (elección documentada, no arbitraria).
+- **Tool nueva `detect_clickbait_incoherence(headline, content)`** — separada de `detect_clickbait` (R3.7 dice *"además de"*): el LLM puede usar una, otra, o contrastar ambas.
+- **Explicable por diseño:** la salida es un dict auto-descriptivo `{"similarity", "incoherent", "headline", "content"}` — el *score* **es** la explicación, a diferencia de la etiqueta opaca del zero-shot. Refuerza el eje de **explicabilidad** del TFG.
+- **Tests:** se mockea `_get_model` con un modelo falso que controla la similitud (`FakeModel` + `FakeSim`, que imita el tensor de `.similarity()` con su `.item()`); casos coherente / incoherente / error. Sin descargar modelos ni tocar la red.
+
+**Dependencias:** `sentence-transformers` **no se fija** en `requirements.txt` — arrastra `torch` + CUDA (varios GB, dependientes del hardware), así que sigue la **misma política que `torch` en E5-01**: se instala **aparte** para usar la incoherencia en local. CI y los tests **no** lo necesitan (mockean `_get_model`).
+
+**Motivo:** R3.7 — segunda señal de clickbait complementaria al zero-shot. La incoherencia captura el desajuste titular↔cuerpo (la promesa incumplida) y es **intrínsecamente explicable** (la similitud es el motivo), reforzando el eje de explicabilidad del TFG.

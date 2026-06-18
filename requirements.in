@@ -14,5 +14,3 @@ structlog
 aiolimiter 
 
 transformers
-
-sentence_transformers

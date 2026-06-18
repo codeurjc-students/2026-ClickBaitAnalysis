@@ -6,6 +6,7 @@ import respx  # Usamos en vez de htttp, ya que no hacemos llamadas de verdad, mo
 from httpx import Response, TimeoutException
 
 from backend.integrations.nlp.client import HFClient
+from backend.integrations.nlp.incoherence import IncoherenceDetector
 from backend.integrations.nlp.local import LocalNLPClient
 from backend.integrations.nlp.factory import get_nlp_backend
 from backend.config.settings import settings
@@ -305,3 +306,67 @@ async def test_zero_shot_real_contract():
     )
     assert result.success
     assert result.data["label"] in {"clickbait", "factual news"}
+
+
+class FakeSim:
+    def __init__(self, v):
+        self.v = v
+
+    def item(self):
+        return self.v
+
+
+class FakeModel:
+    def __init__(self, sim):
+        self._sim = sim
+
+    def encode(self, texts):
+        return [[0.1, 0.2, 0.3], [0.4, 0.5, 0.6]]  # 2 x 1-D x 3 nums
+
+    def similarity(self, a, b):
+        return FakeSim(self._sim)
+
+
+# Necesitamos falsificar el modelo transformer para no llamarlo de verdad en .encode y .similarity
+
+
+# Como similarity devuelve tensors, tenemos que falsearlos (falseando .item)
+@pytest.mark.asyncio
+async def test_incoherence_detected_true(monkeypatch):
+    detector = IncoherenceDetector()
+    sim = 0.2
+
+    monkeypatch.setattr(detector, "_get_model", lambda: FakeModel(sim))
+    result = await detector.detect("great movie", "bad movie")
+    assert result.success
+    assert result.data["incoherent"] is True
+    assert result.data["similarity"] == 0.2
+    assert result.data["headline"] == "great movie"
+    assert result.data["content"] == "bad movie"
+
+
+@pytest.mark.asyncio
+async def test_incoherence_detected_false(monkeypatch):
+    detector = IncoherenceDetector()
+    sim = 0.7
+
+    monkeypatch.setattr(detector, "_get_model", lambda: FakeModel(sim))
+    result = await detector.detect("great movie", "good movie")
+    assert result.success
+    assert result.data["incoherent"] is False
+    assert result.data["similarity"] == 0.7
+    assert result.data["headline"] == "great movie"
+    assert result.data["content"] == "good movie"
+
+
+@pytest.mark.asyncio
+async def test_detector_error_returns_fail(monkeypatch):
+    def boom():
+        raise RuntimeError("modelo no encontrado")
+
+    detector = IncoherenceDetector()
+    monkeypatch.setattr(detector, "_get_model", boom)
+    result = await detector.detect("error", "no movie")
+
+    assert not result.success
+    assert "Error inesperado calculando incoherencia" in result.error
