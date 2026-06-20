@@ -556,3 +556,14 @@ Segunda señal de clickbait, **complementaria** a `detect_clickbait` (que juzga 
 **Dependencias:** `sentence-transformers` **no se fija** en `requirements.txt` — arrastra `torch` + CUDA (varios GB, dependientes del hardware), así que sigue la **misma política que `torch` en E5-01**: se instala **aparte** para usar la incoherencia en local. CI y los tests **no** lo necesitan (mockean `_get_model`).
 
 **Motivo:** R3.7 — segunda señal de clickbait complementaria al zero-shot. La incoherencia captura el desajuste titular↔cuerpo (la promesa incumplida) y es **intrínsecamente explicable** (la similitud es el motivo), reforzando el eje de explicabilidad del TFG.
+
+
+
+"Aplico Rudin donde puedo —incoherencia(A MEDIAS, YA QUE EL MODELO NO) y léxico son intrínsecamente interpretables— y reservo lo post-hoc (LIME/SHAP), con sus límites de fidelidad, solo para la parte que depende de un transformer preentrenado que no puedo abrir de otro modo." !!!IMPORTANTE (NO MODIFICAR, RECORDAR POSTURA DEFINIDA)
+
+
+Omitir contenido decisivo = curiosity / information gap (Loewenstein) — el clásico teórico del clickbait.
+Catáfora / forward-reference ("this", "these", "here's why") — Blom & Hansen (2015), marcador lingüístico de clickbait.
+Léxico afectivo vs neutral = sensacionalismo.
+Activa/pasiva según el foco ("Police shoot man" vs "Man dies after police encounter") = framing de agencia (quién es agente/responsable). Tu intuición de la voz es teoría del framing pura.
+Perspectiva (dos personas: de quién es el punto de vista).
