@@ -4,7 +4,7 @@ from backend.core.models import ToolResult
 
 class IncoherenceDetector:
     MODEL = "all-MiniLM-L6-v2"
-    THRESHOLD = 0.3  # Lower es clickbait
+    THRESHOLD = 0.3  # Lower es clickbait #TODO: Parametrizable
 
     def __init__(self) -> None:
         self._model = None  # Singleton

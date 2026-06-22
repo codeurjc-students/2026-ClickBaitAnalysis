@@ -6,6 +6,7 @@ import json
 
 from mcp.server.fastmcp import FastMCP
 from backend.core.observability import log_tool_invocation
+from backend.integrations.nlp import lexical
 from backend.integrations.nlp.factory import get_nlp_backend
 from backend.integrations.nlp.incoherence import IncoherenceDetector
 
@@ -92,4 +93,29 @@ def register(mcp: FastMCP):
         response = await detector.detect(headline, content)
         if not response.has_content():
             return response.error or "Error al analizar incoherencia en el titular"
+        return json.dumps(response.data)
+
+    @mcp.tool()
+    @log_tool_invocation
+    async def detect_clickbait_lexical(headline: str) -> str:
+        """
+        Detecta clickbait por pistas léxicas y estructurales del titular (señal explicable).
+
+        Busca marcas típicas de clickbait —hipérbole, referencias vagas (this/these),
+        frases gancho, número inicial (listicle), interrogación, mayúsculas, elipsis—
+        y devuelve qué pistas dispararon y dónde. Señal white-box (la evidencia ES la
+        explicación), complementaria a `detect_clickbait` (zero-shot) y
+        `detect_clickbait_incoherence`. Pensada para titulares en inglés.
+
+        Args:
+            headline (str): titular a evaluar (en inglés).
+
+        Returns:
+            JSON con `score` (nº de pistas), `is_clickbait` (score ≥ umbral),
+            `matches` (lista de {category, cue, span}) y `headline`. Mensaje de
+            error si el titular está vacío.
+        """
+        response = lexical.detect(headline)
+        if not response.has_content():
+            return response.error or "Error al analizar léxico en el titular"
         return json.dumps(response.data)

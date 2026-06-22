@@ -556,3 +556,33 @@ Segunda señal de clickbait, **complementaria** a `detect_clickbait` (que juzga 
 **Dependencias:** `sentence-transformers` **no se fija** en `requirements.txt` — arrastra `torch` + CUDA (varios GB, dependientes del hardware), así que sigue la **misma política que `torch` en E5-01**: se instala **aparte** para usar la incoherencia en local. CI y los tests **no** lo necesitan (mockean `_get_model`).
 
 **Motivo:** R3.7 — segunda señal de clickbait complementaria al zero-shot. La incoherencia captura el desajuste titular↔cuerpo (la promesa incumplida) y es **intrínsecamente explicable** (la similitud es el motivo), reforzando el eje de explicabilidad del TFG.
+
+### E5-04 · Explicabilidad: explicador léxico + formalización de R3.8 (R3.8–R3.11)
+
+Formaliza la **explicabilidad** —eje del TFG— y entrega la primera señal **genuinamente white-box**.
+
+**Requisitos:** se añaden a R3 cuatro criterios (ver `docs/requisitos.md`): **R3.8** explicar veredictos priorizando lo intrínsecamente interpretable; **R3.9** divulgar e intercambiar modelos; **R3.10** exponer ≥2 señales contrastables; **R3.11** post-hoc opcional (LIME/SHAP).
+
+- **Detector léxico `lexical.detect(headline)`** (`nlp/lexical.py`): busca **pistas de clickbait** y devuelve **cuáles dispararon y dónde**. A diferencia de la incoherencia (decisión transparente pero *feature* opaca), esta señal es **íntegramente interpretable**: las pistas **son** la explicación.
+  - **Pistas categorizadas + regex** (palabras y frases separadas a propósito): `WORD_CUES` (hipérbole, forward-reference) por `set`, `PHRASE_CUES` (curiosity-gap) por subcadena con `re.escape`, y `PATTERNS` estructurales (número inicial, `?` final, MAYÚSCULAS, elipsis) por regex. Sembradas de las listas de **Chakraborty et al. 2016** (citadas).
+  - **Salida auto-descriptiva:** `{score, is_clickbait (score ≥ THRESHOLD), matches:[{category, cue, span}], headline}` — los `span` dejan preparado el **resaltado en el frontend** futuro.
+  - **Función pura y síncrona** (no hay modelo ni red) → sin `async`/`to_thread`; guard de entrada vacía (R3.5).
+- **Tool nueva `detect_clickbait_lexical(headline)`** — tercera señal independiente → habilita el **contraste** (R3.10): el LLM puede cruzar zero-shot + incoherencia + léxico.
+- **Sin dependencias nuevas** (solo `re` de la stdlib). **Tests sin mocks** (determinista): positivo / negativo / guard de entrada.
+
+**Postura (Rudin):** se aplica lo intrínseco donde se puede (léxico = white-box; incoherencia = a medias, el modelo de embeddings es opaco) y se reserva lo post-hoc (LIME/SHAP) solo para el zero-shot, que no se puede abrir de otro modo.
+
+**Backlog (en memoria, fuera de este PR):** fichas de modelos (R3.9 divulgación), meta-tool de contraste con cascada, post-hoc (R3.11). La **combinación calibrada** de señales depende de un dataset etiquetado (Webis-17 CC0 / Chakraborty 16k) → sube **E4-03** de prioridad.
+
+**Motivo:** R3.8 — la explicabilidad es el eje del TFG; el explicador léxico es la pieza que responde *"qué palabras"*, la única señal plenamente interpretable, y completa las tres señales contrastables.
+
+
+
+"Aplico Rudin donde puedo —incoherencia(A MEDIAS, YA QUE EL MODELO NO) y léxico son intrínsecamente interpretables— y reservo lo post-hoc (LIME/SHAP), con sus límites de fidelidad, solo para la parte que depende de un transformer preentrenado que no puedo abrir de otro modo." !!!IMPORTANTE (NO MODIFICAR, RECORDAR POSTURA DEFINIDA)
+
+
+Omitir contenido decisivo = curiosity / information gap (Loewenstein) — el clásico teórico del clickbait.
+Catáfora / forward-reference ("this", "these", "here's why") — Blom & Hansen (2015), marcador lingüístico de clickbait.
+Léxico afectivo vs neutral = sensacionalismo.
+Activa/pasiva según el foco ("Police shoot man" vs "Man dies after police encounter") = framing de agencia (quién es agente/responsable). Tu intuición de la voz es teoría del framing pura.
+Perspectiva (dos personas: de quién es el punto de vista).

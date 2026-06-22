@@ -5,6 +5,7 @@ import pytest
 import respx  # Usamos en vez de htttp, ya que no hacemos llamadas de verdad, mockeamos
 from httpx import Response, TimeoutException
 
+from backend.integrations.nlp import lexical
 from backend.integrations.nlp.client import HFClient
 from backend.integrations.nlp.incoherence import IncoherenceDetector
 from backend.integrations.nlp.local import LocalNLPClient
@@ -370,3 +371,40 @@ async def test_detector_error_returns_fail(monkeypatch):
 
     assert not result.success
     assert "Error inesperado calculando incoherencia" in result.error
+
+
+# --Léxico
+
+
+def test_lexical_detector_true():
+
+    headline = "7 reasons to avoid ketchup"
+
+    result = lexical.detect(headline)
+    assert result.success
+    assert result.data["is_clickbait"] is True
+    assert result.data["score"] >= lexical.THRESHOLD
+
+    cats = {m["category"] for m in result.data["matches"]}
+    assert "leading_number" in cats
+    assert "forward_reference" in cats
+
+
+def test_lexical_detector_false():
+
+    headline = "Spain wins the 2026 World Cup"
+
+    result = lexical.detect(headline)
+    assert result.success
+    assert result.data["is_clickbait"] is False
+    assert not (result.data["score"] >= lexical.THRESHOLD)
+
+
+def test_lexical_detector_no_headline():
+
+    headline1 = " "
+    headline2 = ""
+
+    result1 = lexical.detect(headline1)
+    result2 = lexical.detect(headline2)
+    assert not (result1.success) and (not result2.success)

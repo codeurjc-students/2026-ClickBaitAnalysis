@@ -59,6 +59,10 @@ Este documento define los requisitos para un Trabajo de Fin de Grado (TFG) que i
 5. CUANDO el texto esté vacío o no sea válido, EL NLP_Analyzer DEBERÁ devolver un mensaje de error adecuado.
 6. EL NLP_Analyzer DEBERÁ procesar las solicitudes de análisis de texto dentro de unos límites de tiempo razonables.
 7. EL NLP_Analyzer DEBERÁ soportar la detección de clickbait por **incoherencia** entre el titular y su contenido (titular vs. teaser/cuerpo, o titular web vs. impreso), además de clasificar el titular de forma aislada. _(Requiere enriquecer la salida de las herramientas de noticias — ver Requisito 2.)_
+8. EL NLP_Analyzer DEBERÁ acompañar cada veredicto de clickbait con una **explicación legible** de aquello en lo que se basa, **priorizando medios intrínsecamente interpretables** (marcas léxicas que disparan la señal y/o el grado de incoherencia titular↔contenido) frente a explicaciones post-hoc sobre modelos opacos. _(Eje de explicabilidad del TFG. Matiz: el score de incoherencia es transparente en su **decisión** pero su **feature** —embeddings— es opaca, y su umbral está sin calibrar — ver memoria de cambios.)_
+9. EL NLP_Analyzer DEBERÁ **divulgar los modelos** que emplea (nombre, tarea y limitaciones conocidas) y DEBERÁ permitir **intercambiarlos por configuración**, sin cambios de código. _(Transparencia de sistema / model cards — ver memoria de cambios.)_
+10. EL NLP_Analyzer DEBERÁ exponer **al menos dos señales independientes** de clickbait (p.ej. clasificación del titular e incoherencia titular↔contenido) que puedan **contrastarse** para reducir falsos positivos. _(La combinación **calibrada** de señales depende de un dataset etiquetado —ver E4-03—; el contraste inicial puede recaer en el agente orquestador.)_
+11. DONDE se empleen clasificadores de caja negra (p.ej. zero-shot), EL NLP_Analyzer PODRÁ ofrecer explicaciones **post-hoc** por atribución (p.ej. LIME/SHAP) que resalten los términos más influyentes, **asumiendo sus límites de fidelidad**. _(Mejora opcional / comparativa de técnicas XAI.)_
 
 ### Requisito 4: API REST backend
 
