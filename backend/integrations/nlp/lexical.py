@@ -1,10 +1,26 @@
-import re
+from pathlib import Path
+import re, ast
 
 from backend.core.models import ToolResult
 
+CUES_DIR = Path(__file__).resolve().parent / "cues"
+
+
+def _load_literal(path):
+    with open(path, encoding="utf-8") as f:
+        return set(ast.literal_eval(f.read()))
+        # Read (string) -> Literal_eval (lista) -> set O(1)
+        # NUNCA USAR EVAL, ES CAPAZ DE EJECUTAR COMANDOS!
+
+
+def _load_lines(path):
+    with open(path, encoding="utf-8") as f:
+        return {line.strip().lower() for line in f if line.strip()}  # set de str
+
+
 WORD_CUES = {
-    "hyperbole": {"amazing", "astonishing"},
-    "forward_reference": {"this", "that", "things", "reasons", "ways"},
+    "hyperbole": _load_lines(CUES_DIR / "hyperbolic"),
+    "forward_reference": _load_literal(CUES_DIR / "subjects"),
 }
 PHRASE_CUES = {
     "curiosity_gap": {"what happened next", "doesn't want you to see"},
@@ -19,8 +35,9 @@ PATTERNS = {
     "ellipsis": re.compile(r"\.\.\.|…"),  # ... o …
 }
 
-# Pistas necesarias para considerarse clickbait. TODO: Parametrizar
-THRESHOLD = 2
+# Pistas necesarias para considerarse clickbait.
+# Default t=1 (mejor F1≈0.85, P≈R). Modo conservador: t=2 (precisión≈0.97). TODO: Parametrizar
+THRESHOLD = 1
 
 
 def detect(headline: str) -> ToolResult:

@@ -1,0 +1,15 @@
+# Dependencias de DESARROLLO / tooling offline.
+# NO van en requirements.txt (lo que instala el CI): son pesadas y/o dependientes
+# del hardware, y los tests de CI las mockean o no las necesitan.
+#
+# Instalar aparte:  pip install -r requirements-dev.txt
+#
+# --- Evaluación (backend/evaluation/): métricas, matriz de confusión, sweep ---
+numpy
+scikit-learn
+#
+# --- Inferencia NLP local: backend local (E5-01) e incoherencia (E5-03) ---
+# sentence-transformers arrastra torch + wheels CUDA (varios GB, hardware-specific).
+# En una máquina sin GPU, instala antes el torch de CPU:
+#   pip install torch --index-url https://download.pytorch.org/whl/cpu
+sentence-transformers
