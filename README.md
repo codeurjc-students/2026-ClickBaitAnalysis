@@ -513,6 +513,40 @@ Tests (`respx`): NYT deriva `DAILY_LIMIT − call_count`; Guardian lee la cuota 
 
 **Selección de tag de Guardian (afinada en este PR):** `_find_tag` ya no coge `tags[0]` a ciegas. Para temas que son una **sección** ("technology"), Guardian lista antes tags de **nicho** (`sustainable-business/technology`) que, con el filtro `from-date`, daban **0 resultados recientes**, dejando el canónico más abajo. Ahora `_find_tag` prefiere el tag **canónico de sección** (`id` con forma `X/X`, p.ej. `technology/technology`) y cae a `tags[0]` para temas multi-palabra (p.ej. `technology/artificialintelligenceai`, que no es `X/X`). *(Verificado contra la API real.)*
 
+### E4-03 · Evaluación con dataset etiquetado + baseline del léxico
+
+Primer **harness de evaluación offline** (`backend/evaluation/eval_lexical.py`) para **medir** el detector léxico con datos reales en vez de umbrales "a ojo". Issue #63.
+
+- **Dataset:** **Chakraborty et al. 16k** (vendorizado en `data/`) — 15 999 titulares clickbait + 16 001 no-clickbait, de noticias. **Licencia MIT** + **cita obligatoria** (ver `data/ATTRIBUTION.md`).
+- **Tubería reproducible** (`python -m backend.evaluation.eval_lexical`): `load_dataset` (lee los `.gz`, etiqueta **por fichero**) → `score_headlines` (corre `lexical.detect` **una vez** por titular, guarda el `score`) → `confusion`/`metrics` (sklearn: matriz + P/R/F1) → `sweep` (barre umbrales reutilizando los scores guardados → barato).
+
+**Baseline 1 — lexicón mínimo (~12 pistas hardcodeadas):**
+
+| t | Precision | Recall | F1 |
+|---|---|---|---|
+| 1 | 0.887 | 0.506 | 0.644 |
+| 2 | 0.985 | 0.183 | 0.309 |
+| 3 | 0.997 | 0.019 | 0.037 |
+
+**Baseline 2 — lexicón dinámico (~384 pistas, listas completas de Chakraborty):**
+
+| t | Precision | Recall | F1 |
+|---|---|---|---|
+| **1** *(default)* | 0.847 | 0.850 | **0.849** |
+| 2 *(modo conservador)* | 0.969 | 0.543 | 0.696 |
+| 3 | 0.994 | 0.263 | 0.416 |
+
+**Lectura:** ampliar el léxico de ~12 a ~384 pistas (cargadas dinámicamente desde `cues/`: `hyperbolic` palabra-por-línea, `subjects` literal Python vía `ast.literal_eval`) **dispara el recall 0.506 → 0.850** a cambio de 4 puntos de precisión → **F1 0.644 → 0.849**. Confirma la hipótesis: el cuello de botella era la **cobertura del lexicón**, no el umbral. `common_phrases` se deja **fuera** del léxico de reglas a propósito (n-gramas genéricos tipo "for the" → hundirían la precisión; son material de *features* para el modelo lineal, no reglas booleanas).
+
+**Punto de operación:** `THRESHOLD = 1` por defecto (mejor F1, P≈R≈0.85); `t=2` documentado como **modo conservador** (precisión 0.97, menos falsos positivos). Sigue marcado `TODO: Parametrizar`.
+
+**Caveat metodológico:** el sweep elige el umbral sobre **todo** el dataset → ligeramente optimista. Para una regla con 1 hiperparámetro apenas sobreajusta (vale como techo), pero la comparación **justa** contra el futuro modelo lineal exigirá un split **train/test**.
+
+**Siguiente:** modelo de **pesos lineales** (LogisticRegression/LinearSVC sobre estas mismas pistas como *features*) — sigue siendo **interpretable** (los pesos son la explicación, R3.8) y deja que el modelo aprenda el peso de cada señal (incl. ~0 para las genéricas). Es el "modelo propio" del peldaño 2, alineado con Rudin (interpretable-primero, medir el hueco).
+
+- **Dependencias:** `numpy` + `scikit-learn` van en `requirements-dev.txt` (tooling offline), **no** en `requirements.txt` (CI ligero).
+- **Incoherencia — fuera de alcance:** Chakraborty son solo titulares (sin cuerpo) → calibrarla necesita **Webis-17** (follow-up).
+
 ## Épica 5 — Núcleo NLP: backend local, incoherencia y explicabilidad
 
 > Fase B. Surge del **dilema HF**: la Inference API alojada de HuggingFace resultó poco fiable (timeouts ~1/5, caídas del proveedor, modelos de clickbait específicos no servidos). Issues #54–#58.
@@ -586,3 +620,16 @@ Catáfora / forward-reference ("this", "these", "here's why") — Blom & Hansen 
 Léxico afectivo vs neutral = sensacionalismo.
 Activa/pasiva según el foco ("Police shoot man" vs "Man dies after police encounter") = framing de agencia (quién es agente/responsable). Tu intuición de la voz es teoría del framing pura.
 Perspectiva (dos personas: de quién es el punto de vista).
+
+
+
+(Nuevos conceptos para E4-03):
+Harness de evaluación: Compara resultados de mi código con el del dataset
+Precisión: Mide falsas alarmas (TP/(TP+FP))
+Recall: Mide lo que "escapa" (TP/(TP+FN))
+
+F1: Media de las anteriores
+
+Sweep: Barrido, probar rango de valores para ver que Threshold consigue mejor F1.
+
+Baseline: Resultado a mejorar (+50% para batir azar)
