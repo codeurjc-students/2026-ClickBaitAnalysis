@@ -67,4 +67,17 @@ if __name__ == "__main__":
         )
     )
 
-    # pista: sorted(zip(lexical.CATEGORIES, model.coef_[0]), key=..., reverse=True)
+    # Lineal vs Reglas:
+    rule_pred = []
+    for x in X_test:
+        if sum(x) >= lexical.THRESHOLD:
+            rule_pred.append(1)
+        else:
+            rule_pred.append(0)
+
+    print(
+        "reglas",
+        precision_recall_fscore_support(
+            y_test, rule_pred, average="binary", zero_division=0
+        ),
+    )

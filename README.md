@@ -617,15 +617,17 @@ Issue #65. Primer modelo **entrenado** del proyecto: una **regresión logística
 - **Featurización (opción A, por categoría):** `featurize(headline)` corre `lexical.detect`, cuenta los `matches` por categoría con `Counter` y emite un vector de 7 enteros en el orden de la nueva constante `lexical.CATEGORIES` (multi-hot / bag-of-words simplificado **por categoría**, no por palabra).
 - **Tubería** (`backend/evaluation/linear_model.py`): `load_dataset` (reusa E4-03) → `featurize` → **split train/test estratificado** (`test_size=0.2`, semilla fija → corrige el **sesgo optimista**) → `LogisticRegression.fit` (minimiza **log-loss**) → `predict` → métricas + pesos.
 
-**Resultado (held-out test, `random_state=24`):**
+**Resultado (comparación justa: ambos sobre el mismo held-out test, `random_state=24`):**
 
-| | Reglas (t=1, todo el dataset) | Lineal (held-out) |
+| | Reglas (t=1) | Lineal |
 |---|---|---|
-| Precision | 0.847 | **0.863** |
-| Recall | **0.850** | 0.842 |
-| F1 | 0.849 | **0.852** |
+| Precision | 0.841 | **0.863** |
+| Recall | **0.845** | 0.842 |
+| F1 | 0.843 | **0.852** |
 
-**Veredicto:** **empate en F1** (~0.850). El lineal lo logra sobre un **test honesto** (las reglas medían sobre **todo** el dataset → optimista) y gana **precisión** a cambio de algo de recall. Con 7 features gruesas, contar reglas y aprender pesos extraen casi lo mismo → el modelo no es el cuello de botella, **la granularidad de las features lo es**.
+> Sobre **todo** el dataset las reglas daban F1=0.849 (optimista); en el test honesto bajan a 0.843 → el *caveat* era real, pequeño (parte sesgo, parte muestreo).
+
+**Veredicto:** el lineal **gana, modesto pero limpio** (F1 0.852 vs 0.843). Toda la ventaja es **precisión** (+0.022); el recall queda empatado. Y la **explicación predice la métrica**: las reglas contaban `all_caps`/`question` como +clickbait → falsos positivos → precisión 0.841; el lineal aprendió que son **negativos** → menos falsos positivos → precisión 0.863. La tabla de pesos (R3.8) anticipó dónde estaría la ganancia. Aun así, con 7 features gruesas el margen es pequeño → **la granularidad de las features es el cuello de botella**, no el modelo.
 
 **Explicabilidad (R3.8) — pesos aprendidos:**
 
@@ -641,7 +643,7 @@ Issue #65. Primer modelo **entrenado** del proyecto: una **regresión logística
 
 Los tres positivos = clickbait de manual → **valida** el white-box. Hallazgo clave: `all_caps` y `question` salen **negativos** — el modelo **corrige solo** suposiciones que las reglas tenían *al revés* (las contaban como +clickbait). Ejemplo de **medir > intuir**. Los pesos grandes son **estables entre semillas** (la explicación es fiable, no un artefacto del split). *(Caveat: pesos condicionales y dataset específico de titulares EN — no sobre-generalizar.)*
 
-**Siguiente:** (1) re-medir el baseline de reglas en el **mismo test** (comparación 100 % justa, pendiente); (2) **opción B** — featurización **por cue** (~570 features, desbloquea `common_phrases` como *features*) → palanca para superar el empate sin salir de la familia interpretable.
+**Siguiente:** **opción B** — featurización **por cue** (~570 features, desbloquea `common_phrases` como *features*) → palanca para ampliar el margen sin salir de la familia interpretable.
 
 
 
