@@ -614,16 +614,18 @@ Formaliza la **explicabilidad** —eje del TFG— y entrega la primera señal **
 
 Issue #65. Primer modelo **entrenado** del proyecto: una **regresión logística** que *aprende* un peso por señal en vez de contar pistas con un umbral fijo. Sigue siendo **interpretable** (los pesos son la explicación, R3.8) — peldaño 2 alineado con Rudin (interpretable-primero, medir el hueco antes de plantear una caja negra).
 
-- **Featurización (opción A, por categoría):** `featurize(headline)` corre `lexical.detect`, cuenta los `matches` por categoría con `Counter` y emite un vector de 7 enteros en el orden de la nueva constante `lexical.CATEGORIES` (multi-hot / bag-of-words simplificado **por categoría**, no por palabra).
+- **Featurización — dos granularidades:**
+  - **Opción A (por categoría):** `featurize` cuenta los `matches` por categoría → vector de **7** enteros en el orden de `lexical.CATEGORIES`.
+  - **Opción B (por cue):** `featurize_cues` cuenta **cada cue individual** (clave `match["cue"]`) → vector de **~390** en el orden de `lexical.ALL_CUES`; los `PATTERNS` se quedan por categoría (su texto casado varía → híbrido). Es un bag-of-words restringido al vocabulario de pistas.
 - **Tubería** (`backend/evaluation/linear_model.py`): `load_dataset` (reusa E4-03) → `featurize` → **split train/test estratificado** (`test_size=0.2`, semilla fija → corrige el **sesgo optimista**) → `LogisticRegression.fit` (minimiza **log-loss**) → `predict` → métricas + pesos.
 
-**Resultado (comparación justa: ambos sobre el mismo held-out test, `random_state=24`):**
+**Resultado (todos sobre el mismo held-out test, `random_state=24`):**
 
-| | Reglas (t=1) | Lineal |
-|---|---|---|
-| Precision | 0.841 | **0.863** |
-| Recall | **0.845** | 0.842 |
-| F1 | 0.843 | **0.852** |
+| | Reglas (t=1) | Lineal A (categoría) | Lineal B (por cue) |
+|---|---|---|---|
+| Precision | 0.841 | 0.863 | **0.927** |
+| Recall | **0.845** | 0.842 | 0.811 |
+| F1 | 0.843 | 0.852 | **0.865** |
 
 > Sobre **todo** el dataset las reglas daban F1=0.849 (optimista); en el test honesto bajan a 0.843 → el *caveat* era real, pequeño (parte sesgo, parte muestreo).
 
@@ -643,7 +645,14 @@ Issue #65. Primer modelo **entrenado** del proyecto: una **regresión logística
 
 Los tres positivos = clickbait de manual → **valida** el white-box. Hallazgo clave: `all_caps` y `question` salen **negativos** — el modelo **corrige solo** suposiciones que las reglas tenían *al revés* (las contaban como +clickbait). Ejemplo de **medir > intuir**. Los pesos grandes son **estables entre semillas** (la explicación es fiable, no un artefacto del split). *(Caveat: pesos condicionales y dataset específico de titulares EN — no sobre-generalizar.)*
 
-**Siguiente:** **opción B** — featurización **por cue** (~570 features, desbloquea `common_phrases` como *features*) → palanca para ampliar el margen sin salir de la familia interpretable.
+**Opción B — features por cue (F1 0.865):** una feature por **palabra/frase** (~390) en vez de por categoría. La granularidad **revela heterogeneidad dentro de las categorías hechas a mano**:
+
+- **TOP (clickbait):** `you` (+5.9, el nº1 → dirigirse al lector), `we`, `what`, `this`, `everyone`, `guys` (sujetos vagos) + `adorable`, `hilarious`, `funniest`, `amazing`, `literally` (hipérbole afectiva).
+- **BOTTOM (no-clickbait):** `question` (−4.5, estable con A) + `extraordinary`, `legendary`, `striking`, `memorable`, `grand` — **todas de la categoría `hyperbole`**, pero léxico **formal de prensa seria**.
+
+Ese contraste explica el salto de precisión (0.863 → **0.927**): A daba `hyperbole = +2.0` (el **promedio**); B distingue `adorable` (clickbait) de `extraordinary` (serio) y **deja de dispararse** con los formales. La categoría a mano era **heterogénea** y el modelo lo destapa — hallazgo lingüístico, no solo métrico. *(Caveat: algunos pesos del bottom — `ethnic`, `psychological`, `charged` — son artefacto temático del corpus, no "no-clickbait" universal.)*
+
+**Siguiente (opcional):** **B2** — añadir `common_phrases` como features (arrastra el acoplamiento de `detect()`, que es a la vez la tool de reglas → decisión pendiente); o el peldaño neural (E5-05). El modelo lineal interpretable ya **bate al baseline con explicación legible** (R3.8).
 
 
 

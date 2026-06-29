@@ -25,6 +25,28 @@ def featurize(headline) -> list[int]:  # -> vector
     # Devuelve lista de int en orden de CATEGORIES
 
 
+# En vez de modificar la anterior, dejo para que se puedan usar PATTERNS ya que sí es categórica, resto por cues y sumamos. (como una pveriosn avanzada)
+
+
+def featurize_cues(headline) -> list[int]:  # -> vector
+    result = lexical.detect(headline)
+
+    categories_list = []
+    cue_list = []
+    for match in result.data["matches"]:
+        if match["category"] in lexical.PATTERNS:
+            categories_list.append(match["category"])
+        else:
+            cue_list.append(match["cue"])
+
+    contador_category = Counter(categories_list)
+    contador_cue = Counter(cue_list)
+    vector = list(contador_category[cat] for cat in lexical.PATTERNS) + list(
+        contador_cue[cue] for cue in lexical.ALL_CUES
+    )
+    return vector
+
+
 if __name__ == "__main__":
 
     data = load_dataset()
@@ -33,7 +55,7 @@ if __name__ == "__main__":
     # Bag of Words Binario SIMPLIFICADO (por categoria en vez de palabra)
 
     headlines, labels = zip(*data)
-    X = [featurize(h) for h in headlines]
+    X = [featurize_cues(h) for h in headlines]
     y = labels
 
     # Split (Separamos train/test para evitar sesgo optimista -> sin generalización)
@@ -59,13 +81,17 @@ if __name__ == "__main__":
         )
     )
 
-    print(
-        sorted(
-            zip(lexical.CATEGORIES, model.coef_[0]),
-            key=lambda par: par[1],
-            reverse=True,
-        )
+    feature_names = list(lexical.PATTERNS) + lexical.ALL_CUES
+    weight_table = sorted(
+        zip(feature_names, model.coef_[0]),
+        key=lambda par: par[1],
+        reverse=True,
     )
+    print("TABLA DE PESOS")
+    print()
+    print("TOP: ", weight_table[:20])
+    print()
+    print("BOTTOM: ", weight_table[-20:])
 
     # Lineal vs Reglas:
     rule_pred = []
