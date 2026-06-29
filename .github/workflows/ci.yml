@@ -14,8 +14,8 @@ jobs:
       HF_TOKEN: dummy
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4 # usando organización actions por defecto
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v5 # usando organización actions por defecto
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.12"
           cache: pip #Evita instalación en cada run
