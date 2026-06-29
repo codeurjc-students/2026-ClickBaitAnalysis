@@ -35,8 +35,19 @@ PATTERNS = {
     "ellipsis": re.compile(r"\.\.\.|…"),  # ... o …
 }
 
+CATEGORIES = (
+    list(WORD_CUES) + list(PHRASE_CUES) + list(PATTERNS)
+)  # Usado para featurizar en el modelo linear
+
 # Pistas necesarias para considerarse clickbait.
 # Default t=1 (mejor F1≈0.85, P≈R). Modo conservador: t=2 (precisión≈0.97). TODO: Parametrizar
+
+# Creamos un orden para reutilizar en linear_model (igual que CATEGORIES).
+# No aplica PATTERNS (no se pueden determinar, son reglas)
+
+# Orden alfabético por defecto.
+# Desempaquetamos de set a string
+ALL_CUES = sorted(set().union(*WORD_CUES.values(), *PHRASE_CUES.values()))
 THRESHOLD = 1
 
 
