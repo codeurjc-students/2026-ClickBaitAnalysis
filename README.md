@@ -610,6 +610,39 @@ Formaliza la **explicabilidad** —eje del TFG— y entrega la primera señal **
 
 **Motivo:** R3.8 — la explicabilidad es el eje del TFG; el explicador léxico es la pieza que responde *"qué palabras"*, la única señal plenamente interpretable, y completa las tres señales contrastables.
 
+### E5-06 · Modelo lineal interpretable (peldaño 2 hacia el "modelo propio")
+
+Issue #65. Primer modelo **entrenado** del proyecto: una **regresión logística** que *aprende* un peso por señal en vez de contar pistas con un umbral fijo. Sigue siendo **interpretable** (los pesos son la explicación, R3.8) — peldaño 2 alineado con Rudin (interpretable-primero, medir el hueco antes de plantear una caja negra).
+
+- **Featurización (opción A, por categoría):** `featurize(headline)` corre `lexical.detect`, cuenta los `matches` por categoría con `Counter` y emite un vector de 7 enteros en el orden de la nueva constante `lexical.CATEGORIES` (multi-hot / bag-of-words simplificado **por categoría**, no por palabra).
+- **Tubería** (`backend/evaluation/linear_model.py`): `load_dataset` (reusa E4-03) → `featurize` → **split train/test estratificado** (`test_size=0.2`, semilla fija → corrige el **sesgo optimista**) → `LogisticRegression.fit` (minimiza **log-loss**) → `predict` → métricas + pesos.
+
+**Resultado (held-out test, `random_state=24`):**
+
+| | Reglas (t=1, todo el dataset) | Lineal (held-out) |
+|---|---|---|
+| Precision | 0.847 | **0.863** |
+| Recall | **0.850** | 0.842 |
+| F1 | 0.849 | **0.852** |
+
+**Veredicto:** **empate en F1** (~0.850). El lineal lo logra sobre un **test honesto** (las reglas medían sobre **todo** el dataset → optimista) y gana **precisión** a cambio de algo de recall. Con 7 features gruesas, contar reglas y aprender pesos extraen casi lo mismo → el modelo no es el cuello de botella, **la granularidad de las features lo es**.
+
+**Explicabilidad (R3.8) — pesos aprendidos:**
+
+| Categoría | Peso | Lectura |
+|---|---|---|
+| forward_reference | +2.79 | señal de clickbait más fuerte ("this/these/you") |
+| leading_number | +2.61 | listicles ("10 things…") |
+| hyperbole | +2.05 | "amazing/shocking" |
+| curiosity_gap | 0.00 | **feature muerta** (`PHRASE_CUES` mínimo → casi nunca dispara) |
+| ellipsis | ≈0 | no informativa (signo inestable entre semillas) |
+| all_caps | −0.76 | empuja a **no**-clickbait (siglas de prensa seria: NASA, NATO…) |
+| question | −3.80 | empuja a **no**-clickbait (el `?` final sale más en noticias reales aquí) |
+
+Los tres positivos = clickbait de manual → **valida** el white-box. Hallazgo clave: `all_caps` y `question` salen **negativos** — el modelo **corrige solo** suposiciones que las reglas tenían *al revés* (las contaban como +clickbait). Ejemplo de **medir > intuir**. Los pesos grandes son **estables entre semillas** (la explicación es fiable, no un artefacto del split). *(Caveat: pesos condicionales y dataset específico de titulares EN — no sobre-generalizar.)*
+
+**Siguiente:** (1) re-medir el baseline de reglas en el **mismo test** (comparación 100 % justa, pendiente); (2) **opción B** — featurización **por cue** (~570 features, desbloquea `common_phrases` como *features*) → palanca para superar el empate sin salir de la familia interpretable.
+
 
 
 "Aplico Rudin donde puedo —incoherencia(A MEDIAS, YA QUE EL MODELO NO) y léxico son intrínsecamente interpretables— y reservo lo post-hoc (LIME/SHAP), con sus límites de fidelidad, solo para la parte que depende de un transformer preentrenado que no puedo abrir de otro modo." !!!IMPORTANTE (NO MODIFICAR, RECORDAR POSTURA DEFINIDA)

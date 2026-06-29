@@ -35,6 +35,10 @@ PATTERNS = {
     "ellipsis": re.compile(r"\.\.\.|…"),  # ... o …
 }
 
+CATEGORIES = (
+    list(WORD_CUES) + list(PHRASE_CUES) + list(PATTERNS)
+)  # Usado para featurizar en el modelo linear
+
 # Pistas necesarias para considerarse clickbait.
 # Default t=1 (mejor F1≈0.85, P≈R). Modo conservador: t=2 (precisión≈0.97). TODO: Parametrizar
 THRESHOLD = 1
