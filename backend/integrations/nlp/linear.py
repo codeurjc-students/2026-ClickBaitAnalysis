@@ -3,6 +3,7 @@ import json
 import math
 from pathlib import Path
 
+from backend.core.models import ToolResult
 from backend.integrations.nlp import lexical
 
 JSON_FILE = Path(__file__).resolve().parent / "linear_clickbait.json"
@@ -34,6 +35,10 @@ def featurize_cues(headline) -> list[int]:  # -> vector
 
 
 def predict(headline):
+
+    if not headline or not headline.strip():
+        return ToolResult.fail("El titular está vacío o no es válido")
+
     vector = featurize_cues(headline)
     contribs = []
     for w, name, x in zip(JSON["weights"], JSON["feature_names"], vector):
@@ -50,12 +55,14 @@ def predict(headline):
     z = sum(contr for _, contr in s_contribs) + JSON["intercept"]  # w * x
     p = _sigmoid(z)
     is_clickbait = p >= 0.5
-    return {
-        "is_clickbait": is_clickbait,
-        "probability": p,
-        "top_cues": s_contribs[:20],  # Top 20 pesos (TODO: Configurable)
-        "headline": headline,
-    }
+    return ToolResult.ok(
+        {
+            "is_clickbait": is_clickbait,
+            "probability": p,
+            "top_cues": s_contribs[:20],  # Top 20 pesos (TODO: Configurable)
+            "headline": headline,
+        }
+    )
 
 
 def _sigmoid(z: int):

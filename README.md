@@ -654,6 +654,19 @@ Ese contraste explica el salto de precisión (0.863 → **0.927**): A daba `hype
 
 **Siguiente (opcional):** **B2** — añadir `common_phrases` como features (arrastra el acoplamiento de `detect()`, que es a la vez la tool de reglas → decisión pendiente); o el peldaño neural (E5-05). El modelo lineal interpretable ya **bate al baseline con explicación legible** (R3.8).
 
+### E5-07 · Tool MCP del modelo lineal (4ª señal contrastable)
+
+Issue #66. Convierte el modelo lineal de E5-06 (script de investigación) en una **señal usable** del servidor MCP, **sin engordar el runtime**.
+
+- **Modelo persistido** en JSON (`backend/integrations/nlp/linear_clickbait.json`): `weights`, `intercept` y `feature_names` (orden `PATTERNS` + `ALL_CUES`). Lo exporta el script de entrenamiento (`linear_model.py`); es un **asset versionado** (sin él, el import de la tool falla).
+- **Inferencia en Python puro** (`backend/integrations/nlp/linear.py`, sin `sklearn`/`torch`): un modelo lineal solo necesita `sigmoid(w·x + b)` → un producto escalar. `featurize_cues` vive aquí (fuente única; el entrenamiento la importa de aquí).
+- **Tool `detect_clickbait_linear(headline)`** → `{is_clickbait, probability, top_cues, headline}`. `top_cues` = los cues que más contribuyeron al veredicto (`peso × frecuencia`, ordenados) = **explicación intrínseca** (R3.8).
+- **4ª señal contrastable** (R3.10): zero-shot + incoherencia + léxico + **lineal**.
+
+**Ejemplo:** `"10 AMAZING things that happened!"` → `is_clickbait=True`, `p≈0.9998`, `top_cues = [things +3.24, amazing +2.99, leading_number +2.76, that +1.78, all_caps −0.79]`.
+
+**Nota de diseño:** entrenar (sklearn, en `evaluation/`, deps pesadas) y servir (pesos JSON + Python puro, en `integrations/nlp/`) quedan **separados** → CI y runtime siguen ligeros. Tests deterministas (sin mocks, el JSON está versionado).
+
 
 
 "Aplico Rudin donde puedo —incoherencia(A MEDIAS, YA QUE EL MODELO NO) y léxico son intrínsecamente interpretables— y reservo lo post-hoc (LIME/SHAP), con sus límites de fidelidad, solo para la parte que depende de un transformer preentrenado que no puedo abrir de otro modo." !!!IMPORTANTE (NO MODIFICAR, RECORDAR POSTURA DEFINIDA)
