@@ -5,7 +5,7 @@ import pytest
 import respx  # Usamos en vez de htttp, ya que no hacemos llamadas de verdad, mockeamos
 from httpx import Response, TimeoutException
 
-from backend.integrations.nlp import lexical
+from backend.integrations.nlp import lexical, linear
 from backend.integrations.nlp.client import HFClient
 from backend.integrations.nlp.incoherence import IncoherenceDetector
 from backend.integrations.nlp.local import LocalNLPClient
@@ -408,3 +408,35 @@ def test_lexical_detector_no_headline():
     result1 = lexical.detect(headline1)
     result2 = lexical.detect(headline2)
     assert not (result1.success) and (not result2.success)
+
+
+# --Lineal Determinista!!! (Si cambia seed, cambia test)
+
+
+def test_linear_detector_true():
+    headline = "10 amazing things you won't believe"
+
+    result = linear.predict(headline)
+    assert result.success
+    assert result.data["is_clickbait"] is True
+    assert result.data["probability"] > 0.5
+
+    # top_cues
+    cues = {name for name, _ in result.data["top_cues"]}
+    assert cues  # no vacío
+    assert "you" in cues  # el cue de mayor peso actual
+
+
+def test_linear_detector_false():
+    headline = "Spain wins the 2026 World Cup"
+
+    result = linear.predict(headline)
+    assert result.success
+    assert result.data["is_clickbait"] is False
+    assert result.data["probability"] < 0.5
+
+
+def test_linear_detector_no_headline():
+    result1 = linear.predict(" ")
+    result2 = linear.predict("")
+    assert not result1.success and not result2.success

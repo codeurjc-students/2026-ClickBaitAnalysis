@@ -6,7 +6,7 @@ import json
 
 from mcp.server.fastmcp import FastMCP
 from backend.core.observability import log_tool_invocation
-from backend.integrations.nlp import lexical
+from backend.integrations.nlp import lexical, linear
 from backend.integrations.nlp.factory import get_nlp_backend
 from backend.integrations.nlp.incoherence import IncoherenceDetector
 
@@ -118,4 +118,23 @@ def register(mcp: FastMCP):
         response = lexical.detect(headline)
         if not response.has_content():
             return response.error or "Error al analizar léxico en el titular"
+        return json.dumps(response.data)
+
+    @mcp.tool()
+    @log_tool_invocation
+    async def detect_clickbait_linear(headline: str) -> str:
+        """Detecta clickbait con un modelo lineal interpretable (regresión logística
+        entrenada sobre pistas léxicas).
+
+        Args:
+            headline: el titular a analizar.
+
+        Returns:
+            JSON con is_clickbait, probability y top_cues — los cues que más empujaron
+            el veredicto (peso x frecuencia), como explicación intrínseca (R3.8).
+            Cuarta señal contrastable frente a zero-shot, incoherencia y léxico.
+        """
+        response = linear.predict(headline)
+        if not response.has_content():
+            return response.error or "Error al predecir clickbait en el titular"
         return json.dumps(response.data)

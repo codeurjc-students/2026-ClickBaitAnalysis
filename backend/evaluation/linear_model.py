@@ -1,4 +1,5 @@
 from collections import Counter
+from pathlib import Path
 
 from backend.evaluation.eval_lexical import load_dataset
 from backend.integrations.nlp import lexical
@@ -7,6 +8,9 @@ from backend.integrations.nlp import lexical
 from sklearn.model_selection import train_test_split
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import precision_recall_fscore_support, classification_report
+import json
+
+from backend.integrations.nlp.linear import featurize_cues
 
 
 def featurize(headline) -> list[int]:  # -> vector
@@ -26,25 +30,6 @@ def featurize(headline) -> list[int]:  # -> vector
 
 
 # En vez de modificar la anterior, dejo para que se puedan usar PATTERNS ya que sí es categórica, resto por cues y sumamos. (como una pveriosn avanzada)
-
-
-def featurize_cues(headline) -> list[int]:  # -> vector
-    result = lexical.detect(headline)
-
-    categories_list = []
-    cue_list = []
-    for match in result.data["matches"]:
-        if match["category"] in lexical.PATTERNS:
-            categories_list.append(match["category"])
-        else:
-            cue_list.append(match["cue"])
-
-    contador_category = Counter(categories_list)
-    contador_cue = Counter(cue_list)
-    vector = list(contador_category[cat] for cat in lexical.PATTERNS) + list(
-        contador_cue[cue] for cue in lexical.ALL_CUES
-    )
-    return vector
 
 
 if __name__ == "__main__":
@@ -73,6 +58,17 @@ if __name__ == "__main__":
     # Train (Pesos + error) Error sigue formula LOG-LOSS que penaliza fallar al afimrar clickbait
     model.fit(X_train, y_train)
 
+    # Serializamos (podemos hacer sigmoide fuera para no depender de sklearn)
+    feature_names = list(lexical.PATTERNS) + lexical.ALL_CUES
+
+    linear_extract = {
+        "weights": [float(w) for w in model.coef_[0]],  # np.float -> float
+        "intercept": float(model.intercept_[0]),  # Sesgo (b),
+        "feature_names": feature_names,
+    }
+    with open(JSON_FILE, "w", encoding="utf-8") as f:
+        json.dump(linear_extract, f, sort_keys=True, ensure_ascii=False)
+
     # Predict (para x nuevo, aplicamos formula de antes)
     y_pred = model.predict(X_test)
     print(
@@ -81,7 +77,6 @@ if __name__ == "__main__":
         )
     )
 
-    feature_names = list(lexical.PATTERNS) + lexical.ALL_CUES
     weight_table = sorted(
         zip(feature_names, model.coef_[0]),
         key=lambda par: par[1],
