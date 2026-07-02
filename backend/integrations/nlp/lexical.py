@@ -62,7 +62,9 @@ def detect(headline: str) -> ToolResult:
     # Palabras + '. Usar finditter para recibir posiciones
 
     # Words
-    for m in re.finditer(r"[\w']+", lowered):  # Cada palabra
+
+    # Fix: eliminado "i" de cues (En siglas pilla como clickbait)
+    for m in re.finditer(r"[\w']{2,}", lowered):  # Cada palabra (de 2 letras o más)
         token = m.group()  # Token (string)
         for category, words in WORD_CUES.items():
             # Ej: Hyperbole, amazing
