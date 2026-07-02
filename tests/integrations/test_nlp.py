@@ -410,6 +410,18 @@ def test_lexical_detector_no_headline():
     assert not (result1.success) and (not result2.success)
 
 
+def test_lexical_acronym_no_false_positive():
+
+    # Test de Bug de acrónimos con puntos
+    result = lexical.detect(
+        "Chinese A.I. Models Close the Gap With Anthropic and OpenAI"
+    )
+    assert result.success
+    cues = {m["cue"] for m in result.data["matches"]}
+    assert "i" not in cues
+    assert result.data["is_clickbait"] is False
+
+
 # --Lineal Determinista!!! (Si cambia seed, cambia test)
 
 
