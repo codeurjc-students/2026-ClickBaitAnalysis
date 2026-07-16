@@ -1,16 +1,14 @@
 from collections import Counter
-from pathlib import Path
 
-from backend.evaluation.eval_lexical import load_dataset
+from backend.evaluation.splits import load_split
 from backend.integrations.nlp import lexical
 
 
-from sklearn.model_selection import train_test_split
 from sklearn.linear_model import LogisticRegression
-from sklearn.metrics import precision_recall_fscore_support, classification_report
+from sklearn.metrics import precision_recall_fscore_support
 import json
 
-from backend.integrations.nlp.linear import featurize_cues
+from backend.integrations.nlp.linear import JSON_FILE, featurize_cues
 
 
 def featurize(headline) -> list[int]:  # -> vector
@@ -34,19 +32,17 @@ def featurize(headline) -> list[int]:  # -> vector
 
 if __name__ == "__main__":
 
-    data = load_dataset()
+    # Splits FÍSICOS (issue #72): mismos ficheros para todos los modelos.
+    # El split ya no se hace aquí: se carga (python -m backend.evaluation.splits para crearlos).
+    # test NO se carga: congelado hasta el número final del issue.
+    train_h, y_train = zip(*load_split("train"))
+    dev_h, y_dev = zip(*load_split("dev"))
 
-    # Features: cleaning (MULTI_HOT)
-    # Bag of Words Binario SIMPLIFICADO (por categoria en vez de palabra)
+    # Features (MULTI_HOT por cue): cada consumidor featuriza aguas abajo.
+    X_train = [featurize_cues(h) for h in train_h]
+    X_dev = [featurize_cues(h) for h in dev_h]
 
-    headlines, labels = zip(*data)
-    X = [featurize_cues(h) for h in headlines]
-    y = labels
-
-    # Split (Separamos train/test para evitar sesgo optimista -> sin generalización)
-    X_train, X_test, y_train, y_test = train_test_split(
-        X, y, test_size=0.2, stratify=y, random_state=24
-    )
+    print(len(X_train), len(X_dev))
 
     model = LogisticRegression(
         max_iter=1000
@@ -70,10 +66,10 @@ if __name__ == "__main__":
         json.dump(linear_extract, f, sort_keys=True, ensure_ascii=False)
 
     # Predict (para x nuevo, aplicamos formula de antes)
-    y_pred = model.predict(X_test)
+    y_pred = model.predict(X_dev)
     print(
         precision_recall_fscore_support(
-            y_test, y_pred, average="binary", zero_division=0
+            y_dev, y_pred, average="binary", zero_division=0
         )
     )
 
@@ -90,7 +86,7 @@ if __name__ == "__main__":
 
     # Lineal vs Reglas:
     rule_pred = []
-    for x in X_test:
+    for x in X_dev:
         if sum(x) >= lexical.THRESHOLD:
             rule_pred.append(1)
         else:
@@ -99,6 +95,6 @@ if __name__ == "__main__":
     print(
         "reglas",
         precision_recall_fscore_support(
-            y_test, rule_pred, average="binary", zero_division=0
+            y_dev, rule_pred, average="binary", zero_division=0
         ),
     )
