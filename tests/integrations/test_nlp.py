@@ -5,7 +5,7 @@ import pytest
 import respx  # Usamos en vez de htttp, ya que no hacemos llamadas de verdad, mockeamos
 from httpx import Response, TimeoutException
 
-from backend.integrations.nlp import lexical, linear
+from backend.integrations.nlp import lexical, linear, model_cards
 from backend.integrations.nlp.client import HFClient
 from backend.integrations.nlp.incoherence import IncoherenceDetector
 from backend.integrations.nlp.local import LocalNLPClient
@@ -139,6 +139,8 @@ async def test_classify_local(monkeypatch):
     # lambda se usa porque get pipeline tambien devuelve un callable (pipe)
 
     # Basicamente modifica _get_pipeline para que devuelva un callable (fake_pipe)
+
+    # Proxy
 
     result = await client.classify("great movie", model)
     assert result.success
@@ -452,3 +454,23 @@ def test_linear_detector_no_headline():
     result1 = linear.predict(" ")
     result2 = linear.predict("")
     assert not result1.success and not result2.success
+
+
+# --Model cards (R3.9, divulgación de modelos)
+
+
+def test_model_cards_wellformed():
+    required = {"signal", "name", "task", "type", "limitations", "backend"}
+    valid_types = {"interpretable", "híbrido", "opaco"}
+    assert isinstance(model_cards.MODEL_CARDS, list) and model_cards.MODEL_CARDS
+    for card in model_cards.MODEL_CARDS:
+        assert required <= card.keys()
+        assert card["type"] in valid_types
+        assert isinstance(card["limitations"], list) and card["limitations"]
+
+
+def test_model_cards_serializable_and_cover_signals():
+    # La tool describe_models hace json.dumps → debe serializar sin error.
+    dumped = json.dumps(model_cards.MODEL_CARDS)
+    for name in ["facebook/bart-large-mnli", "all-MiniLM-L6-v2"]:
+        assert name in dumped

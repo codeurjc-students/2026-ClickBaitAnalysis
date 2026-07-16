@@ -6,7 +6,7 @@ import json
 
 from mcp.server.fastmcp import FastMCP
 from backend.core.observability import log_tool_invocation
-from backend.integrations.nlp import lexical, linear
+from backend.integrations.nlp import lexical, linear, model_cards
 from backend.integrations.nlp.factory import get_nlp_backend
 from backend.integrations.nlp.incoherence import IncoherenceDetector
 
@@ -138,3 +138,19 @@ def register(mcp: FastMCP):
         if not response.has_content():
             return response.error or "Error al predecir clickbait en el titular"
         return json.dumps(response.data)
+
+    @mcp.tool()
+    @log_tool_invocation
+    async def describe_models() -> str:
+        """Divulga los modelos/señales que emplea el sistema (transparencia, R3.9).
+
+        Devuelve, por cada señal, su nombre, tarea, tipo (interpretable /
+        híbrido / opaco) y limitaciones conocidas. Sin argumentos. Útil para la
+        transparencia de sistema y para decidir qué señal usar según su
+        naturaleza (white-box vs caja negra) y sus límites.
+
+        Returns:
+            JSON con la lista de fichas de modelo (name, task, type,
+            limitations, backend).
+        """
+        return json.dumps(model_cards.MODEL_CARDS)
