@@ -678,6 +678,28 @@ Issue #71. Cierra la mitad pendiente de **R3.9** (DEBERÁ): *divulgar los modelo
 
 Es transparencia **de sistema** (qué modelos, con qué límites), no solo de modelo. Tests deterministas (estructura + serialización). Con esto, **el alcance obligatorio (DEBERÁ) de la Épica 5 queda completo**.
 
+### Split físico train/dev/test — evaluación sin overfitting (#72)
+
+Issue #72 (sugerencia del tutor). Cierra el **caveat metodológico** arrastrado desde E4-03: el `THRESHOLD` se eligió barriendo **todo** el dataset, y comparar modelos sobre el mismo test que decide el ganador infla el número (sesgo optimista).
+
+- **Tres conjuntos, tres trabajos** (`backend/evaluation/splits.py`, 60/20/20 estratificado, semilla fija):
+  - `train` (19 200) — el modelo aprende;
+  - `dev` (6 400) — banco de pruebas: **aquí se afinan umbrales/hiperparámetros y se comparan modelos** (absorbe el optimismo del afinado);
+  - `test` (6 400) — **congelado; se corta PRIMERO** y se abre **una sola vez** al final para el número honesto.
+- **Persistencia física** (`data/splits/*.jsonl`, versionados): los pares **crudos** `(headline, label)` — los datos son el contrato, cada modelo featuriza aguas abajo → mismo split para reglas, lineal y futuros modelos, aunque cambie la featurización (p. ej. el fix #69 no invalida los ficheros). `create_splits()` **rehúsa sobrescribir** (regenerar rompería la comparabilidad); `load_split(name)` es la única puerta de entrada.
+- **Decisiones re-tomadas en dev:** el sweep del léxico sobre `dev` re-confirma `THRESHOLD=1` (F1 0.845); el lineal se re-entrena solo con `train` (60 %) y se re-exporta el JSON servido.
+
+**Resultado final (test, abierto una única vez, evaluado por la vía shipeada — `lexical.detect` / `linear.predict` con el JSON):**
+
+| | dev | **test (final)** |
+|---|---|---|
+| Reglas (t=1) | 0.845 | **0.843** |
+| Lineal | 0.868 | **0.865** (P=0.928, R=0.810) |
+
+**Lectura:** brecha dev→test mínima (~0.003) → sin sobreajuste al dev. Los números coinciden con los de E5-06 → aquellas conclusiones **no estaban infladas**, y ahora son **defendibles**: nadie eligió nada mirando el test. Entrenar con el 60 % (antes 80 %) apenas costó rendimiento (32k muestras dan margen).
+
+**Límite honesto (validez externa):** el test es *held-out* pero **no es dato ajeno** — todo sale de Chakraborty (misma distribución). La generalización real a otro dominio se medirá con datasets externos (#76, p. ej. Webis-17).
+
 
 
 "Aplico Rudin donde puedo —incoherencia(A MEDIAS, YA QUE EL MODELO NO) y léxico son intrínsecamente interpretables— y reservo lo post-hoc (LIME/SHAP), con sus límites de fidelidad, solo para la parte que depende de un transformer preentrenado que no puedo abrir de otro modo." !!!IMPORTANTE (NO MODIFICAR, RECORDAR POSTURA DEFINIDA)
