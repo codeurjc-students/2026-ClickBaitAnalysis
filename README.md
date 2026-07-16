@@ -667,6 +667,17 @@ Issue #66. Convierte el modelo lineal de E5-06 (script de investigación) en una
 
 **Nota de diseño:** entrenar (sklearn, en `evaluation/`, deps pesadas) y servir (pesos JSON + Python puro, en `integrations/nlp/`) quedan **separados** → CI y runtime siguen ligeros. Tests deterministas (sin mocks, el JSON está versionado).
 
+### E5-08 · Divulgación de modelos (model cards) — R3.9
+
+Issue #71. Cierra la mitad pendiente de **R3.9** (DEBERÁ): *divulgar los modelos que emplea el sistema* (la otra mitad —intercambiarlos por configuración— ya la cubría la factoría `nlp_backend`).
+
+- **Fuente única** `backend/integrations/nlp/model_cards.py`: `MODEL_CARDS`, una ficha por señal con `name`, `task`, **`type`** (interpretable / híbrido / opaco), `limitations` y `backend`.
+- **Tool `describe_models()`** (sin argumentos) → devuelve las fichas en JSON: **divulgación consultable en runtime** por la interfaz MCP, forward-compatible con un futuro frontend.
+- El campo **`type`** enlaza R3.9 con **R3.8**: marca de un vistazo qué señal es **white-box** (léxico, lineal) frente a **caja negra** (zero-shot, sentimiento) o **híbrida** (incoherencia: decisión transparente, feature opaca).
+- Limitaciones **honestas**: el zero-shot es genérico y opaco; el sentimiento está entrenado en tuits; la incoherencia tiene el umbral sin calibrar; el léxico solo capta clickbait de *forma*, no de engaño.
+
+Es transparencia **de sistema** (qué modelos, con qué límites), no solo de modelo. Tests deterministas (estructura + serialización). Con esto, **el alcance obligatorio (DEBERÁ) de la Épica 5 queda completo**.
+
 
 
 "Aplico Rudin donde puedo —incoherencia(A MEDIAS, YA QUE EL MODELO NO) y léxico son intrínsecamente interpretables— y reservo lo post-hoc (LIME/SHAP), con sus límites de fidelidad, solo para la parte que depende de un transformer preentrenado que no puedo abrir de otro modo." !!!IMPORTANTE (NO MODIFICAR, RECORDAR POSTURA DEFINIDA)
