@@ -1,0 +1,19 @@
+# Protección del flujo dev→main: main solo acepta PRs cuyo origen sea dev.
+# (GitHub no soporta nativamente restringir la rama origen de un PR; este check,
+# marcado como "required" en la branch protection de main, lo hace cumplir.)
+name: protect-main
+on:
+  pull_request:
+    branches: [main]
+
+jobs:
+  only-from-dev:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verificar que el PR viene de dev
+        run: |
+          if [ "${{ github.head_ref }}" != "dev" ]; then
+            echo "::error::main solo acepta merges desde dev (flujo dev->main). Rama origen: ${{ github.head_ref }}"
+            exit 1
+          fi
+          echo "OK: PR desde dev."
