@@ -57,6 +57,7 @@ MODEL_CARDS = [
             "Capta clickbait de forma/estilo, no de engaño semántico.",
             "THRESHOLD=1 agresivo (un solo cue ya lo marca).",
             "Superficial: no entiende el significado.",
+            "No generaliza fuera de dominio sin adaptación — medido: F1 0.843 en titulares de noticias (Chakraborty test) vs 0.498 en tuits (Webis-17).",
             "Solo inglés.",
         ],
         "backend": "local",
@@ -67,7 +68,8 @@ MODEL_CARDS = [
         "task": "Clickbait ponderado: aprende el peso de cada pista y devuelve los cues que más contribuyeron al veredicto.",
         "type": "interpretable",
         "limitations": [
-            "Entrenado en titulares de noticias en inglés (Chakraborty); los pesos por-cue pueden no generalizar a otros dominios.",
+            "Detecta clickbait de ESTILO: entrenado con etiquetas por-fuente (Chakraborty) → puede señalar estilo editorial más que engaño (sesgo de fuente / shortcut learning).",
+            "NO generaliza fuera de dominio sin adaptación — medido: F1 0.865 en titulares de noticias (Chakraborty test) vs 0.476 en tuits (Webis-17).",
             "No capta engaño semántico (usa las mismas pistas de superficie que el léxico).",
             "Solo inglés.",
         ],
