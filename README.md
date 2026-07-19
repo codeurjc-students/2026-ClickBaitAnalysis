@@ -10,7 +10,7 @@ Version de Python: 3.12.3
 
 ### Ramas
 
-Cada rama parte de `main` y sigue el patrón `<tipo>/<descripción-corta>`:
+Cada rama de trabajo parte de `dev` y sigue el patrón `<tipo>/<descripción-corta>`:
 
 | Prefijo | Uso |
 |---|---|
@@ -36,10 +36,25 @@ fix(core): corregir serialización de ToolResult en tools MCP
 test(integrations): añadir tests unitarios para weather tools
 ```
 
-### Merge a main
+### Flujo de ramas y versiones (dev → main)
 
-- Se usa **squash merge** vía Pull Request.
-- Cada PR debe estar vinculado a una issue con `Closes #N`.
+Dos ramas permanentes con papeles distintos:
+
+- **`dev` — integración** (rama por defecto): las features llegan por PR (**squash merge**), cada PR vinculado a una issue con `Closes #N`. Es donde se desarrolla.
+- **`main` — producción/estable**: **solo** recibe merges desde `dev` (PR de release, **merge normal** — sin squash, conserva la historia). Un workflow (`protect-main.yml`) rechaza cualquier PR a `main` cuyo origen no sea `dev`.
+
+**Releases:** al promocionar `dev → main` se crea un **tag** (`vX.Y.Z`). Una versión es **tageable** solo si cumple los cuatro criterios:
+
+1. **Bloque funcional completo** — épica cerrada o conjunto coherente de issues DEBERÁ (no features a medias).
+2. **CI verde** en `dev` (suite completa).
+3. **Verificación E2E** del servidor MCP pasada (tools respondiendo en vivo).
+4. **Documentación al día** (README y requisitos reflejan lo incluido).
+
+**Esquema de versiones** (semver adaptado al TFG): **minor** (`v0.X.0`) = bloque funcional/épica (`v0.1.0` = MVP Fase A, `v0.2.0` = Épica 5 NLP explicable); **patch** (`v0.X.Y`) = hotfix sobre lo shipeado; **major** (`v1.0.0`) = hito TFG (entrega final).
+
+> **Principio:** las versiones son **cortes en el tiempo**, no contenedores temáticos. Una mejora posterior va a la **siguiente** versión aunque pertenezca por dominio a una épica ya taggeada (la trazabilidad temática la dan los labels de épica en los issues, no los tags). Los tags son inmutables: nunca se "reabre" una versión.
+
+_(Histórico: hasta la v0.2.0 el flujo era feature → PR → `main` directo; el esquema dev→main se adoptó al cerrar la Épica 5.)_
 
 ---
 
