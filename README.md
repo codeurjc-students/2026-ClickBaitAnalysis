@@ -700,6 +700,23 @@ Issue #72 (sugerencia del tutor). Cierra el **caveat metodológico** arrastrado 
 
 **Límite honesto (validez externa):** el test es *held-out* pero **no es dato ajeno** — todo sale de Chakraborty (misma distribución). La generalización real a otro dominio se medirá con datasets externos (#76, p. ej. Webis-17).
 
+### Validación externa: Webis-Clickbait-17 (#76)
+
+Issue #76. Mide la **generalización real** evaluando la vía shipeada sobre un dataset **ajeno**: extracto del **Webis Clickbait Corpus 2017** (2 459 tuits de 27 medios USA, anotados 0–1 por 5 personas; **CC BY 4.0**, cita en `data/external/ATTRIBUTION.md`). **Cero adaptación**: sin reentrenar ni re-afinar nada. Reproducir: `python -m backend.evaluation.eval_external`.
+
+| F1 | Chakraborty (test #72) | **Webis-17 (externo)** |
+|---|---|---|
+| Reglas (t=1) | 0.843 | **0.498** (P=0.40, R=0.68) |
+| Lineal | 0.865 | **0.476** (P=0.47, R=0.48) |
+
+**Lectura (el hallazgo ES el desplome):**
+- **Distribution shift severo**: −0.35–0.39 de F1 al cambiar de dominio. Los detectores léxicos NO generalizan de titulares de noticias a tuits sin adaptación.
+- **El lineal pierde su ventaja** (0.476 vs 0.498 de las reglas): sus pesos por-cue estaban ajustados al *estilo* de Chakraborty (BuzzFeed vs NYT) — la especialización que ganaba en-dominio es justo lo que pierde fuera.
+- **Causas visibles en los errores**: convenciones de tuit (`RT @user:`, `via @WSJ`, hashtags) y el **`...` de truncado de tuit** que dispara `ellipsis` sin ser clickbait; prevalencia distinta (31 % vs 50 %).
+- **No es artefacto de binarización**: el `truthMean` medio de los falsos positivos (0.28) apenas supera al de los verdaderos negativos (0.23) → los FP no son mayormente casos "slightly clickbaiting" mal binarizados.
+
+**Valor para la memoria:** los números en-dominio (0.84–0.87) son válidos **para ese dominio**; la transferencia requiere adaptación (re-entrenar con datos del dominio destino, limpiar convenciones de tuit, o señales semánticas). El extracto conserva `truthMean` → futuro: calibración con scores continuos.
+
 
 
 "Aplico Rudin donde puedo —incoherencia(A MEDIAS, YA QUE EL MODELO NO) y léxico son intrínsecamente interpretables— y reservo lo post-hoc (LIME/SHAP), con sus límites de fidelidad, solo para la parte que depende de un transformer preentrenado que no puedo abrir de otro modo." !!!IMPORTANTE (NO MODIFICAR, RECORDAR POSTURA DEFINIDA)
