@@ -1,0 +1,880 @@
+<mxfile host="app.diagrams.net" type="device">
+  <diagram name="1 - Chat" id="pChat">
+    <mxGraphModel dx="1100" dy="950" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1100" pageHeight="950" math="0" shadow="0">
+      <root>
+        <mxCell id="c0" />
+        <mxCell id="c1" parent="c0" />
+
+        <mxCell id="cHdr" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#F5F5F5;strokeColor=#666666;" vertex="1" parent="c1">
+          <mxGeometry x="40" y="40" width="1020" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="cLogo" value="ClickBait Analysis" style="text;html=1;align=left;verticalAlign=middle;fontSize=18;fontStyle=1" vertex="1" parent="c1">
+          <mxGeometry x="60" y="55" width="300" height="30" as="geometry" />
+        </mxCell>
+        <UserObject label="Chat" id="cNav0" link="data:page/id,pChat">
+          <mxCell style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontStyle=1" vertex="1" parent="c1">
+            <mxGeometry x="590" y="55" width="100" height="30" as="geometry" />
+          </mxCell>
+        </UserObject>
+        <UserObject label="Analizar" id="cNav1" link="data:page/id,pAnalizar">
+          <mxCell style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#666666;" vertex="1" parent="c1">
+            <mxGeometry x="700" y="55" width="100" height="30" as="geometry" />
+          </mxCell>
+        </UserObject>
+        <UserObject label="Historial" id="cNav2" link="data:page/id,pHistorial">
+          <mxCell style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#666666;" vertex="1" parent="c1">
+            <mxGeometry x="810" y="55" width="100" height="30" as="geometry" />
+          </mxCell>
+        </UserObject>
+        <UserObject label="Sistema" id="cNav3" link="data:page/id,pModelos">
+          <mxCell style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#666666;" vertex="1" parent="c1">
+            <mxGeometry x="920" y="55" width="100" height="30" as="geometry" />
+          </mxCell>
+        </UserObject>
+
+        <mxCell id="cTitle" value="Asistente conversacional" style="text;html=1;align=left;verticalAlign=middle;fontSize=20;fontStyle=1" vertex="1" parent="c1">
+          <mxGeometry x="40" y="115" width="500" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="cSub" value="Segunda puerta de entrada: lenguaje natural. El agente decide qué herramientas MCP invocar." style="text;html=1;align=left;verticalAlign=middle;fontSize=12;fontColor=#666666;" vertex="1" parent="c1">
+          <mxGeometry x="40" y="144" width="800" height="20" as="geometry" />
+        </mxCell>
+
+        <mxCell id="cBox" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#999999;" vertex="1" parent="c1">
+          <mxGeometry x="40" y="176" width="1020" height="580" as="geometry" />
+        </mxCell>
+
+        <mxCell id="cU1" value="¿Es clickbait este titular? «10 Amazing Things You Won't Believe»" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;align=left;spacingLeft=12;fontSize=12;" vertex="1" parent="c1">
+          <mxGeometry x="560" y="196" width="480" height="46" as="geometry" />
+        </mxCell>
+
+        <mxCell id="cTrace" value="Herramientas usadas:  detect_clickbait_lexical  ·  detect_clickbait_linear  ·  detect_clickbait_incoherence          [ver traza]" style="rounded=1;whiteSpace=wrap;html=1;dashed=1;fillColor=#F5F5F5;strokeColor=#999999;align=left;spacingLeft=12;fontSize=11;fontColor=#666666;" vertex="1" parent="c1">
+          <mxGeometry x="60" y="258" width="760" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="cTraceN" value="RF-03 / HU-02: trazabilidad de qué tools invocó el agente" style="text;html=1;align=left;verticalAlign=middle;fontSize=10;fontColor=#996600;fontStyle=2" vertex="1" parent="c1">
+          <mxGeometry x="830" y="258" width="230" height="30" as="geometry" />
+        </mxCell>
+
+        <mxCell id="cCard" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#666666;" vertex="1" parent="c1">
+          <mxGeometry x="60" y="300" width="760" height="250" as="geometry" />
+        </mxCell>
+        <mxCell id="cCardT" value="CLICKBAIT" style="text;html=1;align=left;verticalAlign=middle;fontSize=18;fontStyle=1;fontColor=#996600" vertex="1" parent="c1">
+          <mxGeometry x="80" y="312" width="220" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="cCardS" value="3 de 4 señales" style="text;html=1;align=right;verticalAlign=middle;fontSize=12;fontColor=#666666" vertex="1" parent="c1">
+          <mxGeometry x="580" y="312" width="220" height="28" as="geometry" />
+        </mxCell>
+
+        <mxCell id="cH1" value="10" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#D5E8D4;strokeColor=none;fontSize=13;" vertex="1" parent="c1">
+          <mxGeometry x="80" y="348" width="36" height="26" as="geometry" />
+        </mxCell>
+        <mxCell id="cH2" value="Amazing" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#F8CECC;strokeColor=none;fontSize=13;" vertex="1" parent="c1">
+          <mxGeometry x="119" y="348" width="82" height="26" as="geometry" />
+        </mxCell>
+        <mxCell id="cH3" value="Things" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=none;fontSize=13;" vertex="1" parent="c1">
+          <mxGeometry x="204" y="348" width="66" height="26" as="geometry" />
+        </mxCell>
+        <mxCell id="cH4" value="You" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=none;fontSize=13;" vertex="1" parent="c1">
+          <mxGeometry x="273" y="348" width="46" height="26" as="geometry" />
+        </mxCell>
+        <mxCell id="cH5" value="Won't Believe" style="text;html=1;align=left;verticalAlign=middle;fontSize=13;" vertex="1" parent="c1">
+          <mxGeometry x="325" y="348" width="200" height="26" as="geometry" />
+        </mxCell>
+
+        <mxCell id="cS1" value="Léxico" style="text;html=1;align=left;verticalAlign=middle;fontSize=11;" vertex="1" parent="c1">
+          <mxGeometry x="80" y="386" width="150" height="22" as="geometry" />
+        </mxCell>
+        <mxCell id="cS1v" value="CLICKBAIT · 3 pistas" style="text;html=1;align=left;verticalAlign=middle;fontSize=11;fontStyle=1" vertex="1" parent="c1">
+          <mxGeometry x="240" y="386" width="240" height="22" as="geometry" />
+        </mxCell>
+        <mxCell id="cS1b" value="interpretable" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#D5E8D4;strokeColor=#82B366;fontSize=9;" vertex="1" parent="c1">
+          <mxGeometry x="690" y="388" width="100" height="18" as="geometry" />
+        </mxCell>
+
+        <mxCell id="cS2" value="Modelo lineal" style="text;html=1;align=left;verticalAlign=middle;fontSize=11;" vertex="1" parent="c1">
+          <mxGeometry x="80" y="412" width="150" height="22" as="geometry" />
+        </mxCell>
+        <mxCell id="cS2v" value="CLICKBAIT · p = 0.99  (you +5.9, amazing +3.0)" style="text;html=1;align=left;verticalAlign=middle;fontSize=11;fontStyle=1" vertex="1" parent="c1">
+          <mxGeometry x="240" y="412" width="430" height="22" as="geometry" />
+        </mxCell>
+        <mxCell id="cS2b" value="interpretable" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#D5E8D4;strokeColor=#82B366;fontSize=9;" vertex="1" parent="c1">
+          <mxGeometry x="690" y="414" width="100" height="18" as="geometry" />
+        </mxCell>
+
+        <mxCell id="cS3" value="Incoherencia" style="text;html=1;align=left;verticalAlign=middle;fontSize=11;" vertex="1" parent="c1">
+          <mxGeometry x="80" y="438" width="150" height="22" as="geometry" />
+        </mxCell>
+        <mxCell id="cS3v" value="COHERENTE · similitud 0.62" style="text;html=1;align=left;verticalAlign=middle;fontSize=11;fontStyle=1" vertex="1" parent="c1">
+          <mxGeometry x="240" y="438" width="240" height="22" as="geometry" />
+        </mxCell>
+        <mxCell id="cS3b" value="híbrido" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF2CC;strokeColor=#D6B656;fontSize=9;" vertex="1" parent="c1">
+          <mxGeometry x="690" y="440" width="100" height="18" as="geometry" />
+        </mxCell>
+
+        <mxCell id="cS4" value="Zero-shot" style="text;html=1;align=left;verticalAlign=middle;fontSize=11;" vertex="1" parent="c1">
+          <mxGeometry x="80" y="464" width="150" height="22" as="geometry" />
+        </mxCell>
+        <mxCell id="cS4v" value="CLICKBAIT · confianza 0.78" style="text;html=1;align=left;verticalAlign=middle;fontSize=11;fontStyle=1" vertex="1" parent="c1">
+          <mxGeometry x="240" y="464" width="240" height="22" as="geometry" />
+        </mxCell>
+        <mxCell id="cS4b" value="opaco" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8CECC;strokeColor=#B85450;fontSize=9;" vertex="1" parent="c1">
+          <mxGeometry x="690" y="466" width="100" height="18" as="geometry" />
+        </mxCell>
+
+        <UserObject label="Ver análisis completo &#8594;" id="cCardLink" link="data:page/id,pResultados">
+          <mxCell style="text;html=1;align=left;verticalAlign=middle;fontSize=11;fontColor=#6C8EBF;" vertex="1" parent="c1">
+            <mxGeometry x="80" y="502" width="250" height="24" as="geometry" />
+          </mxCell>
+        </UserObject>
+        <mxCell id="cCardN" value="Tarjeta pintada con el JSON real de la tool" style="text;html=1;align=right;verticalAlign=middle;fontSize=10;fontColor=#666666;fontStyle=2" vertex="1" parent="c1">
+          <mxGeometry x="480" y="502" width="320" height="24" as="geometry" />
+        </mxCell>
+
+        <mxCell id="cA1" value="Es clickbait de FORMA: usa hipérbole («amazing»), referencia vaga («you», «things») y formato listicle. Pero el cuerpo sí corresponde al titular, así que no hay ENGAÑO: no te promete algo que luego no cuenta. Ojo: las señales léxicas están entrenadas con titulares de noticias en inglés." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F5F5F5;strokeColor=#CCCCCC;align=left;verticalAlign=top;spacingLeft=12;spacingTop=8;fontSize=12;" vertex="1" parent="c1">
+          <mxGeometry x="60" y="562" width="760" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="cA1N" value="El LLM narra y contrasta; NO emite el veredicto" style="text;html=1;align=left;verticalAlign=middle;fontSize=10;fontColor=#996600;fontStyle=2" vertex="1" parent="c1">
+          <mxGeometry x="830" y="562" width="230" height="40" as="geometry" />
+        </mxCell>
+
+        <mxCell id="cU2" value="¿Y si lo comparo con el titular impreso?" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;align=left;spacingLeft=12;fontSize=12;" vertex="1" parent="c1">
+          <mxGeometry x="660" y="662" width="380" height="36" as="geometry" />
+        </mxCell>
+        <mxCell id="cDots" value="escribiendo..." style="text;html=1;align=left;verticalAlign=middle;fontSize=11;fontColor=#999999;fontStyle=2" vertex="1" parent="c1">
+          <mxGeometry x="60" y="710" width="200" height="24" as="geometry" />
+        </mxCell>
+
+        <mxCell id="cIn" value="Pregunta en lenguaje natural, pega un titular o pide una noticia..." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#999999;align=left;spacingLeft=12;fontColor=#999999;" vertex="1" parent="c1">
+          <mxGeometry x="40" y="776" width="890" height="48" as="geometry" />
+        </mxCell>
+        <mxCell id="cSend" value="Enviar" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#D5E8D4;strokeColor=#82B366;fontStyle=1" vertex="1" parent="c1">
+          <mxGeometry x="940" y="776" width="120" height="48" as="geometry" />
+        </mxCell>
+
+        <mxCell id="cAnn" value="Las tarjetas se renderizan con el JSON real que devuelve cada tool MCP; el LLM solo narra y contrasta. Si el modelo se equivoca en su frase, la tarjeta lo desmiente: la explicabilidad no depende del LLM. Plan B si el tool-calling del modelo local falla: modo guiado (el backend decide las tools, el LLM solo narra)." style="rounded=0;whiteSpace=wrap;html=1;dashed=1;fillColor=#FFF2CC;strokeColor=#D6B656;align=left;spacingLeft=10;fontSize=11;verticalAlign=middle;" vertex="1" parent="c1">
+          <mxGeometry x="40" y="850" width="1020" height="66" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+
+  <diagram name="2 - Analizar" id="pAnalizar">
+    <mxGraphModel dx="1100" dy="850" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1100" pageHeight="850" math="0" shadow="0">
+      <root>
+        <mxCell id="a0" />
+        <mxCell id="a1" parent="a0" />
+
+        <mxCell id="aHdr" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#F5F5F5;strokeColor=#666666;" vertex="1" parent="a1">
+          <mxGeometry x="40" y="40" width="1020" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="aLogo" value="ClickBait Analysis" style="text;html=1;align=left;verticalAlign=middle;fontSize=18;fontStyle=1" vertex="1" parent="a1">
+          <mxGeometry x="60" y="55" width="300" height="30" as="geometry" />
+        </mxCell>
+        <UserObject label="Chat" id="aNav0" link="data:page/id,pChat">
+          <mxCell style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#666666;" vertex="1" parent="a1">
+            <mxGeometry x="590" y="55" width="100" height="30" as="geometry" />
+          </mxCell>
+        </UserObject>
+        <UserObject label="Analizar" id="aNav1" link="data:page/id,pAnalizar">
+          <mxCell style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontStyle=1" vertex="1" parent="a1">
+            <mxGeometry x="700" y="55" width="100" height="30" as="geometry" />
+          </mxCell>
+        </UserObject>
+        <UserObject label="Historial" id="aNav2" link="data:page/id,pHistorial">
+          <mxCell style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#666666;" vertex="1" parent="a1">
+            <mxGeometry x="810" y="55" width="100" height="30" as="geometry" />
+          </mxCell>
+        </UserObject>
+        <UserObject label="Sistema" id="aNav3" link="data:page/id,pModelos">
+          <mxCell style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#666666;" vertex="1" parent="a1">
+            <mxGeometry x="920" y="55" width="100" height="30" as="geometry" />
+          </mxCell>
+        </UserObject>
+
+        <mxCell id="aTitle" value="Analizar un titular" style="text;html=1;align=left;verticalAlign=middle;fontSize=20;fontStyle=1" vertex="1" parent="a1">
+          <mxGeometry x="40" y="118" width="400" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="aSub" value="Camino determinista: sin agente de por medio, se llaman todas las señales." style="text;html=1;align=left;verticalAlign=middle;fontSize=12;fontColor=#666666;" vertex="1" parent="a1">
+          <mxGeometry x="40" y="146" width="700" height="20" as="geometry" />
+        </mxCell>
+
+        <mxCell id="aTab1" value="Escribir titular" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#666666;fontStyle=1" vertex="1" parent="a1">
+          <mxGeometry x="40" y="174" width="180" height="36" as="geometry" />
+        </mxCell>
+        <mxCell id="aTab2" value="Buscar noticia" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#F5F5F5;strokeColor=#999999;fontColor=#666666;" vertex="1" parent="a1">
+          <mxGeometry x="220" y="174" width="180" height="36" as="geometry" />
+        </mxCell>
+
+        <mxCell id="aLbl1" value="Titular *" style="text;html=1;align=left;verticalAlign=middle;fontStyle=1" vertex="1" parent="a1">
+          <mxGeometry x="40" y="222" width="200" height="24" as="geometry" />
+        </mxCell>
+        <mxCell id="aIn1" value="10 Amazing Things You Won't Believe" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#999999;align=left;spacingLeft=10;fontColor=#999999;" vertex="1" parent="a1">
+          <mxGeometry x="40" y="248" width="1020" height="44" as="geometry" />
+        </mxCell>
+
+        <mxCell id="aLbl2" value="Contenido / cuerpo de la noticia (opcional)" style="text;html=1;align=left;verticalAlign=middle;fontStyle=1" vertex="1" parent="a1">
+          <mxGeometry x="40" y="304" width="400" height="24" as="geometry" />
+        </mxCell>
+        <mxCell id="aIn2" value="Pegar aquí el cuerpo o teaser..." style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#999999;align=left;verticalAlign=top;spacingLeft=10;spacingTop=6;fontColor=#999999;" vertex="1" parent="a1">
+          <mxGeometry x="40" y="330" width="1020" height="110" as="geometry" />
+        </mxCell>
+        <mxCell id="aHelp" value="Sin contenido no se calcula la señal de incoherencia (titular vs cuerpo)." style="text;html=1;align=left;verticalAlign=middle;fontSize=11;fontColor=#666666;fontStyle=2" vertex="1" parent="a1">
+          <mxGeometry x="40" y="444" width="600" height="20" as="geometry" />
+        </mxCell>
+
+        <mxCell id="aExLbl" value="Ejemplos:" style="text;html=1;align=left;verticalAlign=middle;fontStyle=1" vertex="1" parent="a1">
+          <mxGeometry x="40" y="480" width="80" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="aEx1" value="clickbait claro" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F5F5F5;strokeColor=#999999;fontSize=11;" vertex="1" parent="a1">
+          <mxGeometry x="120" y="482" width="150" height="26" as="geometry" />
+        </mxCell>
+        <mxCell id="aEx2" value="titular factual" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F5F5F5;strokeColor=#999999;fontSize=11;" vertex="1" parent="a1">
+          <mxGeometry x="280" y="482" width="150" height="26" as="geometry" />
+        </mxCell>
+        <mxCell id="aEx3" value="caso ambiguo" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F5F5F5;strokeColor=#999999;fontSize=11;" vertex="1" parent="a1">
+          <mxGeometry x="440" y="482" width="150" height="26" as="geometry" />
+        </mxCell>
+
+        <UserObject label="Analizar" id="aBtn" link="data:page/id,pResultados">
+          <mxCell style="rounded=1;whiteSpace=wrap;html=1;fillColor=#D5E8D4;strokeColor=#82B366;fontSize=14;fontStyle=1" vertex="1" parent="a1">
+            <mxGeometry x="40" y="535" width="180" height="44" as="geometry" />
+          </mxCell>
+        </UserObject>
+        <mxCell id="aBtnNote" value="&#8594; navega a Resultados" style="text;html=1;align=left;verticalAlign=middle;fontSize=11;fontColor=#666666;fontStyle=2" vertex="1" parent="a1">
+          <mxGeometry x="230" y="535" width="220" height="44" as="geometry" />
+        </mxCell>
+
+        <mxCell id="aModeB" value="" style="rounded=0;whiteSpace=wrap;html=1;dashed=1;fillColor=none;strokeColor=#D6B656;" vertex="1" parent="a1">
+          <mxGeometry x="40" y="610" width="1020" height="190" as="geometry" />
+        </mxCell>
+        <mxCell id="aModeBT" value="Pestaña «Buscar noticia» — fuentes disponibles según los servidores MCP conectados" style="text;html=1;align=left;verticalAlign=middle;fontStyle=1;fontColor=#996600" vertex="1" parent="a1">
+          <mxGeometry x="60" y="622" width="700" height="24" as="geometry" />
+        </mxCell>
+        <mxCell id="aSearch" value="Buscar tema (ej. artificial intelligence)" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#999999;align=left;spacingLeft=10;fontColor=#999999;" vertex="1" parent="a1">
+          <mxGeometry x="60" y="654" width="700" height="36" as="geometry" />
+        </mxCell>
+        <mxCell id="aSearchBtn" value="Buscar" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#666666;" vertex="1" parent="a1">
+          <mxGeometry x="770" y="654" width="110" height="36" as="geometry" />
+        </mxCell>
+        <mxCell id="aRes1" value="Titular de la noticia 1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#CCCCCC;align=left;spacingLeft=10;" vertex="1" parent="a1">
+          <mxGeometry x="60" y="700" width="980" height="32" as="geometry" />
+        </mxCell>
+        <mxCell id="aRes1s" value="NYT · 02/07" style="text;html=1;align=right;verticalAlign=middle;fontSize=11;fontColor=#666666;" vertex="1" parent="a1">
+          <mxGeometry x="850" y="700" width="180" height="32" as="geometry" />
+        </mxCell>
+        <mxCell id="aRes2" value="Titular de la noticia 2" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#CCCCCC;align=left;spacingLeft=10;" vertex="1" parent="a1">
+          <mxGeometry x="60" y="732" width="980" height="32" as="geometry" />
+        </mxCell>
+        <mxCell id="aRes2s" value="Guardian · 01/07" style="text;html=1;align=right;verticalAlign=middle;fontSize=11;fontColor=#666666;" vertex="1" parent="a1">
+          <mxGeometry x="850" y="732" width="180" height="32" as="geometry" />
+        </mxCell>
+        <mxCell id="aResNote" value="El desplegable de fuentes NO está cableado: sale de las tools que exponen los servidores MCP conectados." style="text;html=1;align=left;verticalAlign=middle;fontSize=11;fontColor=#996600;fontStyle=2" vertex="1" parent="a1">
+          <mxGeometry x="60" y="768" width="900" height="20" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+
+  <diagram name="3 - Resultados" id="pResultados">
+    <mxGraphModel dx="1100" dy="1150" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1100" pageHeight="1150" math="0" shadow="0">
+      <root>
+        <mxCell id="r0" />
+        <mxCell id="r1" parent="r0" />
+
+        <mxCell id="rHdr" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#F5F5F5;strokeColor=#666666;" vertex="1" parent="r1">
+          <mxGeometry x="40" y="40" width="1020" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="rLogo" value="ClickBait Analysis" style="text;html=1;align=left;verticalAlign=middle;fontSize=18;fontStyle=1" vertex="1" parent="r1">
+          <mxGeometry x="60" y="55" width="300" height="30" as="geometry" />
+        </mxCell>
+        <UserObject label="Chat" id="rNav0" link="data:page/id,pChat">
+          <mxCell style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#666666;" vertex="1" parent="r1">
+            <mxGeometry x="590" y="55" width="100" height="30" as="geometry" />
+          </mxCell>
+        </UserObject>
+        <UserObject label="Analizar" id="rNav1" link="data:page/id,pAnalizar">
+          <mxCell style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#666666;" vertex="1" parent="r1">
+            <mxGeometry x="700" y="55" width="100" height="30" as="geometry" />
+          </mxCell>
+        </UserObject>
+        <UserObject label="Historial" id="rNav2" link="data:page/id,pHistorial">
+          <mxCell style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#666666;" vertex="1" parent="r1">
+            <mxGeometry x="810" y="55" width="100" height="30" as="geometry" />
+          </mxCell>
+        </UserObject>
+        <UserObject label="Sistema" id="rNav3" link="data:page/id,pModelos">
+          <mxCell style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#666666;" vertex="1" parent="r1">
+            <mxGeometry x="920" y="55" width="100" height="30" as="geometry" />
+          </mxCell>
+        </UserObject>
+
+        <UserObject label="&#8592; Nuevo análisis" id="rBack" link="data:page/id,pAnalizar">
+          <mxCell style="text;html=1;align=left;verticalAlign=middle;fontColor=#6C8EBF;" vertex="1" parent="r1">
+            <mxGeometry x="40" y="118" width="200" height="24" as="geometry" />
+          </mxCell>
+        </UserObject>
+
+        <mxCell id="rVerd" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF2CC;strokeColor=#D6B656;" vertex="1" parent="r1">
+          <mxGeometry x="40" y="150" width="1020" height="160" as="geometry" />
+        </mxCell>
+        <mxCell id="rVerdT" value="CLICKBAIT" style="text;html=1;align=left;verticalAlign=middle;fontSize=26;fontStyle=1;fontColor=#996600" vertex="1" parent="r1">
+          <mxGeometry x="60" y="164" width="300" height="36" as="geometry" />
+        </mxCell>
+        <mxCell id="rVerdP" value="3 de 4 señales lo marcan" style="text;html=1;align=right;verticalAlign=middle;fontSize=13;fontColor=#666666" vertex="1" parent="r1">
+          <mxGeometry x="740" y="164" width="300" height="36" as="geometry" />
+        </mxCell>
+
+        <mxCell id="rHl1" value="10" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#D5E8D4;strokeColor=none;fontSize=16;" vertex="1" parent="r1">
+          <mxGeometry x="60" y="214" width="44" height="32" as="geometry" />
+        </mxCell>
+        <mxCell id="rHl2" value="Amazing" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#F8CECC;strokeColor=none;fontSize=16;" vertex="1" parent="r1">
+          <mxGeometry x="108" y="214" width="100" height="32" as="geometry" />
+        </mxCell>
+        <mxCell id="rHl3" value="Things" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=none;fontSize=16;" vertex="1" parent="r1">
+          <mxGeometry x="212" y="214" width="80" height="32" as="geometry" />
+        </mxCell>
+        <mxCell id="rHl4" value="You" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=none;fontSize=16;" vertex="1" parent="r1">
+          <mxGeometry x="296" y="214" width="56" height="32" as="geometry" />
+        </mxCell>
+        <mxCell id="rHl5" value="Won't Believe" style="text;html=1;align=left;verticalAlign=middle;fontSize=16;" vertex="1" parent="r1">
+          <mxGeometry x="360" y="214" width="200" height="32" as="geometry" />
+        </mxCell>
+
+        <mxCell id="rLeg" value="Leyenda: verde = número inicial · rojo = hipérbole · azul = referencia vaga     (hover = categoría y peso)" style="text;html=1;align=left;verticalAlign=middle;fontSize=11;fontColor=#666666;fontStyle=2" vertex="1" parent="r1">
+          <mxGeometry x="60" y="256" width="900" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="rGap" value="Clickbait de FORMA (estilo), no de ENGAÑO: el cuerpo sí corresponde al titular." style="text;html=1;align=left;verticalAlign=middle;fontSize=12;fontStyle=1;fontColor=#996600" vertex="1" parent="r1">
+          <mxGeometry x="60" y="278" width="900" height="20" as="geometry" />
+        </mxCell>
+
+        <mxCell id="rSecT" value="Señales contrastadas" style="text;html=1;align=left;verticalAlign=middle;fontSize=16;fontStyle=1" vertex="1" parent="r1">
+          <mxGeometry x="40" y="330" width="400" height="28" as="geometry" />
+        </mxCell>
+
+        <mxCell id="rC1" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#666666;" vertex="1" parent="r1">
+          <mxGeometry x="40" y="370" width="500" height="210" as="geometry" />
+        </mxCell>
+        <mxCell id="rC1T" value="Léxico (reglas)" style="text;html=1;align=left;verticalAlign=middle;fontSize=14;fontStyle=1" vertex="1" parent="r1">
+          <mxGeometry x="60" y="382" width="260" height="24" as="geometry" />
+        </mxCell>
+        <mxCell id="rC1B" value="interpretable" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#D5E8D4;strokeColor=#82B366;fontSize=10;" vertex="1" parent="r1">
+          <mxGeometry x="420" y="382" width="100" height="22" as="geometry" />
+        </mxCell>
+        <mxCell id="rC1V" value="CLICKBAIT · 3 pistas" style="text;html=1;align=left;verticalAlign=middle;fontSize=13;" vertex="1" parent="r1">
+          <mxGeometry x="60" y="414" width="300" height="24" as="geometry" />
+        </mxCell>
+        <mxCell id="rC1c1" value="hipérbole: amazing" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8CECC;strokeColor=#B85450;fontSize=11;" vertex="1" parent="r1">
+          <mxGeometry x="60" y="446" width="160" height="26" as="geometry" />
+        </mxCell>
+        <mxCell id="rC1c2" value="ref. vaga: you" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11;" vertex="1" parent="r1">
+          <mxGeometry x="230" y="446" width="130" height="26" as="geometry" />
+        </mxCell>
+        <mxCell id="rC1c3" value="nº inicial: 10" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#D5E8D4;strokeColor=#82B366;fontSize=11;" vertex="1" parent="r1">
+          <mxGeometry x="370" y="446" width="120" height="26" as="geometry" />
+        </mxCell>
+        <mxCell id="rC1N" value="Las pistas SON la explicación (white-box). Solo detecta clickbait de forma." style="text;html=1;align=left;verticalAlign=top;fontSize=11;fontColor=#666666;fontStyle=2" vertex="1" parent="r1">
+          <mxGeometry x="60" y="486" width="440" height="40" as="geometry" />
+        </mxCell>
+
+        <mxCell id="rC2" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#666666;" vertex="1" parent="r1">
+          <mxGeometry x="560" y="370" width="500" height="210" as="geometry" />
+        </mxCell>
+        <mxCell id="rC2T" value="Modelo lineal (entrenado)" style="text;html=1;align=left;verticalAlign=middle;fontSize=14;fontStyle=1" vertex="1" parent="r1">
+          <mxGeometry x="580" y="382" width="280" height="24" as="geometry" />
+        </mxCell>
+        <mxCell id="rC2B" value="interpretable" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#D5E8D4;strokeColor=#82B366;fontSize=10;" vertex="1" parent="r1">
+          <mxGeometry x="940" y="382" width="100" height="22" as="geometry" />
+        </mxCell>
+        <mxCell id="rC2V" value="CLICKBAIT · probabilidad 0.99" style="text;html=1;align=left;verticalAlign=middle;fontSize=13;" vertex="1" parent="r1">
+          <mxGeometry x="580" y="410" width="300" height="24" as="geometry" />
+        </mxCell>
+        <mxCell id="rC2Bar" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#999999;" vertex="1" parent="r1">
+          <mxGeometry x="580" y="436" width="440" height="16" as="geometry" />
+        </mxCell>
+        <mxCell id="rC2Fill" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#F8CECC;strokeColor=none;" vertex="1" parent="r1">
+          <mxGeometry x="581" y="437" width="430" height="14" as="geometry" />
+        </mxCell>
+        <mxCell id="rC2L" value="Cues que más pesaron:" style="text;html=1;align=left;verticalAlign=middle;fontSize=11;fontStyle=1" vertex="1" parent="r1">
+          <mxGeometry x="580" y="458" width="300" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="rC2b1" value="you  +5.9" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#F8CECC;strokeColor=none;fontSize=11;align=left;spacingLeft=6;" vertex="1" parent="r1">
+          <mxGeometry x="580" y="480" width="300" height="18" as="geometry" />
+        </mxCell>
+        <mxCell id="rC2b2" value="amazing  +3.0" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#F8CECC;strokeColor=none;fontSize=11;align=left;spacingLeft=6;" vertex="1" parent="r1">
+          <mxGeometry x="580" y="502" width="160" height="18" as="geometry" />
+        </mxCell>
+        <mxCell id="rC2b3" value="all_caps  -0.8" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#D5E8D4;strokeColor=none;fontSize=11;align=left;spacingLeft=6;" vertex="1" parent="r1">
+          <mxGeometry x="580" y="524" width="80" height="18" as="geometry" />
+        </mxCell>
+        <mxCell id="rC2N" value="Barras a favor (rojo) y en contra (verde). Los pesos SON la explicación." style="text;html=1;align=left;verticalAlign=top;fontSize=11;fontColor=#666666;fontStyle=2" vertex="1" parent="r1">
+          <mxGeometry x="580" y="548" width="450" height="24" as="geometry" />
+        </mxCell>
+
+        <mxCell id="rC3" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#666666;" vertex="1" parent="r1">
+          <mxGeometry x="40" y="600" width="500" height="210" as="geometry" />
+        </mxCell>
+        <mxCell id="rC3T" value="Incoherencia titular vs cuerpo" style="text;html=1;align=left;verticalAlign=middle;fontSize=14;fontStyle=1" vertex="1" parent="r1">
+          <mxGeometry x="60" y="612" width="300" height="24" as="geometry" />
+        </mxCell>
+        <mxCell id="rC3B" value="híbrido" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF2CC;strokeColor=#D6B656;fontSize=10;" vertex="1" parent="r1">
+          <mxGeometry x="440" y="612" width="80" height="22" as="geometry" />
+        </mxCell>
+        <mxCell id="rC3V" value="COHERENTE · similitud 0.62" style="text;html=1;align=left;verticalAlign=middle;fontSize=13;" vertex="1" parent="r1">
+          <mxGeometry x="60" y="642" width="300" height="24" as="geometry" />
+        </mxCell>
+        <mxCell id="rC3G" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#999999;" vertex="1" parent="r1">
+          <mxGeometry x="60" y="674" width="440" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="rC3F" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#D5E8D4;strokeColor=none;" vertex="1" parent="r1">
+          <mxGeometry x="61" y="675" width="272" height="18" as="geometry" />
+        </mxCell>
+        <mxCell id="rC3Thr" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#B85450;strokeColor=none;" vertex="1" parent="r1">
+          <mxGeometry x="192" y="670" width="3" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="rC3ThrL" value="umbral 0.30 (sin calibrar)" style="text;html=1;align=left;verticalAlign=middle;fontSize=10;fontColor=#B85450;" vertex="1" parent="r1">
+          <mxGeometry x="150" y="700" width="200" height="16" as="geometry" />
+        </mxCell>
+        <mxCell id="rC3N" value="Decisión transparente (umbral) pero rasgo opaco (embeddings). Requiere cuerpo." style="text;html=1;align=left;verticalAlign=top;fontSize=11;fontColor=#666666;fontStyle=2" vertex="1" parent="r1">
+          <mxGeometry x="60" y="726" width="440" height="40" as="geometry" />
+        </mxCell>
+
+        <mxCell id="rC4" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#666666;" vertex="1" parent="r1">
+          <mxGeometry x="560" y="600" width="500" height="210" as="geometry" />
+        </mxCell>
+        <mxCell id="rC4T" value="Zero-shot (NLI)" style="text;html=1;align=left;verticalAlign=middle;fontSize=14;fontStyle=1" vertex="1" parent="r1">
+          <mxGeometry x="580" y="612" width="300" height="24" as="geometry" />
+        </mxCell>
+        <mxCell id="rC4B" value="opaco" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8CECC;strokeColor=#B85450;fontSize=10;" vertex="1" parent="r1">
+          <mxGeometry x="960" y="612" width="80" height="22" as="geometry" />
+        </mxCell>
+        <mxCell id="rC4V" value="CLICKBAIT · confianza 0.78" style="text;html=1;align=left;verticalAlign=middle;fontSize=13;" vertex="1" parent="r1">
+          <mxGeometry x="580" y="642" width="300" height="24" as="geometry" />
+        </mxCell>
+        <mxCell id="rC4Bar" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#999999;" vertex="1" parent="r1">
+          <mxGeometry x="580" y="674" width="440" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="rC4F" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#F8CECC;strokeColor=none;" vertex="1" parent="r1">
+          <mxGeometry x="581" y="675" width="343" height="18" as="geometry" />
+        </mxCell>
+        <mxCell id="rC4N" value="Sin explicación intrínseca: es caja negra. Aporta lectura semántica que las señales léxicas no ven." style="text;html=1;align=left;verticalAlign=top;fontSize=11;fontColor=#666666;fontStyle=2" vertex="1" parent="r1">
+          <mxGeometry x="580" y="706" width="450" height="50" as="geometry" />
+        </mxCell>
+
+        <mxCell id="rFoot" value="Guardar en historial" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#666666;" vertex="1" parent="r1">
+          <mxGeometry x="40" y="840" width="180" height="40" as="geometry" />
+        </mxCell>
+        <UserObject label="Ver fichas de los modelos" id="rFoot2" link="data:page/id,pModelos">
+          <mxCell style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#666666;" vertex="1" parent="r1">
+            <mxGeometry x="240" y="840" width="220" height="40" as="geometry" />
+          </mxCell>
+        </UserObject>
+        <UserObject label="Preguntar al asistente sobre este resultado" id="rFoot3" link="data:page/id,pChat">
+          <mxCell style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#666666;" vertex="1" parent="r1">
+            <mxGeometry x="480" y="840" width="300" height="40" as="geometry" />
+          </mxCell>
+        </UserObject>
+
+        <mxCell id="rAnn" value="PANTALLA CLAVE (alta fidelidad): es el lienzo de explicabilidad. Cada bloque muestra datos que el backend YA devuelve: span de los cues, top_cues con su contribución, similarity, type de la ficha de modelo. Las tarjetas se reutilizan embebidas en el Chat." style="rounded=0;whiteSpace=wrap;html=1;dashed=1;fillColor=#FFF2CC;strokeColor=#D6B656;align=left;spacingLeft=10;fontSize=11;verticalAlign=middle;" vertex="1" parent="r1">
+          <mxGeometry x="40" y="900" width="1020" height="60" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+
+  <diagram name="4 - Sistema" id="pModelos">
+    <mxGraphModel dx="1100" dy="1000" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1100" pageHeight="1000" math="0" shadow="0">
+      <root>
+        <mxCell id="m0" />
+        <mxCell id="m1" parent="m0" />
+
+        <mxCell id="mHdr" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#F5F5F5;strokeColor=#666666;" vertex="1" parent="m1">
+          <mxGeometry x="40" y="40" width="1020" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="mLogo" value="ClickBait Analysis" style="text;html=1;align=left;verticalAlign=middle;fontSize=18;fontStyle=1" vertex="1" parent="m1">
+          <mxGeometry x="60" y="55" width="300" height="30" as="geometry" />
+        </mxCell>
+        <UserObject label="Chat" id="mNav0" link="data:page/id,pChat">
+          <mxCell style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#666666;" vertex="1" parent="m1">
+            <mxGeometry x="590" y="55" width="100" height="30" as="geometry" />
+          </mxCell>
+        </UserObject>
+        <UserObject label="Analizar" id="mNav1" link="data:page/id,pAnalizar">
+          <mxCell style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#666666;" vertex="1" parent="m1">
+            <mxGeometry x="700" y="55" width="100" height="30" as="geometry" />
+          </mxCell>
+        </UserObject>
+        <UserObject label="Historial" id="mNav2" link="data:page/id,pHistorial">
+          <mxCell style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#666666;" vertex="1" parent="m1">
+            <mxGeometry x="810" y="55" width="100" height="30" as="geometry" />
+          </mxCell>
+        </UserObject>
+        <UserObject label="Sistema" id="mNav3" link="data:page/id,pModelos">
+          <mxCell style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontStyle=1" vertex="1" parent="m1">
+            <mxGeometry x="920" y="55" width="100" height="30" as="geometry" />
+          </mxCell>
+        </UserObject>
+
+        <mxCell id="mTitle" value="Sistema: servidores, herramientas y modelos" style="text;html=1;align=left;verticalAlign=middle;fontSize=20;fontStyle=1" vertex="1" parent="m1">
+          <mxGeometry x="40" y="118" width="600" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="mSub" value="Transparencia del sistema: qué está conectado, qué herramientas aporta y qué modelos hay detrás con sus limitaciones." style="text;html=1;align=left;verticalAlign=middle;fontSize=12;fontColor=#666666;" vertex="1" parent="m1">
+          <mxGeometry x="40" y="146" width="900" height="20" as="geometry" />
+        </mxCell>
+
+        <mxCell id="mSrvT" value="Servidores MCP conectados" style="text;html=1;align=left;verticalAlign=middle;fontSize=15;fontStyle=1" vertex="1" parent="m1">
+          <mxGeometry x="40" y="180" width="400" height="24" as="geometry" />
+        </mxCell>
+        <mxCell id="mSrvC" value="3 servidores · 11 herramientas" style="text;html=1;align=right;verticalAlign=middle;fontSize=12;fontColor=#666666;" vertex="1" parent="m1">
+          <mxGeometry x="700" y="180" width="360" height="24" as="geometry" />
+        </mxCell>
+
+        <mxCell id="mS1" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#666666;" vertex="1" parent="m1">
+          <mxGeometry x="40" y="212" width="330" height="110" as="geometry" />
+        </mxCell>
+        <mxCell id="mS1n" value="mcp-clickbait" style="text;html=1;align=left;verticalAlign=middle;fontSize=13;fontStyle=1" vertex="1" parent="m1">
+          <mxGeometry x="58" y="222" width="200" height="22" as="geometry" />
+        </mxCell>
+        <mxCell id="mS1s" value="conectado" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#D5E8D4;strokeColor=#82B366;fontSize=9;" vertex="1" parent="m1">
+          <mxGeometry x="262" y="224" width="90" height="18" as="geometry" />
+        </mxCell>
+        <mxCell id="mS1u" value="http://mcp-clickbait:8000  ·  streamable-http" style="text;html=1;align=left;verticalAlign=middle;fontSize=10;fontColor=#666666;" vertex="1" parent="m1">
+          <mxGeometry x="58" y="246" width="300" height="18" as="geometry" />
+        </mxCell>
+        <mxCell id="mS1t" value="6 herramientas · análisis NLP de clickbait" style="text;html=1;align=left;verticalAlign=middle;fontSize=11;" vertex="1" parent="m1">
+          <mxGeometry x="58" y="270" width="300" height="18" as="geometry" />
+        </mxCell>
+        <mxCell id="mS1l" value="Modelos: lineal, léxico, MiniLM, BART" style="text;html=1;align=left;verticalAlign=middle;fontSize=10;fontColor=#666666;fontStyle=2" vertex="1" parent="m1">
+          <mxGeometry x="58" y="292" width="300" height="18" as="geometry" />
+        </mxCell>
+
+        <mxCell id="mS2" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#666666;" vertex="1" parent="m1">
+          <mxGeometry x="385" y="212" width="330" height="110" as="geometry" />
+        </mxCell>
+        <mxCell id="mS2n" value="mcp-noticias" style="text;html=1;align=left;verticalAlign=middle;fontSize=13;fontStyle=1" vertex="1" parent="m1">
+          <mxGeometry x="403" y="222" width="200" height="22" as="geometry" />
+        </mxCell>
+        <mxCell id="mS2s" value="conectado" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#D5E8D4;strokeColor=#82B366;fontSize=9;" vertex="1" parent="m1">
+          <mxGeometry x="607" y="224" width="90" height="18" as="geometry" />
+        </mxCell>
+        <mxCell id="mS2u" value="http://mcp-noticias:8000  ·  streamable-http" style="text;html=1;align=left;verticalAlign=middle;fontSize=10;fontColor=#666666;" vertex="1" parent="m1">
+          <mxGeometry x="403" y="246" width="300" height="18" as="geometry" />
+        </mxCell>
+        <mxCell id="mS2t" value="2 herramientas · NYT y The Guardian" style="text;html=1;align=left;verticalAlign=middle;fontSize=11;" vertex="1" parent="m1">
+          <mxGeometry x="403" y="270" width="300" height="18" as="geometry" />
+        </mxCell>
+        <mxCell id="mS2l" value="APIs externas (requieren clave)" style="text;html=1;align=left;verticalAlign=middle;fontSize=10;fontColor=#666666;fontStyle=2" vertex="1" parent="m1">
+          <mxGeometry x="403" y="292" width="300" height="18" as="geometry" />
+        </mxCell>
+
+        <mxCell id="mS3" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#666666;" vertex="1" parent="m1">
+          <mxGeometry x="730" y="212" width="330" height="110" as="geometry" />
+        </mxCell>
+        <mxCell id="mS3n" value="mcp-utilidades" style="text;html=1;align=left;verticalAlign=middle;fontSize=13;fontStyle=1" vertex="1" parent="m1">
+          <mxGeometry x="748" y="222" width="200" height="22" as="geometry" />
+        </mxCell>
+        <mxCell id="mS3s" value="degradado" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF2CC;strokeColor=#D6B656;fontSize=9;" vertex="1" parent="m1">
+          <mxGeometry x="952" y="224" width="90" height="18" as="geometry" />
+        </mxCell>
+        <mxCell id="mS3u" value="http://mcp-utilidades:8000  ·  streamable-http" style="text;html=1;align=left;verticalAlign=middle;fontSize=10;fontColor=#666666;" vertex="1" parent="m1">
+          <mxGeometry x="748" y="246" width="300" height="18" as="geometry" />
+        </mxCell>
+        <mxCell id="mS3t" value="3 herramientas · meteorología y estado" style="text;html=1;align=left;verticalAlign=middle;fontSize=11;" vertex="1" parent="m1">
+          <mxGeometry x="748" y="270" width="300" height="18" as="geometry" />
+        </mxCell>
+        <mxCell id="mS3l" value="1 tool no responde (se muestra el error)" style="text;html=1;align=left;verticalAlign=middle;fontSize=10;fontColor=#996600;fontStyle=2" vertex="1" parent="m1">
+          <mxGeometry x="748" y="292" width="300" height="18" as="geometry" />
+        </mxCell>
+
+        <mxCell id="mSrvAnn" value="La rejilla es DINÁMICA: se genera con lo que el backend descubre al arrancar (lista de servidores en configuración + handshake MCP). Añadir un especialista = levantar su contenedor y añadir una línea; quitar uno = su tarjeta y sus herramientas desaparecen solas. Ninguna fuente está cableada en el frontend." style="rounded=0;whiteSpace=wrap;html=1;dashed=1;fillColor=#FFF2CC;strokeColor=#D6B656;align=left;spacingLeft=10;fontSize=11;verticalAlign=middle;" vertex="1" parent="m1">
+          <mxGeometry x="40" y="334" width="1020" height="56" as="geometry" />
+        </mxCell>
+
+        <mxCell id="mCatT" value="Catálogo de herramientas" style="text;html=1;align=left;verticalAlign=middle;fontSize=15;fontStyle=1" vertex="1" parent="m1">
+          <mxGeometry x="40" y="404" width="400" height="24" as="geometry" />
+        </mxCell>
+        <mxCell id="mSearch" value="Buscar herramienta..." style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#999999;align=left;spacingLeft=10;fontColor=#999999;fontSize=11;" vertex="1" parent="m1">
+          <mxGeometry x="40" y="432" width="360" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="mF1" value="Todos" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=10;" vertex="1" parent="m1">
+          <mxGeometry x="416" y="432" width="90" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="mF2" value="mcp-clickbait" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#999999;fontSize=10;" vertex="1" parent="m1">
+          <mxGeometry x="512" y="432" width="110" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="mF3" value="mcp-noticias" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#999999;fontSize=10;" vertex="1" parent="m1">
+          <mxGeometry x="628" y="432" width="110" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="mF4" value="mcp-utilidades" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#999999;fontSize=10;" vertex="1" parent="m1">
+          <mxGeometry x="744" y="432" width="110" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="mFN" value="filtros = servidores conectados" style="text;html=1;align=left;verticalAlign=middle;fontSize=10;fontColor=#996600;fontStyle=2" vertex="1" parent="m1">
+          <mxGeometry x="864" y="432" width="200" height="30" as="geometry" />
+        </mxCell>
+
+        <mxCell id="mTh" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#F5F5F5;strokeColor=#999999;" vertex="1" parent="m1">
+          <mxGeometry x="40" y="472" width="1020" height="26" as="geometry" />
+        </mxCell>
+        <mxCell id="mTha" value="Herramienta" style="text;html=1;align=left;verticalAlign=middle;fontSize=11;fontStyle=1" vertex="1" parent="m1">
+          <mxGeometry x="52" y="472" width="260" height="26" as="geometry" />
+        </mxCell>
+        <mxCell id="mThb" value="Descripción" style="text;html=1;align=left;verticalAlign=middle;fontSize=11;fontStyle=1" vertex="1" parent="m1">
+          <mxGeometry x="320" y="472" width="440" height="26" as="geometry" />
+        </mxCell>
+        <mxCell id="mThc" value="Servidor" style="text;html=1;align=left;verticalAlign=middle;fontSize=11;fontStyle=1" vertex="1" parent="m1">
+          <mxGeometry x="790" y="472" width="140" height="26" as="geometry" />
+        </mxCell>
+        <mxCell id="mThd" value="Categoría" style="text;html=1;align=left;verticalAlign=middle;fontSize=11;fontStyle=1" vertex="1" parent="m1">
+          <mxGeometry x="950" y="472" width="100" height="26" as="geometry" />
+        </mxCell>
+
+        <mxCell id="mT1" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#CCCCCC;" vertex="1" parent="m1">
+          <mxGeometry x="40" y="498" width="1020" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="mT1a" value="detect_clickbait_linear" style="text;html=1;align=left;verticalAlign=middle;fontSize=11;fontStyle=1" vertex="1" parent="m1">
+          <mxGeometry x="52" y="498" width="260" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="mT1b" value="Modelo lineal interpretable entrenado" style="text;html=1;align=left;verticalAlign=middle;fontSize=11;" vertex="1" parent="m1">
+          <mxGeometry x="320" y="498" width="460" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="mT1c" value="mcp-clickbait" style="text;html=1;align=left;verticalAlign=middle;fontSize=10;fontColor=#666666;" vertex="1" parent="m1">
+          <mxGeometry x="790" y="498" width="150" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="mT1d" value="NLP" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F5F5F5;strokeColor=#999999;fontSize=9;" vertex="1" parent="m1">
+          <mxGeometry x="950" y="504" width="80" height="18" as="geometry" />
+        </mxCell>
+
+        <mxCell id="mT2" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#CCCCCC;" vertex="1" parent="m1">
+          <mxGeometry x="40" y="528" width="1020" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="mT2a" value="get_nyt_news" style="text;html=1;align=left;verticalAlign=middle;fontSize=11;fontStyle=1" vertex="1" parent="m1">
+          <mxGeometry x="52" y="528" width="260" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="mT2b" value="Noticias del New York Times" style="text;html=1;align=left;verticalAlign=middle;fontSize=11;" vertex="1" parent="m1">
+          <mxGeometry x="320" y="528" width="460" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="mT2c" value="mcp-noticias" style="text;html=1;align=left;verticalAlign=middle;fontSize=10;fontColor=#666666;" vertex="1" parent="m1">
+          <mxGeometry x="790" y="528" width="150" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="mT2d" value="Noticias" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F5F5F5;strokeColor=#999999;fontSize=9;" vertex="1" parent="m1">
+          <mxGeometry x="950" y="534" width="80" height="18" as="geometry" />
+        </mxCell>
+
+        <mxCell id="mT3" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#CCCCCC;" vertex="1" parent="m1">
+          <mxGeometry x="40" y="558" width="1020" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="mT3a" value="get_forecast" style="text;html=1;align=left;verticalAlign=middle;fontSize=11;fontStyle=1" vertex="1" parent="m1">
+          <mxGeometry x="52" y="558" width="260" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="mT3b" value="Previsión meteorológica por coordenadas" style="text;html=1;align=left;verticalAlign=middle;fontSize=11;" vertex="1" parent="m1">
+          <mxGeometry x="320" y="558" width="460" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="mT3c" value="mcp-utilidades" style="text;html=1;align=left;verticalAlign=middle;fontSize=10;fontColor=#666666;" vertex="1" parent="m1">
+          <mxGeometry x="790" y="558" width="150" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="mT3d" value="Utilidades" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F5F5F5;strokeColor=#999999;fontSize=9;" vertex="1" parent="m1">
+          <mxGeometry x="950" y="564" width="80" height="18" as="geometry" />
+        </mxCell>
+
+        <mxCell id="mTN" value="... resto de herramientas (la tabla se rellena con lo que devuelve cada servidor)" style="text;html=1;align=left;verticalAlign=middle;fontSize=11;fontColor=#666666;fontStyle=2" vertex="1" parent="m1">
+          <mxGeometry x="40" y="592" width="700" height="18" as="geometry" />
+        </mxCell>
+
+        <mxCell id="mFichT" value="Fichas de modelos" style="text;html=1;align=left;verticalAlign=middle;fontSize=15;fontStyle=1" vertex="1" parent="m1">
+          <mxGeometry x="40" y="626" width="400" height="24" as="geometry" />
+        </mxCell>
+
+        <mxCell id="mK1" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#666666;" vertex="1" parent="m1">
+          <mxGeometry x="40" y="656" width="500" height="170" as="geometry" />
+        </mxCell>
+        <mxCell id="mK1T" value="Modelo lineal (regresión logística)" style="text;html=1;align=left;verticalAlign=middle;fontSize=13;fontStyle=1" vertex="1" parent="m1">
+          <mxGeometry x="60" y="668" width="330" height="22" as="geometry" />
+        </mxCell>
+        <mxCell id="mK1B" value="interpretable" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#D5E8D4;strokeColor=#82B366;fontSize=10;" vertex="1" parent="m1">
+          <mxGeometry x="420" y="668" width="100" height="22" as="geometry" />
+        </mxCell>
+        <mxCell id="mK1D" value="Tarea: clickbait ponderado por pistas léxicas; devuelve los cues que más contribuyeron." style="text;html=1;align=left;verticalAlign=top;fontSize=11;" vertex="1" parent="m1">
+          <mxGeometry x="60" y="696" width="450" height="34" as="geometry" />
+        </mxCell>
+        <mxCell id="mK1L" value="Limitaciones: detecta clickbait de estilo (sesgo de fuente). NO generaliza fuera de dominio: F1 0.865 en titulares de noticias vs 0.476 en tuits. Solo inglés." style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFF2CC;strokeColor=#D6B656;align=left;verticalAlign=top;spacingLeft=8;spacingTop=6;fontSize=11;" vertex="1" parent="m1">
+          <mxGeometry x="60" y="734" width="460" height="76" as="geometry" />
+        </mxCell>
+
+        <mxCell id="mK2" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#666666;" vertex="1" parent="m1">
+          <mxGeometry x="560" y="656" width="500" height="170" as="geometry" />
+        </mxCell>
+        <mxCell id="mK2T" value="LLM orquestador (Ollama, local)" style="text;html=1;align=left;verticalAlign=middle;fontSize=13;fontStyle=1" vertex="1" parent="m1">
+          <mxGeometry x="580" y="668" width="330" height="22" as="geometry" />
+        </mxCell>
+        <mxCell id="mK2B" value="opaco" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8CECC;strokeColor=#B85450;fontSize=10;" vertex="1" parent="m1">
+          <mxGeometry x="960" y="668" width="80" height="22" as="geometry" />
+        </mxCell>
+        <mxCell id="mK2D" value="Tarea: interpreta la consulta, decide qué herramientas MCP invocar y narra el resultado." style="text;html=1;align=left;verticalAlign=top;fontSize=11;" vertex="1" parent="m1">
+          <mxGeometry x="580" y="696" width="450" height="34" as="geometry" />
+        </mxCell>
+        <mxCell id="mK2L" value="Limitaciones: caja negra; puede equivocarse al narrar. NO emite el veredicto: este sale de las tools y se muestra en las tarjetas. Prompt de sistema versionado y consultable." style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFF2CC;strokeColor=#D6B656;align=left;verticalAlign=top;spacingLeft=8;spacingTop=6;fontSize=11;" vertex="1" parent="m1">
+          <mxGeometry x="580" y="734" width="460" height="76" as="geometry" />
+        </mxCell>
+
+        <mxCell id="mMore" value="... resto de fichas (léxico, incoherencia, zero-shot, sentimiento)" style="text;html=1;align=left;verticalAlign=middle;fontSize=11;fontColor=#666666;fontStyle=2" vertex="1" parent="m1">
+          <mxGeometry x="40" y="832" width="500" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="mPrompt" value="Ver prompt de sistema del agente" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#666666;fontSize=11;" vertex="1" parent="m1">
+          <mxGeometry x="760" y="828" width="300" height="30" as="geometry" />
+        </mxCell>
+
+        <mxCell id="mAnn" value="Cumple R3.9 (divulgar modelos y sus límites) y R5 (catálogo con búsqueda y filtro). Los datos salen de describe_models y del handshake con cada servidor MCP: nada está cableado en el frontend." style="rounded=0;whiteSpace=wrap;html=1;dashed=1;fillColor=#FFF2CC;strokeColor=#D6B656;align=left;spacingLeft=10;fontSize=11;verticalAlign=middle;" vertex="1" parent="m1">
+          <mxGeometry x="40" y="876" width="1020" height="50" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+
+  <diagram name="5 - Historial" id="pHistorial">
+    <mxGraphModel dx="1100" dy="850" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1100" pageHeight="850" math="0" shadow="0">
+      <root>
+        <mxCell id="h0" />
+        <mxCell id="h1" parent="h0" />
+
+        <mxCell id="hHdr" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#F5F5F5;strokeColor=#666666;" vertex="1" parent="h1">
+          <mxGeometry x="40" y="40" width="1020" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="hLogo" value="ClickBait Analysis" style="text;html=1;align=left;verticalAlign=middle;fontSize=18;fontStyle=1" vertex="1" parent="h1">
+          <mxGeometry x="60" y="55" width="300" height="30" as="geometry" />
+        </mxCell>
+        <UserObject label="Chat" id="hNav0" link="data:page/id,pChat">
+          <mxCell style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#666666;" vertex="1" parent="h1">
+            <mxGeometry x="590" y="55" width="100" height="30" as="geometry" />
+          </mxCell>
+        </UserObject>
+        <UserObject label="Analizar" id="hNav1" link="data:page/id,pAnalizar">
+          <mxCell style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#666666;" vertex="1" parent="h1">
+            <mxGeometry x="700" y="55" width="100" height="30" as="geometry" />
+          </mxCell>
+        </UserObject>
+        <UserObject label="Historial" id="hNav2" link="data:page/id,pHistorial">
+          <mxCell style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontStyle=1" vertex="1" parent="h1">
+            <mxGeometry x="810" y="55" width="100" height="30" as="geometry" />
+          </mxCell>
+        </UserObject>
+        <UserObject label="Sistema" id="hNav3" link="data:page/id,pModelos">
+          <mxCell style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#666666;" vertex="1" parent="h1">
+            <mxGeometry x="920" y="55" width="100" height="30" as="geometry" />
+          </mxCell>
+        </UserObject>
+
+        <mxCell id="hTitle" value="Historial de análisis" style="text;html=1;align=left;verticalAlign=middle;fontSize=20;fontStyle=1" vertex="1" parent="h1">
+          <mxGeometry x="40" y="125" width="400" height="30" as="geometry" />
+        </mxCell>
+
+        <mxCell id="hSearch" value="Filtrar por titular..." style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#999999;align=left;spacingLeft=10;fontColor=#999999;" vertex="1" parent="h1">
+          <mxGeometry x="40" y="166" width="500" height="36" as="geometry" />
+        </mxCell>
+
+        <mxCell id="hTh" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#F5F5F5;strokeColor=#999999;" vertex="1" parent="h1">
+          <mxGeometry x="40" y="220" width="1020" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="hTha" value="Fecha" style="text;html=1;align=left;verticalAlign=middle;fontSize=11;fontStyle=1" vertex="1" parent="h1">
+          <mxGeometry x="52" y="220" width="110" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="hThb" value="Titular" style="text;html=1;align=left;verticalAlign=middle;fontSize=11;fontStyle=1" vertex="1" parent="h1">
+          <mxGeometry x="175" y="220" width="440" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="hThe" value="Origen" style="text;html=1;align=left;verticalAlign=middle;fontSize=11;fontStyle=1" vertex="1" parent="h1">
+          <mxGeometry x="628" y="220" width="80" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="hThc" value="Veredicto" style="text;html=1;align=left;verticalAlign=middle;fontSize=11;fontStyle=1" vertex="1" parent="h1">
+          <mxGeometry x="726" y="220" width="120" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="hThd" value="Señales" style="text;html=1;align=left;verticalAlign=middle;fontSize=11;fontStyle=1" vertex="1" parent="h1">
+          <mxGeometry x="866" y="220" width="70" height="30" as="geometry" />
+        </mxCell>
+
+        <mxCell id="hR1" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#CCCCCC;" vertex="1" parent="h1">
+          <mxGeometry x="40" y="250" width="1020" height="34" as="geometry" />
+        </mxCell>
+        <mxCell id="hR1a" value="02/07 14:02" style="text;html=1;align=left;verticalAlign=middle;fontSize=12;fontColor=#666666;" vertex="1" parent="h1">
+          <mxGeometry x="52" y="250" width="110" height="34" as="geometry" />
+        </mxCell>
+        <mxCell id="hR1b" value="10 Amazing Things You Won't Believe" style="text;html=1;align=left;verticalAlign=middle;fontSize=12;" vertex="1" parent="h1">
+          <mxGeometry x="175" y="250" width="440" height="34" as="geometry" />
+        </mxCell>
+        <mxCell id="hR1e" value="chat" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=9;" vertex="1" parent="h1">
+          <mxGeometry x="628" y="258" width="70" height="18" as="geometry" />
+        </mxCell>
+        <mxCell id="hR1c" value="CLICKBAIT" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8CECC;strokeColor=#B85450;fontSize=10;" vertex="1" parent="h1">
+          <mxGeometry x="726" y="258" width="100" height="18" as="geometry" />
+        </mxCell>
+        <mxCell id="hR1d" value="3/4" style="text;html=1;align=left;verticalAlign=middle;fontSize=12;" vertex="1" parent="h1">
+          <mxGeometry x="866" y="250" width="70" height="34" as="geometry" />
+        </mxCell>
+        <UserObject label="Ver &#8594;" id="hR1v" link="data:page/id,pResultados">
+          <mxCell style="text;html=1;align=left;verticalAlign=middle;fontSize=12;fontColor=#6C8EBF;" vertex="1" parent="h1">
+            <mxGeometry x="960" y="250" width="90" height="34" as="geometry" />
+          </mxCell>
+        </UserObject>
+
+        <mxCell id="hR2" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#CCCCCC;" vertex="1" parent="h1">
+          <mxGeometry x="40" y="284" width="1020" height="34" as="geometry" />
+        </mxCell>
+        <mxCell id="hR2a" value="02/07 13:47" style="text;html=1;align=left;verticalAlign=middle;fontSize=12;fontColor=#666666;" vertex="1" parent="h1">
+          <mxGeometry x="52" y="284" width="110" height="34" as="geometry" />
+        </mxCell>
+        <mxCell id="hR2b" value="Spain wins the 2026 World Cup" style="text;html=1;align=left;verticalAlign=middle;fontSize=12;" vertex="1" parent="h1">
+          <mxGeometry x="175" y="284" width="440" height="34" as="geometry" />
+        </mxCell>
+        <mxCell id="hR2e" value="formulario" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F5F5F5;strokeColor=#999999;fontSize=9;" vertex="1" parent="h1">
+          <mxGeometry x="628" y="292" width="70" height="18" as="geometry" />
+        </mxCell>
+        <mxCell id="hR2c" value="FACTUAL" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#D5E8D4;strokeColor=#82B366;fontSize=10;" vertex="1" parent="h1">
+          <mxGeometry x="726" y="292" width="100" height="18" as="geometry" />
+        </mxCell>
+        <mxCell id="hR2d" value="0/4" style="text;html=1;align=left;verticalAlign=middle;fontSize=12;" vertex="1" parent="h1">
+          <mxGeometry x="866" y="284" width="70" height="34" as="geometry" />
+        </mxCell>
+        <UserObject label="Ver &#8594;" id="hR2v" link="data:page/id,pResultados">
+          <mxCell style="text;html=1;align=left;verticalAlign=middle;fontSize=12;fontColor=#6C8EBF;" vertex="1" parent="h1">
+            <mxGeometry x="960" y="284" width="90" height="34" as="geometry" />
+          </mxCell>
+        </UserObject>
+
+        <mxCell id="hR3" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#CCCCCC;" vertex="1" parent="h1">
+          <mxGeometry x="40" y="318" width="1020" height="34" as="geometry" />
+        </mxCell>
+        <mxCell id="hR3a" value="01/07 19:15" style="text;html=1;align=left;verticalAlign=middle;fontSize=12;fontColor=#666666;" vertex="1" parent="h1">
+          <mxGeometry x="52" y="318" width="110" height="34" as="geometry" />
+        </mxCell>
+        <mxCell id="hR3b" value="Can You Embrace A.I. Without Layoffs?" style="text;html=1;align=left;verticalAlign=middle;fontSize=12;" vertex="1" parent="h1">
+          <mxGeometry x="175" y="318" width="440" height="34" as="geometry" />
+        </mxCell>
+        <mxCell id="hR3e" value="chat" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=9;" vertex="1" parent="h1">
+          <mxGeometry x="628" y="326" width="70" height="18" as="geometry" />
+        </mxCell>
+        <mxCell id="hR3c" value="AMBIGUO" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF2CC;strokeColor=#D6B656;fontSize=10;" vertex="1" parent="h1">
+          <mxGeometry x="726" y="326" width="100" height="18" as="geometry" />
+        </mxCell>
+        <mxCell id="hR3d" value="2/4" style="text;html=1;align=left;verticalAlign=middle;fontSize=12;" vertex="1" parent="h1">
+          <mxGeometry x="866" y="318" width="70" height="34" as="geometry" />
+        </mxCell>
+        <UserObject label="Ver &#8594;" id="hR3v" link="data:page/id,pResultados">
+          <mxCell style="text;html=1;align=left;verticalAlign=middle;fontSize=12;fontColor=#6C8EBF;" vertex="1" parent="h1">
+            <mxGeometry x="960" y="318" width="90" height="34" as="geometry" />
+          </mxCell>
+        </UserObject>
+
+        <mxCell id="hNote" value="«Ver» reabre la pantalla de Resultados. La columna Origen distingue si el análisis vino del chat o del formulario." style="text;html=1;align=left;verticalAlign=middle;fontSize=11;fontColor=#666666;fontStyle=2" vertex="1" parent="h1">
+          <mxGeometry x="40" y="360" width="800" height="20" as="geometry" />
+        </mxCell>
+
+        <mxCell id="hEmptyT" value="Estado vacío (primera visita)" style="text;html=1;align=left;verticalAlign=middle;fontSize=13;fontStyle=1" vertex="1" parent="h1">
+          <mxGeometry x="40" y="424" width="400" height="24" as="geometry" />
+        </mxCell>
+        <mxCell id="hEmpty" value="Aún no has analizado ningún titular." style="rounded=0;whiteSpace=wrap;html=1;dashed=1;fillColor=none;strokeColor=#999999;fontColor=#666666;" vertex="1" parent="h1">
+          <mxGeometry x="40" y="452" width="1020" height="90" as="geometry" />
+        </mxCell>
+
+        <mxCell id="hAnn" value="Cumple R4.4 (endpoint de historial) y R6.5 (historial con marca de tiempo y resultados). Pendiente de decidir dónde persiste: navegador (localStorage) o base de datos." style="rounded=0;whiteSpace=wrap;html=1;dashed=1;fillColor=#FFF2CC;strokeColor=#D6B656;align=left;spacingLeft=10;fontSize=11;verticalAlign=middle;" vertex="1" parent="h1">
+          <mxGeometry x="40" y="570" width="1020" height="44" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
