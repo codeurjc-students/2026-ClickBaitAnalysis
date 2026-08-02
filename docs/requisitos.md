@@ -1,6 +1,6 @@
 # Requisitos
 
-> Documento vivo: los requisitos pueden evolucionar durante el desarrollo. **Todo cambio se registra en la memoria del proyecto** (con su motivo).
+> Documento vivo: los requisitos pueden evolucionar durante el desarrollo. **Todo cambio queda registrado, con su motivo, en el [README](../README.md)** — en la sección de la épica o fase que lo originó.
 
 ## Introducción
 
@@ -15,6 +15,8 @@ Este documento define los requisitos para un Trabajo de Fin de Grado (TFG) que i
 - **Tool_Catalog**: Sistema de registro y descubrimiento de herramientas disponibles.
 - **NLP_Analyzer**: Componente que realiza análisis de procesamiento de lenguaje natural.
 - **Backend_API**: API REST implementada con FastAPI que expone funcionalidad del servidor MCP.
+- **Agent_Orchestrator**: Agente conversacional que interpreta consultas en lenguaje natural y decide qué MCP_Tools invocar (*tool calling*). Actúa como cliente MCP.
+- **LLM_Backend**: Proveedor del modelo de lenguaje que usa el Agent_Orchestrator; intercambiable por configuración (local vía Ollama o API externa).
 - **Docker_Environment**: Entorno de contenedores orquestado con Docker Compose.
 - **CI_Pipeline**: Pipeline de integración continua implementado con GitHub Actions.
 
@@ -31,6 +33,9 @@ Este documento define los requisitos para un Trabajo de Fin de Grado (TFG) que i
 3. EL MCP_Server DEBERÁ exponer las herramientas a través de la interfaz de protocolo MCP estándar.
 4. CUANDO se invoque una herramienta (tool), EL MCP_Server DEBERÁ enrutar la solicitud a la implementación MCP_Tool adecuada.
 5. SI falla la ejecución de una herramienta, ENTONCES EL MCP_Server DEBERÁ devolver una respuesta de error estructurada con detalles.
+6. EL MCP_Server DEBERÁ poder exponerse mediante **transporte HTTP** (`streamable-http`) además de `stdio`, para permitir su despliegue como contenedor independiente. _(Precondición del desacople: `stdio` exige que el cliente lance el servidor como subproceso, lo que no cruza contenedores.)_
+7. EL sistema DEBERÁ admitir la conexión a **varios MCP_Server especialistas** declarados por configuración; añadir o retirar uno NO DEBERÁ requerir cambios de código.
+8. SI un MCP_Server declarado no responde, ENTONCES el sistema DEBERÁ seguir operando con los restantes y reflejar su estado degradado.
 
 ### Requisito 2: Herramientas de integración de API públicas
 
@@ -91,6 +96,8 @@ Este documento define los requisitos para un Trabajo de Fin de Grado (TFG) que i
 4. AL consultar el catálogo, EL Tool_Catalog DEBERÁ devolver las herramientas filtradas por categoría si así se solicita.
 5. EL Tool_Catalog DEBERÁ incluir esquemas de validación de parámetros para cada herramienta.
 6. EL Tool_Catalog DEBERÁ admitir la búsqueda de herramientas por nombre o palabras clave de descripción.
+7. EL Tool_Catalog DEBERÁ **agregar las herramientas de todos los MCP_Server conectados**, indicando de qué servidor procede cada una.
+8. EL Tool_Catalog DEBERÁ construirse **dinámicamente** mediante el descubrimiento de herramientas de cada servidor (*handshake* MCP), sin listas cableadas en el código ni en el frontend.
 
 ### Requisito 6: Interfaz web
 
@@ -107,6 +114,9 @@ Este documento define los requisitos para un Trabajo de Fin de Grado (TFG) que i
 7. LA Web_Interface DEBERÁ mostrar mensajes de error en un formato entendible.
 8. LA Web_Interface DEBERÁ ser receptiva y funcionar en dispositivos de escritorio y tabletas.
 9. LA Web_Interface DEBERÁ incluir capacidades de filtrado y búsqueda para el catálogo de herramientas.
+10. LA Web_Interface DEBERÁ ofrecer **dos vías de entrada**: un formulario de análisis directo (determinista) y un **asistente conversacional** (ver Requisito 13).
+11. LA Web_Interface DEBERÁ mostrar el estado de los **MCP_Server conectados** (nombre, transporte, estado y herramientas que aporta), generado dinámicamente a partir del descubrimiento; los filtros por servidor DEBERÁN derivarse de esa misma lista.
+12. CUANDO el Agent_Orchestrator invoque herramientas, LA Web_Interface DEBERÁ renderizar el **resultado estructurado de cada herramienta** —no solo la narración del modelo— junto a la **traza** de herramientas invocadas.
 
 ### Requisito 7: Entorno de implementación de Docker
 
@@ -190,3 +200,18 @@ Este documento define los requisitos para un Trabajo de Fin de Grado (TFG) que i
 5. LA Backend_API DEBERÁ incluir límites de tamaño de solicitud para evitar el agotamiento de los recursos.
 6. LA Backend_API DEBERÁ validar las claves API para las llamadas a servicios externos antes de realizar solicitudes.
 7. LA Backend_API NO DEBERÁ revelar detalles de errores internos a clientes externos en modo de producción.
+
+### Requisito 13: Agente conversacional (orquestador LLM)
+
+**Historia de usuario:** Como usuario final, quiero consultar en lenguaje natural, para que el sistema decida por mí qué herramientas usar sin necesidad de conocer el catálogo.
+
+**Criterios de aceptación:**
+
+1. EL Agent_Orchestrator DEBERÁ interpretar consultas en lenguaje natural e invocar dinámicamente las MCP_Tools necesarias (*tool calling*).
+2. EL Agent_Orchestrator DEBERÁ obtener las herramientas disponibles mediante el **descubrimiento MCP** (actuando como cliente), sin integraciones específicas por herramienta: añadir una herramienta nueva NO DEBERÁ requerir tocar el agente.
+3. EL Agent_Orchestrator DEBERÁ devolver, junto a su respuesta en lenguaje natural, la **traza** de herramientas invocadas y el **resultado estructurado** de cada una.
+4. EL veredicto de clickbait NO DEBERÁ emitirlo el modelo de lenguaje: DEBERÁ proceder de las MCP_Tools, limitándose el modelo a narrar y contrastar. _(Salvaguarda de R3.8: la explicabilidad no puede depender de un modelo opaco.)_
+5. EL **prompt de sistema** DEBERÁ ser un artefacto de configuración **versionado y consultable**, no código embebido. _(R3.9: transparencia de sistema.)_
+6. EL LLM_Backend DEBERÁ ser **intercambiable por configuración** (local vía Ollama o API externa), siguiendo el patrón ya usado para `nlp_backend`. _(R3.9.)_
+7. EL Agent_Orchestrator DEBERÁ disponer de su propia **ficha de modelo**, declarando su naturaleza opaca y sus limitaciones conocidas. _(R3.9.)_
+8. SI el modelo no soporta *tool calling* de forma fiable, ENTONCES el sistema PODRÁ operar en **modo guiado**: la selección de herramientas la decide el backend de forma determinista y el modelo solo narra. _(Degradación prevista para modelos locales pequeños.)_
