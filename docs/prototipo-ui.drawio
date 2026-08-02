@@ -50,8 +50,8 @@
         <mxCell id="cTrace" value="Herramientas usadas:  detect_clickbait_lexical  ·  detect_clickbait_linear  ·  detect_clickbait_incoherence          [ver traza]" style="rounded=1;whiteSpace=wrap;html=1;dashed=1;fillColor=#F5F5F5;strokeColor=#999999;align=left;spacingLeft=12;fontSize=11;fontColor=#666666;" vertex="1" parent="c1">
           <mxGeometry x="60" y="258" width="760" height="30" as="geometry" />
         </mxCell>
-        <mxCell id="cTraceN" value="RF-03 / HU-02: trazabilidad de qué tools invocó el agente" style="text;html=1;align=left;verticalAlign=middle;fontSize=10;fontColor=#996600;fontStyle=2" vertex="1" parent="c1">
-          <mxGeometry x="830" y="258" width="230" height="30" as="geometry" />
+        <mxCell id="cTraceN" value="R6.12: traza de las tools invocadas" style="text;html=1;whiteSpace=wrap;align=left;verticalAlign=middle;fontSize=10;fontColor=#996600;fontStyle=2" vertex="1" parent="c1">
+          <mxGeometry x="830" y="252" width="230" height="42" as="geometry" />
         </mxCell>
 
         <mxCell id="cCard" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#666666;" vertex="1" parent="c1">
@@ -132,7 +132,7 @@
         <mxCell id="cA1" value="Es clickbait de FORMA: usa hipérbole («amazing»), referencia vaga («you», «things») y formato listicle. Pero el cuerpo sí corresponde al titular, así que no hay ENGAÑO: no te promete algo que luego no cuenta. Ojo: las señales léxicas están entrenadas con titulares de noticias en inglés." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F5F5F5;strokeColor=#CCCCCC;align=left;verticalAlign=top;spacingLeft=12;spacingTop=8;fontSize=12;" vertex="1" parent="c1">
           <mxGeometry x="60" y="562" width="760" height="80" as="geometry" />
         </mxCell>
-        <mxCell id="cA1N" value="El LLM narra y contrasta; NO emite el veredicto" style="text;html=1;align=left;verticalAlign=middle;fontSize=10;fontColor=#996600;fontStyle=2" vertex="1" parent="c1">
+        <mxCell id="cA1N" value="El LLM narra y contrasta; NO emite el veredicto" style="text;html=1;whiteSpace=wrap;align=left;verticalAlign=middle;fontSize=10;fontColor=#996600;fontStyle=2" vertex="1" parent="c1">
           <mxGeometry x="830" y="562" width="230" height="40" as="geometry" />
         </mxCell>
 
@@ -371,7 +371,7 @@
         <mxCell id="rC1c3" value="nº inicial: 10" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#D5E8D4;strokeColor=#82B366;fontSize=11;" vertex="1" parent="r1">
           <mxGeometry x="370" y="446" width="120" height="26" as="geometry" />
         </mxCell>
-        <mxCell id="rC1N" value="Las pistas SON la explicación (white-box). Solo detecta clickbait de forma." style="text;html=1;align=left;verticalAlign=top;fontSize=11;fontColor=#666666;fontStyle=2" vertex="1" parent="r1">
+        <mxCell id="rC1N" value="Las pistas SON la explicación (white-box). Solo detecta clickbait de forma." style="text;html=1;whiteSpace=wrap;align=left;verticalAlign=top;fontSize=11;fontColor=#666666;fontStyle=2" vertex="1" parent="r1">
           <mxGeometry x="60" y="486" width="440" height="40" as="geometry" />
         </mxCell>
 
@@ -405,7 +405,7 @@
         <mxCell id="rC2b3" value="all_caps  -0.8" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#D5E8D4;strokeColor=none;fontSize=11;align=left;spacingLeft=6;" vertex="1" parent="r1">
           <mxGeometry x="580" y="524" width="80" height="18" as="geometry" />
         </mxCell>
-        <mxCell id="rC2N" value="Barras a favor (rojo) y en contra (verde). Los pesos SON la explicación." style="text;html=1;align=left;verticalAlign=top;fontSize=11;fontColor=#666666;fontStyle=2" vertex="1" parent="r1">
+        <mxCell id="rC2N" value="Barras a favor (rojo) y en contra (verde). Los pesos SON la explicación." style="text;html=1;whiteSpace=wrap;align=left;verticalAlign=top;fontSize=11;fontColor=#666666;fontStyle=2" vertex="1" parent="r1">
           <mxGeometry x="580" y="548" width="450" height="24" as="geometry" />
         </mxCell>
 
@@ -433,7 +433,7 @@
         <mxCell id="rC3ThrL" value="umbral 0.30 (sin calibrar)" style="text;html=1;align=left;verticalAlign=middle;fontSize=10;fontColor=#B85450;" vertex="1" parent="r1">
           <mxGeometry x="150" y="700" width="200" height="16" as="geometry" />
         </mxCell>
-        <mxCell id="rC3N" value="Decisión transparente (umbral) pero rasgo opaco (embeddings). Requiere cuerpo." style="text;html=1;align=left;verticalAlign=top;fontSize=11;fontColor=#666666;fontStyle=2" vertex="1" parent="r1">
+        <mxCell id="rC3N" value="Decisión transparente (umbral) pero rasgo opaco (embeddings). Requiere cuerpo." style="text;html=1;whiteSpace=wrap;align=left;verticalAlign=top;fontSize=11;fontColor=#666666;fontStyle=2" vertex="1" parent="r1">
           <mxGeometry x="60" y="726" width="440" height="40" as="geometry" />
         </mxCell>
 
@@ -455,7 +455,7 @@
         <mxCell id="rC4F" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#F8CECC;strokeColor=none;" vertex="1" parent="r1">
           <mxGeometry x="581" y="675" width="343" height="18" as="geometry" />
         </mxCell>
-        <mxCell id="rC4N" value="Sin explicación intrínseca: es caja negra. Aporta lectura semántica que las señales léxicas no ven." style="text;html=1;align=left;verticalAlign=top;fontSize=11;fontColor=#666666;fontStyle=2" vertex="1" parent="r1">
+        <mxCell id="rC4N" value="Sin explicación intrínseca: es caja negra. Aporta lectura semántica que las señales léxicas no ven." style="text;html=1;whiteSpace=wrap;align=left;verticalAlign=top;fontSize=11;fontColor=#666666;fontStyle=2" vertex="1" parent="r1">
           <mxGeometry x="580" y="706" width="450" height="50" as="geometry" />
         </mxCell>
 
@@ -580,7 +580,7 @@
         <mxCell id="mS3t" value="3 herramientas · meteorología y estado" style="text;html=1;align=left;verticalAlign=middle;fontSize=11;" vertex="1" parent="m1">
           <mxGeometry x="748" y="270" width="300" height="18" as="geometry" />
         </mxCell>
-        <mxCell id="mS3l" value="1 tool no responde (se muestra el error)" style="text;html=1;align=left;verticalAlign=middle;fontSize=10;fontColor=#996600;fontStyle=2" vertex="1" parent="m1">
+        <mxCell id="mS3l" value="1 tool no responde (se muestra el error)" style="text;html=1;whiteSpace=wrap;align=left;verticalAlign=middle;fontSize=10;fontColor=#996600;fontStyle=2" vertex="1" parent="m1">
           <mxGeometry x="748" y="292" width="300" height="18" as="geometry" />
         </mxCell>
 
@@ -606,7 +606,7 @@
         <mxCell id="mF4" value="mcp-utilidades" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#999999;fontSize=10;" vertex="1" parent="m1">
           <mxGeometry x="744" y="432" width="110" height="30" as="geometry" />
         </mxCell>
-        <mxCell id="mFN" value="filtros = servidores conectados" style="text;html=1;align=left;verticalAlign=middle;fontSize=10;fontColor=#996600;fontStyle=2" vertex="1" parent="m1">
+        <mxCell id="mFN" value="filtros = servidores conectados" style="text;html=1;whiteSpace=wrap;align=left;verticalAlign=middle;fontSize=10;fontColor=#996600;fontStyle=2" vertex="1" parent="m1">
           <mxGeometry x="864" y="432" width="200" height="30" as="geometry" />
         </mxCell>
 
@@ -691,7 +691,7 @@
         <mxCell id="mK1B" value="interpretable" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#D5E8D4;strokeColor=#82B366;fontSize=10;" vertex="1" parent="m1">
           <mxGeometry x="420" y="668" width="100" height="22" as="geometry" />
         </mxCell>
-        <mxCell id="mK1D" value="Tarea: clickbait ponderado por pistas léxicas; devuelve los cues que más contribuyeron." style="text;html=1;align=left;verticalAlign=top;fontSize=11;" vertex="1" parent="m1">
+        <mxCell id="mK1D" value="Tarea: clickbait ponderado por pistas léxicas; devuelve los cues que más contribuyeron." style="text;html=1;whiteSpace=wrap;align=left;verticalAlign=top;fontSize=11;" vertex="1" parent="m1">
           <mxGeometry x="60" y="696" width="450" height="34" as="geometry" />
         </mxCell>
         <mxCell id="mK1L" value="Limitaciones: detecta clickbait de estilo (sesgo de fuente). NO generaliza fuera de dominio: F1 0.865 en titulares de noticias vs 0.476 en tuits. Solo inglés." style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFF2CC;strokeColor=#D6B656;align=left;verticalAlign=top;spacingLeft=8;spacingTop=6;fontSize=11;" vertex="1" parent="m1">
@@ -707,7 +707,7 @@
         <mxCell id="mK2B" value="opaco" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8CECC;strokeColor=#B85450;fontSize=10;" vertex="1" parent="m1">
           <mxGeometry x="960" y="668" width="80" height="22" as="geometry" />
         </mxCell>
-        <mxCell id="mK2D" value="Tarea: interpreta la consulta, decide qué herramientas MCP invocar y narra el resultado." style="text;html=1;align=left;verticalAlign=top;fontSize=11;" vertex="1" parent="m1">
+        <mxCell id="mK2D" value="Tarea: interpreta la consulta, decide qué herramientas MCP invocar y narra el resultado." style="text;html=1;whiteSpace=wrap;align=left;verticalAlign=top;fontSize=11;" vertex="1" parent="m1">
           <mxGeometry x="580" y="696" width="450" height="34" as="geometry" />
         </mxCell>
         <mxCell id="mK2L" value="Limitaciones: caja negra; puede equivocarse al narrar. NO emite el veredicto: este sale de las tools y se muestra en las tarjetas. Prompt de sistema versionado y consultable." style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFF2CC;strokeColor=#D6B656;align=left;verticalAlign=top;spacingLeft=8;spacingTop=6;fontSize=11;" vertex="1" parent="m1">

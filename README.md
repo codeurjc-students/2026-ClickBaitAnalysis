@@ -753,6 +753,77 @@ Issue #76. Mide la **generalización real** evaluando la vía shipeada sobre un 
 
 **Valor para la memoria:** los números en-dominio (0.84–0.87) son válidos **para ese dominio**; la transferencia requiere adaptación (re-entrenar con datos del dominio destino, limpiar convenciones de tuit, o señales semánticas). El extracto conserva `truthMean` → futuro: calibración con scores continuos.
 
+## Fase B — Diseño de la interfaz y del agente conversacional
+
+> Cierra la Épica 5 (`v0.2.0`, núcleo NLP completo) y abre la capa web. Issue #73.
+
+### Estrategia de prototipado
+
+El prototipo se diseña como **wireframes**, no maquetando en HTML/CSS: iterar sobre un boceto cuesta minutos y sobre código, horas — lo que permite validar la interacción **antes** de comprometer implementación.
+
+Se combinan deliberadamente los dos ejes clásicos de cobertura (Nielsen, *Usability Engineering*):
+
+- **Horizontal, fidelidad media-baja** — las cinco pantallas completas, para fijar **alcance y navegación**.
+- **Vertical, alta fidelidad** — solo en *Resultados*, porque es **lo arriesgado y lo diferenciador**: el lienzo de explicabilidad. El resto (un formulario, una tabla, un listado) es patrón conocido y no necesita profundidad.
+
+Es **gestión de riesgo**, no reparto uniforme: se invierte fidelidad donde el diseño puede fracasar. El prototipo es además **desechable** — su entregable no es código, sino conocimiento y requisitos de interfaz mejor definidos.
+
+Herramienta: **draw.io** (fuente versionada en [`docs/prototipo-ui.drawio`](docs/prototipo-ui.drawio), navegable: los botones enlazan entre páginas), por coherencia con los diagramas UML del proyecto.
+
+### Pantallas
+
+| # | Pantalla | Justificación |
+|---|---|---|
+| 1 | **Chat** | R13 (agente conversacional), R6.10, R6.12 |
+| 2 | **Analizar** | R6.3, R6.4 — camino determinista |
+| 3 | **Resultados** | R3.8 (explicación), R3.10 (contraste), R6.6 |
+| 4 | **Sistema** | R3.9 (divulgación), R5 (catálogo), R6.11 (servidores) |
+| 5 | **Historial** | R4.4, R6.5 |
+
+**1 · Chat** — el agente decide qué herramientas invocar; la respuesta trae la **traza** de tools y la **tarjeta estructurada**.
+
+![Prototipo — Chat](docs/img/prototipo-1-chat.svg)
+
+**2 · Analizar** — camino determinista (sin agente): titular + cuerpo opcional, o selección de una noticia real.
+
+![Prototipo — Analizar](docs/img/prototipo-2-analizar.svg)
+
+**3 · Resultados** — el lienzo de explicabilidad: cues resaltados sobre el propio titular, las cuatro señales contrastadas y el badge de naturaleza de cada modelo.
+
+![Prototipo — Resultados](docs/img/prototipo-3-resultados.svg)
+
+**4 · Sistema** — servidores MCP conectados, catálogo de herramientas y fichas de modelos con sus límites medidos.
+
+![Prototipo — Sistema](docs/img/prototipo-4-sistema.svg)
+
+**5 · Historial** — análisis previos, con el origen (chat o formulario) y acceso al resultado.
+
+![Prototipo — Historial](docs/img/prototipo-5-historial.svg)
+
+### Decisiones de diseño
+
+**Dos puertas de entrada, no una.** El formulario sirve a quien sabe lo que busca; el chat, a quien no conoce el catálogo. Se mantienen ambas porque cubren perfiles distintos y porque el camino determinista es el que se puede probar de forma fiable (E2E) y demostrar sin depender de un modelo generativo.
+
+**El veredicto no lo emite el LLM.** Riesgo detectado al incorporar el chat: si el resultado se entrega como prosa del modelo, se **evapora la explicabilidad** —los `span` de los cues, las contribuciones con su peso, los badges de naturaleza— que es el eje del TFG. La solución no es elegir entre chat y vista estructurada, sino **combinarlos**: la interfaz renderiza las **tarjetas con el JSON real de cada herramienta** y el modelo solo narra y contrasta. Si el LLM se equivoca al redactar, la tarjeta lo desmiente. El chat así **refuerza** la explicabilidad en vez de disolverla (R13.3, R13.4).
+
+**LLM local (Ollama), con degradación prevista.** Sin acceso a APIs de pago, el agente se sirve en local. El riesgo no es la potencia sino la **fiabilidad del *tool calling*** en modelos pequeños (inventan llamadas, ignoran el esquema) y la latencia en CPU. Por eso se valida **antes** de construir nada encima (*spike* #82) y se define de antemano un **modo guiado** (R13.8): si el *tool calling* no es fiable, el backend decide las herramientas de forma determinista y el modelo solo narra — sigue habiendo conversación y las tarjetas son idénticas.
+
+**El prompt de sistema es configuración, no código escondido.** Vive como fichero versionado y consultable desde la propia interfaz (R13.5). Codifica la postura del sistema: qué es cada señal y **de qué naturaleza** es, contrastar en vez de obedecer a una sola, la distinción **forma vs engaño**, y no emitir veredictos propios. Es coherente con R3.9: si se divulgan los modelos, también debe divulgarse la instrucción que los gobierna. El propio LLM pasa a tener **su ficha de modelo** (tipo `opaco`).
+
+**MCP multi-servidor: nada cableado.** El agente actúa como **cliente MCP** frente a varios servidores especialistas (NLP, noticias, utilidades) declarados por configuración, cada uno en su contenedor. Añadir un especialista es levantar un contenedor y añadir una línea; ni el agente ni el frontend se tocan. La pantalla *Sistema* refleja esa lista **dinámicamente** (nombre, transporte, estado, herramientas que aporta) y los filtros del catálogo se derivan de ella. Esto obliga a un cambio técnico: el servidor MCP usa hoy transporte `stdio`, que exige lanzar el servidor como subproceso y **no cruza contenedores** → hay que añadir transporte **HTTP** (R1.6).
+
+**Persistencia del historial: abierta.** R4.4 solo exige el endpoint; queda por decidir si persiste en el navegador o en base de datos.
+
+### Cambios en los requisitos
+
+El diseño del prototipo destapó que los requisitos describían una interfaz de ejecutar herramientas con formularios, **sin agente** — pese a que el título del TFG es *"agente inteligente basado en MCP"* y el propósito del protocolo es precisamente alimentar a un LLM con herramientas. Se corrige:
+
+- **R13 (nuevo) — Agente conversacional**: *tool calling* sobre herramientas descubiertas por MCP; traza y resultado estructurado además de la narración; el veredicto procede de las tools; prompt como configuración versionada; `LLM_Backend` intercambiable; ficha de modelo propia; modo guiado como degradación.
+- **R1 ampliado** — transporte HTTP además de `stdio`; varios servidores declarados por configuración; degradación si uno no responde.
+- **R5 ampliado** — el catálogo agrega herramientas de todos los servidores indicando su procedencia, y se construye por **descubrimiento**, sin listas cableadas.
+- **R6 ampliado** — dos vías de entrada; estado de los servidores conectados; renderizado del resultado estructurado y la traza.
+- **Glosario** — `Agent_Orchestrator`, `LLM_Backend`.
+
 
 
 "Aplico Rudin donde puedo —incoherencia(A MEDIAS, YA QUE EL MODELO NO) y léxico son intrínsecamente interpretables— y reservo lo post-hoc (LIME/SHAP), con sus límites de fidelidad, solo para la parte que depende de un transformer preentrenado que no puedo abrir de otro modo." !!!IMPORTANTE (NO MODIFICAR, RECORDAR POSTURA DEFINIDA)

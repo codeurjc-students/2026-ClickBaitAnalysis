@@ -1,6 +1,6 @@
 # Requisitos
 
-> Documento vivo: los requisitos pueden evolucionar durante el desarrollo. **Todo cambio se registra en la memoria del proyecto** (con su motivo).
+> Documento vivo: los requisitos pueden evolucionar durante el desarrollo. **Todo cambio queda registrado, con su motivo, en el [README](../README.md)** — en la sección de la épica o fase que lo originó.
 
 ## Introducción
 
