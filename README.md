@@ -6,6 +6,27 @@ Version de Python: 3.12.3
 
 ---
 
+## Plan de trabajo — hitos hasta la entrega
+
+**Estado actual (agosto 2026): `v0.2.0`.** El núcleo NLP está completo y validado: cuatro señales de clickbait contrastables, un modelo lineal interpretable propio, divulgación de modelos y una evaluación metodológicamente cerrada (split train/dev/test + validación externa). Lo que resta es la **capa web** (R4–R8) y la memoria. **Entrega: febrero 2027.**
+
+| Hito | Fecha | Contenido | Requisitos |
+|---|---|---|---|
+| **H1 · Diseño de interfaz** | ago–sep 2026 | Wireframes de pantallas y navegación, definición de funcionalidades, diseño de los endpoints REST | — |
+| **H2 · `v0.3` API REST** | octubre | FastAPI: exposición de las tools, catálogo con metadatos, historial de ejecución, OpenAPI, CORS, tests | **R4, R5** |
+| **H3 · `v0.4` SPA funcional** | noviembre | Angular: análisis de un titular → resultados con explicabilidad visual (cues resaltados, contraste de señales), catálogo de tools | **R6** |
+| **H4 · `v0.5` Docker + persistencia** | diciembre | Docker Compose (MCP + API / web), historial persistente, despliegue continuo | **R7, R8** |
+| **H5 · `v1.0` Pulido y despliegue** | enero 2027 | Responsive, gestión de errores, pruebas E2E, despliegue | R6 |
+| **H6 · Memoria y defensa** | ene–feb 2027 | Redacción de la memoria y preparación de la defensa | — |
+
+**Criterios de priorización:**
+
+- **El backlog de NLP queda congelado** como opcional (multi-dominio #78, featurización alternativa #75, fine-tuning neural E5-05, meta-tool de contraste, post-hoc LIME/SHAP). El límite de generalización ya está **medido y documentado** (#76), que es lo que exige el rigor; resolverlo no es condición para la entrega.
+- **La memoria arranca en diciembre**, en paralelo con H4. Esta sección de épicas actúa como **borrador y diario de desarrollo** desde el inicio del proyecto.
+- El stack está fijado en [requisitos.md](docs/requisitos.md): **FastAPI** (R4) + **Angular/TypeScript** (R6) + **Docker Compose** (R7).
+
+---
+
 ## Convenciones de desarrollo
 
 ### Ramas
