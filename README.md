@@ -824,6 +824,68 @@ El diseño del prototipo destapó que los requisitos describían una interfaz de
 - **R6 ampliado** — dos vías de entrada; estado de los servidores conectados; renderizado del resultado estructurado y la traza.
 - **Glosario** — `Agent_Orchestrator`, `LLM_Backend`.
 
+### Spike: validación del *tool calling* con un modelo local (#82)
+
+Todo el diseño del asistente descansaba sobre un supuesto sin verificar: **que un modelo pequeño servido en local decide bien qué herramienta invocar**. Antes de construir nada encima se comprueba, porque el resultado determina la arquitectura: si el modelo no elige bien, el chat pasa a **modo guiado** (R13.8) y el backend decide las herramientas. Scripts reproducibles en [`spikes/`](spikes/).
+
+Modelo: `qwen3.5:2b` (2.3B, Q8_0) con Ollama. Se prueban las **descripciones reales** de los docstrings y el catálogo completo, incluidas las **cuatro herramientas de clickbait con nombres casi idénticos**.
+
+**Diseño de la medición:** las consultas se separan por tipo, porque promediarlas daría una cifra sin sentido — en las *genéricas* («¿es clickbait?») vale cualquier detector, mientras que en las *específicas* solo una es correcta. Son estas últimas las que revelan si el modelo confunde herramientas parecidas.
+
+| Categoría | Acierto |
+|---|---|
+| Genérica (cualquier detector vale) | 4/4 |
+| **Específica (solo una correcta)** | **8/8** |
+| Otro dominio (noticias, modelos) | 3/3 |
+| Sin herramienta (no debe llamar) | 5/5 |
+| **Global** | **20/20 (100 %)** · parámetros válidos 15/15 |
+
+**Lectura:** el modelo discrimina entre las homónimas por el matiz de la petición — «qué pistas léxicas **y dónde**» → `detect_clickbait_lexical`; «dame la **probabilidad**» → `detect_clickbait_linear`. Esa distinción solo puede venir de las descripciones, lo que confirma la premisa de **R13.2**: los *docstrings* son la interfaz con el modelo, y añadir una herramienta no obliga a tocar el agente.
+
+**Modo de fallo detectado (Fase 1):** ante una consulta que debía invocar la herramienta, el modelo **redactó él mismo el análisis** en lugar de llamarla. No admitió no poder: fingió el resultado. Es la justificación empírica de **R13.4** — el veredicto debe proceder de las tools, nunca del modelo.
+
+**La latencia fue el criterio conflictivo, y reveló un problema de infraestructura.** La primera tanda dio **71,7 s de media**: Ollama nunca llegaba a usar la GPU, por dos causas encadenadas —el directorio `cuda_v12` con permisos `700` de root, y por debajo librerías CUDA corruptas (`ldd` → SIGBUS)—, probablemente por una instalación que agotó el espacio en disco. El modelo se cargaba con `offloaded 0/N layers to GPU` **independientemente de su tamaño**: reducirlo de 4B a 2B no cambiaba nada. Reinstalando Ollama se recuperó la GPU (`library=CUDA compute=7.5`, reparto parcial de 17/26 capas por los 3,2 GiB disponibles).
+
+| | CPU | **GPU** |
+|---|---|---|
+| Acierto global | 20/20 | **20/20** |
+| Parámetros válidos | 15/15 | **15/15** |
+| Latencia media | 71,7 s | **20,6 s** |
+
+**El acierto es idéntico en ambas tandas** — buen control experimental: la calidad de la decisión depende del modelo, no del hardware, que solo mueve la latencia; y el resultado se reproduce en dos ejecuciones independientes.
+
+La media, además, engañaba. Excluyendo la primera consulta —150,6 s de **carga en frío**, coste único al montar 2,7 GB de pesos—, la **mediana es de 8,8 s**. Los picos de 30-50 s corresponden a respuestas donde el modelo redacta párrafos explicativos, no a la selección de herramienta: **decidir qué tool llamar cuesta ~8-9 s**. El bucle completo del agente (decidir → ejecutar → narrar) rondará los 20-25 s, aceptable con streaming y un indicador de progreso.
+
+**Decisión:** se adopta el ***tool calling* real** (R13.1) — se cumplen los tres criterios: acierto (100 % ≫ 80 % exigido), parámetros válidos (100 %) y latencia. El **modo guiado** (R13.8) pasa de plan B probable a **degradación reservada para entornos sin GPU**: en CPU pura el mismo modelo tardaba 71,7 s de media y el chat resultaba inviable. La distinción importa porque el despliegue podría acabar siendo en CPU.
+
+**Limitaciones:** 20 consultas, un modelo, y redactadas en un registro limpio — los usuarios reales escriben peor. Es una señal sólida, no una medida definitiva.
+
+#### El bucle completo: encadena bien, pero envuelve mal los datos
+
+Las fases anteriores sólo medían la *selección*. Ejecutando las herramientas de verdad y devolviendo el resultado al modelo (`role="tool"`), el bucle **encadena correctamente**: ante «busca una noticia del NYT y dime si su titular es clickbait» llama a `get_nyt_news`, **toma el titular del resultado** y se lo pasa a los detectores.
+
+El hallazgo relevante es otro: **transcribe bien las cifras, fabrica lo que las rodea.** Los valores se reproducen con exactitud (0.9375 → «93 %»; spans `[0,4]` y `[29,32]` correctos), pero alrededor aparecen invenciones: una escala *«2/3 niveles»* que no existe, explicaciones de qué significa cada cue que ninguna herramienta ha dado, o *«una empresa llamada Researcher's Lab»* cuando el texto decía *«researchers at a small lab»*.
+
+#### ¿Puede corregirlo el prompt? (cuatro variantes)
+
+Como el prompt es configuración versionada (R13.5), comparar variantes es el experimento natural. Se probaron cuatro —cada una escrita **contra los fallos observados en la anterior**— más la ausencia de prompt como control ([`spikes/prompts/`](spikes/prompts/)).
+
+**Lo que quedó establecido:** un prompt elimina las fabricaciones obvias (sin él, siempre tablas, emojis y escalas inventadas, ~1000 caracteres por respuesta), y **las reglas dirigidas funcionan** — cada norma escrita contra un fallo concreto lo corrigió: la escala inventada, la traducción de las categorías, la fusión de posiciones, la auto-atribución («he detectado» → «el detector léxico señala»). La mejor salida obtenida es exacta punto por punto, con cada cue en su propia posición.
+
+**Lo que NO se puede afirmar: cuál prompt es mejor.** La varianza entre ejecuciones domina — una variante fue la mejor en una tanda y peor que el control en la siguiente, con el mismo prompt y las mismas consultas. Con dos consultas por variante y sin repeticiones, **no hay ranking defendible**; harían falta ~5 repeticiones por par (prompt, consulta). Los hallazgos *cualitativos* sí son fiables, porque son errores verificables contra la salida de las herramientas.
+
+**Modo de fallo nuevo:** en dos ejecuciones el modelo invocó las tres herramientas correctamente y **no generó texto final** (respuesta vacía). Ambas fueron la consulta encadenada más larga. Ningún prompt lo previene.
+
+#### Consecuencia de diseño
+
+Ningún prompt alcanza fidelidad total, y el mejor sólo **desplaza el error hacia formas más sutiles**: de inventar una escala (obvio, el usuario sospecha) a fundir dos posiciones en un rango (discreto, suena preciso y es falso). Un error sutil es *más* peligroso que uno llamativo.
+
+Esto convierte las **tarjetas renderizadas desde el JSON de la herramienta** de buena práctica en **necesidad demostrada**, por tres vías independientes: el modelo *inventa* contexto alrededor de datos correctos; a veces *no responde* —y la tarjeta sigue mostrando el análisis aunque falle la narración—; y un detector automático de alucinaciones **siempre va por detrás** (el escrito aquí buscaba escalas «/3» y «/5» y no vio un «2/1» posterior, y no puede detectar un dato correcto mal atribuido, porque el número sí está en la salida). **R13.3 y R13.4 quedan demostrados, no supuestos.**
+
+De aquí sale también un **requisito nuevo, R6.13**: si la narración llega vacía o ilegible, la interfaz debe mostrar igualmente los resultados estructurados —con un aviso discreto de que no hubo resumen— y no condicionar la visualización del análisis a que esa narración exista. No es una precaución hipotética: el análisis se había completado con éxito y sólo faltaba la prosa; mostrar «la respuesta del asistente» habría dejado una pantalla en blanco y tirado un resultado válido.
+
+**Cierre:** se adopta `04-preciso` como prompt de partida —por el razonamiento de sus reglas y su mejor salida, no como «ganador medido»—, y el bucle de `tool_calling_fase3.py` queda como esqueleto del agente real: acepta el prompt de sistema como parámetro, mantiene el historial, ejecuta herramientas y corta a las seis vueltas.
+
 
 
 "Aplico Rudin donde puedo —incoherencia(A MEDIAS, YA QUE EL MODELO NO) y léxico son intrínsecamente interpretables— y reservo lo post-hoc (LIME/SHAP), con sus límites de fidelidad, solo para la parte que depende de un transformer preentrenado que no puedo abrir de otro modo." !!!IMPORTANTE (NO MODIFICAR, RECORDAR POSTURA DEFINIDA)

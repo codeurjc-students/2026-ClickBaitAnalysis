@@ -117,6 +117,7 @@ Este documento define los requisitos para un Trabajo de Fin de Grado (TFG) que i
 10. LA Web_Interface DEBERÁ ofrecer **dos vías de entrada**: un formulario de análisis directo (determinista) y un **asistente conversacional** (ver Requisito 13).
 11. LA Web_Interface DEBERÁ mostrar el estado de los **MCP_Server conectados** (nombre, transporte, estado y herramientas que aporta), generado dinámicamente a partir del descubrimiento; los filtros por servidor DEBERÁN derivarse de esa misma lista.
 12. CUANDO el Agent_Orchestrator invoque herramientas, LA Web_Interface DEBERÁ renderizar el **resultado estructurado de cada herramienta** —no solo la narración del modelo— junto a la **traza** de herramientas invocadas.
+13. SI la narración del modelo llega **vacía o ilegible**, ENTONCES LA Web_Interface DEBERÁ mostrar igualmente los **resultados estructurados** de las herramientas invocadas, indicando de forma discreta que el asistente no generó un resumen. LA Web_Interface NO DEBERÁ condicionar la visualización del análisis a la existencia de esa narración. _(Modo de fallo observado en el spike #82: el agente invoca correctamente las herramientas y devuelve una respuesta de cero caracteres; el análisis existe y no debe perderse.)_
 
 ### Requisito 7: Entorno de implementación de Docker
 
