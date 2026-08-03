@@ -33,9 +33,16 @@ Tres principios lo gobiernan:
 """
 
 from enum import Enum
-from typing import Any
+from typing import Annotated, Any
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, StringConstraints
+
+# Recorta antes de medir. Con un simple `min_length=1`, un titular de un solo
+# espacio pasa la validación —mide 1 carácter— y llega hasta las señales, que
+# fallan una a una: la respuesta sería un 200 con veredicto `sin_datos` en vez
+# del 422 que corresponde a una petición inválida. Pydantic aplica
+# `strip_whitespace` antes que `min_length`, así que el blanco se rechaza aquí.
+NonBlankStr = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)]
 
 
 class SignalStatus(str, Enum):
@@ -139,7 +146,7 @@ class OverallVerdict(str, Enum):
 
 
 class AnalyzeRequest(BaseModel):
-    headline: str = Field(min_length=1, description="Titular a analizar (en inglés).")
+    headline: NonBlankStr = Field(description="Titular a analizar (en inglés).")
     content: str | None = Field(
         default=None,
         description=(
