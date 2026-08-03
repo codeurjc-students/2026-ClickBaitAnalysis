@@ -1,10 +1,13 @@
 name: CI
 
+# El filtro `branches` es por rama DESTINO. Con el flujo dev->main, las PRs de
+# feature apuntan a dev: si aquí solo figurara main, se mergearían sin pasar los
+# tests y el CI no saltaría hasta promocionar dev->main, cuando ya es tarde.
 on:
   pull_request:
-    branches: [main]
+    branches: [main, dev]
   push:
-    branches: [main]
+    branches: [main, dev]
 
 jobs:
   test:
