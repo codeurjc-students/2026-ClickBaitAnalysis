@@ -5,7 +5,10 @@ import pytest
 import respx  # Usamos en vez de htttp, ya que no hacemos llamadas de verdad, mockeamos
 from httpx import Response, TimeoutException
 
+from mcp.server.fastmcp import FastMCP
+
 from backend.integrations.nlp import lexical, linear, model_cards
+from backend.integrations.nlp import tool as nlp_tool
 from backend.integrations.nlp.client import HFClient
 from backend.integrations.nlp.incoherence import IncoherenceDetector
 from backend.integrations.nlp.local import LocalNLPClient
@@ -460,12 +463,22 @@ def test_linear_detector_no_headline():
 
 
 def test_model_cards_wellformed():
-    required = {"signal", "name", "task", "type", "limitations", "backend"}
+    required = {
+        "signal",
+        "name",
+        "task",
+        "type",
+        "dimension",
+        "limitations",
+        "backend",
+    }
     valid_types = {"interpretable", "híbrido", "opaco"}
+    valid_dimensions = {"forma", "engano", "tono"}
     assert isinstance(model_cards.MODEL_CARDS, list) and model_cards.MODEL_CARDS
     for card in model_cards.MODEL_CARDS:
         assert required <= card.keys()
         assert card["type"] in valid_types
+        assert card["dimension"] in valid_dimensions
         assert isinstance(card["limitations"], list) and card["limitations"]
 
 
@@ -474,3 +487,14 @@ def test_model_cards_serializable_and_cover_signals():
     dumped = json.dumps(model_cards.MODEL_CARDS)
     for name in ["facebook/bart-large-mnli", "all-MiniLM-L6-v2"]:
         assert name in dumped
+
+
+@pytest.mark.asyncio
+async def test_model_cards_signals_match_registered_tools():
+    # El campo ``signal`` es la clave con la que /analyze busca la ficha de cada resultado, así que tiene que ser el nombre EXACTO de la tool MCP.
+    mcp = FastMCP("test")
+    nlp_tool.register(mcp)
+    registered = {tool.name for tool in await mcp.list_tools()}
+
+    carded = {card["signal"] for card in model_cards.MODEL_CARDS}
+    assert carded <= registered, f"fichas sin tool: {carded - registered}"
