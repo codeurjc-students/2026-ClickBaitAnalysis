@@ -29,17 +29,32 @@ Version de Python: 3.12.3
 
 ## Convenciones de desarrollo
 
+### Organización del trabajo: hitos, issues y ramas
+
+Tres niveles, y **solo uno tiene rama**:
+
+| Nivel | Qué es | ¿Rama? | ¿Versión? |
+|---|---|---|---|
+| **Hito** (H1–H6) | Checkpoint con fecha y meta; agrupa issues | no | **sí**, al cerrarlo |
+| **Issue** | Unidad de trabajo | **sí** — 1 rama → 1 PR → squash a `dev` | no |
+
+Un hito **no es trabajo, es un punto de control**: no se ramifica ni se mergea. La unidad de trabajo es —y ha sido siempre— el issue.
+
+**Épicas (histórico).** Hasta la `v0.2.0` el trabajo se agrupaba en épicas (E1–E5): dominio sin fecha, de ahí los labels `epic:*`. En Fase B **los hitos las sustituyen**, porque cada hito ya trae dominio *y* fecha («H2 · API REST · octubre»); mantener los dos ejes duplicaría la misma información. Los labels `epic:*` se conservan como registro de los issues de Fase A.
+
 ### Ramas
 
-Cada rama de trabajo parte de `dev` y sigue el patrón `<tipo>/<descripción-corta>`:
+Cada rama de trabajo parte de `dev` (recién actualizada: tras un squash la rama de origen queda inservible como base) y sigue el patrón `<tipo>/<nº issue>-<descripción-corta>`:
 
 | Prefijo | Uso |
 |---|---|
-| `feature/` | Nueva funcionalidad |
+| `feat/` | Nueva funcionalidad |
 | `fix/` | Corrección de bug |
 | `chore/` | Setup, estructura, mantenimiento |
 | `docs/` | Documentación |
 | `test/` | Tests nuevos o mejoras de cobertura |
+
+Ejemplos: `feat/72-splits-train-dev-test`, `feat/86-app-fastapi`, `fix/lexico-cue-una-letra`. El número se omite cuando el trabajo no tiene issue (típico en `docs/`).
 
 ### Commits — Conventional Commits
 
@@ -66,12 +81,12 @@ Dos ramas permanentes con papeles distintos:
 
 **Releases:** al promocionar `dev → main` se crea un **tag** (`vX.Y.Z`). Una versión es **tageable** solo si cumple los cuatro criterios:
 
-1. **Bloque funcional completo** — épica cerrada o conjunto coherente de issues DEBERÁ (no features a medias).
+1. **Bloque funcional completo** — en Fase B, **hito cerrado**; en Fase A era la épica. Un conjunto coherente de issues DEBERÁ, sin features a medias.
 2. **CI verde** en `dev` (suite completa).
 3. **Verificación E2E** del servidor MCP pasada (tools respondiendo en vivo).
 4. **Documentación al día** (README y requisitos reflejan lo incluido).
 
-**Esquema de versiones** (semver adaptado al TFG): **minor** (`v0.X.0`) = bloque funcional/épica (`v0.1.0` = MVP Fase A, `v0.2.0` = Épica 5 NLP explicable); **patch** (`v0.X.Y`) = hotfix sobre lo shipeado; **major** (`v1.0.0`) = hito TFG (entrega final).
+**Esquema de versiones** (semver adaptado al TFG): **minor** (`v0.X.0`) = bloque funcional — **un hito** en Fase B (`v0.3` = H2, `v0.4` = H3…), una épica en Fase A (`v0.1.0` = MVP, `v0.2.0` = Épica 5 NLP explicable); **patch** (`v0.X.Y`) = hotfix sobre lo shipeado; **major** (`v1.0.0`) = entrega final del TFG.
 
 > **Principio:** las versiones son **cortes en el tiempo**, no contenedores temáticos. Una mejora posterior va a la **siguiente** versión aunque pertenezca por dominio a una épica ya taggeada (la trazabilidad temática la dan los labels de épica en los issues, no los tags). Los tags son inmutables: nunca se "reabre" una versión.
 
@@ -885,6 +900,39 @@ Esto convierte las **tarjetas renderizadas desde el JSON de la herramienta** de 
 De aquí sale también un **requisito nuevo, R6.13**: si la narración llega vacía o ilegible, la interfaz debe mostrar igualmente los resultados estructurados —con un aviso discreto de que no hubo resumen— y no condicionar la visualización del análisis a que esa narración exista. No es una precaución hipotética: el análisis se había completado con éxito y sólo faltaba la prosa; mostrar «la respuesta del asistente» habría dejado una pantalla en blanco y tirado un resultado válido.
 
 **Cierre:** se adopta `04-preciso` como prompt de partida —por el razonamiento de sus reglas y su mejor salida, no como «ganador medido»—, y el bucle de `tool_calling_fase3.py` queda como esqueleto del agente real: acepta el prompt de sistema como parámetro, mantiene el historial, ejecuta herramientas y corta a las seis vueltas.
+
+### Diseño de los endpoints REST: contrato de `POST /analyze` (H1, PR #85)
+
+Cierre del tercer bloque de H1 («diseño de los endpoints REST»). Se fija el contrato **antes** de escribir la app porque en el prototipo lo consumen **tres** sitios distintos —el formulario de análisis, las tarjetas embebidas en el chat y el historial—: se diseña una vez y sirve para los tres.
+
+**Tres principios lo gobiernan** (`backend/api/schemas.py`):
+
+1. **Envoltorio uniforme por señal.** Las señales son una *lista* de objetos con la misma forma, no un objeto con un campo por señal. El frontend itera y pinta tarjetas sin conocerlas de antemano: añadir una sexta señal no obliga a tocar Angular. Es el mismo desacople que el catálogo (R5.8).
+2. **El estado va por señal, no global.** Un único campo `status` cubre dos situaciones que, desde el punto de vista de la respuesta, son la misma —esa señal no tiene resultado, las demás sí—: faltan datos de entrada (`no_aplicable`, la incoherencia necesita el cuerpo) o la ejecución falló (`error`; ~1 de cada 5 llamadas a HF da timeout, medido en la Épica 4). `/analyze` **no** devuelve error global mientras alguna señal funcione: perder tres análisis correctos porque el cuarto falló sería el mismo error que evita R6.13.
+3. **Veredicto por dimensiones, no por mayoría.** Cada señal se etiqueta como *forma* (sensacionalismo en la redacción), *engaño* (el titular promete lo que el cuerpo no cumple) o *tono*. La dimensión se lee de `MODEL_CARDS` (R3.9), no se cablea en el orquestador.
+
+**Por qué la mayoría no vale.** Promediar señales que miden cosas distintas produce un veredicto falso. El caso decisivo es un titular sobrio cuyo cuerpo no corresponde:
+
+| Señal | Veredicto |
+|---|---|
+| Zero-shot | no es clickbait |
+| Léxico | no es clickbait |
+| Lineal | no es clickbait |
+| **Incoherencia** | **sí es clickbait** |
+
+Tres a uno, y **la correcta es la cuarta**: por mayoría saldría «factual». La jerarquía es explícita —el engaño pesa más que la forma— y las discrepancias *dentro* de una dimensión se declaran (`null` → `ambiguo`) en lugar de resolverse por votación.
+
+**El tono se muestra pero no vota.** Una narrativa marcadamente positiva o negativa aleja de la objetividad, pero eso no es hacer clickbait, y cuánto pesa es juicio de quien lee. No necesita ningún caso especial en el código: la señal devuelve `is_clickbait: null` y el mismo filtro que ignora las señales caídas la ignora a ella.
+
+**La orquestación** (`backend/api/analyze.py`) lanza las señales con `asyncio.gather(..., return_exceptions=True)`, que en vez de propagar la primera excepción la **devuelve** dentro de la lista de resultados. Cada excepción se traduce a una señal en estado `error` y la respuesta sigue siendo un 200 con lo que sí se pudo calcular. Las señales se declaran en una tabla (nombre de tool + cómo ejecutarla + cómo leer su veredicto) para que el bucle tenga una sola forma: añadir una señal es añadir una fila y su ficha.
+
+**Un desajuste que destapó el diseño.** La ficha del zero-shot tenía `"signal": "detect_clickbait (zero-shot)"` — un campo pensado para leer, usado como clave de búsqueda. En cuanto `/analyze` busca la dimensión por ese valor, cualquier mejora de la etiqueta rompe la búsqueda **en silencio**: no lanza excepción, simplemente no encuentra la ficha. Renombrado al nombre exacto de la tool (la anotación «zero-shot» ya estaba en `name` y `task`, no se pierde nada) y añadido `test_model_cards_signals_match_registered_tools`, que comprueba que los cinco `signal` resuelven contra tools realmente registradas. El renombrado arregla hoy; el test arregla las próximas veces.
+
+**Dos correcciones de paso:**
+- **Validación**: `headline=" "` pasaba `min_length=1` —un espacio mide un carácter— y llegaba hasta las señales, que fallaban una a una: la respuesta era un 200 con `sin_datos` en vez del 422 que corresponde. Ahora recorta antes de medir.
+- **CI**: el filtro `branches` de GitHub Actions es por rama **destino**. Con el flujo `dev→main` adoptado en la Épica 5, las PR de feature apuntan a `dev` y **no disparaban los tests**; el CI no saltaba hasta promocionar `dev→main`, cuando ya es tarde. Añadido `dev` a `pull_request` y `push`.
+
+**Límites de lo entregado.** No hay app FastAPI todavía, así que `analyze()` **no es alcanzable por HTTP** y no existe prueba extremo a extremo: los 29 tests de la orquestación usan dobles, y el camino nunca se ha ejecutado contra HuggingFace ni contra el modelo de embeddings. Quedan también sin diseñar los contratos de `/tools`, `/history` y `/chat`. La app y su router son H2 (issue #86).
 
 
 
