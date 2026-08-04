@@ -4,16 +4,15 @@ import json
 import pytest
 import respx  # Usamos en vez de htttp, ya que no hacemos llamadas de verdad, mockeamos
 from httpx import Response, TimeoutException
-
 from mcp.server.fastmcp import FastMCP
 
+from backend.config.settings import settings
 from backend.integrations.nlp import lexical, linear, model_cards
 from backend.integrations.nlp import tool as nlp_tool
 from backend.integrations.nlp.client import HFClient
+from backend.integrations.nlp.factory import get_nlp_backend
 from backend.integrations.nlp.incoherence import IncoherenceDetector
 from backend.integrations.nlp.local import LocalNLPClient
-from backend.integrations.nlp.factory import get_nlp_backend
-from backend.config.settings import settings
 
 MODELS_URL = "https://router.huggingface.co/hf-inference/models/"
 

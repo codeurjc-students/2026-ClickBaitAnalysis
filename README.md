@@ -56,6 +56,15 @@ Cada rama de trabajo parte de `dev` (recién actualizada: tras un squash la rama
 
 Ejemplos: `feat/72-splits-train-dev-test`, `feat/86-app-fastapi`, `fix/lexico-cue-una-letra`. El número se omite cuando el trabajo no tiene issue (típico en `docs/`).
 
+### Estilo
+
+`ruff` hace de linter y formateador; las reglas activas y las exclusiones están en [`ruff.toml`](ruff.toml), y el CI lo comprueba en cada PR.
+
+```bash
+ruff check . --fix     # corrige lo automatizable
+ruff format .          # reformatea
+```
+
 ### Commits — Conventional Commits
 
 Formato: `tipo(scope): descripción`
@@ -1024,6 +1033,25 @@ Los 20 s **no son una limitación, son una consecuencia**: `IncoherenceDetector`
 El segundo caso merece atención: **es el escenario de discrepancia que se había trazado sobre el papel al diseñar el contrato, apareciendo por sí solo en la primera prueba real**. Un listicle dispara las pistas de superficie y la lectura semántica no lo acompaña. El sistema lo declara `ambiguo` en vez de resolverlo por mayoría — que es exactamente lo que el principio 3 pretendía.
 
 **Límites.** Sigue sin haber `/tools`, `/history` ni `/chat`. Los 12 tests nuevos cubren la capa HTTP (validación, delegación, CORS, OpenAPI) y **no repiten la orquestación**, que ya cubre `test_analyze.py`. Y `analyze.py` mantiene un efecto de importación conocido —`_api = get_nlp_backend()` a nivel de módulo— que congela el backend NLP al importar, igual que hace `tool.py`.
+
+### Análisis estático: adopción de ruff
+
+El proyecto no había tenido nunca linter. Se adopta [`ruff`](https://docs.astral.sh/ruff/) —linter y formateador en un binario, sustituto de la pila flake8 + isort + pyupgrade + black— y el CI lo comprueba en cada PR.
+
+**El conjunto de reglas se declara explícitamente** en `ruff.toml` en vez de heredar el de por defecto. La razón no es purismo: ruff amplía sus defaults entre versiones, y confiando en ellos **una actualización de la herramienta rompería el CI sin que cambiara una línea de código**. Por lo mismo, la versión va pineada.
+
+Tres reglas se desactivan a conciencia:
+
+- **`BLE001`** (capturar `Exception`) — chocaría con la arquitectura, no con un descuido. Capturar excepciones amplias en las fronteras de integración es lo que sostiene el aislamiento de fallos de todo el sistema: `ToolResult.fail`, `gather(return_exceptions=True)`, R6.13. Una señal caída no puede tumbar a las demás, y para eso hay que capturar lo que sea que lance el proveedor.
+- **`E501`** (línea larga) — el formateador ya mantiene el *código* dentro del ancho; lo que no puede partir son literales y prosa. Sus 62 avisos caían casi todos en payloads simulados de los tests (hasta 196 caracteres).
+- **`RUF001-003`** (caracteres Unicode ambiguos) — existen para detectar homoglifos (cirílico disfrazado de latino). Aquí sólo saltaban por comillas tipográficas en texto español legítimo.
+
+**Dos hallazgos reales**, que es lo que justifica el ejercicio:
+
+- **`DTZ011` — zona horaria implícita.** Los clientes de Guardian y NYT calculaban la ventana de «noticias de los últimos N días» con `date.today()`, que usa la zona de la máquina. En Docker el contenedor va en UTC y el equipo de desarrollo no, así que **la misma consulta habría devuelto rangos distintos según dónde se ejecutara**, con un día de desfase cerca de medianoche. Corregido a `datetime.now(timezone.utc).date()`. Es exactamente el tipo de fallo que H4 habría destapado en el peor momento.
+- **`B905` — `zip()` sin `strict`.** Ocho sitios. `zip` **trunca en silencio** al iterable más corto, y el más delicado es `linear.py`, que empareja pesos, nombres de features y vector de entrada: si esos tres dejaran de cuadrar, cada peso se atribuiría al cue equivocado y **la explicación sería falsa** sin que nada avisara. En un trabajo cuyo eje es la explicabilidad, eso es el peor fallo posible. Los ocho pasan a `strict=True` —ruff sólo propone `strict=False`, que hace explícito el truncado pero no lo arregla—, convirtiendo un resultado silenciosamente incorrecto en un error ruidoso. Verificado sobre datos reales: las invariantes se cumplían, ahora quedan vigiladas.
+
+Balance: 43 avisos iniciales, 26 corregidos automáticamente, 12 con criterio y 5 desactivados por regla. 26 ficheros tocados, 98 tests en verde.
 
 
 

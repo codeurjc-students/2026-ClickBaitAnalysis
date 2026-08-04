@@ -54,7 +54,7 @@ async def check_health() -> dict:
     que las dos respondieran cosas distintas.
     """
     results = await asyncio.gather(*(_probe(**cfg) for cfg in PROBES.values()))
-    integrations = dict(zip(PROBES, results))
+    integrations = dict(zip(PROBES, results, strict=True))
     return {
         "status": _aggregate_status(integrations),
         "timestamp": datetime.now(timezone.utc).isoformat(),

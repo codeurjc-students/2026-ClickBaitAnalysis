@@ -24,8 +24,9 @@ pudo calcular.
 """
 
 import asyncio
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
-from typing import Any, Awaitable, Callable
+from typing import Any
 
 from backend.api.schemas import (
     AnalyzeRequest,
@@ -177,7 +178,7 @@ async def _run_signals(headline: str, content: str | None) -> list[SignalResult]
     # gather conserva el ORDEN DE ENTRADA, no el de finalización: aunque el
     # zero-shot tarde 3 s y el léxico 2 ms, cada resultado vuelve en la posición
     # de su spec. Por eso el zip es correcto.
-    for spec, outcome in zip(pending, outcomes):
+    for spec, outcome in zip(pending, outcomes, strict=True):
         if isinstance(outcome, BaseException):
             # BaseException y no Exception: asyncio.CancelledError hereda de la
             # primera desde Python 3.8 y gather también la deposita en la lista.

@@ -1,7 +1,8 @@
-from backend.integrations.weather.client import WeatherAPI
-import respx
 import pytest
+import respx
 from httpx import Response
+
+from backend.integrations.weather.client import WeatherAPI
 
 
 @pytest.fixture

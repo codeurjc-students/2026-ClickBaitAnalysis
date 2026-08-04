@@ -45,7 +45,7 @@ def create_splits(force: bool = False) -> None:
             "Regenerarlos invalida los resultados previos; usa force=True solo a sabiendas."
         )
 
-    headlines, labels = zip(*load_dataset())
+    headlines, labels = zip(*load_dataset(), strict=True)
 
     # 1) Se congela el test (nunca se re-baraja).
     h_rest, h_test, y_rest, y_test = train_test_split(
@@ -63,7 +63,7 @@ def create_splits(force: bool = False) -> None:
         "test": (h_test, y_test),
     }.items():
         with open(_path(name), "w", encoding="utf-8") as f:
-            for headline, label in zip(hs, ys):
+            for headline, label in zip(hs, ys, strict=True):
                 f.write(
                     json.dumps(
                         {"headline": headline, "label": label}, ensure_ascii=False

@@ -1,10 +1,10 @@
 import asyncio
 
-from aiolimiter import AsyncLimiter
 import httpx
+import structlog
+from aiolimiter import AsyncLimiter
 
 from backend.core.models import ToolResult
-import structlog
 
 log = structlog.get_logger()
 
@@ -114,7 +114,7 @@ class BaseAPI:
                         f"HTTP error: {e.response.status_code} - {e.response.text}"
                     )
                 except Exception as e:
-                    return ToolResult.fail(f"An error occurred: {str(e)}")
+                    return ToolResult.fail(f"An error occurred: {e!s}")
 
     # Luego reescribirmos en otra clase que herede de Base API y tenemos POLIMORFISMO!
 

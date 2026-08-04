@@ -2,17 +2,16 @@
 Servidor MCP principal.
 """
 
-from backend.core.logging import configure_logging
 import structlog
-from backend.core import health
-from backend.config.settings import settings
-
 from mcp.server.fastmcp import FastMCP
 
+from backend.config.settings import settings
+from backend.core import health
+from backend.core.logging import configure_logging
 from backend.integrations.guardian import tool as guardian_tool
-from backend.integrations.weather import tool as weather_tool
-from backend.integrations.nyt import tool as nyt_tool
 from backend.integrations.nlp import tool as nlp_tool
+from backend.integrations.nyt import tool as nyt_tool
+from backend.integrations.weather import tool as weather_tool
 
 log = structlog.get_logger()
 mcp = FastMCP("tfg-mcp-server")
