@@ -1,14 +1,11 @@
-from backend.core.base_api import BaseAPI
-from backend.core.models import ToolResult
-from datetime import date
-from datetime import timedelta
-
+from datetime import datetime, timedelta, timezone
 
 from backend.config.settings import settings
+from backend.core.base_api import BaseAPI
+from backend.core.models import ToolResult
 
 
 class NYTAPI(BaseAPI):
-
     BASE_URL = "https://api.nytimes.com/svc/search/v2/"
 
     API_KEY = settings.nyt_api_key  # Key ya validada
@@ -51,7 +48,10 @@ class NYTAPI(BaseAPI):
             ToolResult.ok([{title, print_headline, url, date, content}, ...]) si hay artículos.
             ToolResult.fail("No articles found") si docs está vacío o ausente.
         """
-        today = date.today()
+        # UTC explícito, no la zona de la máquina: en Docker el contenedor va en
+        # UTC y el equipo de desarrollo no, así que `date.today()` desplazaría la
+        # ventana de búsqueda un día cerca de medianoche según dónde se ejecute.
+        today = datetime.now(timezone.utc).date()
         new_date = (today - timedelta(days=days)).strftime("%Y%m%d")  # Formato YYYYMMDD
         params = {"begin_date": new_date, "sort": "relevance" if topic else "newest"}
         if topic:

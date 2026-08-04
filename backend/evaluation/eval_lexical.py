@@ -1,11 +1,11 @@
 import gzip  # Descompresión en memoria (wow)
 from pathlib import Path
 
-import numpy as np
 from sklearn.metrics import (
     confusion_matrix,
     precision_recall_fscore_support,
 )  # Import conjunto
+
 from backend.integrations.nlp import lexical
 
 DATA_DIR = Path(__file__).resolve().parent.parent.parent / "data"  # Carpeta data

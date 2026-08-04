@@ -1,7 +1,6 @@
 import logging
 import sys
 
-
 import structlog
 
 from backend.config.settings import settings

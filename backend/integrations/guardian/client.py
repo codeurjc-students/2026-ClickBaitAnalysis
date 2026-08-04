@@ -1,15 +1,12 @@
 # Constants
-from backend.core.base_api import BaseAPI
-from backend.core.models import ToolResult
-from datetime import date
-from datetime import timedelta
-
+from datetime import datetime, timedelta, timezone
 
 from backend.config.settings import settings
+from backend.core.base_api import BaseAPI
+from backend.core.models import ToolResult
 
 
 class GuardianAPI(BaseAPI):
-
     BASE_URL = "https://content.guardianapis.com/"
 
     API_KEY = settings.guardian_api_key  # Key ya validada
@@ -47,7 +44,10 @@ class GuardianAPI(BaseAPI):
             ToolResult.ok([{title, url, date, content}, ...]) si hay artículos.
             ToolResult.fail("No articles found") si results está vacío o ausente.
         """
-        today = date.today()
+        # UTC explícito, no la zona de la máquina: en Docker el contenedor va en
+        # UTC y el equipo de desarrollo no, así que `date.today()` desplazaría la
+        # ventana de búsqueda un día cerca de medianoche según dónde se ejecute.
+        today = datetime.now(timezone.utc).date()
         new_date = today - timedelta(days=days)
         params = {"from-date": new_date, "show-fields": "trailText"}
         if topic:  # Usa buscador de tags

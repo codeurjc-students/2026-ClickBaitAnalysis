@@ -6,6 +6,7 @@ import json
 
 from mcp.server.fastmcp import FastMCP
 from pydantic import Field
+
 from backend.core.observability import log_tool_invocation
 from backend.integrations.nyt.client import NYTAPI
 

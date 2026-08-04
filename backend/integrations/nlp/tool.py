@@ -5,6 +5,7 @@ NLP Tool: detección de clickbait en titulares (zero-shot).
 import json
 
 from mcp.server.fastmcp import FastMCP
+
 from backend.core.observability import log_tool_invocation
 from backend.integrations.nlp import lexical, linear, model_cards
 from backend.integrations.nlp.factory import get_nlp_backend

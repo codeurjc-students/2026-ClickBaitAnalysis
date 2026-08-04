@@ -1,11 +1,10 @@
+import asyncio
+
 from backend.core.models import ToolResult
 from backend.integrations.nlp.base import NLPBackend
 
-import asyncio
-
 
 class LocalNLPClient(NLPBackend):
-
     # Evitamos cargar en cada llamada añadiendo permanencia
     def __init__(self) -> None:
 

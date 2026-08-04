@@ -1,9 +1,10 @@
 from datetime import date, timedelta
 
-from backend.integrations.guardian.client import GuardianAPI
-import respx
 import pytest
+import respx
 from httpx import Response
+
+from backend.integrations.guardian.client import GuardianAPI
 
 TAGS_URL = "https://content.guardianapis.com/tags"
 SEARCH_URL = "https://content.guardianapis.com/search"
