@@ -35,7 +35,8 @@ Este documento define los requisitos para un Trabajo de Fin de Grado (TFG) que i
 5. SI falla la ejecución de una herramienta, ENTONCES EL MCP_Server DEBERÁ devolver una respuesta de error estructurada con detalles.
 6. EL MCP_Server DEBERÁ poder exponerse mediante **transporte HTTP** (`streamable-http`) además de `stdio`, para permitir su despliegue como contenedor independiente. _(Precondición del desacople: `stdio` exige que el cliente lance el servidor como subproceso, lo que no cruza contenedores.)_
 7. EL sistema DEBERÁ admitir la conexión a **varios MCP_Server especialistas** declarados por configuración; añadir o retirar uno NO DEBERÁ requerir cambios de código.
-8. SI un MCP_Server declarado no responde, ENTONCES el sistema DEBERÁ seguir operando con los restantes y reflejar su estado degradado.
+8. SI un MCP_Server declarado no responde, ENTONCES el sistema DEBERÁ seguir operando con los restantes y reflejar su estado degradado. _(Alcance: **servidores MCP**, no las APIs externas que consumen sus tools — eso es R2.8. Ver memoria de cambios.)_
+9. Añadir una nueva MCP_Tool —una fuente de datos o una señal de análisis— NO DEBERÁ requerir modificar las herramientas existentes ni la interfaz web. _(Mitad de servidor: registro por módulo. Mitad de interfaz: el envoltorio uniforme de señales, R5.8. Ver memoria de cambios.)_
 
 ### Requisito 2: Herramientas de integración de API públicas
 
@@ -50,6 +51,7 @@ Este documento define los requisitos para un Trabajo de Fin de Grado (TFG) que i
 5. CUANDO se reciban respuestas de la API, EL API_Consumer DEBERÁ validar la estructura de la respuesta antes de procesarla.
 6. CUANDO se realice una llamada a la API, EL API_Consumer DEBERÁ rastrear el número de llamadas a la API utilizadas y registrarlo como **observabilidad interna** (logs). _(No se devuelve en la salida de la tool para no ensuciar la respuesta — ver memoria de cambios.)_
 7. DONDE una API tenga límites de uso, EL API_Consumer DEBERÁ rastrear la cuota restante y registrarla como **observabilidad interna** (logs). _(Ver memoria de cambios.)_
+8. SI una API externa declarada no responde, ENTONCES el sistema DEBERÁ seguir operando con las restantes y reflejar su estado degradado. _(Distinto de R1.8, que habla de servidores MCP. Ya satisfecho por el health check desde la Épica 1. Ver memoria de cambios.)_
 
 ### Requisito 3: Herramientas de análisis de texto con NLP
 
