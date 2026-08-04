@@ -46,6 +46,22 @@ def _aggregate_status(integrations: dict) -> Literal["ok", "degraded", "down"]:
     return "degraded"
 
 
+async def check_health() -> dict:
+    """Sondea todas las integraciones y agrega su estado.
+
+    Vive fuera de ``register`` porque lo consumen DOS fachadas: la tool MCP de
+    abajo y ``GET /health`` de la API REST. Duplicar el sondeo llevaría a
+    que las dos respondieran cosas distintas.
+    """
+    results = await asyncio.gather(*(_probe(**cfg) for cfg in PROBES.values()))
+    integrations = dict(zip(PROBES, results))
+    return {
+        "status": _aggregate_status(integrations),
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "integrations": integrations,
+    }
+
+
 def register(mcp: FastMCP):
     @mcp.tool()
     @log_tool_invocation
@@ -55,10 +71,4 @@ def register(mcp: FastMCP):
         Returns:
             dict: Diccionario con estado, timestamp e integraciones
         """
-        results = await asyncio.gather(*(_probe(**cfg) for cfg in PROBES.values()))
-        integrations = dict(zip(PROBES, results))
-        return {
-            "status": _aggregate_status(integrations),
-            "timestamp": datetime.now(timezone.utc).isoformat(),
-            "integrations": integrations,
-        }
+        return await check_health()

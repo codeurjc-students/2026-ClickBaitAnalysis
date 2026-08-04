@@ -4,3 +4,5 @@ __pycache__/
 .env
 .claude
 .vscode/settings.json
+
+CLAUDE.md

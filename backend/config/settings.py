@@ -20,5 +20,10 @@ class Settings(BaseSettings):
         "remote"  # Añadimos dos opciones de backend NLP, así mantenemos remoto sin cambiar mucho.
     )
 
+    # Orígenes permitidos por CORS. Configurable porque el frontend vive
+    # en localhost:4200 en desarrollo pero no en despliegue. Desde el
+    # entorno se pasa como JSON: CORS_ORIGINS='["https://ejemplo.org"]'
+    cors_origins: list[str] = ["http://localhost:4200"]
+
 
 settings = Settings()  # type: ignore #Activa la validación al importar
