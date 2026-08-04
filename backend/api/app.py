@@ -22,6 +22,7 @@ conectadas en runtime no se puede hacer importando módulos.
 
 from contextlib import asynccontextmanager
 
+import numpy as np  # Import sin usar para probar check de ruff
 import structlog
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
