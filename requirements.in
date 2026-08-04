@@ -3,6 +3,10 @@ fastmcp
 httpx
 pydantic-settings
 
+
+fastapi
+uvicorn
+
 pytest
 pytest-asyncio
 pytest-cov
