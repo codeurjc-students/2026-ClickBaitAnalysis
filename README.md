@@ -1034,6 +1034,27 @@ El segundo caso merece atención: **es el escenario de discrepancia que se habí
 
 **Límites.** Sigue sin haber `/tools`, `/history` ni `/chat`. Los 12 tests nuevos cubren la capa HTTP (validación, delegación, CORS, OpenAPI) y **no repiten la orquestación**, que ya cubre `test_analyze.py`. Y `analyze.py` mantiene un efecto de importación conocido —`_api = get_nlp_backend()` a nivel de módulo— que congela el backend NLP al importar, igual que hace `tool.py`.
 
+### Metadata de las tools: categoría y procedencia (#97, primera parte)
+
+El catálogo necesita saber, de cada herramienta, **qué tipo de trabajo hace** y **de dónde viene**. El objeto `Tool` del protocolo MCP trae nombre, descripción y esquema, pero ninguna de esas dos cosas. MCP sí permite adjuntar un `meta` libre por herramienta, y se comprobó que **viaja intacto hasta el cliente**, así que la información se declara en el origen en vez de en un mapa cableado en la API — que obligaría a editarla cada vez que se añade una fuente, justo lo que R1.9 prohíbe.
+
+**Los dos ejes se tratan distinto a propósito.** La **categoría es un juicio** —qué tipo de trabajo hace— y no se puede derivar de dónde vive el fichero: `describe_models` está en `nlp/` pero es una utilidad, no una señal. Así que se declara, y declararla obliga a pensarla al añadir la siguiente. La **integración es un hecho de ubicación**, se deriva del módulo, y por eso **no puede mentir**: declararla a mano permitiría que el paquete dijera una cosa y el `meta` otra, en silencio — el mismo fallo que costó el renombrado del campo `signal` en H1.
+
+**Las categorías de R5.3 se renombraron.** Los ejemplos originales eran «Integración de API» y «Análisis de NLP», y ambos nombraban mal lo que separan:
+
+| Original | Problema | Ahora |
+|---|---|---|
+| Integración de API | Describe la implementación, y es **falso como distinción**: `detect_clickbait` es una llamada a la API de HuggingFace tanto como `get_nyt_news` lo es a la de NYT | **Fuentes de contenido** |
+| Análisis de NLP | Nombra una tecnología, no un propósito — y el proyecto **ya tiene su palabra**, «señal», usada en `SignalResult`, en la orquestación y en las fichas | **Señales de análisis** |
+
+Lo que de verdad separa a los cuatro primeros del resto no es que llamen a una API: es que **traen contenido** en vez de analizarlo.
+
+El renombrado tiene además una propiedad que lo confirma: **«Señales de análisis» son exactamente las cinco que llevan ficha de modelo**. Con los nombres anteriores esa correspondencia parecía casualidad; ahora la categoría *predice* si `model_card` viene o no, y R5.9 deja de ser un añadido suelto para encajar con R5.3.
+
+**Y el índice de fichas se centraliza.** `cards_by_signal()` vive junto a `MODEL_CARDS` porque lo necesitan dos consumidores —la orquestación de `/analyze`, para leer la dimensión de cada señal, y el catálogo, para adjuntar la ficha—. Dos copias del mismo índice acabarían divergiendo.
+
+_(Nota para la memoria: `get_alerts` y `get_forecast` son andamiaje del MVP y no pertenecen al dominio del clickbait. Se conservan porque son herramientas reales del sistema y ocultarlas sería deshonesto, pero su función es demostrar el mecanismo MCP con una API pública sin clave.)_
+
 ### Registro automático de integraciones (#91)
 
 R1.9 —escrito al ordenar la extensibilidad en #86— dice que añadir una fuente de datos o una señal de análisis no debe obligar a modificar las herramientas existentes. La mitad de interfaz ya estaba cumplida por el envoltorio uniforme de señales; la de servidor no: `main.py` listaba los `register()` a mano, así que añadir una integración obligaba a editarlo.

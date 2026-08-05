@@ -42,7 +42,7 @@ from backend.core.models import ToolResult
 from backend.integrations.nlp import lexical, linear
 from backend.integrations.nlp.factory import get_nlp_backend
 from backend.integrations.nlp.incoherence import IncoherenceDetector
-from backend.integrations.nlp.model_cards import MODEL_CARDS
+from backend.integrations.nlp.model_cards import cards_by_signal
 
 # Instancias únicas: LocalNLPClient cachea los pipelines por instancia y el
 # detector carga el modelo de forma perezosa, así que crearlos por petición
@@ -56,7 +56,7 @@ _detector = IncoherenceDetector()
 # dimensión ni el tipo de cada señal: se leen de MODEL_CARDS (R3.9). Un desajuste
 # entre esta clave y el nombre real de la tool lo detecta antes de llegar aquí
 # test_model_cards_signals_match_registered_tools.
-_CARDS = {card["signal"]: card for card in MODEL_CARDS}
+_CARDS = cards_by_signal()
 
 # TODO(deuda): estos ids están duplicados en integrations/nlp/tool.py. Unificar
 # leyéndolos de MODEL_CARDS["name"] exige antes normalizar ese campo, que hoy

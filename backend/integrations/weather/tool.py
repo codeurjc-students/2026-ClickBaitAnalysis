@@ -1,6 +1,7 @@
 from mcp.server.fastmcp import FastMCP
 
 from backend.core.observability import log_tool_invocation
+from backend.integrations.metadata import tool_meta
 from backend.integrations.weather.client import WeatherAPI
 
 
@@ -8,7 +9,7 @@ def register(mcp: FastMCP):
 
     api = WeatherAPI()
 
-    @mcp.tool()
+    @mcp.tool(meta=tool_meta("Fuentes de contenido", __name__))
     @log_tool_invocation
     async def get_alerts(state: str) -> str | dict:
         """Get weather alerts for a US state.
@@ -22,7 +23,7 @@ def register(mcp: FastMCP):
 
         return response.data  # type: ignore
 
-    @mcp.tool()
+    @mcp.tool(meta=tool_meta("Fuentes de contenido", __name__))
     @log_tool_invocation
     async def get_forecast(latitude: float, longitude: float) -> str:
         """Get weather forecast for a location.

@@ -7,6 +7,7 @@ import json
 from mcp.server.fastmcp import FastMCP
 
 from backend.core.observability import log_tool_invocation
+from backend.integrations.metadata import tool_meta
 from backend.integrations.nlp import lexical, linear, model_cards
 from backend.integrations.nlp.factory import get_nlp_backend
 from backend.integrations.nlp.incoherence import IncoherenceDetector
@@ -17,7 +18,7 @@ def register(mcp: FastMCP):
     api = get_nlp_backend()
     detector = IncoherenceDetector()
 
-    @mcp.tool()
+    @mcp.tool(meta=tool_meta("Señales de análisis", __name__))
     @log_tool_invocation
     async def detect_clickbait(headline: str) -> str:
         """Detecta si un titular de noticia es clickbait o informativo (factual).
@@ -45,7 +46,7 @@ def register(mcp: FastMCP):
             return response.error or "Error al analizar el titular"
         return json.dumps(response.data)
 
-    @mcp.tool()
+    @mcp.tool(meta=tool_meta("Señales de análisis", __name__))
     @log_tool_invocation
     async def analyze_sentiment(text: str) -> str:
         """Analiza el sentimiento de un texto (p.ej. un titular de noticia).
@@ -68,7 +69,7 @@ def register(mcp: FastMCP):
             return response.error or "Error al analizar el sentimiento"
         return json.dumps(response.data)
 
-    @mcp.tool()
+    @mcp.tool(meta=tool_meta("Señales de análisis", __name__))
     @log_tool_invocation
     async def detect_clickbait_incoherence(headline: str, content: str) -> str:
         """Detecta posible clickbait midiendo la (in)coherencia entre titular y cuerpo.
@@ -96,7 +97,7 @@ def register(mcp: FastMCP):
             return response.error or "Error al analizar incoherencia en el titular"
         return json.dumps(response.data)
 
-    @mcp.tool()
+    @mcp.tool(meta=tool_meta("Señales de análisis", __name__))
     @log_tool_invocation
     async def detect_clickbait_lexical(headline: str) -> str:
         """
@@ -121,7 +122,7 @@ def register(mcp: FastMCP):
             return response.error or "Error al analizar léxico en el titular"
         return json.dumps(response.data)
 
-    @mcp.tool()
+    @mcp.tool(meta=tool_meta("Señales de análisis", __name__))
     @log_tool_invocation
     async def detect_clickbait_linear(headline: str) -> str:
         """Detecta clickbait con un modelo lineal interpretable (regresión logística
@@ -140,7 +141,9 @@ def register(mcp: FastMCP):
             return response.error or "Error al predecir clickbait en el titular"
         return json.dumps(response.data)
 
-    @mcp.tool()
+    # Utilidad, no señal: describe los modelos, no analiza nada. Es el caso que
+    # demuestra que la categoría no se puede derivar del paquete.
+    @mcp.tool(meta=tool_meta("Utilidades", __name__))
     @log_tool_invocation
     async def describe_models() -> str:
         """Divulga los modelos/señales que emplea el sistema (transparencia, R3.9).

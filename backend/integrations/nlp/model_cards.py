@@ -27,6 +27,18 @@ no significan que el titular engañe. Sin este campo, el backend tendría que
 cablear qué señal es cuál — justo lo que se evita.
 """
 
+
+def cards_by_signal() -> dict[str, dict]:
+    """Índice de fichas por nombre de tool.
+
+    Vive aquí y no en quien lo usa porque lo necesitan DOS consumidores —la
+    orquestación de ``/analyze``, para leer la dimensión de cada señal, y el
+    catálogo, para adjuntar la ficha— y dos copias del mismo índice acabarían
+    divergiendo.
+    """
+    return {card["signal"]: card for card in MODEL_CARDS}
+
+
 MODEL_CARDS = [
     {
         "signal": "detect_clickbait",
