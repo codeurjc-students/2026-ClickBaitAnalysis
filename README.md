@@ -1046,7 +1046,11 @@ MCP_TRANSPORT=streamable-http MCP_PORT=8765 python -m backend.main
 
 **El valor por defecto sigue siendo `stdio`, y eso es deliberado.** Es lo que espera un cliente que lanza el servidor como subproceso —así está conectado el entorno de desarrollo del autor— y cambiar el defecto habría roto esa conexión sin que ningún test fallara. Hay un test que fija ese defecto precisamente para que nadie lo cambie por descuido.
 
-Verificado **por los dos caminos**, arrancando el entry point real y conectando un cliente MCP de verdad: por HTTP expone las 11 tools y responde a `call_tool`; por `stdio` sigue haciendo exactamente lo mismo. Los tests unitarios usan un espía sobre `mcp.run` —que bloquea el proceso— así que la comprobación de que el servidor *sirve* tenía que hacerse aparte.
+Verificado **por los dos caminos**, arrancando el entry point real y conectando un cliente MCP de verdad: por HTTP expone las 11 tools y responde a `call_tool`; por `stdio` sigue haciendo exactamente lo mismo.
+
+**Y la verificación de HTTP quedó automatizada**, que era el hueco evidente: los tests que espían `mcp.run` comprueban el *cableado* pero no que el servidor sirva, porque `run()` bloquea el proceso. La salida no es levantar un servidor en un puerto —lento y frágil en CI— sino pasarle al cliente MCP un `httpx.AsyncClient` montado sobre `ASGITransport`: el protocolo completo corre **contra la app en el mismo proceso**, sin red. Cuesta **0,03 s**, así que va en cada CI en vez de quedarse como comprobación manual.
+
+Dos obstáculos que costaron encontrar y conviene dejar escritos. El primero, que el gestor de sesiones de FastMCP arranca en el *lifespan* de la app y `ASGITransport` no lo ejecuta, así que hay que entrarlo a mano o toda petición falla. El segundo, un `421 Misdirected Request` que resultó ser la protección anti *DNS rebinding* del propio servidor: acepta `127.0.0.1:*` y `ASGITransport` enviaba `Host: 127.0.0.1` sin puerto. Se resuelve poniendo puerto en la URL base — **dejando la protección activa**, que era la tentación fácil de desactivar.
 
 Un detalle de diseño: `host` y `port` se asignan siempre, aunque `stdio` los ignore. Meter un `if` para no tocar dos campos inertes añade una rama que hay que leer y mantener a cambio de nada.
 
