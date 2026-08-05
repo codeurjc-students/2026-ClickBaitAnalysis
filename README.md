@@ -1034,6 +1034,25 @@ El segundo caso merece atención: **es el escenario de discrepancia que se habí
 
 **Límites.** Sigue sin haber `/tools`, `/history` ni `/chat`. Los 12 tests nuevos cubren la capa HTTP (validación, delegación, CORS, OpenAPI) y **no repiten la orquestación**, que ya cubre `test_analyze.py`. Y `analyze.py` mantiene un efecto de importación conocido —`_api = get_nlp_backend()` a nivel de módulo— que congela el backend NLP al importar, igual que hace `tool.py`.
 
+### Registro automático de integraciones (#91)
+
+R1.9 —escrito al ordenar la extensibilidad en #86— dice que añadir una fuente de datos o una señal de análisis no debe obligar a modificar las herramientas existentes. La mitad de interfaz ya estaba cumplida por el envoltorio uniforme de señales; la de servidor no: `main.py` listaba los `register()` a mano, así que añadir una integración obligaba a editarlo.
+
+Ahora `backend/integrations/discovery.py` recorre el paquete, importa el `tool` de cada uno y llama a su `register(mcp)`. Añadir una integración pasa a ser **crear su paquete**.
+
+**El chequeo de salud queda fuera, y no como excepción.** Al plantearlo apareció la pregunta de si `health` debía moverse a `integrations/` para que el descubrimiento lo encontrara. La respuesta es que no: **no envuelve ninguna API externa, es infraestructura básica** —del mismo tipo que el *healthcheck* de un contenedor—. Y eso lo deja **fuera del alcance de R1.9 por definición**, porque el requisito habla de «una fuente de datos o una señal de análisis». Que `main.py` lo registre explícitamente no es un caso especial que disculpar: es la separación correcta, y así queda escrita en el módulo.
+
+El fichero pasa de cinco líneas de registro a dos, y esas dos significan algo:
+
+```python
+discover_integrations(mcp)   # todo lo que haya en integrations/
+health.register(mcp)         # núcleo, no integración
+```
+
+**Un paquete roto no tumba el servidor.** Si una integración falla al importarse o su `register` lanza, se anota y se sigue con las demás — misma postura que con las señales en `/analyze`, y lo que piden R1.8 y R2.8. El arranque registra qué se descubrió y qué falló, porque una integración caída deja al sistema con menos herramientas **en silencio**: sin ese log, la única pista sería una tool que ya no aparece.
+
+**El test que importa es el que demuestra el requisito**: crea una integración de mentira en un directorio temporal y comprueba que aparece sola. El truco para no ensuciar el repositorio es extender el `__path__` del paquete `backend.integrations` —la lista donde Python busca submódulos—, de modo que el import funcione de verdad sin copiar ficheros dentro del proyecto. Sin ese test, R1.9 sería una afirmación; con él, es comprobable.
+
 ### El catálogo no es un lanzador: R5 replanteado
 
 Al preparar `/tools` se leyó R5 entero por primera vez desde que se escribió, y aparecieron tres problemas —dos de redacción y uno de concepto.
