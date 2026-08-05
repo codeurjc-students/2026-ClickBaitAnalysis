@@ -12,7 +12,7 @@ Este documento define los requisitos para un Trabajo de Fin de Grado (TFG) que i
 - **MCP_Tool**: Herramienta individual que expone funcionalidad a través del protocolo MCP.
 - **API_Consumer**: Componente que realiza llamadas a APIs públicas externas.
 - **Web_Interface**: Aplicación Angular que permite interactuar con las herramientas MCP.
-- **Tool_Catalog**: Sistema de registro y descubrimiento de herramientas disponibles.
+- **Tool_Catalog**: Vista **calculada en cada consulta** de las herramientas disponibles y de lo que declara cada una. No almacena: descubre por *handshake* MCP. _(Ver memoria de cambios.)_
 - **NLP_Analyzer**: Componente que realiza análisis de procesamiento de lenguaje natural.
 - **Backend_API**: API REST implementada con FastAPI que expone funcionalidad del servidor MCP.
 - **Agent_Orchestrator**: Agente conversacional que interpreta consultas en lenguaje natural y decide qué MCP_Tools invocar (*tool calling*). Actúa como cliente MCP.
@@ -79,27 +79,28 @@ Este documento define los requisitos para un Trabajo de Fin de Grado (TFG) que i
 
 1. La Backend_API DEBERÁ implementarse utilizando FastAPI.
 2. La Backend_API DEBERÁ exponer un endpoint para enumerar todas las MCP_Tools disponibles con sus descripciones y parámetros.
-3. La Backend_API DEBERÁ exponer un endpoint para ejecutar una MCP_Tool específica con los parámetros proporcionados.
+3. La Backend_API DEBERÁ exponer un endpoint para ejecutar una MCP_Tool específica con los parámetros proporcionados. _(Sus consumidores son ejecutar **una señal suelta** —p. ej. sólo el sentimiento, sin lanzar las cuatro— y **traer una noticia** desde la pantalla de análisis; no un catálogo que haga de lanzador. Ver memoria de cambios.)_
 4. La Backend_API DEBERÁ exponer un endpoint para recuperar el historial de ejecución de las herramientas.
 5. CUANDO se reciba una solicitud de ejecución de una herramienta, LA Backend_API DEBERÁ validar los parámetros de entrada antes de la ejecución.
 6. LA Backend_API DEBERÁ devolver respuestas en formato JSON con una estructura coherente.
 7. LA Backend_API DEBERÁ incluir la configuración CORS para permitir las solicitudes de la aplicación frontend.
 8. DONDE sea beneficioso para desarrollo y documentación, LA Backend_API PODRÁ incluir documentación automática usando OpenAPI de FastAPI.
 
-### Requisito 5: Sistema de catálogo de tools
+### Requisito 5: Catálogo de tools y transparencia del sistema
 
-**Historia de usuario:** Como usuario del sistema, quiero un catálogo de herramientas disponibles, para que pueda descubrir y entender qué herramientas están disponibles y cómo usarlas.
+**Historia de usuario:** Como usuario del sistema, quiero ver qué herramientas y señales lo componen y con qué límites, para entender de dónde sale un veredicto y qué puedo esperar de él.
 
 **Criterios de aceptación:**
 
-1. EL Tool_Catalog DEBERÁ mantener un registro de todas las MCP_Tools disponibles con metadatos.
-2. CUANDO se registre una nueva herramienta, EL Tool_Catalog DEBERÁ almacenar su nombre, descripción, esquema de parámetros y categoría.
+1. EL Tool_Catalog DEBERÁ **exponer** las MCP_Tools disponibles con sus metadatos. _(Antes «mantener un registro»; contradecía a R5.8. Ver memoria de cambios.)_
+2. EL Tool_Catalog DEBERÁ exponer, por cada herramienta, su nombre, descripción, esquema de parámetros y categoría. _(Antes «CUANDO se registre… almacenar»: en un catálogo dinámico ese evento no existe. Ver memoria de cambios.)_
 3. EL Tool_Catalog DEBERÁ admitir la categorización de herramientas (por ejemplo, «Integración de API», «Análisis de NLP», «Utilidades»).
-4. AL consultar el catálogo, EL Tool_Catalog DEBERÁ devolver las herramientas filtradas por categoría si así se solicita.
+4. AL consultar el catálogo, EL Tool_Catalog **PODRÁ** devolver las herramientas filtradas por categoría si así se solicita. _(Antes DEBERÁ. Ver memoria de cambios.)_
 5. EL Tool_Catalog DEBERÁ incluir esquemas de validación de parámetros para cada herramienta.
-6. EL Tool_Catalog DEBERÁ admitir la búsqueda de herramientas por nombre o palabras clave de descripción.
-7. EL Tool_Catalog DEBERÁ **agregar las herramientas de todos los MCP_Server conectados**, indicando de qué servidor procede cada una.
+6. EL Tool_Catalog **PODRÁ** admitir la búsqueda de herramientas por nombre o palabras clave de descripción. _(Antes DEBERÁ; desproporcionado para el número de tools previsto. Ver memoria de cambios.)_
+7. EL Tool_Catalog DEBERÁ indicar **de qué integración procede** cada herramienta (NYT, Guardian, meteorología, NLP…). DONDE haya varios MCP_Server conectados, DEBERÁ además agregar sus catálogos indicando el servidor de origen. _(Reinterpretado. Ver memoria de cambios.)_
 8. EL Tool_Catalog DEBERÁ construirse **dinámicamente** mediante el descubrimiento de herramientas de cada servidor (*handshake* MCP), sin listas cableadas en el código ni en el frontend.
+9. DONDE una herramienta sea una **señal de análisis**, EL Tool_Catalog DEBERÁ exponer su **ficha de modelo**: tipo (interpretable / híbrido / opaco), dimensión que mide y límites conocidos. _(Nuevo; enlaza con R3.8 y R3.9. Ver memoria de cambios.)_
 
 ### Requisito 6: Interfaz web
 
