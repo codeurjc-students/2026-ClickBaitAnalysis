@@ -1034,6 +1034,30 @@ El segundo caso merece atención: **es el escenario de discrepancia que se habí
 
 **Límites.** Sigue sin haber `/tools`, `/history` ni `/chat`. Los 12 tests nuevos cubren la capa HTTP (validación, delegación, CORS, OpenAPI) y **no repiten la orquestación**, que ya cubre `test_analyze.py`. Y `analyze.py` mantiene un efecto de importación conocido —`_api = get_nlp_backend()` a nivel de módulo— que congela el backend NLP al importar, igual que hace `tool.py`.
 
+### El catálogo no es un lanzador: R5 replanteado
+
+Al preparar `/tools` se leyó R5 entero por primera vez desde que se escribió, y aparecieron tres problemas —dos de redacción y uno de concepto.
+
+**Una contradicción interna.** R5.1 decía «mantener un registro» y R5.2 «CUANDO se registre una nueva herramienta… almacenar». Eso describe un catálogo **con estado**: una tabla que se rellena en un evento de alta. Pero R5.8 exige construirlo **dinámicamente** por *handshake* MCP, que es una **vista calculada** en cada consulta. No pueden ser las dos cosas — y en el modelo dinámico el evento «se registra una tool» **nunca ocurre**: las herramientas simplemente aparecen o dejan de aparecer en `list_tools`. Corregido a *exponer*. La entrada del glosario arrastraba el mismo error («sistema de registro») y se reescribió igual.
+
+**Un requisito desproporcionado.** R5.6 exigía búsqueda por nombre o palabras clave sobre un catálogo de **11 herramientas**, que caben en una pantalla sin desplazarse. Es un criterio pensado para catálogos de cientos de entradas. Baja a PODRÁ, junto con el filtro por categoría (R5.4), por el mismo motivo. El autor añade una razón de uso: invocar una herramienta concreta en vez de dejar que el sistema elija **es una operación avanzada**, no el camino del usuario medio.
+
+**Y el problema de fondo: el catálogo no es un lanzador.** La historia de usuario original —«descubrir qué herramientas hay y **cómo usarlas**»— venía de concebirlo como un menú desde el que invocar herramientas sueltas. Pero el usuario medio no entra por ahí: entra por *Analizar* o por el chat. Lo que sí necesita es saber **qué compone este sistema y con qué límites**, que es exactamente lo que hace la pantalla *Sistema* del prototipo y lo que piden R3.8 y R3.9.
+
+De ahí sale **R5.9, nuevo**: donde una herramienta sea una señal de análisis, el catálogo debe exponer su **ficha de modelo**. Sin él, el catálogo mostraría
+
+```
+detect_clickbait_linear  →  «Análisis de NLP»
+```
+
+y escondería lo que ya está escrito en `model_cards.py`: que es **interpretable** (no una caja negra), que mide **forma** (no engaño), y que su F1 cae de **0.865 en dominio a 0.476 fuera**. Un catálogo que tira esa metadata desperdicia justamente el eje del trabajo.
+
+**R5.7 reinterpretado.** Decía «agregar las herramientas de todos los MCP_Server conectados». Con un solo servidor eso se cumple trivialmente y no demuestra nada — el mismo problema que R1.7. Pero tiene una lectura que sí aporta: **de qué integración procede** cada herramienta (NYT, Guardian, meteorología, NLP). Esa es información real y útil hoy; la agregación multi-servidor se mantiene como capacidad para cuando haya varios.
+
+**R4.3 se queda, con sus consumidores anotados.** Ese endpoint —ejecutar una tool concreta— existía para que el catálogo lanzara herramientas, así que al dejar de ser lanzador parecía quedarse sin uso. No es el caso: le quedan dos reales, ejecutar **una señal suelta** (sólo el sentimiento, sin lanzar las cuatro) y **traer una noticia** desde la pantalla de análisis. Lo que estaba mal era su justificación, no su forma.
+
+**El nombre se mantiene.** Se valoró renombrar `Tool_Catalog`, ya que no aparece en el código y el cambio saldría barato. Se descarta: un catálogo es **descriptivo por naturaleza** —el de un museo describe obras que no te llevas— y lo que empujaba hacia el lanzador era la historia de usuario, ya corregida. Además la historia de R13 depende del término: *«que el sistema decida por mí qué herramientas usar sin necesidad de conocer el catálogo»* sólo tiene sentido si existe un catálogo que uno podría conocer.
+
 ### Transporte del servidor MCP, configurable (#90)
 
 R1.6 llevaba escrito desde la ampliación de requisitos de Fase B y era un **DEBERÁ sin cumplir**: `main.py` cableaba `mcp.run(transport="stdio")`. El problema no es de forma — **`stdio` exige que el cliente arranque el servidor como subproceso y hable con él por tuberías**, cosa que no cruza contenedores. Sin transporte HTTP, H4 no puede separar el servidor MCP de la API.
