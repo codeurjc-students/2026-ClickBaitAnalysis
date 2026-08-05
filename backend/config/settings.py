@@ -25,5 +25,20 @@ class Settings(BaseSettings):
     # entorno se pasa como JSON: CORS_ORIGINS='["https://ejemplo.org"]'
     cors_origins: list[str] = ["http://localhost:4200"]
 
+    # Transporte del servidor MCP.
+    #
+    # `stdio` es el valor por defecto porque es lo que espera un cliente que
+    # lanza el servidor como SUBPROCESO y habla con él por tuberías — así está
+    # conectado hoy en local. Cambiar el defecto rompería esa conexión.
+    #
+    # `streamable-http` lo expone por red, que es la precondición para
+    # desplegarlo como contenedor independiente: stdio no cruza contenedores,
+    # porque exige que el cliente sea quien arranca el proceso.
+    #
+    # host/port sólo los usa el transporte HTTP; con stdio son inertes.
+    mcp_transport: Literal["stdio", "streamable-http"] = "stdio"
+    mcp_host: str = "127.0.0.1"
+    mcp_port: int = 8765
+
 
 settings = Settings()  # type: ignore #Activa la validación al importar

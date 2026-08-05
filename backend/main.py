@@ -32,14 +32,21 @@ health.register(mcp)
 def main():
     # Initialize and run the server
     configure_logging()
+
+    # host/port los ignora el transporte stdio.
+    mcp.settings.host = settings.mcp_host
+    mcp.settings.port = settings.mcp_port
+
     log.info(
         "server.start",
         server="tfg-mcp-server",
-        transport="stdio",
+        transport=settings.mcp_transport,
+        host=settings.mcp_host,
+        port=settings.mcp_port,
         log_level=settings.log_level,
         log_format=settings.log_format,
     )
-    mcp.run(transport="stdio")
+    mcp.run(transport=settings.mcp_transport)
 
 
 if __name__ == "__main__":
