@@ -1045,8 +1045,8 @@ Ahora `backend/integrations/discovery.py` recorre el paquete, importa el `tool` 
 El fichero pasa de cinco líneas de registro a dos, y esas dos significan algo:
 
 ```python
-discover_integrations(mcp)   # todo lo que haya en integrations/
-health.register(mcp)         # núcleo, no integración
+discover_integrations(mcp)  # todo lo que haya en integrations/
+health.register(mcp)  # núcleo, no integración
 ```
 
 **Un paquete roto no tumba el servidor.** Si una integración falla al importarse o su `register` lanza, se anota y se sigue con las demás — misma postura que con las señales en `/analyze`, y lo que piden R1.8 y R2.8. El arranque registra qué se descubrió y qué falló, porque una integración caída deja al sistema con menos herramientas **en silencio**: sin ese log, la única pista sería una tool que ya no aparece.
