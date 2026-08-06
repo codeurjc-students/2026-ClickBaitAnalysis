@@ -1,5 +1,30 @@
 import pytest
 import structlog
+from mcp.server.fastmcp import FastMCP
+
+from backend.core import health
+from backend.integrations.discovery import discover_and_register
+
+
+@pytest.fixture
+def servidor_mcp() -> FastMCP:
+    """Un servidor MCP recién construido, con las mismas tools que `main.py`.
+
+    NO se reutiliza `backend.main.mcp`, que es un singleton de módulo, porque
+    `StreamableHTTPSessionManager.run()` **sólo puede llamarse una vez por
+    instancia**: el primer test que levantara su app dejaría el gestor gastado y
+    los siguientes fallarían con «can only be called once per instance» — un
+    fallo que además depende del orden de ejecución, así que aparece y
+    desaparece según qué tests se corran juntos.
+
+    Se monta igual que `main.py` para que lo que se prueba sea el servidor real
+    y no una maqueta: descubrimiento de integraciones más el chequeo de salud.
+    """
+    mcp = FastMCP("tfg-mcp-server")
+    discover_and_register(mcp)
+    health.register(mcp)
+    return mcp
+
 
 # Encontrado fallo de aislamiento entre tests al usar capsys.
 

@@ -94,7 +94,7 @@ Este documento define los requisitos para un Trabajo de Fin de Grado (TFG) que i
 
 1. EL Tool_Catalog DEBERÁ **exponer** las MCP_Tools disponibles con sus metadatos. _(Antes «mantener un registro»; contradecía a R5.8. Ver memoria de cambios.)_
 2. EL Tool_Catalog DEBERÁ exponer, por cada herramienta, su nombre, descripción, esquema de parámetros y categoría. _(Antes «CUANDO se registre… almacenar»: en un catálogo dinámico ese evento no existe. Ver memoria de cambios.)_
-3. EL Tool_Catalog DEBERÁ admitir la categorización de herramientas (por ejemplo, «Integración de API», «Análisis de NLP», «Utilidades»).
+3. EL Tool_Catalog DEBERÁ admitir la categorización de herramientas: «Fuentes de contenido», «Señales de análisis» y «Utilidades». _(Los ejemplos originales eran «Integración de API» y «Análisis de NLP»; el primero describía la implementación —y era falso como distinción, porque las señales también llaman a APIs— y el segundo nombraba una tecnología en vez de un propósito. Ver memoria de cambios.)_
 4. AL consultar el catálogo, EL Tool_Catalog **PODRÁ** devolver las herramientas filtradas por categoría si así se solicita. _(Antes DEBERÁ. Ver memoria de cambios.)_
 5. EL Tool_Catalog DEBERÁ incluir esquemas de validación de parámetros para cada herramienta.
 6. EL Tool_Catalog **PODRÁ** admitir la búsqueda de herramientas por nombre o palabras clave de descripción. _(Antes DEBERÁ; desproporcionado para el número de tools previsto. Ver memoria de cambios.)_

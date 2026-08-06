@@ -7,6 +7,7 @@ from mcp.server.fastmcp import FastMCP
 
 from backend.config.settings import settings
 from backend.core.observability import log_tool_invocation
+from backend.integrations.metadata import tool_meta
 
 PROBE_TIMEOUT = 5
 
@@ -63,7 +64,9 @@ async def check_health() -> dict:
 
 
 def register(mcp: FastMCP):
-    @mcp.tool()
+    # `integration` sale None: vive en core/ y no envuelve ninguna fuente
+    # externa. Es infraestructura, no una integración.
+    @mcp.tool(meta=tool_meta("Utilidades", __name__))
     @log_tool_invocation
     async def health_check() -> dict:
         """Comprueba la salud de las apis haciendo una llamada a cada una

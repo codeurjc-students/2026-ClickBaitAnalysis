@@ -27,7 +27,8 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from backend.api.analyze import analyze
-from backend.api.schemas import AnalyzeRequest, AnalyzeResponse
+from backend.api.catalog import fetch_catalog
+from backend.api.schemas import AnalyzeRequest, AnalyzeResponse, CatalogResponse
 from backend.config.settings import settings
 from backend.core.health import check_health
 from backend.core.logging import configure_logging
@@ -95,6 +96,22 @@ async def post_analyze(request: AnalyzeRequest) -> AnalyzeResponse:
     engaño no se puede evaluar.
     """
     return await analyze(request)
+
+
+@app.get("/tools", response_model=CatalogResponse, tags=["catálogo"])
+async def get_tools() -> CatalogResponse:
+    """Catálogo de herramientas disponibles, descubierto en el momento.
+
+    No es un menú de lanzamiento: responde **qué compone el sistema y con qué
+    límites**. Cada herramienta trae su categoría, de qué integración procede y
+    —si es una señal de análisis— su ficha de modelo, con el tipo, la dimensión
+    que mide y sus límites conocidos.
+
+    Devuelve **200 aunque un servidor MCP no responda**: sale en `servers` con
+    estado `unreachable` y `degraded` queda a `true`, pero las herramientas de
+    los demás se sirven igual.
+    """
+    return await fetch_catalog()
 
 
 @app.get("/health", tags=["operación"])

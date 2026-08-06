@@ -69,7 +69,7 @@ def test_ambos_transportes_son_validos(transporte):
 
 
 @pytest.mark.asyncio
-async def test_el_servidor_sirve_de_verdad_por_http():
+async def test_el_servidor_sirve_de_verdad_por_http(servidor_mcp):
     """El servidor responde el protocolo MCP completo por HTTP.
 
     Los tests de arriba espían `mcp.run`, así que comprueban el CABLEADO pero no
@@ -80,7 +80,9 @@ async def test_el_servidor_sirve_de_verdad_por_http():
     montado sobre `ASGITransport`, así que las peticiones entran directas en la
     app sin tocar la red.
     """
-    app = main_mod.mcp.streamable_http_app()
+    # Servidor recién construido, no el singleton de main: su gestor de
+    # sesiones sólo puede arrancar una vez por instancia (ver conftest).
+    app = servidor_mcp.streamable_http_app()
     transporte = httpx.ASGITransport(app=app)
 
     # El gestor de sesiones de FastMCP arranca en el lifespan de la app, y

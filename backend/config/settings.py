@@ -40,5 +40,20 @@ class Settings(BaseSettings):
     mcp_host: str = "127.0.0.1"
     mcp_port: int = 8765
 
+    # Servidores MCP que consulta la API para construir el catálogo.
+    #
+    # Es una LISTA aunque hoy tenga un elemento:sirve para agregar los
+    # catálogos de todos los servidores conectados indicando el origen de cada
+    # herramienta, y pasar de `str` a `list[str]` más tarde tocaría a la vez la
+    # configuración, el catálogo y su contrato. Cuesta lo mismo ahora.
+    #
+    # Desde el entorno se pasa como JSON:
+    #   MCP_SERVERS='["http://mcp:8765/mcp","http://otro:8765/mcp"]'
+    mcp_servers: list[str] = ["http://127.0.0.1:8765/mcp"]
+
+    # Corte para dar un servidor por inalcanzable. Sin él, un servidor que acepta
+    # la conexión y no responde dejaría /tools colgado en vez de degradado.
+    mcp_timeout: float = 5.0
+
 
 settings = Settings()  # type: ignore #Activa la validación al importar

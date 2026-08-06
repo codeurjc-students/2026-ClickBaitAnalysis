@@ -8,6 +8,7 @@ from mcp.server.fastmcp import FastMCP
 from pydantic import Field
 
 from backend.core.observability import log_tool_invocation
+from backend.integrations.metadata import tool_meta
 from backend.integrations.nyt.client import NYTAPI
 
 
@@ -15,7 +16,7 @@ def register(mcp: FastMCP):
 
     api = NYTAPI()
 
-    @mcp.tool()
+    @mcp.tool(meta=tool_meta("Fuentes de contenido", __name__))
     @log_tool_invocation
     async def get_nyt_news(
         topic: str | None = Field(

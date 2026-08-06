@@ -9,13 +9,14 @@ from pydantic import Field
 
 from backend.core.observability import log_tool_invocation
 from backend.integrations.guardian.client import GuardianAPI
+from backend.integrations.metadata import tool_meta
 
 
 def register(mcp: FastMCP):
 
     api = GuardianAPI()
 
-    @mcp.tool()
+    @mcp.tool(meta=tool_meta("Fuentes de contenido", __name__))
     @log_tool_invocation
     async def get_guardian_news(
         topic: str | None = Field(
