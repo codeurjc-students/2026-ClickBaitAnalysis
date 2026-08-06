@@ -1055,6 +1055,44 @@ El renombrado tiene además una propiedad que lo confirma: **«Señales de anál
 
 _(Nota para la memoria: `get_alerts` y `get_forecast` son andamiaje del MVP y no pertenecen al dominio del clickbait. Se conservan porque son herramientas reales del sistema y ocultarlas sería deshonesto, pero su función es demostrar el mecanismo MCP con una API pública sin clave.)_
 
+### `GET /tools`: el catálogo por handshake MCP (#97)
+
+Es **el primer sitio donde la API habla MCP de verdad**. `/analyze` importa el núcleo directamente —dos fachadas sobre el mismo código— y para él es correcto; aquí no vale, y R5.8 lo dice explícitamente: el catálogo debe construirse por descubrimiento. La razón no es purismo, es que **importar módulos daría siempre la misma respuesta aunque el servidor estuviera caído**, que es justo lo contrario de lo que un catálogo debe mostrar.
+
+**Sesión por petición, no persistente.** Al planificar el issue se había propuesto mantener la sesión viva en el `lifespan` para ahorrar los 0,212 s del *handshake*. Al implementarlo no se sostiene: `/tools` se consulta cuando alguien abre la pantalla de Sistema, no en bucle, así que esa latencia es imperceptible. A cambio, la sesión persistente obliga a gestionar reconexión, guardar estado mutable compartido y responder si `ClientSession` aguanta uso concurrente. Se pagará esa complejidad cuando haya un consumidor caliente que la justifique —el agente, con muchas invocaciones por turno— y con una medición delante.
+
+La decisión tiene un efecto que la confirma: **hace desaparecer otra pregunta abierta**. «¿Arranca la API si no hay servidor MCP?» sólo existía porque el catálogo se construía al arrancar. Sin sesión persistente no hay nada que conectar en el arranque: la API arranca siempre, y `/tools` informa del estado real en el momento de la llamada.
+
+**Un servidor caído no rompe la respuesta**, igual que una señal caída no rompe `/analyze`: sale en `servers` con estado `unreachable` y su motivo, `degraded` queda a `true` y las herramientas de los demás se sirven igual. Con la configuración como lista, R1.8 deja de ser un requisito vacío aunque la lista tenga un solo elemento.
+
+**Y sin servidores configurados, el catálogo sale vacío pero NO degradado.** Parece un descuido y es deliberado: `degraded` significa «algo declarado no responde», y sin nada declarado no ha fallado nada — eso es una **mala configuración**, no una degradación. La distinción se conserva porque el contrato permite separarlas: `servers` vacío significa que no hay nada configurado; `servers` con entradas `unreachable` significa que está declarado y no contesta. Si la lista vacía marcara `degraded`, ambas situaciones colapsarían en una y la interfaz no podría decir cuál está ocurriendo.
+
+El resultado, con el servidor real:
+
+```
+servidores: [('tfg-mcp-server', 'ok', 11)]   degradado: False
+
+  detect_clickbait_lexical      Señales de análisis   nlp      interpretable/forma
+  detect_clickbait_incoherence  Señales de análisis   nlp      híbrido/engano
+  analyze_sentiment             Señales de análisis   nlp      opaco/tono
+  get_nyt_news                  Fuentes de contenido  nyt      -
+  health_check                  Utilidades            None     -
+```
+
+El nombre del servidor no sale de la configuración: lo **declara él mismo** en el `handshake` (`serverInfo.name`), lo que demuestra que hubo conversación real y no una lista leída de un fichero.
+
+#### Tres obstáculos que costaron encontrar
+
+Los tests hablan el protocolo completo contra la app **en el mismo proceso**, con un `httpx.AsyncClient` montado sobre `ASGITransport`. Aquí no es una optimización sino una necesidad: el servidor arranca por defecto en `stdio`, así que durante los tests no hay nada escuchando en ningún puerto.
+
+**El *lifespan* no admite una fixture asíncrona.** El primer intento falló con «attempted to exit cancel scope in a different task»: un *cancel scope* de anyio —la región cancelable que abre el `lifespan`— exige abrirse y cerrarse **en la misma tarea**, y pytest-asyncio puede ejecutar la fixture y el cuerpo del test en tareas distintas. Se resuelve con un `@asynccontextmanager` abierto dentro del propio test.
+
+**El gestor de sesiones es de un solo uso, y eso rompió un test que ya funcionaba.** `StreamableHTTPSessionManager.run()` sólo puede llamarse una vez por instancia, y `backend.main.mcp` es un singleton de módulo: el primer test que levantara su app HTTP dejaba el gestor gastado para los demás. Lo grave no es el fallo sino su forma — **dependía del orden de ejecución**, así que `test_main.py` pasaba aislado y fallaba en conjunto. Es el patrón que se acaba etiquetando de *flaky* sin llegar a entenderlo. La solución es una fixture que **construye un servidor nuevo por test**, montado igual que `main.py`; que eso sean tres líneas es rédito directo del descubrimiento automático de #91.
+
+**Y un tercero que hizo lo que debía**: el test que fija las rutas de OpenAPI falló al añadir `/tools`, porque afirmaba que sólo había dos. Un contrato que avisa cuando cambia.
+
+**Límites.** El filtro por categoría (R5.4) y la búsqueda (R5.6) quedan fuera: bajaron a PODRÁ al revisar los requisitos, y once herramientas caben en una pantalla sin desplazarse. Sigue sin existir `/tools/{name}/execute` (R4.3) ni `/history` (R4.4).
+
 ### Registro automático de integraciones (#91)
 
 R1.9 —escrito al ordenar la extensibilidad en #86— dice que añadir una fuente de datos o una señal de análisis no debe obligar a modificar las herramientas existentes. La mitad de interfaz ya estaba cumplida por el envoltorio uniforme de señales; la de servidor no: `main.py` listaba los `register()` a mano, así que añadir una integración obligaba a editarlo.

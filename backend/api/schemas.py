@@ -35,7 +35,7 @@ Tres principios lo gobiernan:
 from enum import Enum
 from typing import Annotated, Any
 
-from pydantic import BaseModel, Field, StringConstraints
+from pydantic import BaseModel, Field, StringConstraints, computed_field
 
 # Recorta antes de medir. Con un simple `min_length=1`, un titular de un solo
 # espacio pasa la validación —mide 1 carácter— y llega hasta las señales, que
@@ -169,3 +169,105 @@ class AnalyzeResponse(BaseModel):
         """¿Alguna señal llegó a ejecutarse? Si no, la respuesta es informativa
         (dice por qué falló cada una) pero no hay análisis que mostrar."""
         return any(s.status == SignalStatus.OK for s in self.signals)
+
+
+# --------------------------------------------------------------------------
+# Catálogo de herramientas — GET /tools
+#
+# El catálogo NO es un menú de lanzamiento: es la superficie que responde «qué
+# compone este sistema y con qué límites». Por eso cada herramienta puede traer
+# su ficha de modelo, y no sólo su nombre y su esquema.
+# --------------------------------------------------------------------------
+
+
+class ServerStatus(str, Enum):
+    """Estado de un servidor MCP consultado."""
+
+    OK = "ok"
+    UNREACHABLE = "unreachable"  # no respondió, o tardó más que el timeout
+
+
+class ServerInfo(BaseModel):
+    """Un servidor MCP declarado en la configuración, respondiera o no.
+
+    Aparece aunque esté caído: es lo que convierte «seguir operando con los
+    restantes y reflejar el estado degradado» en algo observable en vez de en
+    una lista más corta sin explicación.
+    """
+
+    url: str
+    name: str | None = Field(
+        default=None,
+        description="Nombre que el propio servidor declara en el handshake.",
+    )
+    status: ServerStatus
+    tool_count: int = 0
+    detail: str | None = Field(
+        default=None, description="Motivo legible cuando no se pudo consultar."
+    )
+
+
+class ToolModelCard(BaseModel):
+    """Ficha del modelo que hay detrás de una señal de análisis.
+
+    Es lo que evita que el catálogo enseñe «detect_clickbait_linear — Señales de
+    análisis» y esconda que es interpretable, que mide forma y que su F1 cae
+    fuera de dominio. Reutiliza los enums de las señales en vez de duplicar
+    cadenas sueltas.
+    """
+
+    type: SignalType
+    dimension: Dimension
+    limitations: list[str]
+
+
+class ToolInfo(BaseModel):
+    """Una herramienta del catálogo, con su procedencia y sus metadatos."""
+
+    name: str
+    description: str | None = Field(
+        default=None, description="Docstring de la tool, tal como la lee el LLM."
+    )
+    input_schema: dict[str, Any] = Field(
+        description=(
+            "Esquema JSON de los parámetros, CRUDO. No se aplana: perdería las "
+            "restricciones (mínimos, máximos, valores por defecto) que la "
+            "interfaz necesita para validar el formulario antes de enviar."
+        )
+    )
+
+    category: str | None = Field(
+        default=None,
+        description="Qué tipo de trabajo hace: fuente, señal de análisis o utilidad.",
+    )
+    integration: str | None = Field(
+        default=None,
+        description=(
+            "Paquete del que procede (nyt, guardian, weather, nlp). None si es "
+            "del núcleo y no envuelve ninguna fuente externa."
+        ),
+    )
+    server: str = Field(description="Servidor MCP que la expone.")
+
+    model_card: ToolModelCard | None = Field(
+        default=None,
+        description="Sólo para las señales de análisis; None para el resto.",
+    )
+
+
+class CatalogResponse(BaseModel):
+    """Catálogo completo: qué servidores se consultaron y qué ofrecen."""
+
+    servers: list[ServerInfo]
+    tools: list[ToolInfo]
+
+    @computed_field
+    @property
+    def degraded(self) -> bool:
+        """¿Falta algún servidor por responder?
+
+        Va como campo calculado y no como ``@property`` a secas porque la
+        interfaz lo necesita EN EL JSON: una propiedad normal no se serializa,
+        y obligaría al frontend a recorrer la lista para deducir lo mismo.
+        """
+        return any(s.status != ServerStatus.OK for s in self.servers)
