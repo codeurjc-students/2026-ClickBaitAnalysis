@@ -1034,6 +1034,68 @@ El segundo caso merece atención: **es el escenario de discrepancia que se habí
 
 **Límites.** Sigue sin haber `/tools`, `/history` ni `/chat`. Los 12 tests nuevos cubren la capa HTTP (validación, delegación, CORS, OpenAPI) y **no repiten la orquestación**, que ya cubre `test_analyze.py`. Y `analyze.py` mantiene un efecto de importación conocido —`_api = get_nlp_backend()` a nivel de módulo— que congela el backend NLP al importar, igual que hace `tool.py`.
 
+### Ejecutar una herramienta, y el contrato de retorno que lo bloqueaba (#100)
+
+`/tools` ya publicaba el `inputSchema` de cada herramienta, así que la interfaz podía construir el formulario. Faltaba el endpoint que ejecutara lo que ese formulario produce — para cuando no se quieren las cuatro señales, sólo el sentimiento, o para traer una noticia con la que luego analizar.
+
+Al medirlo antes de escribir nada apareció un bloqueo previo.
+
+#### El endpoint no podía saber si la ejecución había salido bien
+
+| Escenario | `isError` | `content[0].text` |
+|---|---|---|
+| Titular válido | `False` | `{"score": 3, "is_clickbait": true, …}` |
+| Titular vacío (**la tool falla**) | **`False`** | `El titular está vacío o no es válido` |
+| Parámetro inexistente | `True` | `Error executing tool …: validation error` |
+
+`isError` sólo se activaba cuando el fallo ocurría en la **capa MCP**. Si la herramienta *devolvía* un mensaje de error —que es lo que hacían las once— para el protocolo eso era un éxito. Éxito y fallo salían por el mismo canal y sin marca. Y «parsear como JSON» no valía de heurística: `get_forecast` devuelve prosa formateada siendo una ejecución correcta.
+
+**Se descartó `-> ToolResult`**, que era la opción aparentemente obvia por existir ya. Su esquema describe **el sobre, no la carta** —`data` queda como `anyOf: [{}, null]`, «cualquier cosa o nada»— y duplica el eje que MCP ya tiene: como `ToolResult.fail` se devuelve y no se lanza, produciría respuestas con `isError: false` y `success: false` **a la vez**, peor que la ambigüedad de partida. `ToolResult` sigue intacto donde estaba: en los `client.py` y `base_api.py`, transportando resultados dentro del proceso. No aparecía ni aparece en ningún `tool.py`.
+
+#### Un fallo que llevaba desde la Épica 1 escondido
+
+Al hacer que las tools lanzaran, el mensaje de error **seguía perdiéndose**, sustituido por una queja de Pydantic sobre el esquema de salida. La causa estaba en `log_tool_invocation`:
+
+```python
+except Exception:
+    log.error(..., exception=traceback.format_exc())
+    return "Internal error while executing tool"
+```
+
+**El decorador de observabilidad capturaba toda excepción y devolvía una cadena.** Consecuencia real, y anterior a este issue: un `KeyError` o un fallo de red no capturado dentro de una tool llegaba al cliente como **texto normal con `isError` a False** — indistinguible de un análisis correcto.
+
+Y explica por qué el contrato *parecía* coherente: no era que unas tools devolvieran errores por decisión y otras no. Era que el decorador **aplanaba todo a texto**, lo devuelto a propósito y lo lanzado por accidente. El arreglo es un `raise` en lugar de un `return`, con el principio detrás escrito en el código: **el decorador es para observar, no para decidir qué se responde**. El traceback completo sigue yendo al log.
+
+#### Salida estructurada: qué cuesta y qué no
+
+| Retorno declarado | `outputSchema` | `structuredContent` |
+|---|---|---|
+| `-> str` con `json.dumps` *(lo anterior)* | `{"result": string}` | el JSON **como texto** |
+| `-> dict` a secas | **`None`** | **`None`** |
+| `TypedDict` propio | **describe los campos reales** | el objeto, directo |
+
+Anotar `-> dict` no sirve de nada: MCP necesita un tipo **declarado**. Con él, el esquema publicado incluye además el docstring del tipo como `description`, así que el catálogo entrega documentación junto al contrato.
+
+Nueve herramientas declaran su tipo. **`get_alerts` y `get_forecast` se quedan en `-> str`**, y no es una carencia: producen prosa formateada para leer, no datos con estructura; declararles un tipo obligaría a inventar campos que la salida no tiene.
+
+#### El endpoint
+
+`POST /tools/{name}/execute` valida los argumentos contra el `inputSchema` **antes** de invocar (R4.5), acumulando todos los problemas en vez de parar en el primero — quien rellena un formulario prefiere corregirlo de una vez. Que la validación sea *previa* es lo que permite distinguir un campo mal escrito (**422**, con el nombre del campo) de un análisis que salió mal.
+
+Tres categorías, tres respuestas: **404** si la herramienta no existe, **422** si los argumentos no encajan, y **200 con `status` en `error`** si la herramienta se ejecutó y falló. Lo último no es un error HTTP: la petición era correcta y el servidor la atendió, así que se responde igual que en `/analyze`, donde una señal caída no tumba la respuesta.
+
+Y un timeout propio: `mcp_timeout` son 5 s, de sobra para un `list_tools`, pero `detect_clickbait_incoherence` tarda ~20 s la primera vez cargando el modelo de embeddings. Con el margen del descubrimiento, esa llamada moriría siempre en frío.
+
+#### Un fallo que habría llegado a producción
+
+Las excepciones lanzadas **dentro de una sesión MCP salen envueltas en `ExceptionGroup`**, porque la sesión abre un *task group* de anyio y anyio agrupa lo que se lance dentro. El `except InvalidArguments` de la ruta no la habría reconocido, y un argumento mal escrito habría devuelto un **500 en vez del 422** que le corresponde.
+
+La lógica ahora **devuelve** lo que ha ocurrido y decide fuera de la sesión qué excepción sale. Es una restricción general de cualquier código construido sobre anyio, y la segunda vez que aparece en este proyecto: la primera fueron los *cancel scopes* de los tests del catálogo.
+
+#### Y un hueco de cobertura que el cambio destapó
+
+Rehacer el contrato de las once herramientas **no rompió un solo test**. No porque estuviera bien cubierto, sino porque **nadie probaba las tools MCP**: todos los tests atacan la capa cliente (`lexical.detect`, `HFClient`), que devuelve `ToolResult` y no ha cambiado. `tests/integrations/test_tool_contract.py` cubre ahora esa frontera — que todas publiquen esquema, que un fallo marque `isError`, y que las de texto se envuelvan como corresponde.
+
 ### Metadata de las tools: categoría y procedencia (#97, primera parte)
 
 El catálogo necesita saber, de cada herramienta, **qué tipo de trabajo hace** y **de dónde viene**. El objeto `Tool` del protocolo MCP trae nombre, descripción y esquema, pero ninguna de esas dos cosas. MCP sí permite adjuntar un `meta` libre por herramienta, y se comprobó que **viaja intacto hasta el cliente**, así que la información se declara en el origen en vez de en un mapa cableado en la API — que obligaría a editarla cada vez que se añade una fuente, justo lo que R1.9 prohíbe.
