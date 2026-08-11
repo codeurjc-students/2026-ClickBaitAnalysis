@@ -40,9 +40,12 @@ async def test_log_tool_invocation_logs_failure(monkeypatch, capsys):
     async def failing_tool(state: str) -> str:
         raise RuntimeError("boom")
 
-    result = await failing_tool(state="CA")
-
-    assert result == "Internal error while executing tool"
+    # El decorador RELANZA: observar no es decidir qué se responde. Antes
+    # devolvía "Internal error while executing tool", y esa cadena impedía que
+    # la excepción llegara a MCP — el protocolo la tomaba por un resultado
+    # válido (`isError` a False) y el fallo era indistinguible de un éxito.
+    with pytest.raises(RuntimeError, match="boom"):
+        await failing_tool(state="CA")
 
     captured = capsys.readouterr()
 

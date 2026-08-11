@@ -271,3 +271,59 @@ class CatalogResponse(BaseModel):
         y obligaría al frontend a recorrer la lista para deducir lo mismo.
         """
         return any(s.status != ServerStatus.OK for s in self.servers)
+
+
+# --------------------------------------------------------------------------
+# Ejecución de una herramienta — POST /tools/{name}/execute
+# --------------------------------------------------------------------------
+
+
+class ExecuteRequest(BaseModel):
+    """Parámetros con los que invocar la herramienta.
+
+    Van en un diccionario libre y no en campos declarados porque **cada
+    herramienta tiene los suyos**: la forma correcta la publica su
+    ``input_schema`` en el catálogo, y contra ese esquema se validan antes de
+    ejecutar.
+    """
+
+    arguments: dict[str, Any] = Field(
+        default_factory=dict,
+        description="Argumentos de la herramienta, según su `input_schema`.",
+    )
+
+
+class ExecuteStatus(str, Enum):
+    """Cómo acabó la ejecución."""
+
+    OK = "ok"
+    ERROR = "error"  # la herramienta se ejecutó y falló
+
+
+class ExecuteResponse(BaseModel):
+    """Resultado de ejecutar una herramienta.
+
+    Que la herramienta falle **no es un error HTTP**: la petición era válida y
+    el servidor la atendió: lo que falló es el análisis. Por eso se responde 200
+    con ``status`` en ``error``, igual que una señal caída en ``/analyze`` no
+    tumba la respuesta. Los códigos de error se reservan para lo que sí es
+    culpa de la petición: 404 si la herramienta no existe, 422 si los argumentos
+    no encajan en su esquema.
+    """
+
+    tool: str
+    server: str
+    status: ExecuteStatus
+
+    data: dict[str, Any] | None = Field(
+        default=None,
+        description=(
+            "Salida estructurada de la herramienta, tal como la declara su "
+            "`output_schema`. Las que devuelven texto o listas llegan envueltas "
+            "en `result`, porque el protocolo sólo deja sin envolver los "
+            "objetos."
+        ),
+    )
+    detail: str | None = Field(
+        default=None, description="Motivo legible cuando `status` es `error`."
+    )

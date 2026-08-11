@@ -149,7 +149,12 @@ def test_cors_rechaza_un_origen_no_declarado():
 def test_openapi_documenta_las_rutas_y_el_contrato():
     esquema = client.get("/openapi.json").json()
 
-    assert set(esquema["paths"]) == {"/analyze", "/tools", "/health"}
+    assert set(esquema["paths"]) == {
+        "/analyze",
+        "/tools",
+        "/tools/{name}/execute",
+        "/health",
+    }
     # Las descripciones de los Field llegan al esquema: son lo que ve quien
     # consume /docs y lo que hereda el cliente TypeScript generado.
     propiedades = esquema["components"]["schemas"]["SignalResult"]["properties"]

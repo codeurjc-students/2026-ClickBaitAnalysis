@@ -1,8 +1,13 @@
 from mcp.server.fastmcp import FastMCP
+from mcp.server.fastmcp.exceptions import ToolError
 
 from backend.core.observability import log_tool_invocation
 from backend.integrations.metadata import tool_meta
 from backend.integrations.weather.client import WeatherAPI
+
+# Estas dos tools se quedan devolviendo `str`, y NO es una carencia: producen
+# prosa formateada para leer, no datos con estructura. Declararles un tipo
+# estructurado obligaría a inventar campos que la salida no tiene.
 
 
 def register(mcp: FastMCP):
@@ -11,15 +16,21 @@ def register(mcp: FastMCP):
 
     @mcp.tool(meta=tool_meta("Fuentes de contenido", __name__))
     @log_tool_invocation
-    async def get_alerts(state: str) -> str | dict:
+    async def get_alerts(state: str) -> str:
         """Get weather alerts for a US state.
 
         Args:
             state: Two-letter US state code (e.g. CA, NY)
+
+        Returns:
+            The active alerts as formatted text, or a note saying there are none.
+
+        Raises:
+            If the weather API fails.
         """
         response = await api.get_alerts_API(state)
         if not response.has_content():
-            return response.error or "Error fetching alerts"
+            raise ToolError(response.error or "Error fetching alerts")
 
         return response.data  # type: ignore
 
@@ -31,21 +42,27 @@ def register(mcp: FastMCP):
         Args:
             latitude: Latitude of the location
             longitude: Longitude of the location
+
+        Returns:
+            The next five forecast periods as formatted text.
+
+        Raises:
+            If the location cannot be resolved or the weather API fails.
         """
         # First get the forecast grid endpoint
         zone_url = await api.get_zone_by_points(latitude, longitude)
 
         if not zone_url.has_content():
-            return zone_url.error or "Unknown error while fetching zone"
+            raise ToolError(zone_url.error or "Unknown error while fetching zone")
 
         # Get the forecast URL from the points response
         response = await api.get_forecast_API(zone_url.data)  # type: ignore
         if not response.has_content():
-            return response.error or "Unknown error while retrieving forecast"
+            raise ToolError(response.error or "Unknown error while retrieving forecast")
 
         periods = response.data.get("properties", {}).get("periods")  # type: ignore
         if not periods:
-            return "No forecast periods available"
+            raise ToolError("No forecast periods available")
 
         forecasts = []
         for period in periods[:5]:  # Only show next 5 periods
