@@ -18,7 +18,7 @@ from contextlib import asynccontextmanager
 import httpx
 import pytest
 
-from backend.api import catalog
+from backend.api import catalog, mcp_session
 from backend.api.schemas import ServerStatus
 from backend.config.settings import settings
 
@@ -37,9 +37,9 @@ async def servidor_en_proceso(monkeypatch, mcp):
     # ASGITransport no lo ejecuta: hay que entrarlo a mano o toda petición falla.
     async with app.router.lifespan_context(app):
         monkeypatch.setattr(
-            catalog,
+            mcp_session,
             "_http_client",
-            lambda: httpx.AsyncClient(
+            lambda _timeout: httpx.AsyncClient(
                 transport=httpx.ASGITransport(app=app), base_url=_BASE
             ),
         )

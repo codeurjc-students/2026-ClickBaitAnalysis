@@ -26,12 +26,10 @@ Es el mismo patrón que las señales de ``/analyze``.
 
 import asyncio
 
-import httpx
 import structlog
-from mcp import ClientSession
-from mcp.client.streamable_http import streamable_http_client
 from mcp.types import Tool
 
+from backend.api.mcp_session import open_session
 from backend.api.schemas import (
     CatalogResponse,
     Dimension,
@@ -45,17 +43,6 @@ from backend.config.settings import settings
 from backend.integrations.nlp.model_cards import cards_by_signal
 
 log = structlog.get_logger()
-
-
-def _http_client() -> httpx.AsyncClient:
-    """Cliente HTTP para hablar con un servidor MCP.
-
-    Aislado en una función para que los tests lo sustituyan por uno montado
-    sobre ``ASGITransport`` y hablen el protocolo en el mismo proceso, sin abrir
-    puertos. El timeout es lo que distingue «caído» de «colgado»: sin él, un
-    servidor que acepta la conexión y no contesta dejaría ``/tools`` esperando.
-    """
-    return httpx.AsyncClient(timeout=settings.mcp_timeout)
 
 
 async def fetch_catalog() -> CatalogResponse:
@@ -93,12 +80,7 @@ async def fetch_catalog() -> CatalogResponse:
 
 async def _consultar(url: str) -> tuple[ServerInfo, list[ToolInfo]]:
     """Abre una sesión MCP, se presenta y pide el catálogo de ese servidor."""
-    async with (
-        _http_client() as http_client,
-        streamable_http_client(url, http_client=http_client) as (read, write, _),
-        ClientSession(read, write) as session,
-    ):
-        inicializacion = await session.initialize()
+    async with open_session(url, settings.mcp_timeout) as (session, inicializacion):
         listado = await session.list_tools()
 
     nombre = inicializacion.serverInfo.name
