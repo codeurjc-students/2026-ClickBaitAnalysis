@@ -23,12 +23,19 @@ conectadas en runtime no se puede hacer importando módulos.
 from contextlib import asynccontextmanager
 
 import structlog
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
 from backend.api.analyze import analyze
 from backend.api.catalog import fetch_catalog
-from backend.api.schemas import AnalyzeRequest, AnalyzeResponse, CatalogResponse
+from backend.api.execute import InvalidArguments, ToolNotFound, execute_tool
+from backend.api.schemas import (
+    AnalyzeRequest,
+    AnalyzeResponse,
+    CatalogResponse,
+    ExecuteRequest,
+    ExecuteResponse,
+)
 from backend.config.settings import settings
 from backend.core.health import check_health
 from backend.core.logging import configure_logging
@@ -112,6 +119,32 @@ async def get_tools() -> CatalogResponse:
     los demás se sirven igual.
     """
     return await fetch_catalog()
+
+
+@app.post("/tools/{name}/execute", response_model=ExecuteResponse, tags=["catálogo"])
+async def post_execute(name: str, request: ExecuteRequest) -> ExecuteResponse:
+    """Ejecuta una herramienta concreta con los argumentos indicados.
+
+    Para cuando no se quieren las cuatro señales —sólo el sentimiento, por
+    ejemplo— o para traer una noticia con la que luego analizar.
+
+    Los argumentos se validan contra el `input_schema` que publica `/tools`
+    **antes** de invocar, así que un campo mal escrito devuelve un 422 diciendo
+    cuál, en vez de llegar como un fallo de ejecución indistinguible de un
+    análisis que salió mal.
+
+    Devuelve **404** si la herramienta no existe, **422** si los argumentos no
+    encajan, y **200 con `status` en `error`** si la herramienta se ejecutó y
+    falló: eso último no es un error HTTP, porque la petición era correcta.
+    """
+    try:
+        return await execute_tool(name, request.arguments)
+    except ToolNotFound:
+        raise HTTPException(
+            status_code=404, detail=f"No hay ninguna herramienta llamada '{name}'."
+        ) from None
+    except InvalidArguments as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from None
 
 
 @app.get("/health", tags=["operación"])

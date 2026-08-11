@@ -55,5 +55,11 @@ class Settings(BaseSettings):
     # la conexión y no responde dejaría /tools colgado en vez de degradado.
     mcp_timeout: float = 5.0
 
+    # Ejecutar una herramienta necesita mucho más margen que descubrirla: un
+    # `list_tools` tarda milésimas, pero `detect_clickbait_incoherence` puede
+    # tardar ~20 s la primera vez porque carga el modelo de embeddings. Con el
+    # timeout de descubrimiento, esa llamada moriría siempre en frío.
+    mcp_execute_timeout: float = 60.0
+
 
 settings = Settings()  # type: ignore #Activa la validación al importar
