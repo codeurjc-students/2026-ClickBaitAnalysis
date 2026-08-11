@@ -13,7 +13,7 @@ conectarse al arrancar**: arranca siempre e informa del estado real en cada
 llamada.
 """
 
-from collections.abc import AsyncIterator
+from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 
 import httpx
@@ -36,7 +36,7 @@ def _http_client(timeout: float) -> httpx.AsyncClient:
 @asynccontextmanager
 async def open_session(
     url: str, timeout: float
-) -> AsyncIterator[tuple[ClientSession, InitializeResult]]:
+) -> AsyncGenerator[tuple[ClientSession, InitializeResult]]:
     """Abre una sesión MCP ya inicializada contra ``url``.
 
     Devuelve también el resultado del *handshake*, porque de ahí sale el nombre
