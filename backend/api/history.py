@@ -194,8 +194,23 @@ def _leer(
         total = conexion.execute("SELECT COUNT(*) FROM history").fetchone()[0]
         # fetchone() devuelve una tupla con un solo elemento, que es el resultado de la consulta COUNT(*). Se accede a ese elemento con [0] para obtener el número total de entradas en la tabla history.
         # Orden por id descendente: más estable que timestamp.
+        #
+        # Las columnas se nombran en vez de usar `SELECT *`, aunque suponga
+        # repetirlas por tercera vez en este fichero (ya están en `_ESQUEMA` y en
+        # `_INSERT`). Eso NO es acoplamiento: el acoplamiento es una propiedad de
+        # las fronteras entre módulos, y éste es justo el módulo cuyo trabajo es
+        # saberse el esquema. `SELECT *` no elimina ese conocimiento, lo DELEGA a
+        # quien consuma el resultado — que está al otro lado de la frontera.
+        #
+        # Consecuencia concreta: como `app.py` hace `HistoryEntry(**fila)`, con
+        # `SELECT *` la forma de la tabla decide la del contrato. Medido: añadir
+        # una columna se ignora en silencio, y RENOMBRAR una deja su campo a None
+        # también en silencio —titulares vacíos en la interfaz, sin un solo error
+        # en ningún log—. Nombrarlas convierte la salida de este módulo en una
+        # declaración deliberada, y mueve el fallo aquí dentro, que es su sitio.
         filas = conexion.execute(
-            "SELECT * FROM history ORDER BY id DESC LIMIT ? OFFSET ?",
+            "SELECT id, created_at, kind, origin, headline, tool, verdict, status, payload "
+            "FROM history ORDER BY id DESC LIMIT ? OFFSET ?",
             (limit, offset),
         ).fetchall()
 
