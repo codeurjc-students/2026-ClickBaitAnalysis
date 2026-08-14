@@ -160,7 +160,7 @@ Este documento define los requisitos para un Trabajo de Fin de Grado (TFG) que i
 1. LA Backend_API DEBERÁ conservar los registros de ejecución de herramientas en una base de datos o un almacenamiento de archivos.
 2. CUANDO se ejecute una herramienta, LA Backend_API DEBERÁ almacenar el nombre de la herramienta, los parámetros, el resultado, la marca de tiempo y el estado de ejecución.
 3. LA Backend_API DEBERÁ proporcionar un endpoint para recuperar el historial de ejecución con paginación.
-4. LA Backend_API DEBERÁ admitir el filtrado del historial de ejecución por nombre de herramienta, intervalo de fechas y estado.
+4. LA Backend_API DEBERÁ admitir el filtrado del historial de ejecución por nombre de herramienta, intervalo de fechas y estado. _(Dos ajustes por el cambio de qué se guarda —análisis, no invocaciones—: «nombre de herramienta» se satisface sobre las **ejecuciones sueltas**, que sí tienen una, mientras que un análisis invoca cinco señales y se filtra por **tipo de entrada**; y «estado» se desdobla en **veredicto** —qué concluyó el análisis— y **estado de ejecución** —si funcionó la maquinaria—, porque un análisis puede tener tres señales bien y una caída. Ver memoria de cambios.)_
 5. LA Backend_API DEBERÁ limitar el almacenamiento del historial para evitar un crecimiento ilimitado (por ejemplo, conservar las últimas 1000 ejecuciones o 30 días).
 6. AL consultar el historial, LA Backend_API DEBERÁ devolver los resultados en orden cronológico inverso.
 

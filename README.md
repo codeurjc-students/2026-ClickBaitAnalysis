@@ -1187,6 +1187,114 @@ Añadir el registro a `/analyze` convirtió, sin avisar, todos los tests de esa 
 
 `tests/api/test_history.py` cubre los dos lados por separado —el almacén llamando a sus funciones, el endpoint por HTTP— porque responden preguntas distintas: si los datos sobreviven y salen en orden, y si la decisión de «una entrada por análisis» se sostiene de verdad.
 
+### Historial: filtros y retención (#103)
+
+La otra mitad de R9. El issue anterior dejaba algo usable —historial paginado y en orden inverso— y éste añade dos refinamientos que traían decisiones propias, más un criterio que hubo que reinterpretar porque su premisa había cambiado.
+
+#### R9.4 se escribió para un historial que no existe
+
+«Filtrado por nombre de herramienta, intervalo de fechas y estado» se redactó pensando en el historial de **invocaciones**, que en #102 se descartó a favor de guardar análisis. Sobre lo que hay, dos de los tres criterios no encajan tal cual:
+
+**«Nombre de herramienta»** no aplica a un análisis, que invocó cinco señales y no tiene *una*. Se resuelve con dos parámetros en vez de uno: `kind` separa análisis de ejecuciones sueltas, y `tool` sólo casa con las segundas, que sí tienen una. Ambas columnas existían ya. Se descartó la lectura literal —guardar qué señales participaron en cada análisis— porque pide tabla nueva o columna de nombres y habilita una consulta de depuración, no de usuario.
+
+La UI es lo que hace que el desajuste no se note: las pestañas superiores son `kind`, y el desplegable de herramientas **sólo aparece dentro de «Herramientas»**. La restricción no se explica, se ve.
+
+**«Estado»** tampoco es una sola cosa. Un análisis puede tener tres señales bien y una caída, así que se desdobla: `verdict` es **qué concluyó** —`enganoso`, `factual`, `ambiguo`…— y es el que le interesa a quien mira sus análisis; `status` es **si funcionó la maquinaria**, y es operativo. En la pantalla sólo el primero merece sitio destacado. Es también el motivo por el que en #102 `status` quedó como cadena y no como enum.
+
+#### La poda: tres formulaciones y una que parecía correcta
+
+Podar al escribir estaba decidido de antemano; lo que no estaba era **cómo escribir el `DELETE`**, y ahí la intuición falló dos veces.
+
+| Formulación | desde 500 | desde 3000 | Coste |
+|---|---|---|---|
+| (a) `MIN` sobre subconsulta | → 700 | → 1000 | 801 µs |
+| (b) `OFFSET` sobre el índice | → 700 | → 1000 | 618 µs |
+| (c) borrar sólo la más vieja | **→ 500** | **→ 3000** | 14 µs |
+| **(d) corte por `MAX(id) - N`** | → 700 | → 1000 | **17,7 µs** |
+
+La (c) era 45 veces más barata que la ganadora y **está mal**: borra incondicionalmente, así que *mantiene* el tamaño de partida en vez de llevarlo al límite. Con 500 filas y techo de 1000 seguía borrando una por escritura — pérdida de datos silenciosa. Y el primer banco de pruebas no lo detectó porque arrancaba justo en el límite, así que su «quedan 1000 filas» salía por construcción y no porque funcionara.
+
+De ahí el criterio con el que se midieron: **convergencia desde ambos lados**, y las dos mitades significan cosas distintas. Desde abajo es **corrección**: borrar por debajo del techo destruye lo que la política dice conservar. Desde arriba es la **ruta de actualización**, y no es hipotética — el historial lleva creciendo sin techo desde #102, así que al desplegar la retención lo primero que se encuentra es una tabla por encima del límite. Que (d) reduzca de golpe —de 3000 a 1000 en *una* sentencia— es lo que evita tener que escribir una migración.
+
+#### Por qué `MAX(id) - N` es exacta, y dos veces que se afirmó mal
+
+La fórmula ganadora es la que *parece* ingenua, y restar del máximo sólo da «la N-ésima más nueva» si los ids son contiguos. Al justificarlo se dio dos veces una razón falsa antes de comprobarlo:
+
+1. «Los huecos vienen de la poda» — **falso**: la poda borra por la cola y deja un bloque contiguo.
+2. «Los huecos vienen de inserciones revertidas, porque `AUTOINCREMENT` quema el id» — **falso también**, y esta vez medido: tras una inserción revertida y una confirmada, la fila tiene el id 1. El contador se deshace con la transacción.
+
+Lo que `AUTOINCREMENT` garantiza es otra cosa: que un id **no se reutilice tras borrar**, para que el 40 podado no reaparezca señalando otro análisis. Que era justo para lo que se eligió en #102.
+
+Así que los ids son contiguos y la fórmula es exacta. Lo que la volvería aproximada es que algo borrara filas del *medio* —«fijar un análisis para que no se pierda», por ejemplo—: entonces el corte caería más arriba y se conservarían algo **menos** de N. Nunca más, así que el techo se respeta siempre y sólo el suelo se vuelve aproximado.
+
+#### El índice, y la pregunta que no se le hizo a WAL
+
+| | 1 000 filas | 10 000 | 50 000 |
+|---|---|---|---|
+| Poda por antigüedad **sin** índice | 2 374 µs | 11 113 µs | 54 595 µs |
+| Poda por antigüedad **con** índice | 0,99 µs | 1,02 µs | 0,97 µs |
+
+Unas 2.400 veces más rápida a 1.000 filas, y constante en vez de lineal. Y **no se paga al escribir**: 14,29 µs sin índice contra 13,91 µs con él, o sea que la diferencia está por debajo del ruido. Esa segunda medición es la que faltó en #102 al evaluar WAL — mirar sólo lo que una optimización acelera, sin mirar lo que encarece, es cómo se acaba adoptando algo que sale más lento.
+
+#### La retención no es sólo higiene de disco
+
+| `SELECT COUNT(*)` | 1 000 filas | 10 000 | 50 000 |
+|---|---|---|---|
+| | 886 µs | 10 215 µs | 50 465 µs |
+
+Perfectamente lineal, ~1 µs por fila, porque SQLite no cachea el conteo sino que recorre. Y `GET /history` lo ejecuta **en cada lectura** desde #102, para devolver el `total`. Sin techo, a 50.000 entradas cada petición gastaría 50 ms sólo en contar. La retención es lo que mantiene barata una lectura ya escrita.
+
+Los límites van a configuración (`history_max_entries`, `history_max_days`, `0` para desactivar) porque el criterio propone «1000 ejecuciones o 30 días» **como ejemplo, no como norma** — y porque en desarrollo interesa desactivarlos para no perder las pruebas propias. Se aplican los dos y manda el más estricto: uno acota el tamaño pero no el horizonte —mil análisis de golpe borran los de ayer— y el otro al revés.
+
+#### Un banco de pruebas que no midió lo que decía
+
+Conviene dejarlo escrito porque el error es fácil de repetir. El primer banco concluía que la poda por cantidad **escala con el tamaño de la tabla**:
+
+```
+1 615 µs (1k filas) → 11 990 µs (10k) → 61 860 µs (50k)
+```
+
+No lo demuestra: estaba escrito pasando `LIMIT = filas + 10`, es decir haciendo crecer **el límite** junto con la tabla. Medía el otro parámetro. En el sistema real el límite es fijo, así que el número que valía era el de la primera fila.
+
+Y el banco rehecho tampoco quedó fiable: con límite fijo sale plano a los tres tamaños, pero **también** al hacer crecer el límite hasta 50.010, lo que contradice al primero. No se explicó ese suelo de ~1 ms y no se construyó ninguna recomendación sobre esos números — la pregunta que importaba, el coste en régimen estacionario, la responde una medida directa.
+
+#### La poda va en la misma transacción, y qué cuesta eso
+
+Las dos sentencias se ejecutan dentro del `with` del `INSERT`, que es lo que hace que se cuelen en el `fsync` ya pagado: ninguna variante medida se acercó al doble de la referencia, así que el `DELETE` no añade sincronización propia.
+
+*(Esa medición sólo sirve para la lectura gruesa. Los deltas concretos eran ruido — podar salía «más rápido» que no podar, lo cual es imposible. La diferencia buscada, ~1,6 ms, es el 1 % de una escritura con `fsync` y no se resuelve contra un ruido del ±40 %.)*
+
+El precio de esa decisión: si la poda falla, **se deshace también el `INSERT`**, y como `record` se traga los errores el síntoma sería «el historial dejó de guardar» sin ruido. Separarlas en dos transacciones lo evitaría, pero perdería el ahorro que justifica podar al escribir. Se asume, cubierto con tests.
+
+#### Dos invariantes frágiles, reforzados sin que hubiera fallo
+
+Ninguno era un bug. Los dos eran código correcto **por razones que nadie había escrito**, que es una categoría distinta y que conviene tratar igual.
+
+**El `WHERE` compuesto.** Los filtros se acumulan en una lista de fragmentos que se unen con `AND`, y los valores viajan aparte por `?`. Era seguro, pero los cuatro filtros de igualdad se construían con `f"{columna} = ?"`: seguro **por dónde venía** esa variable —una tupla tres líneas más arriba—, no por cómo estaba escrita la línea. El día que alguien añada un filtro genérico por campo y pase el nombre desde la petición, esa misma línea se convierte en una inyección sin dar ninguna señal. Ahora el fragmento entero va en la tupla (`"kind = ?"`), y de paso el fichero queda coherente: los filtros de fecha ya eran literales.
+
+**El formato de las fechas.** `created_at` se compara entre cadenas, lo que sólo reproduce el orden cronológico si todo se escribe igual. Se comprobó que hoy acierta, incluso mezclando marcas con microsegundos y sin ellos: el carácter que sigue a los segundos es `.` (46) si los hay y `+` (43) si no, y 46 > 43, que es justo el orden correcto. Acierta por la tabla ASCII, no por diseño. Pero dependía de que **tres sitios** —el `INSERT`, el corte de la poda y los filtros— se acordaran de usar `isoformat()` en UTC. Un sufijo `Z` es el carácter 90 y ordena después de cualquier desfase: mezclarlo rompería las comparaciones en silencio. Todo pasa ahora por una única función.
+
+#### Detalles que costarían una tarde
+
+**El `+` de los desfases horarios.** En una cadena de consulta `+` significa espacio, así que `?since=2026-08-14T00:00:00+00:00` escrito a mano llega como `...00:00:00 00:00` y devuelve 422. No es un fallo de la API —cualquier cliente que codifique sus parámetros funciona— pero está avisado en la descripción del parámetro, que es donde lo verá quien genere el cliente Angular. La forma con sufijo `Z` no tiene el problema.
+
+**El `payload` corrupto.** Ninguna ruta del código puede producirlo: `_guardar` es el único sitio que escribe esa columna y siempre con `json.dumps`. Aun así, una sola fila rota dejaría ilegible el historial entero. Se descartó capturar el error y devolver `{}` —sustituye datos corruptos por datos falsos en silencio, y este sistema declara sus límites en vez de esconderlos— y se optó por que **siga fallando pero diciendo qué fila**: un `JSONDecodeError` pelado no identifica la entrada entre mil.
+
+#### Qué encontró revisar, frente a qué encontró medir
+
+Se aprovechó el issue para probar si una revisión automática sustituye al trabajo a mano. El resultado, con todas las cifras:
+
+| Origen | Resultado |
+|---|---|
+| Revisión multiagente en la nube (75 ficheros, 7.402 líneas) | **0 hallazgos** |
+| Revisión externa, primera tanda | 5 propuestas → 2 falsas, 2 insignificantes (0,005 % y 0,004 %), 1 buena |
+| Revisión externa, segunda tanda | 3 propuestas → 0 bugs, 2 invariantes frágiles que sí valía reforzar |
+| Medir a mano | la conexión sin cerrar, WAL descartado, el `COUNT(*)` lineal, la contaminación de tests, la convergencia de la poda, y cuatro afirmaciones propias desmentidas |
+
+La lectura: **lo que encontró cosas no fue revisar, fue medir.** Lo que aportaron las revisiones no fueron fallos sino la sospecha de que algo era correcto por accidente — y eso resultó ser un tipo de hallazgo útil, distinto del que se busca normalmente. Ninguna de las tres detectó un solo bug real.
+
+Se añade `ASYNC` al conjunto de reglas de ruff, que detecta llamadas bloqueantes dentro de funciones asíncronas. Con la advertencia de que **no conoce `sqlite3`**, así que el caso concreto de este issue se le habría escapado igual.
+
 ### Metadata de las tools: categoría y procedencia (#97, primera parte)
 
 El catálogo necesita saber, de cada herramienta, **qué tipo de trabajo hace** y **de dónde viene**. El objeto `Tool` del protocolo MCP trae nombre, descripción y esquema, pero ninguna de esas dos cosas. MCP sí permite adjuntar un `meta` libre por herramienta, y se comprobó que **viaja intacto hasta el cliente**, así que la información se declara en el origen en vez de en un mapa cableado en la API — que obligaría a editarla cada vez que se añade una fuente, justo lo que R1.9 prohíbe.

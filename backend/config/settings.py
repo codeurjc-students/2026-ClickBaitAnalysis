@@ -72,5 +72,23 @@ class Settings(BaseSettings):
     # historial sobreviva al contenedor.
     history_db: str = "var/history.db"
 
+    # Retención del historial. `0` desactiva cada límite por separado.
+    #
+    # Son configuración y no constantes porque el criterio propone «las últimas
+    # 1000 ejecuciones o 30 días» COMO EJEMPLO, no como norma. Y porque en
+    # desarrollo interesa desactivarlos (`HISTORY_MAX_ENTRIES=0`) para no perder
+    # las pruebas propias entre sesiones.
+    #
+    # Se aplican los dos: manda el más estricto. Uno acota el TAMAÑO pero no el
+    # horizonte temporal —mil análisis de golpe borran los de ayer— y el otro
+    # acota el horizonte pero no el tamaño —una ráfaga de 50 000 cabe entera en
+    # 30 días—. Cada uno tapa el punto ciego del otro.
+    #
+    # No es sólo higiene de disco: `GET /history` cuenta las filas en cada
+    # lectura y ese conteo es LINEAL (~1 µs por fila, medido). Sin techo, a
+    # 50 000 entradas cada petición gasta 50 ms sólo en contar.
+    history_max_entries: int = 1000
+    history_max_days: int = 30
+
 
 settings = Settings()  # type: ignore #Activa la validación al importar
