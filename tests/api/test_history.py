@@ -436,3 +436,161 @@ def test_los_topes_salen_en_el_esquema_openapi():
     assert parametros["limit"]["maximum"] == 100
     assert parametros["limit"]["minimum"] == 1
     assert parametros["offset"]["minimum"] == 0
+
+
+# ---------------------------------------------------------------- los filtros
+
+
+def _poblar():
+    """Un historial variado: análisis con tres veredictos y dos herramientas."""
+    _guardar(headline="engañoso", verdict="enganoso", status="ok")
+    _guardar(headline="factual", verdict="factual", status="ok")
+    _guardar(headline="roto", verdict="sin_datos", status="error")
+    _guardar(kind=HistoryKind.TOOL, tool="analyze_sentiment", status="ok")
+    _guardar(kind=HistoryKind.TOOL, tool="health_check", status="error")
+
+
+def test_filtro_por_kind():
+    """La pestaña «Análisis» / «Herramientas» de la pantalla."""
+    _poblar()
+
+    cuerpo = client.get("/history?kind=analysis").json()
+    assert cuerpo["total"] == 3
+    assert {i["kind"] for i in cuerpo["items"]} == {"analysis"}
+
+
+def test_filtro_por_tool_solo_alcanza_ejecuciones_sueltas():
+    """El desajuste de R9.4, resuelto: un análisis invocó CINCO herramientas, así
+    que no hay una por la que filtrarlo y su columna `tool` es nula. La pantalla
+    lo hace evidente enseñando el desplegable sólo dentro de «Herramientas»."""
+    _poblar()
+
+    cuerpo = client.get("/history?tool=analyze_sentiment").json()
+    assert cuerpo["total"] == 1
+    assert cuerpo["items"][0]["kind"] == "tool"
+
+
+def test_filtro_por_verdict():
+    """Lo que CONCLUYÓ: es el filtro que quiere quien mira sus análisis."""
+    _poblar()
+
+    cuerpo = client.get("/history?verdict=enganoso").json()
+    assert cuerpo["total"] == 1
+    assert cuerpo["items"][0]["headline"] == "engañoso"
+
+
+def test_filtro_por_status_es_el_operativo():
+    """Si funcionó la MAQUINARIA. Cruza los dos tipos de entrada, y por eso no
+    podía ser el mismo parámetro que el veredicto."""
+    _poblar()
+
+    cuerpo = client.get("/history?status=error").json()
+    assert cuerpo["total"] == 2
+    assert {i["kind"] for i in cuerpo["items"]} == {"analysis", "tool"}
+
+
+def test_los_filtros_se_acumulan():
+    _poblar()
+
+    cuerpo = client.get("/history?kind=analysis&status=ok").json()
+    assert cuerpo["total"] == 2
+    assert {i["verdict"] for i in cuerpo["items"]} == {"enganoso", "factual"}
+
+
+def test_el_total_va_ya_filtrado():
+    """Sin esto la interfaz pintaría «1-1 de 5» sobre una lista de uno."""
+    _poblar()
+
+    cuerpo = client.get("/history?verdict=factual").json()
+    assert cuerpo["total"] == 1
+    assert len(cuerpo["items"]) == 1
+
+
+def test_filtro_por_fechas():
+    _sembrar(4, dias=60)
+    _guardar(headline="de hoy")
+
+    desde = (datetime.now(timezone.utc) - timedelta(days=1)).isoformat()
+    cuerpo = client.get("/history", params={"since": desde}).json()
+
+    assert cuerpo["total"] == 1
+    assert cuerpo["items"][0]["headline"] == "de hoy"
+
+
+def test_las_fechas_se_normalizan_a_utc():
+    """`created_at` se compara entre CADENAS, y eso sólo ordena bien si todas
+    llevan el mismo huso: `10:00+02:00` es alfabéticamente menor que `09:00+00:00`
+    aunque sea el mismo instante. Sin normalizar, el filtro fallaría en silencio."""
+    _guardar(headline="de hoy")
+
+    # El MISMO instante expresado en dos husos distintos: mismo resultado.
+    hace_una_hora = datetime.now(timezone.utc) - timedelta(hours=1)
+    en_utc = hace_una_hora.isoformat()
+    en_otro_huso = hace_una_hora.astimezone(timezone(timedelta(hours=5))).isoformat()
+
+    assert client.get("/history", params={"since": en_utc}).json()["total"] == 1
+    assert client.get("/history", params={"since": en_otro_huso}).json()["total"] == 1
+
+
+def test_el_desfase_horario_hay_que_codificarlo_en_la_url():
+    """Documenta una trampa que no es de la API pero cuesta una tarde.
+
+    En una cadena de consulta, `+` significa ESPACIO. Así que un desfase escrito
+    a pelo (`...09:00:00+00:00`) llega como `...09:00:00 00:00` y no parsea. No
+    afecta a un cliente que codifique sus parámetros —Angular lo hace— pero sí a
+    quien teclee la URL. La forma con sufijo `Z` no tiene ese problema.
+    """
+    _guardar()
+
+    a_pelo = "/history?since=2020-01-01T00:00:00+00:00"
+    assert client.get(a_pelo).status_code == 422
+
+    assert client.get("/history?since=2020-01-01T00:00:00Z").status_code == 200
+    assert (
+        client.get(
+            "/history", params={"since": "2020-01-01T00:00:00+00:00"}
+        ).status_code
+        == 200
+    )
+
+
+def test_un_payload_corrupto_falla_diciendo_que_fila():
+    """Ninguna ruta del código puede producirlo: `_guardar` es el único sitio que
+    escribe `payload` y siempre con `json.dumps`. Sólo salta editando la base a
+    mano — y entonces conviene que diga CUÁL, porque un JSONDecodeError pelado no
+    identifica la entrada entre mil."""
+    _guardar()
+    with history._conectar() as conexion:
+        conexion.execute("UPDATE history SET payload = 'esto no es json'")
+
+    with pytest.raises(ValueError, match="entrada 1"):
+        _leer()
+
+
+def test_lo_escrito_y_lo_filtrado_usan_el_mismo_formato_de_fecha():
+    """La comparación de `created_at` es entre CADENAS, así que sólo reproduce el
+    orden cronológico si todo se escribe igual. Que pase por `_marca` es lo que
+    lo garantiza sin depender de que tres sitios se acuerden."""
+    _guardar()
+
+    filas, _ = _leer()
+    guardado = filas[0]["created_at"]
+
+    assert guardado.endswith("+00:00")  # nunca sufijo `Z`: ordena distinto
+    assert guardado == history._marca(datetime.fromisoformat(guardado))
+
+
+def test_un_kind_inventado_es_422():
+    """Al tiparlo como enum, FastAPI lo valida y publica los valores admitidos."""
+    assert client.get("/history?kind=inventado").status_code == 422
+
+
+def test_la_respuesta_declara_la_politica_de_retencion(monkeypatch):
+    """La pantalla la necesita para explicar por qué faltan los análisis viejos
+    —un borrado silencioso se lee como un fallo— y para acotar el selector de
+    fechas. Va en la respuesta para que salga de la configuración real."""
+    monkeypatch.setattr(settings, "history_max_entries", 250)
+    monkeypatch.setattr(settings, "history_max_days", 7)
+
+    retencion = client.get("/history").json()["retention"]
+    assert retencion == {"max_entries": 250, "max_days": 7}

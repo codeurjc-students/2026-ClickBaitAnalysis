@@ -21,6 +21,7 @@ conectadas en runtime no se puede hacer importando módulos.
 """
 
 from contextlib import asynccontextmanager
+from datetime import datetime
 from typing import Annotated
 
 import structlog
@@ -41,6 +42,7 @@ from backend.api.schemas import (
     HistoryKind,
     HistoryPage,
     Origin,
+    RetentionPolicy,
 )
 from backend.config.settings import settings
 from backend.core.health import check_health
@@ -189,6 +191,48 @@ async def post_execute(name: str, request: ExecuteRequest) -> ExecuteResponse:
 async def get_history(
     limit: Annotated[int, Query(ge=1, le=100)] = 20,
     offset: Annotated[int, Query(ge=0)] = 0,
+    kind: Annotated[
+        HistoryKind | None,
+        Query(description="`analysis` o `tool`. Las pestañas de la pantalla."),
+    ] = None,
+    tool: Annotated[
+        str | None,
+        Query(
+            max_length=100,
+            description=(
+                "Nombre de la herramienta. Sólo casa con ejecuciones sueltas: un "
+                "análisis invoca cinco señales y no tiene *una* herramienta."
+            ),
+        ),
+    ] = None,
+    verdict: Annotated[
+        str | None,
+        Query(
+            max_length=50,
+            description="Qué CONCLUYÓ el análisis: `enganoso`, `factual`, `ambiguo`…",
+        ),
+    ] = None,
+    status: Annotated[
+        str | None,
+        Query(
+            max_length=50,
+            description="Si funcionó la MAQUINARIA: `ok` o `error`. Filtro operativo.",
+        ),
+    ] = None,
+    since: Annotated[
+        datetime | None,
+        Query(
+            description=(
+                "Desde esta fecha, inclusive. Ojo: en una cadena de consulta `+` "
+                "significa ESPACIO, así que un desfase escrito a pelo "
+                "(`...T00:00:00+00:00`) llega roto y devuelve 422. Usa el sufijo "
+                "`Z` o codifica el parámetro."
+            )
+        ),
+    ] = None,
+    until: Annotated[
+        datetime | None, Query(description="Hasta esta fecha, inclusive.")
+    ] = None,
 ) -> HistoryPage:
     """Análisis y ejecuciones anteriores, del más reciente al más antiguo.
 
@@ -208,13 +252,38 @@ async def get_history(
     El mínimo de 1 no es cosmético: en SQLite un **LIMIT negativo significa «sin
     límite»**, así que `?limit=-1` no daría error, traería la tabla ENTERA a
     memoria y la serializaría. Es el borde que hay que tapar, no el `?limit=9999`.
+
+    Los filtros se acumulan con AND y el `total` se calcula **ya filtrado**, para
+    que la interfaz no pinte «1-3 de 500» sobre una lista de tres.
+
+    Hay dos parámetros donde el criterio hablaba de uno, y no es un descuido:
+    `verdict` es **qué concluyó el análisis** y es el que le importa a quien mira
+    sus análisis; `status` es **si funcionó la maquinaria** y es operativo. En la
+    pantalla sólo el primero merece sitio destacado.
+
+    La respuesta incluye `retention` para que la interfaz pueda explicar por qué
+    faltan los análisis viejos y acotar el selector de fechas sin cablear los
+    números.
     """
-    filas, total = await history.query(limit, offset)
+    filas, total = await history.query(
+        limit,
+        offset,
+        kind=kind,
+        tool=tool,
+        verdict=verdict,
+        status=status,
+        since=since,
+        until=until,
+    )
     return HistoryPage(
         items=[HistoryEntry(**fila) for fila in filas],
         total=total,
         limit=limit,
         offset=offset,
+        retention=RetentionPolicy(
+            max_entries=settings.history_max_entries,
+            max_days=settings.history_max_days,
+        ),
     )
 
 

@@ -401,16 +401,40 @@ class HistoryEntry(BaseModel):
     )
 
 
+class RetentionPolicy(BaseModel):
+    """Política de retención vigente, para que la interfaz no la cablee.
+
+    Va en la respuesta porque la pantalla la necesita para dos cosas, y las dos
+    son de usabilidad, no de adorno:
+
+    1. **Explicar por qué faltan análisis viejos.** La poda es invisible, y eso
+       es justo el problema: quien analizó algo hace cuarenta días y no lo
+       encuentra no piensa «se habrá podado», piensa que la aplicación ha perdido
+       sus datos. Un borrado silencioso se lee como un fallo.
+    2. **Acotar el selector de fechas.** Un calendario libre que permita pedir
+       «hace seis meses» y devuelva siempre vacío es una mala experiencia.
+
+    Y va aquí en vez de como constantes en Angular para que esos números salgan
+    de la configuración REAL: cableados, se desincronizarían el día que cambie
+    el `.env` y la pantalla seguiría prometiendo 30 días.
+    """
+
+    max_entries: int = Field(description="Entradas conservadas. 0 = sin límite.")
+    max_days: int = Field(description="Días conservados. 0 = sin límite.")
+
+
 class HistoryPage(BaseModel):
     """Una página del historial, en orden cronológico inverso."""
 
     items: list[HistoryEntry]
     total: int = Field(
         description=(
-            "Entradas totales, no las de esta página. La interfaz lo necesita "
-            "para paginar; sin él sólo puede saber si hay más pidiendo la "
-            "siguiente."
+            "Entradas totales que casan con el filtro, no las de esta página. La "
+            "interfaz lo necesita para paginar; sin él sólo puede saber si hay "
+            "más pidiendo la siguiente. Ojo con leerlo como «cuántos análisis he "
+            "hecho»: con retención activa es «cuántos se conservan»."
         )
     )
     limit: int
     offset: int
+    retention: RetentionPolicy
