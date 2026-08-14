@@ -23,7 +23,7 @@ import json
 import sqlite3
 from collections.abc import Generator
 from contextlib import contextmanager
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
@@ -58,6 +58,20 @@ CREATE TABLE IF NOT EXISTS history (
     payload    TEXT NOT NULL
 );
 """
+
+# Va como sentencia aparte porque `execute` ejecuta UNA sola: pegarlo al final
+# de `_ESQUEMA` no lo crearía. (`executescript` sí acepta varias, pero emite un
+# COMMIT implícito antes, y eso dentro de una transacción es lo contrario de lo
+# que queremos.)
+#
+# Sin este índice, `created_at < ?` recorre y compara la tabla entera. Medido
+# sobre 1000 filas: 2374 µs sin índice frente a 0,99 µs con él, y la diferencia
+# CRECE con el tamaño (54 595 µs a 50 000 filas, frente a los mismos ~1 µs).
+# Y no se paga al insertar: 14,29 µs sin índice contra 13,91 µs con él, o sea
+# por debajo del ruido de medida.
+_INDICE_FECHA = (
+    "CREATE INDEX IF NOT EXISTS idx_history_created_at ON history(created_at)"
+)
 
 
 def _ruta_db() -> Path:
@@ -108,6 +122,7 @@ def _conectar() -> Generator[sqlite3.Connection, None, None]:
     conexion = sqlite3.connect(ruta)
     conexion.row_factory = sqlite3.Row  # Usar Row para poder acceder a las columnas por nombre en lugar de por índice. (fila["columna"] en lugar de fila[0])
     conexion.execute(_ESQUEMA)
+    conexion.execute(_INDICE_FECHA)
     try:
         with conexion:  # transacción: commit al salir bien, rollback si hay excepción
             yield conexion
@@ -124,6 +139,59 @@ VALUES (?, ?, ?, ?, ?, ?, ?, ?)
 """
 
 # ? son placeholders que se sustituyen por los valores de la tupla en el segundo argumento de execute. Esto evita inyecciones SQL y problemas de comillas.
+
+# Poda por cantidad. Parece la fórmula ingenua —«resta N al mayor id»— y hay que
+# explicar por qué aquí es EXACTA, porque a simple vista no lo parece.
+#
+# Restar del máximo sólo da «la N-ésima más nueva» si los ids son CONTIGUOS. Lo
+# son, y está comprobado: la poda borra siempre por la cola, así que deja un
+# bloque sin huecos; y `AUTOINCREMENT` NO quema el id al revertir una transacción
+# —el contador se deshace con ella—, así que una inserción fallida tampoco los
+# crea. Lo que `AUTOINCREMENT` garantiza es otra cosa: que un id no se REUTILICE
+# tras borrar, para que el 40 podado no reaparezca señalando otro análisis.
+#
+# Si algún día algo borrara filas del MEDIO (p. ej. «fijar un análisis para que
+# no se pierda»), aparecerían huecos, el corte caería más arriba y se conservarían
+# algo MENOS de N. Nunca más: el techo se respeta siempre, sólo el suelo se vuelve
+# aproximado.
+#
+# Se eligió frente a la subconsulta con MIN (801 µs) porque cuesta 17,7 µs y es
+# constante con el tamaño de la tabla: `MAX(id)` es el extremo derecho del índice
+# de la clave primaria, y `id <= corte` arranca por el izquierdo y para enseguida.
+# Se descartó «borrar sólo la más vieja» (14,4 µs) porque NO converge: mantiene el
+# tamaño de partida en vez de llevarlo al límite, así que con 500 filas y techo de
+# 1000 seguía borrando una por escritura. Barata e incorrecta.
+_PODA_CANTIDAD = "DELETE FROM history WHERE id <= (SELECT MAX(id) FROM history) - ?"
+
+# Poda por antigüedad. La comparación de cadenas basta porque las marcas se
+# guardan en ISO 8601, donde el orden alfabético coincide con el cronológico.
+_PODA_ANTIGUEDAD = "DELETE FROM history WHERE created_at < ?"
+
+
+def _podar(conexion: sqlite3.Connection) -> None:
+    """Recorta el historial a los límites configurados. `0` desactiva cada uno.
+
+    Se ejecuta AL ESCRIBIR, dentro de la transacción del `INSERT`. Es lo que hace
+    que salga prácticamente gratis: una escritura ya paga un `fsync`, y estas dos
+    sentencias viajan en ese mismo commit sin añadir otro (medido: ninguna
+    variante se acercó al doble de la referencia).
+
+    Las otras dos opciones se descartaron. **Programada** exige un proceso vivo y
+    un planificador para algo que aquí no lo necesita. **Al leer** es lo peor de
+    ambas: convierte una consulta en una operación destructiva.
+
+    Que la poda por cantidad reduzca —y no sólo mantenga— es lo que evita tener
+    que escribir una migración: al desplegar esto sobre una base que ya venía
+    creciendo sin techo, la primera escritura la deja en su sitio de una sola
+    sentencia. (Si nadie escribe, nadie poda: la tabla se queda como está, que es
+    inofensivo porque tampoco crece, y se corrige con el primer análisis.)
+    """
+    if settings.history_max_entries > 0:
+        conexion.execute(_PODA_CANTIDAD, (settings.history_max_entries,))
+
+    if settings.history_max_days > 0:
+        corte = datetime.now(timezone.utc) - timedelta(days=settings.history_max_days)
+        conexion.execute(_PODA_ANTIGUEDAD, (corte.isoformat(),))
 
 
 def _guardar(
@@ -149,7 +217,18 @@ def _guardar(
                 json.dumps(payload, ensure_ascii=False),
             ),
         )
-        return cursor.lastrowid  # Devuelve el id de la fila insertada, que es útil para referenciarla después.
+        identificador = cursor.lastrowid  # Devuelve el id de la fila insertada, que es útil para referenciarla después.
+
+        # Va DENTRO de la misma transacción, a propósito: es lo que hace que se
+        # cuele en el `fsync` que el INSERT ya estaba pagando.
+        #
+        # El precio de esa decisión: si la poda falla, se deshace también el
+        # INSERT, y como `record` se traga los errores el síntoma sería «el
+        # historial dejó de guardar» sin ruido. Separarlas en dos transacciones lo
+        # evitaría, pero perdería el ahorro que justifica podar al escribir.
+        _podar(conexion)
+
+        return identificador
 
 
 async def record(

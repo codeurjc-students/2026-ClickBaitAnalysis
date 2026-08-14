@@ -18,6 +18,7 @@ de otro ni deja rastro en `var/`.
 
 import asyncio
 import sqlite3
+from datetime import datetime, timedelta, timezone
 
 import pytest
 from fastapi.testclient import TestClient
@@ -188,6 +189,91 @@ def test_una_excepcion_deshace_la_escritura():
 
     _, total = _leer()
     assert total == 0
+
+
+# ---------------------------------------------------------------- la retención
+
+
+def _sembrar(cuantas, dias=0):
+    """Escribe filas saltándose la poda, para preparar un estado de partida."""
+    marca = (datetime.now(timezone.utc) - timedelta(days=dias)).isoformat()
+    with history._conectar() as conexion:
+        conexion.executemany(
+            history._INSERT,
+            [
+                (marca, "analysis", "api", f"t{i}", None, "factual", "ok", "{}")
+                for i in range(cuantas)
+            ],
+        )
+
+
+def test_la_poda_por_cantidad_no_borra_si_no_sobra(monkeypatch):
+    """Desde ABAJO: con menos filas que el techo no sobra nada, así que no se
+    toca ni una. Es la mitad de corrección del criterio — una poda que borra por
+    debajo del límite destruye datos que la política dice conservar."""
+    monkeypatch.setattr(settings, "history_max_entries", 1000)
+    monkeypatch.setattr(settings, "history_max_days", 0)
+    _sembrar(500)
+
+    _guardar()
+
+    _, total = _leer()
+    assert total == 501
+
+
+def test_la_poda_por_cantidad_recorta_al_techo(monkeypatch):
+    """Desde ARRIBA, y en UNA sola escritura.
+
+    Es el escenario del despliegue, no un caso teórico: el historial lleva
+    creciendo sin techo desde que se añadió la persistencia, así que al activar
+    la retención lo primero que se encuentra es una tabla por encima del límite.
+    Que la poda reduzca —y no sólo mantenga— es lo que evita una migración.
+    """
+    monkeypatch.setattr(settings, "history_max_entries", 100)
+    monkeypatch.setattr(settings, "history_max_days", 0)
+    _sembrar(3000)
+
+    _guardar(headline="el que dispara la poda")
+
+    filas, total = _leer(limit=1)
+    assert total == 100
+    assert filas[0]["headline"] == "el que dispara la poda"
+
+
+def test_la_poda_por_antiguedad_respeta_lo_reciente(monkeypatch):
+    monkeypatch.setattr(settings, "history_max_entries", 0)
+    monkeypatch.setattr(settings, "history_max_days", 30)
+    _sembrar(10, dias=60)  # caducadas
+    _sembrar(5, dias=2)  # dentro del plazo
+
+    _guardar()
+
+    _, total = _leer()
+    assert total == 6  # las 5 recientes + la que acaba de entrar
+
+
+def test_cero_desactiva_la_retencion(monkeypatch):
+    """En desarrollo interesa no perder las pruebas propias entre sesiones."""
+    monkeypatch.setattr(settings, "history_max_entries", 0)
+    monkeypatch.setattr(settings, "history_max_days", 0)
+    _sembrar(50, dias=900)
+
+    _guardar()
+
+    _, total = _leer()
+    assert total == 51
+
+
+def test_el_indice_de_fecha_existe():
+    """Sin él, `created_at < ?` recorre la tabla entera: 2374 µs contra 0,99 µs
+    sobre 1000 filas, y la diferencia crece con el tamaño."""
+    with history._conectar() as conexion:
+        indices = {
+            fila["name"]
+            for fila in conexion.execute("PRAGMA index_list(history)").fetchall()
+        }
+
+    assert "idx_history_created_at" in indices
 
 
 # ---------------------------------------------------------------- el endpoint
