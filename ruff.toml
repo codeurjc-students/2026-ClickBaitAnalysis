@@ -16,7 +16,17 @@ select = [
     "C4",  # comprehensions
     "DTZ", # datetimes sin zona horaria
     "RUF", # reglas propias de ruff
+    "ASYNC", # llamadas bloqueantes dentro de un `async def`
 ]
+
+# Sobre `ASYNC`: detecta `open()`, `time.sleep()`, `subprocess` y clientes HTTP
+# síncronos dentro de funciones asíncronas — la clase de error que consiste en
+# olvidar el `asyncio.to_thread` y congelar el bucle de eventos entero mientras
+# dura una operación de disco o de red.
+#
+# Con una limitación que conviene saber: NO conoce `sqlite3`, así que el caso
+# concreto del historial se le habría escapado. Se activa igualmente porque es
+# gratis y cubre la familia; pero no sustituye a mirar.
 
 # NO se selecciona `BLE` (blind-except) a propósito: capturar `Exception` en las
 # fronteras de integración es DELIBERADO, y es lo que sostiene el aislamiento de
