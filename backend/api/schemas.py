@@ -32,6 +32,7 @@ Tres principios lo gobiernan:
    simplemente no emite veredicto, igual que una señal que ha fallado.
 """
 
+from datetime import datetime
 from enum import Enum
 from typing import Annotated, Any
 
@@ -327,3 +328,89 @@ class ExecuteResponse(BaseModel):
     detail: str | None = Field(
         default=None, description="Motivo legible cuando `status` es `error`."
     )
+
+
+# --------------------------------------------------------------------------
+# Historial — GET /history
+#
+# Se guardan ANÁLISIS, no invocaciones de herramienta: un `POST /analyze` es
+# UNA entrada, no cinco. La traza de invocaciones ya vive en los logs.
+# --------------------------------------------------------------------------
+
+
+class HistoryKind(
+    str, Enum
+):  # Añadir str es un MIXIN!!! (Herencia múltiple para obtener funciones como json.dumps, el cual no funciona con Enum puro)
+    """Define qué acción produjo la entrada en el historial."""
+
+    ANALYSIS = "analysis"  # Generado por POST /analyze (señales contrastadas)
+    TOOL = "tool"  # Generado por POST /tools/{name}/execute (herramienta suelta)
+
+
+class Origin(str, Enum):
+    """Desde dónde se pidió la entrada en el historial. El prototipo distingue chat y formulario."""
+
+    FORM = "form"
+    CHAT = "chat"  # aún no existe: llega con el agente
+    API = "api"  # llamada directa, sin interfaz
+
+
+class HistoryEntry(BaseModel):
+    """Una entrada del historial.
+
+    Sobre por qué unos campos son enums y otros cadenas sueltas: los enums
+    describen lo que se calcula AHORA, y publican en OpenAPI el conjunto cerrado
+    de valores para que el cliente pueda generar un tipo unión. Pero esto son
+    **datos leídos de disco, que pudo escribir otra versión del código**, y un
+    enum sobre eso es una bomba de relojería: el día que cambie un valor, las
+    filas antiguas dejan de validar y `GET /history` devuelve un 500 por una
+    entrada de hace seis meses.
+
+    De ahí el reparto: `kind` y `origin` son un conjunto minúsculo, estable y
+    bajo nuestro control (si cambiara, se migraría a mano) → enum. `verdict`
+    procede de ``OverallVerdict``, un vocabulario de dominio que va a CRECER
+    conforme se añadan tipos de clickbait → cadena. `status` se queda en cadena
+    porque su significado aún difiere entre tipos —en un análisis es «alguna
+    señal funcionó», en una herramienta es «no falló»— y eso se replantea al
+    llegar el filtrado (#103).
+    """
+
+    id: int
+    created_at: datetime
+    kind: HistoryKind
+    origin: Origin
+
+    headline: str | None = Field(
+        default=None, description="Titular analizado. Nulo en ejecuciones sueltas."
+    )
+    tool: str | None = Field(
+        default=None, description="Herramienta invocada. Nulo en análisis completos."
+    )
+    verdict: str | None = Field(
+        default=None, description="Veredicto global. Nulo en ejecuciones sueltas."
+    )
+    status: str
+
+    payload: dict[str, Any] = Field(
+        description=(
+            "La respuesta COMPLETA que se devolvió en su momento. Es lo que "
+            "permite volver a mostrar el resultado sin reejecutar — que además "
+            "de costar ~20 s podría dar otro resultado, porque las señales "
+            "remotas no son deterministas."
+        )
+    )
+
+
+class HistoryPage(BaseModel):
+    """Una página del historial, en orden cronológico inverso."""
+
+    items: list[HistoryEntry]
+    total: int = Field(
+        description=(
+            "Entradas totales, no las de esta página. La interfaz lo necesita "
+            "para paginar; sin él sólo puede saber si hay más pidiendo la "
+            "siguiente."
+        )
+    )
+    limit: int
+    offset: int

@@ -13,11 +13,13 @@ Version de Python: 3.12.3
 | Hito | Fecha | Contenido | Requisitos |
 |---|---|---|---|
 | **H1 · Diseño de interfaz** | ago–sep 2026 | Wireframes de pantallas y navegación, definición de funcionalidades, diseño de los endpoints REST | — |
-| **H2 · `v0.3` API REST** | octubre | FastAPI: exposición de las tools, catálogo con metadatos, historial de ejecución, OpenAPI, CORS, tests | **R4, R5** |
+| **H2 · `v0.3` API REST** | octubre | FastAPI: exposición de las tools, catálogo con metadatos, historial **persistente**, OpenAPI, CORS, tests | **R4, R5, R9** |
 | **H3 · `v0.4` SPA funcional** | noviembre | Angular: análisis de un titular → resultados con explicabilidad visual (cues resaltados, contraste de señales), catálogo de tools | **R6** |
-| **H4 · `v0.5` Docker + persistencia** | diciembre | Docker Compose (MCP + API / web), historial persistente, despliegue continuo | **R7, R8** |
+| **H4 · `v0.5` Docker** | diciembre | Docker Compose (MCP + API / web), **volumen** para el historial, despliegue continuo | **R7, R8** |
 | **H5 · `v1.0` Pulido y despliegue** | enero 2027 | Responsive, gestión de errores, pruebas E2E, despliegue | R6 |
 | **H6 · Memoria y defensa** | ene–feb 2027 | Redacción de la memoria y preparación de la defensa | — |
+
+_(Corrección de la tabla, 2026-08-11: **R9 —la persistencia— no figuraba en ninguna fila**. H2 pedía «historial de ejecución» y H4 «historial persistente», pero el requisito que los sostiene no estaba listado en ninguno de los dos. Se asigna a H2: hacer el historial en memoria ahora y persistirlo en diciembre sería construirlo dos veces y entregar una pantalla que pierde los datos al reiniciar. A H4 le queda lo que de verdad le corresponde — montar el volumen (R7.6) para que ese fichero sobreviva al contenedor.)_
 
 **Criterios de priorización:**
 
@@ -1095,6 +1097,95 @@ La lógica ahora **devuelve** lo que ha ocurrido y decide fuera de la sesión qu
 #### Y un hueco de cobertura que el cambio destapó
 
 Rehacer el contrato de las once herramientas **no rompió un solo test**. No porque estuviera bien cubierto, sino porque **nadie probaba las tools MCP**: todos los tests atacan la capa cliente (`lexical.detect`, `HFClient`), que devuelve `ToolResult` y no ha cambiado. `tests/integrations/test_tool_contract.py` cubre ahora esa frontera — que todas publiquen esquema, que un fallo marque `isError`, y que las de texto se envuelvan como corresponde.
+
+### Historial persistente: la API deja de ser sin estado (#102)
+
+Hasta aquí cada petición se atendía con lo que traía dentro y no dejaba rastro: reiniciar el proceso no perdía nada porque no había nada que perder. R9 rompe eso — el usuario tiene que poder volver a ver un análisis de ayer— y con ello aparece la primera escritura a disco del backend.
+
+#### Se guardan análisis, no invocaciones
+
+Al pie de la letra, «registrar cada ejecución de herramienta» significaría que un solo `POST /analyze` dejara **cinco filas**, una por señal. La pantalla resultante sería una lista de `detect_clickbait_lexical` repetido, sin el titular por ningún sitio: nadie reconoce ahí lo que hizo.
+
+Esa granularidad sí hace falta, pero **ya existe**: `log_tool_invocation` registra cada invocación con parámetros y duración. Son dos registros con dos públicos —depuración y persona— y mezclarlos estropea los dos. Aquí se guarda lo que el usuario reconoce: un análisis, con su titular y su veredicto.
+
+Se guarda la respuesta **completa**, no sólo el veredicto. Reejecutar al abrir la entrada no valdría por dos motivos: cuesta ~20 s en frío por la carga perezosa de MiniLM, y las señales remotas **no son deterministas**, así que el «resultado anterior» podría salir distinto. Un historial que cambia lo que dice no es un historial.
+
+#### SQLite detrás de tres funciones
+
+Lo que protege de un cambio de requisitos no es elegir el almacén más flexible, sino **aislarlo**: sólo `backend/api/history.py` sabe que hay SQL, y cambiar de motor es reescribir ese fichero sin tocar endpoints ni sus tests. Mismo patrón que `get_nlp_backend`, que permitió pasar de HuggingFace a local sin tocar ninguna señal.
+
+Se descartó **JSONL** —una línea por análisis, aún más simple— porque los requisitos piden paginación, filtros y orden inverso, y con un fichero plano *cada* consulta tendría que leerlo entero, parsearlo y ordenarlo en memoria para quedarse con veinte. Las consultas son justo lo que un fichero plano no sabe hacer.
+
+El aislamiento incluye **el formato**, no sólo el motor: el `json.dumps` y el `json.loads` viven los dos dentro del módulo. Que el segundo estuviera fuera —en `app.py`— hacía el aislamiento falso en una línea: con Postgres y una columna `jsonb` el driver ya devuelve el objeto construido, y ese `json.loads` externo habría reventado con un `TypeError` en un fichero que, por diseño, no debía tocarse.
+
+La base va a **`var/` y no a `data/`**: `data/` está versionado —datasets y splits congelados, que no deben cambiar nunca— y esto es estado que cambia en cada petición. Juntarlos acaba en un `git add data/` que commitea la base de datos. `var/` es además el directorio que se montará como volumen en H4.
+
+`origin` (`form` / `chat` / `api`) se declara desde el primer día aunque el chat no exista todavía: el prototipo ya distingue esos orígenes y añadir la columna después obligaría a migrar. Lo mismo con `tool`, `verdict` y `status`, que sólo se consultarán al llegar el filtrado (#103).
+
+#### Un fallo al guardar no hunde la respuesta
+
+`record` captura y devuelve `None`. Capturar `Exception` a secas suele ser mala señal, y aquí la distinción está en **qué papel juega lo que falla**: el análisis ya se hizo y es correcto, guardarlo es un efecto colateral. Con el disco lleno, devolver un 500 y tirar un análisis bueno de 20 s es peor que servirlo sin guardarlo. El motivo queda en el log.
+
+Es lo contrario del fallo de `log_tool_invocation` corregido en #100, donde lo tragado **era la respuesta**. La regla que separa los dos casos: puedes tragarte un fallo si lo que falla no es lo que te preguntaron.
+
+#### Tres «mejoras evidentes», medidas
+
+Una revisión externa señaló cinco puntos de rendimiento. Medirlos antes de aplicarlos descartó tres y destapó uno que no estaba en la lista.
+
+| Operación | Coste |
+|---|---|
+| `Path.mkdir(parents=True, exist_ok=True)` sobre directorio existente | 7,2 µs |
+| `CREATE TABLE IF NOT EXISTS` sobre tabla existente | 9,9 µs |
+| `_conectar()` + `INSERT` + `commit` | **193 792 µs** |
+
+Ejecutar el esquema y el `mkdir` en cada conexión cuesta el **0,005 %** y el **0,004 %** de lo que envuelven. Se quedan: hacen que el sistema funcione recién clonado el repo sin ningún paso de instalación, y evitar esa comprobación exigiría cachearla en una variable de módulo — que rompe los tests, porque el segundo test que apunta a otro `tmp_path` encontraría el indicador ya puesto y fallaría con `no such table`.
+
+El **timeout** que se proponía añadir ya existía: `sqlite3.connect` lo trae en 5 s por defecto, y medirlo lo confirma (esperó 5,01 s antes de `database is locked`). No fallaba «casi inmediatamente».
+
+#### WAL: la recomendación de manual, descartada por medición
+
+Activar `journal_mode=WAL` es el consejo estándar para SQLite bajo una aplicación web, y aquí **sale más lento**:
+
+| `journal_mode` | `synchronous` | ms/escritura |
+|---|---|---|
+| DELETE *(por defecto)* | FULL | 164 |
+| WAL | FULL | 226 |
+| WAL | NORMAL | 251 |
+| WAL | OFF | 0,47 |
+
+El motivo: al cerrar la **última** conexión a una base en modo WAL, SQLite ejecuta un checkpoint completo. Con «una conexión por operación» eso ocurre en cada escritura. WAL rinde cuando las conexiones se mantienen abiertas — exactamente lo que este diseño no hace. Son dos decisiones acopladas, y quedarse con media de cada una es peor que con cualquiera entera.
+
+Los 0,47 ms de `synchronous=OFF` prueban que esos ~164 ms son **todo `fsync`**. No se toca: un historial que se pierde al cortarse la luz no es un historial, y es el único de los cambios evaluados que sacrifica una garantía real por velocidad. Con la advertencia de que la medida se tomó sobre el disco virtual de WSL2, donde el `fsync` atraviesa hasta el anfitrión Windows; en Linux nativo son décimas de milisegundo. Queda apuntado para volver a medirlo al contenerizar y decidir entonces si la escritura debe salir de la ruta de respuesta.
+
+#### La conexión que no se cerraba
+
+El punto que sí era real, aunque por un motivo distinto del que se le atribuía. En `sqlite3`, el `with` de una conexión gestiona la **transacción** —commit al salir bien, rollback si salta algo— y **no la cierra**. Se afirmaba que eso provocaría un agotamiento de descriptores y la caída del proceso; medido, no es así, pero tampoco es inocuo:
+
+| Escrituras | Descriptores tras la ráfaga | Tras `gc.collect()` |
+|---|---|---|
+| 500 | +75 | +0 |
+| 2 000 | +96 | +0 |
+| 8 000 | +99 | +0 |
+| 20 000 | +163 | +0 |
+| 20 000 **con `close()`** | **+0** | — |
+
+No es una fuga lineal —20 000 escrituras no dejan 20 000 descriptores— pero el atasco crece y `gc.collect()` lo devuelve siempre a cero: **son conexiones esperando al recolector de ciclos**, no al contador de referencias. El código era correcto por accidente, apoyado en un detalle de implementación de CPython que PyPy no comparte. `_conectar` pasa a ser un gestor de contexto propio que cierra en un `finally`, y el orden importa: el `with` interno sale antes, así que confirma y **luego** cierra — al revés se perdería la escritura, porque cerrar con una transacción pendiente la deshace.
+
+#### La ruta relativa y la segunda base de datos
+
+`history_db` es `var/history.db`, una ruta **relativa**, y una ruta relativa se resuelve contra el directorio desde el que se arrancó el proceso. Lanzar `uvicorn` desde `backend/` en lugar de desde la raíz crearía una segunda base de datos vacía — y como se crea sin quejarse, el síntoma no sería un error sino «se ha borrado el historial». Se ancla a la raíz del repo vía `__file__`, respetando las rutas absolutas, que son las que se configurarán en el contenedor.
+
+#### Validar en la firma, no recortar a mano
+
+`limit` y `offset` se declaran con `Query(ge=1, le=100)` en vez de acotarse dentro de la función. Así los topes salen publicados en el esquema OpenAPI —del que se genera el cliente Angular— y pedir de más devuelve un **422** diciendo cuál es el máximo, en lugar de servir otra cosa en silencio.
+
+El mínimo de 1 no es cosmético: **en SQLite un `LIMIT` negativo significa «sin límite»**. Sin ese borde, `?limit=-1` no daría error: traería la tabla entera a memoria y la serializaría a JSON. El caso peligroso no era `?limit=999999`, era el negativo.
+
+#### Los tests escribían en el historial de verdad
+
+Añadir el registro a `/analyze` convirtió, sin avisar, todos los tests de esa ruta en escritores del historial real: una corrida de la suite dejaba cuatro entradas «Un titular» en `var/history.db`. El aislamiento va en un fixture `autouse` de `tests/conftest.py` y no en el fichero que prueba el historial, porque **quien contamina no es quien lo prueba**: lo hace cualquier test que llame a un endpoint que registre, incluidos los que aún no existen.
+
+`tests/api/test_history.py` cubre los dos lados por separado —el almacén llamando a sus funciones, el endpoint por HTTP— porque responden preguntas distintas: si los datos sobreviven y salen en orden, y si la decisión de «una entrada por análisis» se sostiene de verdad.
 
 ### Metadata de las tools: categoría y procedencia (#97, primera parte)
 

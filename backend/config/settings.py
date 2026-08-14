@@ -61,5 +61,16 @@ class Settings(BaseSettings):
     # timeout de descubrimiento, esa llamada moriría siempre en frío.
     mcp_execute_timeout: float = 60.0
 
+    # Fichero SQLite del historial.
+    #
+    # Va en `var/` y no en `data/` a propósito: `data/` está versionado —guarda
+    # los datasets y los splits congelados, que no deben cambiar nunca— y esto
+    # es estado mutable que cambia en cada petición. Juntarlos acabaría en un
+    # `git add data/` que commitea la base de datos.
+    #
+    # Este directorio es el que se monta como volumen luego para que el
+    # historial sobreviva al contenedor.
+    history_db: str = "var/history.db"
+
 
 settings = Settings()  # type: ignore #Activa la validación al importar

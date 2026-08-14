@@ -153,6 +153,7 @@ def test_openapi_documenta_las_rutas_y_el_contrato():
         "/analyze",
         "/tools",
         "/tools/{name}/execute",
+        "/history",
         "/health",
     }
     # Las descripciones de los Field llegan al esquema: son lo que ve quien
