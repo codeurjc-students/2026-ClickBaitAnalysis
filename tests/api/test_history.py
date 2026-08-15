@@ -23,22 +23,24 @@ from datetime import datetime, timedelta, timezone
 import pytest
 from fastapi.testclient import TestClient
 
+from backend.analysis.domain import (
+    AnalyzeResponse,
+    Dimension,
+    DimensionVerdict,
+    OverallVerdict,
+    SignalResult,
+    SignalStatus,
+    SignalType,
+)
 from backend.api import app as app_mod
 from backend.api import history
 from backend.api.app import app
 from backend.api.execute import ToolNotFound
 from backend.api.schemas import (
-    AnalyzeResponse,
-    Dimension,
-    DimensionVerdict,
     ExecuteResponse,
     ExecuteStatus,
     HistoryKind,
     Origin,
-    OverallVerdict,
-    SignalResult,
-    SignalStatus,
-    SignalType,
 )
 from backend.config.settings import settings
 

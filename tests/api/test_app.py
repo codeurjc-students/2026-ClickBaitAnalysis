@@ -9,9 +9,7 @@ resuelven como globales del módulo en cada llamada.
 import pytest
 from fastapi.testclient import TestClient
 
-from backend.api import app as app_mod
-from backend.api.app import app
-from backend.api.schemas import (
+from backend.analysis.domain import (
     AnalyzeResponse,
     Dimension,
     DimensionVerdict,
@@ -20,6 +18,8 @@ from backend.api.schemas import (
     SignalStatus,
     SignalType,
 )
+from backend.api import app as app_mod
+from backend.api.app import app
 from backend.config.settings import settings
 
 client = TestClient(app)

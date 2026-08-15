@@ -12,14 +12,20 @@ import time
 import pytest
 from pydantic import ValidationError
 
-from backend.api import analyze as analyze_mod
-from backend.api.analyze import _SIGNALS, _aggregate, _build, _overall, _run_signals
-from backend.api.schemas import (
+from backend.analysis import orchestrator
+from backend.analysis.domain import (
     AnalyzeRequest,
     Dimension,
     DimensionVerdict,
     OverallVerdict,
     SignalStatus,
+)
+from backend.analysis.orchestrator import (
+    _SIGNALS,
+    _aggregate,
+    _build,
+    _overall,
+    _run_signals,
 )
 from backend.core.models import ToolResult
 from backend.integrations.nlp import lexical, linear
@@ -82,8 +88,8 @@ def señales(monkeypatch):
         lineal=True,
         delay=0.0,
     ):
-        monkeypatch.setattr(analyze_mod, "_api", _FakeAPI(label, sentiment, delay))
-        monkeypatch.setattr(analyze_mod, "_detector", _FakeDetector(similarity, delay))
+        monkeypatch.setattr(orchestrator, "_api", _FakeAPI(label, sentiment, delay))
+        monkeypatch.setattr(orchestrator, "_detector", _FakeDetector(similarity, delay))
 
         def fake_lexical(headline):
             time.sleep(delay)
@@ -261,7 +267,7 @@ async def test_cuerpo_en_blanco_equivale_a_no_tenerlo(señales, cuerpo):
 @pytest.mark.asyncio
 async def test_una_señal_que_revienta_no_tumba_a_las_demas(señales, monkeypatch):
     señales()
-    monkeypatch.setattr(analyze_mod._api, "zero_shot", _revienta)
+    monkeypatch.setattr(orchestrator._api, "zero_shot", _revienta)
 
     signals = {s.name: s for s in await _run_signals("Un titular", "Un cuerpo")}
 
@@ -338,7 +344,7 @@ async def test_la_dimension_y_el_tipo_salen_de_la_ficha(señales):
 async def test_clickbait_de_forma_con_cuerpo_coherente(señales):
     señales(label="clickbait", lexico=True, lineal=True, similarity=0.61)
 
-    response = await analyze_mod.analyze(
+    response = await orchestrator.analyze(
         AnalyzeRequest(headline="You Won't Believe What Happened Next", content="...")
     )
 
@@ -355,7 +361,7 @@ async def test_forma_sobria_pero_engañosa(señales):
     # Tres señales dicen "no es clickbait" y solo la incoherencia dice que sí.
     señales(label="factual news", lexico=False, lineal=False, similarity=0.22)
 
-    response = await analyze_mod.analyze(
+    response = await orchestrator.analyze(
         AnalyzeRequest(headline="Report Details Q3 Financial Results", content="...")
     )
 
@@ -371,9 +377,9 @@ async def test_si_todas_las_señales_fallan_no_hay_veredicto(señales, monkeypat
     for modulo, atributo in ((lexical, "detect"), (linear, "predict")):
         monkeypatch.setattr(modulo, atributo, lambda h: ToolResult.fail("caído"))
     for metodo in ("zero_shot", "classify"):
-        monkeypatch.setattr(analyze_mod._api, metodo, _falla)
+        monkeypatch.setattr(orchestrator._api, metodo, _falla)
 
-    response = await analyze_mod.analyze(AnalyzeRequest(headline="Un titular"))
+    response = await orchestrator.analyze(AnalyzeRequest(headline="Un titular"))
 
     assert response.verdict == OverallVerdict.SIN_DATOS
     assert not response.has_any_result

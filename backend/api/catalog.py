@@ -29,13 +29,12 @@ import asyncio
 import structlog
 from mcp.types import Tool
 
+from backend.analysis.domain import Dimension, SignalType
 from backend.api.mcp_session import open_session
 from backend.api.schemas import (
     CatalogResponse,
-    Dimension,
     ServerInfo,
     ServerStatus,
-    SignalType,
     ToolInfo,
     ToolModelCard,
 )
