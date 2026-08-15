@@ -1,6 +1,6 @@
-from collections import Counter
 import json
 import math
+from collections import Counter
 from pathlib import Path
 
 from backend.core.models import ToolResult
@@ -11,7 +11,7 @@ JSON_FILE = Path(__file__).resolve().parent / "linear_clickbait.json"
 # print(str(JSON_FILE))
 
 
-with open(JSON_FILE, "r", encoding="utf-8") as f:
+with open(JSON_FILE, encoding="utf-8") as f:
     JSON = json.load(f)
 
 
@@ -28,9 +28,9 @@ def featurize_cues(headline) -> list[int]:  # -> vector
 
     contador_category = Counter(categories_list)
     contador_cue = Counter(cue_list)
-    vector = list(contador_category[cat] for cat in lexical.PATTERNS) + list(
+    vector = [contador_category[cat] for cat in lexical.PATTERNS] + [
         contador_cue[cue] for cue in lexical.ALL_CUES
-    )
+    ]
     return vector
 
 
@@ -41,7 +41,7 @@ def predict(headline):
 
     vector = featurize_cues(headline)
     contribs = []
-    for w, name, x in zip(JSON["weights"], JSON["feature_names"], vector):
+    for w, name, x in zip(JSON["weights"], JSON["feature_names"], vector, strict=True):
         if x != 0:
             contr = w * x
             contribs.append((name, contr))

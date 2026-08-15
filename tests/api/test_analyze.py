@@ -1,0 +1,382 @@
+"""Tests de la orquestación de /analyze.
+
+Ninguno toca la red ni carga modelos: se sustituyen las cuatro fuentes reales
+(`_api`, `_detector`, `lexical.detect`, `linear.predict`) por dobles
+controlables. Las lambdas de `_SIGNALS` resuelven `_api` y `_detector` como
+globales del módulo EN CADA LLAMADA, así que monkeypatchear el módulo basta.
+"""
+
+import asyncio
+import time
+
+import pytest
+from pydantic import ValidationError
+
+from backend.api import analyze as analyze_mod
+from backend.api.analyze import _SIGNALS, _aggregate, _build, _overall, _run_signals
+from backend.api.schemas import (
+    AnalyzeRequest,
+    Dimension,
+    DimensionVerdict,
+    OverallVerdict,
+    SignalStatus,
+)
+from backend.core.models import ToolResult
+from backend.integrations.nlp import lexical, linear
+
+_SPECS = {spec.name: spec for spec in _SIGNALS}
+
+
+# ----- Dobles -----
+
+
+class _FakeAPI:
+    """Backend NLP sin red. `delay` sirve para medir la concurrencia."""
+
+    def __init__(self, label="clickbait", sentiment="neutral", delay=0.0):
+        self.label, self.sentiment, self.delay = label, sentiment, delay
+
+    async def zero_shot(self, text, model, labels):
+        await asyncio.sleep(self.delay)
+        return ToolResult.ok({"label": self.label, "score": 0.91})
+
+    async def classify(self, text, model):
+        await asyncio.sleep(self.delay)
+        return ToolResult.ok({"label": self.sentiment, "score": 0.84})
+
+
+async def _revienta(*args, **kwargs):
+    raise TimeoutError("el proveedor no respondió")
+
+
+async def _falla(*args, **kwargs):
+    return ToolResult.fail("el proveedor no respondió")
+
+
+class _FakeDetector:
+    def __init__(self, similarity=0.61, delay=0.0):
+        self.similarity, self.delay = similarity, delay
+
+    async def detect(self, headline, content):
+        await asyncio.sleep(self.delay)
+        return ToolResult.ok(
+            {
+                "similarity": self.similarity,
+                "incoherent": self.similarity < 0.3,
+                "headline": headline,
+                "content": content,
+            }
+        )
+
+
+@pytest.fixture
+def señales(monkeypatch):
+    """Instala los dobles. Devuelve una función para configurarlos por test."""
+
+    def instalar(
+        *,
+        label="clickbait",
+        sentiment="neutral",
+        similarity=0.61,
+        lexico=True,
+        lineal=True,
+        delay=0.0,
+    ):
+        monkeypatch.setattr(analyze_mod, "_api", _FakeAPI(label, sentiment, delay))
+        monkeypatch.setattr(analyze_mod, "_detector", _FakeDetector(similarity, delay))
+
+        def fake_lexical(headline):
+            time.sleep(delay)
+            return ToolResult.ok(
+                {
+                    "score": 2 if lexico else 0,
+                    "is_clickbait": lexico,
+                    "matches": [],
+                    "headline": headline,
+                }
+            )
+
+        def fake_linear(headline):
+            time.sleep(delay)
+            return ToolResult.ok(
+                {
+                    "is_clickbait": lineal,
+                    "probability": 0.88 if lineal else 0.12,
+                    "top_cues": [],
+                    "headline": headline,
+                }
+            )
+
+        monkeypatch.setattr(lexical, "detect", fake_lexical)
+        monkeypatch.setattr(linear, "predict", fake_linear)
+
+    return instalar
+
+
+def _signal(name, is_clickbait, status=SignalStatus.OK):
+    return _build(_SPECS[name], status, is_clickbait=is_clickbait)
+
+
+def _por_dimension(verdicts):
+    return {v.dimension: v for v in verdicts}
+
+
+# ----- Validación de entrada -----
+
+
+@pytest.mark.parametrize("blanco", [" ", "", "\t\n", "   "])
+def test_headline_en_blanco_se_rechaza(blanco):
+    # Un titular de solo espacios medía 1 carácter y pasaba `min_length=1`,
+    # produciendo un 200 con `sin_datos` en lugar de un 422.
+    with pytest.raises(ValidationError):
+        AnalyzeRequest(headline=blanco)
+
+
+def test_headline_se_normaliza():
+    assert AnalyzeRequest(headline="  Breaking News  ").headline == "Breaking News"
+
+
+# ----- _aggregate: invariantes 1 y 2 -----
+
+
+def test_señales_de_acuerdo_dan_veredicto_de_dimension(señales):
+    verdicts = _por_dimension(
+        _aggregate(
+            [
+                _signal("detect_clickbait", True),
+                _signal("detect_clickbait_lexical", True),
+                _signal("detect_clickbait_linear", True),
+            ]
+        )
+    )
+    assert verdicts[Dimension.FORMA].is_clickbait is True
+    assert len(verdicts[Dimension.FORMA].contributing) == 3
+
+
+def test_señales_en_discrepancia_no_se_resuelven_por_mayoria():
+    # Dos a uno NO gana: la discrepancia se declara, no se promedia.
+    verdicts = _por_dimension(
+        _aggregate(
+            [
+                _signal("detect_clickbait", False),
+                _signal("detect_clickbait_lexical", True),
+                _signal("detect_clickbait_linear", True),
+            ]
+        )
+    )
+    assert verdicts[Dimension.FORMA].is_clickbait is None
+    assert len(verdicts[Dimension.FORMA].contributing) == 3
+
+
+def test_veredicto_negativo_cuenta_como_voto():
+    # Regresión: con `if not signal.is_clickbait` en vez de `is None`, los votos
+    # False se descartarían y un titular factual saldría sin_datos.
+    verdicts = _por_dimension(_aggregate([_signal("detect_clickbait_lexical", False)]))
+    assert verdicts[Dimension.FORMA].is_clickbait is False
+
+
+def test_el_tono_no_vota_y_no_genera_dimension():
+    verdicts = _aggregate(
+        [
+            _signal("analyze_sentiment", None),
+            _signal("detect_clickbait_lexical", True),
+        ]
+    )
+    assert Dimension.TONO not in _por_dimension(verdicts)
+
+
+def test_señal_fallida_no_genera_dimension():
+    verdicts = _aggregate(
+        [_signal("detect_clickbait_incoherence", None, SignalStatus.ERROR)]
+    )
+    assert verdicts == []
+
+
+# ----- _overall: invariante 3 -----
+
+
+def _dim(dimension, is_clickbait):
+    return DimensionVerdict(dimension=dimension, is_clickbait=is_clickbait)
+
+
+def test_sin_dimensiones_es_sin_datos():
+    # Debe comprobarse ANTES que la ambigüedad: con la lista vacía el any() da
+    # False y caería en FACTUAL, declarando factual lo que nadie pudo analizar.
+    assert _overall([]) == OverallVerdict.SIN_DATOS
+
+
+def test_el_engaño_pesa_mas_que_la_forma():
+    # Tres señales de forma dicen "no" y una de engaño dice "sí": gana la de
+    # engaño. Por mayoría saldría "factual", que es justo el error a evitar.
+    verdict = _overall([_dim(Dimension.FORMA, False), _dim(Dimension.ENGANO, True)])
+    assert verdict == OverallVerdict.ENGANOSO
+
+
+def test_forma_sin_engaño_es_clickbait_de_forma():
+    verdict = _overall([_dim(Dimension.FORMA, True), _dim(Dimension.ENGANO, False)])
+    assert verdict == OverallVerdict.CLICKBAIT_DE_FORMA
+
+
+def test_todo_negativo_es_factual():
+    verdict = _overall([_dim(Dimension.FORMA, False), _dim(Dimension.ENGANO, False)])
+    assert verdict == OverallVerdict.FACTUAL
+
+
+def test_dimension_sin_resolver_es_ambiguo():
+    verdict = _overall([_dim(Dimension.FORMA, None), _dim(Dimension.ENGANO, False)])
+    assert verdict == OverallVerdict.AMBIGUO
+
+
+def test_una_deteccion_positiva_pesa_mas_que_una_discrepancia():
+    # Decisión consciente: la ambigüedad de forma no oculta el engaño detectado.
+    # Sigue visible en dimensions[], solo no manda en la etiqueta única.
+    verdict = _overall([_dim(Dimension.FORMA, None), _dim(Dimension.ENGANO, True)])
+    assert verdict == OverallVerdict.ENGANOSO
+
+
+# ----- _run_signals: aplicabilidad, aislamiento, orden -----
+
+
+@pytest.mark.asyncio
+async def test_sin_cuerpo_la_incoherencia_queda_no_aplicable(señales):
+    señales()
+    signals = {s.name: s for s in await _run_signals("Un titular", None)}
+
+    incoherencia = signals["detect_clickbait_incoherence"]
+    assert incoherencia.status == SignalStatus.NO_APLICABLE
+    assert incoherencia.is_clickbait is None
+    assert incoherencia.detail  # explica por qué, para pintarla en gris
+    # Las demás sí corren.
+    assert signals["detect_clickbait_lexical"].status == SignalStatus.OK
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("cuerpo", [None, "", "   "])
+async def test_cuerpo_en_blanco_equivale_a_no_tenerlo(señales, cuerpo):
+    señales()
+    signals = {s.name: s for s in await _run_signals("Un titular", cuerpo)}
+    assert signals["detect_clickbait_incoherence"].status == SignalStatus.NO_APLICABLE
+
+
+@pytest.mark.asyncio
+async def test_una_señal_que_revienta_no_tumba_a_las_demas(señales, monkeypatch):
+    señales()
+    monkeypatch.setattr(analyze_mod._api, "zero_shot", _revienta)
+
+    signals = {s.name: s for s in await _run_signals("Un titular", "Un cuerpo")}
+
+    caida = signals["detect_clickbait"]
+    assert caida.status == SignalStatus.ERROR
+    assert caida.is_clickbait is None
+    assert "TimeoutError" in caida.detail  # tipo + mensaje, para depurar
+    # Las otras cuatro sobreviven: ese es el punto de return_exceptions=True.
+    otras = [s for n, s in signals.items() if n != "detect_clickbait"]
+    assert all(s.status == SignalStatus.OK for s in otras)
+
+
+@pytest.mark.asyncio
+async def test_tool_result_fail_se_traduce_a_error_con_su_mensaje(señales, monkeypatch):
+    señales()
+    monkeypatch.setattr(
+        lexical, "detect", lambda h: ToolResult.fail("El titular está vacío")
+    )
+
+    signals = {s.name: s for s in await _run_signals("Un titular", "Un cuerpo")}
+    assert signals["detect_clickbait_lexical"].status == SignalStatus.ERROR
+    assert signals["detect_clickbait_lexical"].detail == "El titular está vacío"
+
+
+@pytest.mark.asyncio
+async def test_un_formato_inesperado_se_aisla_como_error(señales, monkeypatch):
+    # Si una tool cambia de formato, el KeyError del extractor sube al gather y
+    # degrada esa señal sola, en vez de devolver un 500.
+    señales()
+    monkeypatch.setattr(lexical, "detect", lambda h: ToolResult.ok({"otra_clave": 1}))
+
+    signals = {s.name: s for s in await _run_signals("Un titular", "Un cuerpo")}
+    assert signals["detect_clickbait_lexical"].status == SignalStatus.ERROR
+    assert "KeyError" in signals["detect_clickbait_lexical"].detail
+
+
+@pytest.mark.asyncio
+async def test_el_orden_de_las_señales_es_estable(señales):
+    señales()
+    con_cuerpo = [s.name for s in await _run_signals("Un titular", "Un cuerpo")]
+    sin_cuerpo = [s.name for s in await _run_signals("Un titular", None)]
+
+    # Aunque una se salte, la interfaz recibe siempre las tarjetas en el mismo
+    # orden: el de _SIGNALS, no el de finalización.
+    assert con_cuerpo == sin_cuerpo == [spec.name for spec in _SIGNALS]
+
+
+@pytest.mark.asyncio
+async def test_las_señales_corren_en_paralelo(señales):
+    # La razón de ser del gather: el coste es el de la más lenta, no la suma.
+    señales(delay=0.1)
+
+    inicio = time.perf_counter()
+    await _run_signals("Un titular", "Un cuerpo")
+    transcurrido = time.perf_counter() - inicio
+
+    assert transcurrido < 0.3  # secuencial serían ~0.5 s
+
+
+@pytest.mark.asyncio
+async def test_la_dimension_y_el_tipo_salen_de_la_ficha(señales):
+    señales()
+    signals = {s.name: s for s in await _run_signals("Un titular", "Un cuerpo")}
+
+    assert signals["detect_clickbait_incoherence"].dimension == Dimension.ENGANO
+    assert signals["analyze_sentiment"].dimension == Dimension.TONO
+    assert signals["detect_clickbait_lexical"].dimension == Dimension.FORMA
+
+
+# ----- analyze: extremo a extremo (con dobles) -----
+
+
+@pytest.mark.asyncio
+async def test_clickbait_de_forma_con_cuerpo_coherente(señales):
+    señales(label="clickbait", lexico=True, lineal=True, similarity=0.61)
+
+    response = await analyze_mod.analyze(
+        AnalyzeRequest(headline="You Won't Believe What Happened Next", content="...")
+    )
+
+    assert response.verdict == OverallVerdict.CLICKBAIT_DE_FORMA
+    assert response.has_any_result
+    assert len(response.signals) == len(_SIGNALS)
+    # El tono aparece como tarjeta pero no como dimensión.
+    assert "analyze_sentiment" in {s.name for s in response.signals}
+    assert Dimension.TONO not in {d.dimension for d in response.dimensions}
+
+
+@pytest.mark.asyncio
+async def test_forma_sobria_pero_engañosa(señales):
+    # Tres señales dicen "no es clickbait" y solo la incoherencia dice que sí.
+    señales(label="factual news", lexico=False, lineal=False, similarity=0.22)
+
+    response = await analyze_mod.analyze(
+        AnalyzeRequest(headline="Report Details Q3 Financial Results", content="...")
+    )
+
+    assert response.verdict == OverallVerdict.ENGANOSO
+    dimensiones = _por_dimension(response.dimensions)
+    assert dimensiones[Dimension.FORMA].is_clickbait is False
+    assert dimensiones[Dimension.ENGANO].is_clickbait is True
+
+
+@pytest.mark.asyncio
+async def test_si_todas_las_señales_fallan_no_hay_veredicto(señales, monkeypatch):
+    señales()
+    for modulo, atributo in ((lexical, "detect"), (linear, "predict")):
+        monkeypatch.setattr(modulo, atributo, lambda h: ToolResult.fail("caído"))
+    for metodo in ("zero_shot", "classify"):
+        monkeypatch.setattr(analyze_mod._api, metodo, _falla)
+
+    response = await analyze_mod.analyze(AnalyzeRequest(headline="Un titular"))
+
+    assert response.verdict == OverallVerdict.SIN_DATOS
+    assert not response.has_any_result
+    assert response.dimensions == []
+    # Aun así la respuesta es informativa: cada tarjeta dice qué le pasó.
+    assert all(s.detail for s in response.signals)

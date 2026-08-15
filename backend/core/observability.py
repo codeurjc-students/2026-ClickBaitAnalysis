@@ -47,6 +47,15 @@ def log_tool_invocation(func):
                 success=False,
                 exception=traceback.format_exc(),  # Guarda el traceback completo como string
             )
-            return "Internal error while executing tool"
+            # RELANZAR, no devolver un texto. Devolviéndolo, la excepción no
+            # llegaba nunca a MCP: el protocolo la veía como un resultado válido
+            # (`isError` a False) y el consumidor no podía distinguir un fallo de
+            # un análisis correcto. Además, con salida estructurada declarada,
+            # esa cadena tampoco encaja en el esquema y el motivo real se perdía
+            # detrás de un error de validación de Pydantic.
+            #
+            # El decorador es para OBSERVAR, no para decidir qué se responde: el
+            # traceback completo queda en el log, y quien llama recibe el error.
+            raise
 
     return wrapper

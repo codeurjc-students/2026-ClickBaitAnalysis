@@ -1,14 +1,35 @@
 import asyncio
 from datetime import datetime, timezone
-from typing import Literal
+from typing import Literal, TypedDict
 
 import httpx
 from mcp.server.fastmcp import FastMCP
 
 from backend.config.settings import settings
 from backend.core.observability import log_tool_invocation
+from backend.integrations.metadata import tool_meta
 
 PROBE_TIMEOUT = 5
+
+
+class Sonda(TypedDict):
+    """Resultado de sondear una integración."""
+
+    reachable: bool
+    error: str | None
+
+
+class Salud(TypedDict):
+    """Estado agregado del sistema y de cada integración por separado.
+
+    Se devuelven las dos cosas a propósito: el agregado sirve para un semáforo,
+    pero sin el detalle por integración no se puede saber **cuál** falla.
+    """
+
+    status: Literal["ok", "degraded", "down"]
+    timestamp: str
+    integrations: dict[str, Sonda]
+
 
 PROBES = {
     "weather": {
@@ -46,19 +67,31 @@ def _aggregate_status(integrations: dict) -> Literal["ok", "degraded", "down"]:
     return "degraded"
 
 
+async def check_health() -> Salud:
+    """Sondea todas las integraciones y agrega su estado.
+
+    Vive fuera de ``register`` porque lo consumen DOS fachadas: la tool MCP de
+    abajo y ``GET /health`` de la API REST. Duplicar el sondeo llevaría a
+    que las dos respondieran cosas distintas.
+    """
+    results = await asyncio.gather(*(_probe(**cfg) for cfg in PROBES.values()))
+    integrations = dict(zip(PROBES, results, strict=True))
+    return {
+        "status": _aggregate_status(integrations),
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "integrations": integrations,
+    }
+
+
 def register(mcp: FastMCP):
-    @mcp.tool()
+    # `integration` sale None: vive en core/ y no envuelve ninguna fuente
+    # externa. Es infraestructura, no una integración.
+    @mcp.tool(meta=tool_meta("Utilidades", __name__))
     @log_tool_invocation
-    async def health_check() -> dict:
+    async def health_check() -> Salud:
         """Comprueba la salud de las apis haciendo una llamada a cada una
 
         Returns:
             dict: Diccionario con estado, timestamp e integraciones
         """
-        results = await asyncio.gather(*(_probe(**cfg) for cfg in PROBES.values()))
-        integrations = dict(zip(PROBES, results))
-        return {
-            "status": _aggregate_status(integrations),
-            "timestamp": datetime.now(timezone.utc).isoformat(),
-            "integrations": integrations,
-        }
+        return await check_health()

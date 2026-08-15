@@ -4,3 +4,10 @@ __pycache__/
 .env
 .claude
 .vscode/settings.json
+
+CLAUDE.md
+
+# Estado mutable en ejecución (base de datos del historial). A diferencia de
+# data/, que guarda datasets y splits versionados, esto NO debe commitearse.
+var/
+repomix-output.xml

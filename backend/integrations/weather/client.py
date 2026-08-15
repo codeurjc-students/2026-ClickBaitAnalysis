@@ -1,12 +1,8 @@
-import httpx
-from typing import Any
-
 from backend.core.base_api import BaseAPI
 from backend.core.models import ToolResult
 
 
 class WeatherAPI(BaseAPI):
-
     # Constants
     BASE_URL = "https://api.weather.gov"
 

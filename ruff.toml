@@ -1,0 +1,54 @@
+# Configuración de ruff (linter + formateador).
+#
+# El conjunto de reglas se declara EXPLÍCITAMENTE en vez de heredar el de por
+# defecto: ruff lo amplía entre versiones, y con los defaults una actualización
+# de la herramienta rompería el CI sin que cambiara una línea de código.
+
+exclude = ["spikes", ".venv", "data"]
+
+[lint]
+select = [
+    "E",   # pycodestyle: errores
+    "F",   # pyflakes: imports sin usar, nombres indefinidos
+    "I",   # isort: orden de imports
+    "UP",  # pyupgrade: sintaxis moderna
+    "B",   # bugbear: patrones que suelen ser bugs
+    "C4",  # comprehensions
+    "DTZ", # datetimes sin zona horaria
+    "RUF", # reglas propias de ruff
+    "ASYNC", # llamadas bloqueantes dentro de un `async def`
+]
+
+# Sobre `ASYNC`: detecta `open()`, `time.sleep()`, `subprocess` y clientes HTTP
+# síncronos dentro de funciones asíncronas — la clase de error que consiste en
+# olvidar el `asyncio.to_thread` y congelar el bucle de eventos entero mientras
+# dura una operación de disco o de red.
+#
+# Con una limitación que conviene saber: NO conoce `sqlite3`, así que el caso
+# concreto del historial se le habría escapado. Se activa igualmente porque es
+# gratis y cubre la familia; pero no sustituye a mirar.
+
+# NO se selecciona `BLE` (blind-except) a propósito: capturar `Exception` en las
+# fronteras de integración es DELIBERADO, y es lo que sostiene el aislamiento de
+# fallos de todo el sistema (ToolResult.fail, gather(return_exceptions=True)).
+# Una señal caída no puede tumbar a las demás, y para eso hay que
+# capturar lo que sea que lance el proveedor.
+
+ignore = [
+    # El formateador ya mantiene el CÓDIGO dentro del ancho; lo que no puede
+    # partir son literales y prosa. Aquí E501 sólo salta en payloads simulados
+    # de los tests (hasta 196 caracteres) y en comentarios: reescribirlos a mano
+    # es puro trasiego sin ganancia.
+    "E501",
+
+    # Detectan homoglifos (cirílico disfrazado de latino). Aquí sólo saltan por
+    # comillas tipográficas (’ “ —) en texto español e inglés perfectamente
+    # legítimo.
+    "RUF001",
+    "RUF002",
+    "RUF003",
+]
+
+[lint.per-file-ignores]
+# Los tests importan fixtures y módulos por su efecto de registro.
+"tests/**" = ["F401"]

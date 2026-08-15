@@ -13,3 +13,10 @@ scikit-learn
 # En una máquina sin GPU, instala antes el torch de CPU:
 #   pip install torch --index-url https://download.pytorch.org/whl/cpu
 sentence-transformers
+#
+# --- Estilo: linter + formateador (configuración en ruff.toml) ---
+# Pineado a propósito, al contrario que el resto de este fichero: ruff añade
+# reglas entre versiones, y sin fijar la versión una actualización haría fallar
+# el CI sin que cambiara una línea de código. El CI lo instala por separado
+# (`pip install ruff==...`) para no meter tooling en las deps de ejecución.
+ruff==0.16.1

@@ -1,7 +1,8 @@
-from backend.integrations.nyt.client import NYTAPI
-import respx
 import pytest
+import respx
 from httpx import Response
+
+from backend.integrations.nyt.client import NYTAPI
 
 
 @pytest.fixture

@@ -1,6 +1,6 @@
 # Requisitos
 
-> Documento vivo: los requisitos pueden evolucionar durante el desarrollo. **Todo cambio se registra en la memoria del proyecto** (con su motivo).
+> Documento vivo: los requisitos pueden evolucionar durante el desarrollo. **Todo cambio queda registrado, con su motivo, en el [README](../README.md)** — en la sección de la épica o fase que lo originó.
 
 ## Introducción
 
@@ -12,9 +12,11 @@ Este documento define los requisitos para un Trabajo de Fin de Grado (TFG) que i
 - **MCP_Tool**: Herramienta individual que expone funcionalidad a través del protocolo MCP.
 - **API_Consumer**: Componente que realiza llamadas a APIs públicas externas.
 - **Web_Interface**: Aplicación Angular que permite interactuar con las herramientas MCP.
-- **Tool_Catalog**: Sistema de registro y descubrimiento de herramientas disponibles.
+- **Tool_Catalog**: Vista **calculada en cada consulta** de las herramientas disponibles y de lo que declara cada una. No almacena: descubre por *handshake* MCP. _(Ver memoria de cambios.)_
 - **NLP_Analyzer**: Componente que realiza análisis de procesamiento de lenguaje natural.
 - **Backend_API**: API REST implementada con FastAPI que expone funcionalidad del servidor MCP.
+- **Agent_Orchestrator**: Agente conversacional que interpreta consultas en lenguaje natural y decide qué MCP_Tools invocar (*tool calling*). Actúa como cliente MCP.
+- **LLM_Backend**: Proveedor del modelo de lenguaje que usa el Agent_Orchestrator; intercambiable por configuración (local vía Ollama o API externa).
 - **Docker_Environment**: Entorno de contenedores orquestado con Docker Compose.
 - **CI_Pipeline**: Pipeline de integración continua implementado con GitHub Actions.
 
@@ -31,6 +33,10 @@ Este documento define los requisitos para un Trabajo de Fin de Grado (TFG) que i
 3. EL MCP_Server DEBERÁ exponer las herramientas a través de la interfaz de protocolo MCP estándar.
 4. CUANDO se invoque una herramienta (tool), EL MCP_Server DEBERÁ enrutar la solicitud a la implementación MCP_Tool adecuada.
 5. SI falla la ejecución de una herramienta, ENTONCES EL MCP_Server DEBERÁ devolver una respuesta de error estructurada con detalles.
+6. EL MCP_Server DEBERÁ poder exponerse mediante **transporte HTTP** (`streamable-http`) además de `stdio`, para permitir su despliegue como contenedor independiente. _(Precondición del desacople: `stdio` exige que el cliente lance el servidor como subproceso, lo que no cruza contenedores.)_
+7. EL sistema DEBERÁ admitir la conexión a **varios MCP_Server especialistas** declarados por configuración; añadir o retirar uno NO DEBERÁ requerir cambios de código.
+8. SI un MCP_Server declarado no responde, ENTONCES el sistema DEBERÁ seguir operando con los restantes y reflejar su estado degradado. _(Alcance: **servidores MCP**, no las APIs externas que consumen sus tools — eso es R2.8. Ver memoria de cambios.)_
+9. Añadir una nueva MCP_Tool —una fuente de datos o una señal de análisis— NO DEBERÁ requerir modificar las herramientas existentes ni la interfaz web. _(Mitad de servidor: registro por módulo. Mitad de interfaz: el envoltorio uniforme de señales, R5.8. Ver memoria de cambios.)_
 
 ### Requisito 2: Herramientas de integración de API públicas
 
@@ -45,6 +51,7 @@ Este documento define los requisitos para un Trabajo de Fin de Grado (TFG) que i
 5. CUANDO se reciban respuestas de la API, EL API_Consumer DEBERÁ validar la estructura de la respuesta antes de procesarla.
 6. CUANDO se realice una llamada a la API, EL API_Consumer DEBERÁ rastrear el número de llamadas a la API utilizadas y registrarlo como **observabilidad interna** (logs). _(No se devuelve en la salida de la tool para no ensuciar la respuesta — ver memoria de cambios.)_
 7. DONDE una API tenga límites de uso, EL API_Consumer DEBERÁ rastrear la cuota restante y registrarla como **observabilidad interna** (logs). _(Ver memoria de cambios.)_
+8. SI una API externa declarada no responde, ENTONCES el sistema DEBERÁ seguir operando con las restantes y reflejar su estado degradado. _(Distinto de R1.8, que habla de servidores MCP. Ya satisfecho por el health check desde la Épica 1. Ver memoria de cambios.)_
 
 ### Requisito 3: Herramientas de análisis de texto con NLP
 
@@ -72,25 +79,28 @@ Este documento define los requisitos para un Trabajo de Fin de Grado (TFG) que i
 
 1. La Backend_API DEBERÁ implementarse utilizando FastAPI.
 2. La Backend_API DEBERÁ exponer un endpoint para enumerar todas las MCP_Tools disponibles con sus descripciones y parámetros.
-3. La Backend_API DEBERÁ exponer un endpoint para ejecutar una MCP_Tool específica con los parámetros proporcionados.
+3. La Backend_API DEBERÁ exponer un endpoint para ejecutar una MCP_Tool específica con los parámetros proporcionados. _(Sus consumidores son ejecutar **una señal suelta** —p. ej. sólo el sentimiento, sin lanzar las cuatro— y **traer una noticia** desde la pantalla de análisis; no un catálogo que haga de lanzador. Ver memoria de cambios.)_
 4. La Backend_API DEBERÁ exponer un endpoint para recuperar el historial de ejecución de las herramientas.
 5. CUANDO se reciba una solicitud de ejecución de una herramienta, LA Backend_API DEBERÁ validar los parámetros de entrada antes de la ejecución.
 6. LA Backend_API DEBERÁ devolver respuestas en formato JSON con una estructura coherente.
 7. LA Backend_API DEBERÁ incluir la configuración CORS para permitir las solicitudes de la aplicación frontend.
 8. DONDE sea beneficioso para desarrollo y documentación, LA Backend_API PODRÁ incluir documentación automática usando OpenAPI de FastAPI.
 
-### Requisito 5: Sistema de catálogo de tools
+### Requisito 5: Catálogo de tools y transparencia del sistema
 
-**Historia de usuario:** Como usuario del sistema, quiero un catálogo de herramientas disponibles, para que pueda descubrir y entender qué herramientas están disponibles y cómo usarlas.
+**Historia de usuario:** Como usuario del sistema, quiero ver qué herramientas y señales lo componen y con qué límites, para entender de dónde sale un veredicto y qué puedo esperar de él.
 
 **Criterios de aceptación:**
 
-1. EL Tool_Catalog DEBERÁ mantener un registro de todas las MCP_Tools disponibles con metadatos.
-2. CUANDO se registre una nueva herramienta, EL Tool_Catalog DEBERÁ almacenar su nombre, descripción, esquema de parámetros y categoría.
-3. EL Tool_Catalog DEBERÁ admitir la categorización de herramientas (por ejemplo, «Integración de API», «Análisis de NLP», «Utilidades»).
-4. AL consultar el catálogo, EL Tool_Catalog DEBERÁ devolver las herramientas filtradas por categoría si así se solicita.
+1. EL Tool_Catalog DEBERÁ **exponer** las MCP_Tools disponibles con sus metadatos. _(Antes «mantener un registro»; contradecía a R5.8. Ver memoria de cambios.)_
+2. EL Tool_Catalog DEBERÁ exponer, por cada herramienta, su nombre, descripción, esquema de parámetros y categoría. _(Antes «CUANDO se registre… almacenar»: en un catálogo dinámico ese evento no existe. Ver memoria de cambios.)_
+3. EL Tool_Catalog DEBERÁ admitir la categorización de herramientas: «Fuentes de contenido», «Señales de análisis» y «Utilidades». _(Los ejemplos originales eran «Integración de API» y «Análisis de NLP»; el primero describía la implementación —y era falso como distinción, porque las señales también llaman a APIs— y el segundo nombraba una tecnología en vez de un propósito. Ver memoria de cambios.)_
+4. AL consultar el catálogo, EL Tool_Catalog **PODRÁ** devolver las herramientas filtradas por categoría si así se solicita. _(Antes DEBERÁ. Ver memoria de cambios.)_
 5. EL Tool_Catalog DEBERÁ incluir esquemas de validación de parámetros para cada herramienta.
-6. EL Tool_Catalog DEBERÁ admitir la búsqueda de herramientas por nombre o palabras clave de descripción.
+6. EL Tool_Catalog **PODRÁ** admitir la búsqueda de herramientas por nombre o palabras clave de descripción. _(Antes DEBERÁ; desproporcionado para el número de tools previsto. Ver memoria de cambios.)_
+7. EL Tool_Catalog DEBERÁ indicar **de qué integración procede** cada herramienta (NYT, Guardian, meteorología, NLP…). DONDE haya varios MCP_Server conectados, DEBERÁ además agregar sus catálogos indicando el servidor de origen. _(Reinterpretado. Ver memoria de cambios.)_
+8. EL Tool_Catalog DEBERÁ construirse **dinámicamente** mediante el descubrimiento de herramientas de cada servidor (*handshake* MCP), sin listas cableadas en el código ni en el frontend.
+9. DONDE una herramienta sea una **señal de análisis**, EL Tool_Catalog DEBERÁ exponer su **ficha de modelo**: tipo (interpretable / híbrido / opaco), dimensión que mide y límites conocidos. _(Nuevo; enlaza con R3.8 y R3.9. Ver memoria de cambios.)_
 
 ### Requisito 6: Interfaz web
 
@@ -107,6 +117,10 @@ Este documento define los requisitos para un Trabajo de Fin de Grado (TFG) que i
 7. LA Web_Interface DEBERÁ mostrar mensajes de error en un formato entendible.
 8. LA Web_Interface DEBERÁ ser receptiva y funcionar en dispositivos de escritorio y tabletas.
 9. LA Web_Interface DEBERÁ incluir capacidades de filtrado y búsqueda para el catálogo de herramientas.
+10. LA Web_Interface DEBERÁ ofrecer **dos vías de entrada**: un formulario de análisis directo (determinista) y un **asistente conversacional** (ver Requisito 13).
+11. LA Web_Interface DEBERÁ mostrar el estado de los **MCP_Server conectados** (nombre, transporte, estado y herramientas que aporta), generado dinámicamente a partir del descubrimiento; los filtros por servidor DEBERÁN derivarse de esa misma lista.
+12. CUANDO el Agent_Orchestrator invoque herramientas, LA Web_Interface DEBERÁ renderizar el **resultado estructurado de cada herramienta** —no solo la narración del modelo— junto a la **traza** de herramientas invocadas.
+13. SI la narración del modelo llega **vacía o ilegible**, ENTONCES LA Web_Interface DEBERÁ mostrar igualmente los **resultados estructurados** de las herramientas invocadas, indicando de forma discreta que el asistente no generó un resumen. LA Web_Interface NO DEBERÁ condicionar la visualización del análisis a la existencia de esa narración. _(Modo de fallo observado en el spike #82: el agente invoca correctamente las herramientas y devuelve una respuesta de cero caracteres; el análisis existe y no debe perderse.)_
 
 ### Requisito 7: Entorno de implementación de Docker
 
@@ -146,7 +160,7 @@ Este documento define los requisitos para un Trabajo de Fin de Grado (TFG) que i
 1. LA Backend_API DEBERÁ conservar los registros de ejecución de herramientas en una base de datos o un almacenamiento de archivos.
 2. CUANDO se ejecute una herramienta, LA Backend_API DEBERÁ almacenar el nombre de la herramienta, los parámetros, el resultado, la marca de tiempo y el estado de ejecución.
 3. LA Backend_API DEBERÁ proporcionar un endpoint para recuperar el historial de ejecución con paginación.
-4. LA Backend_API DEBERÁ admitir el filtrado del historial de ejecución por nombre de herramienta, intervalo de fechas y estado.
+4. LA Backend_API DEBERÁ admitir el filtrado del historial de ejecución por nombre de herramienta, intervalo de fechas y estado. _(Dos ajustes por el cambio de qué se guarda —análisis, no invocaciones—: «nombre de herramienta» se satisface sobre las **ejecuciones sueltas**, que sí tienen una, mientras que un análisis invoca cinco señales y se filtra por **tipo de entrada**; y «estado» se desdobla en **veredicto** —qué concluyó el análisis— y **estado de ejecución** —si funcionó la maquinaria—, porque un análisis puede tener tres señales bien y una caída. Ver memoria de cambios.)_
 5. LA Backend_API DEBERÁ limitar el almacenamiento del historial para evitar un crecimiento ilimitado (por ejemplo, conservar las últimas 1000 ejecuciones o 30 días).
 6. AL consultar el historial, LA Backend_API DEBERÁ devolver los resultados en orden cronológico inverso.
 
@@ -190,3 +204,18 @@ Este documento define los requisitos para un Trabajo de Fin de Grado (TFG) que i
 5. LA Backend_API DEBERÁ incluir límites de tamaño de solicitud para evitar el agotamiento de los recursos.
 6. LA Backend_API DEBERÁ validar las claves API para las llamadas a servicios externos antes de realizar solicitudes.
 7. LA Backend_API NO DEBERÁ revelar detalles de errores internos a clientes externos en modo de producción.
+
+### Requisito 13: Agente conversacional (orquestador LLM)
+
+**Historia de usuario:** Como usuario final, quiero consultar en lenguaje natural, para que el sistema decida por mí qué herramientas usar sin necesidad de conocer el catálogo.
+
+**Criterios de aceptación:**
+
+1. EL Agent_Orchestrator DEBERÁ interpretar consultas en lenguaje natural e invocar dinámicamente las MCP_Tools necesarias (*tool calling*).
+2. EL Agent_Orchestrator DEBERÁ obtener las herramientas disponibles mediante el **descubrimiento MCP** (actuando como cliente), sin integraciones específicas por herramienta: añadir una herramienta nueva NO DEBERÁ requerir tocar el agente.
+3. EL Agent_Orchestrator DEBERÁ devolver, junto a su respuesta en lenguaje natural, la **traza** de herramientas invocadas y el **resultado estructurado** de cada una.
+4. EL veredicto de clickbait NO DEBERÁ emitirlo el modelo de lenguaje: DEBERÁ proceder de las MCP_Tools, limitándose el modelo a narrar y contrastar. _(Salvaguarda de R3.8: la explicabilidad no puede depender de un modelo opaco.)_
+5. EL **prompt de sistema** DEBERÁ ser un artefacto de configuración **versionado y consultable**, no código embebido. _(R3.9: transparencia de sistema.)_
+6. EL LLM_Backend DEBERÁ ser **intercambiable por configuración** (local vía Ollama o API externa), siguiendo el patrón ya usado para `nlp_backend`. _(R3.9.)_
+7. EL Agent_Orchestrator DEBERÁ disponer de su propia **ficha de modelo**, declarando su naturaleza opaca y sus limitaciones conocidas. _(R3.9.)_
+8. SI el modelo no soporta *tool calling* de forma fiable, ENTONCES el sistema PODRÁ operar en **modo guiado**: la selección de herramientas la decide el backend de forma determinista y el modelo solo narra. _(Degradación prevista para modelos locales pequeños.)_

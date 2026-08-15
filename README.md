@@ -6,19 +6,66 @@ Version de Python: 3.12.3
 
 ---
 
+## Plan de trabajo — hitos hasta la entrega
+
+**Estado actual (agosto 2026): `v0.2.0`.** El núcleo NLP está completo y validado: cuatro señales de clickbait contrastables, un modelo lineal interpretable propio, divulgación de modelos y una evaluación metodológicamente cerrada (split train/dev/test + validación externa). Lo que resta es la **capa web** (R4–R8) y la memoria. **Entrega: febrero 2027.**
+
+| Hito | Fecha | Contenido | Requisitos |
+|---|---|---|---|
+| **H1 · Diseño de interfaz** | ago–sep 2026 | Wireframes de pantallas y navegación, definición de funcionalidades, diseño de los endpoints REST | — |
+| **H2 · `v0.3` API REST** | octubre | FastAPI: exposición de las tools, catálogo con metadatos, historial **persistente**, OpenAPI, CORS, tests | **R4, R5, R9** |
+| **H3 · `v0.4` SPA funcional** | noviembre | Angular: análisis de un titular → resultados con explicabilidad visual (cues resaltados, contraste de señales), catálogo de tools | **R6** |
+| **H4 · `v0.5` Docker** | diciembre | Docker Compose (MCP + API / web), **volumen** para el historial, despliegue continuo | **R7, R8** |
+| **H5 · `v1.0` Pulido y despliegue** | enero 2027 | Responsive, gestión de errores, pruebas E2E, despliegue | R6 |
+| **H6 · Memoria y defensa** | ene–feb 2027 | Redacción de la memoria y preparación de la defensa | — |
+
+_(Corrección de la tabla, 2026-08-11: **R9 —la persistencia— no figuraba en ninguna fila**. H2 pedía «historial de ejecución» y H4 «historial persistente», pero el requisito que los sostiene no estaba listado en ninguno de los dos. Se asigna a H2: hacer el historial en memoria ahora y persistirlo en diciembre sería construirlo dos veces y entregar una pantalla que pierde los datos al reiniciar. A H4 le queda lo que de verdad le corresponde — montar el volumen (R7.6) para que ese fichero sobreviva al contenedor.)_
+
+**Criterios de priorización:**
+
+- **El backlog de NLP queda congelado** como opcional (multi-dominio #78, featurización alternativa #75, fine-tuning neural E5-05, meta-tool de contraste, post-hoc LIME/SHAP). El límite de generalización ya está **medido y documentado** (#76), que es lo que exige el rigor; resolverlo no es condición para la entrega.
+- **La memoria arranca en diciembre**, en paralelo con H4. Esta sección de épicas actúa como **borrador y diario de desarrollo** desde el inicio del proyecto.
+- El stack está fijado en [requisitos.md](docs/requisitos.md): **FastAPI** (R4) + **Angular/TypeScript** (R6) + **Docker Compose** (R7).
+
+---
+
 ## Convenciones de desarrollo
+
+### Organización del trabajo: hitos, issues y ramas
+
+Tres niveles, y **solo uno tiene rama**:
+
+| Nivel | Qué es | ¿Rama? | ¿Versión? |
+|---|---|---|---|
+| **Hito** (H1–H6) | Checkpoint con fecha y meta; agrupa issues | no | **sí**, al cerrarlo |
+| **Issue** | Unidad de trabajo | **sí** — 1 rama → 1 PR → squash a `dev` | no |
+
+Un hito **no es trabajo, es un punto de control**: no se ramifica ni se mergea. La unidad de trabajo es —y ha sido siempre— el issue.
+
+**Épicas (histórico).** Hasta la `v0.2.0` el trabajo se agrupaba en épicas (E1–E5): dominio sin fecha, de ahí los labels `epic:*`. En Fase B **los hitos las sustituyen**, porque cada hito ya trae dominio *y* fecha («H2 · API REST · octubre»); mantener los dos ejes duplicaría la misma información. Los labels `epic:*` se conservan como registro de los issues de Fase A.
 
 ### Ramas
 
-Cada rama de trabajo parte de `dev` y sigue el patrón `<tipo>/<descripción-corta>`:
+Cada rama de trabajo parte de `dev` (recién actualizada: tras un squash la rama de origen queda inservible como base) y sigue el patrón `<tipo>/<nº issue>-<descripción-corta>`:
 
 | Prefijo | Uso |
 |---|---|
-| `feature/` | Nueva funcionalidad |
+| `feat/` | Nueva funcionalidad |
 | `fix/` | Corrección de bug |
 | `chore/` | Setup, estructura, mantenimiento |
 | `docs/` | Documentación |
 | `test/` | Tests nuevos o mejoras de cobertura |
+
+Ejemplos: `feat/72-splits-train-dev-test`, `feat/86-app-fastapi`, `fix/lexico-cue-una-letra`. El número se omite cuando el trabajo no tiene issue (típico en `docs/`).
+
+### Estilo
+
+`ruff` hace de linter y formateador; las reglas activas y las exclusiones están en [`ruff.toml`](ruff.toml), y el CI lo comprueba en cada PR.
+
+```bash
+ruff check . --fix     # corrige lo automatizable
+ruff format .          # reformatea
+```
 
 ### Commits — Conventional Commits
 
@@ -45,12 +92,12 @@ Dos ramas permanentes con papeles distintos:
 
 **Releases:** al promocionar `dev → main` se crea un **tag** (`vX.Y.Z`). Una versión es **tageable** solo si cumple los cuatro criterios:
 
-1. **Bloque funcional completo** — épica cerrada o conjunto coherente de issues DEBERÁ (no features a medias).
+1. **Bloque funcional completo** — en Fase B, **hito cerrado**; en Fase A era la épica. Un conjunto coherente de issues DEBERÁ, sin features a medias.
 2. **CI verde** en `dev` (suite completa).
 3. **Verificación E2E** del servidor MCP pasada (tools respondiendo en vivo).
 4. **Documentación al día** (README y requisitos reflejan lo incluido).
 
-**Esquema de versiones** (semver adaptado al TFG): **minor** (`v0.X.0`) = bloque funcional/épica (`v0.1.0` = MVP Fase A, `v0.2.0` = Épica 5 NLP explicable); **patch** (`v0.X.Y`) = hotfix sobre lo shipeado; **major** (`v1.0.0`) = hito TFG (entrega final).
+**Esquema de versiones** (semver adaptado al TFG): **minor** (`v0.X.0`) = bloque funcional — **un hito** en Fase B (`v0.3` = H2, `v0.4` = H3…), una épica en Fase A (`v0.1.0` = MVP, `v0.2.0` = Épica 5 NLP explicable); **patch** (`v0.X.Y`) = hotfix sobre lo shipeado; **major** (`v1.0.0`) = entrega final del TFG.
 
 > **Principio:** las versiones son **cortes en el tiempo**, no contenedores temáticos. Una mejora posterior va a la **siguiente** versión aunque pertenezca por dominio a una épica ya taggeada (la trazabilidad temática la dan los labels de épica en los issues, no los tags). Los tags son inmutables: nunca se "reabre" una versión.
 
@@ -731,6 +778,731 @@ Issue #76. Mide la **generalización real** evaluando la vía shipeada sobre un 
 - **No es artefacto de binarización**: el `truthMean` medio de los falsos positivos (0.28) apenas supera al de los verdaderos negativos (0.23) → los FP no son mayormente casos "slightly clickbaiting" mal binarizados.
 
 **Valor para la memoria:** los números en-dominio (0.84–0.87) son válidos **para ese dominio**; la transferencia requiere adaptación (re-entrenar con datos del dominio destino, limpiar convenciones de tuit, o señales semánticas). El extracto conserva `truthMean` → futuro: calibración con scores continuos.
+
+## Fase B — Diseño de la interfaz y del agente conversacional
+
+> Cierra la Épica 5 (`v0.2.0`, núcleo NLP completo) y abre la capa web. Issue #73.
+
+### Estrategia de prototipado
+
+El prototipo se diseña como **wireframes**, no maquetando en HTML/CSS: iterar sobre un boceto cuesta minutos y sobre código, horas — lo que permite validar la interacción **antes** de comprometer implementación.
+
+Se combinan deliberadamente los dos ejes clásicos de cobertura (Nielsen, *Usability Engineering*):
+
+- **Horizontal, fidelidad media-baja** — las cinco pantallas completas, para fijar **alcance y navegación**.
+- **Vertical, alta fidelidad** — solo en *Resultados*, porque es **lo arriesgado y lo diferenciador**: el lienzo de explicabilidad. El resto (un formulario, una tabla, un listado) es patrón conocido y no necesita profundidad.
+
+Es **gestión de riesgo**, no reparto uniforme: se invierte fidelidad donde el diseño puede fracasar. El prototipo es además **desechable** — su entregable no es código, sino conocimiento y requisitos de interfaz mejor definidos.
+
+Herramienta: **draw.io** (fuente versionada en [`docs/prototipo-ui.drawio`](docs/prototipo-ui.drawio), navegable: los botones enlazan entre páginas), por coherencia con los diagramas UML del proyecto.
+
+### Pantallas
+
+| # | Pantalla | Justificación |
+|---|---|---|
+| 1 | **Chat** | R13 (agente conversacional), R6.10, R6.12 |
+| 2 | **Analizar** | R6.3, R6.4 — camino determinista |
+| 3 | **Resultados** | R3.8 (explicación), R3.10 (contraste), R6.6 |
+| 4 | **Sistema** | R3.9 (divulgación), R5 (catálogo), R6.11 (servidores) |
+| 5 | **Historial** | R4.4, R6.5 |
+
+**1 · Chat** — el agente decide qué herramientas invocar; la respuesta trae la **traza** de tools y la **tarjeta estructurada**.
+
+![Prototipo — Chat](docs/img/prototipo-1-chat.svg)
+
+**2 · Analizar** — camino determinista (sin agente): titular + cuerpo opcional, o selección de una noticia real.
+
+![Prototipo — Analizar](docs/img/prototipo-2-analizar.svg)
+
+**3 · Resultados** — el lienzo de explicabilidad: cues resaltados sobre el propio titular, las cuatro señales contrastadas y el badge de naturaleza de cada modelo.
+
+![Prototipo — Resultados](docs/img/prototipo-3-resultados.svg)
+
+**4 · Sistema** — servidores MCP conectados, catálogo de herramientas y fichas de modelos con sus límites medidos.
+
+![Prototipo — Sistema](docs/img/prototipo-4-sistema.svg)
+
+**5 · Historial** — análisis previos, con el origen (chat o formulario) y acceso al resultado.
+
+![Prototipo — Historial](docs/img/prototipo-5-historial.svg)
+
+### Decisiones de diseño
+
+**Dos puertas de entrada, no una.** El formulario sirve a quien sabe lo que busca; el chat, a quien no conoce el catálogo. Se mantienen ambas porque cubren perfiles distintos y porque el camino determinista es el que se puede probar de forma fiable (E2E) y demostrar sin depender de un modelo generativo.
+
+**El veredicto no lo emite el LLM.** Riesgo detectado al incorporar el chat: si el resultado se entrega como prosa del modelo, se **evapora la explicabilidad** —los `span` de los cues, las contribuciones con su peso, los badges de naturaleza— que es el eje del TFG. La solución no es elegir entre chat y vista estructurada, sino **combinarlos**: la interfaz renderiza las **tarjetas con el JSON real de cada herramienta** y el modelo solo narra y contrasta. Si el LLM se equivoca al redactar, la tarjeta lo desmiente. El chat así **refuerza** la explicabilidad en vez de disolverla (R13.3, R13.4).
+
+**LLM local (Ollama), con degradación prevista.** Sin acceso a APIs de pago, el agente se sirve en local. El riesgo no es la potencia sino la **fiabilidad del *tool calling*** en modelos pequeños (inventan llamadas, ignoran el esquema) y la latencia en CPU. Por eso se valida **antes** de construir nada encima (*spike* #82) y se define de antemano un **modo guiado** (R13.8): si el *tool calling* no es fiable, el backend decide las herramientas de forma determinista y el modelo solo narra — sigue habiendo conversación y las tarjetas son idénticas.
+
+**El prompt de sistema es configuración, no código escondido.** Vive como fichero versionado y consultable desde la propia interfaz (R13.5). Codifica la postura del sistema: qué es cada señal y **de qué naturaleza** es, contrastar en vez de obedecer a una sola, la distinción **forma vs engaño**, y no emitir veredictos propios. Es coherente con R3.9: si se divulgan los modelos, también debe divulgarse la instrucción que los gobierna. El propio LLM pasa a tener **su ficha de modelo** (tipo `opaco`).
+
+**MCP multi-servidor: nada cableado.** El agente actúa como **cliente MCP** frente a varios servidores especialistas (NLP, noticias, utilidades) declarados por configuración, cada uno en su contenedor. Añadir un especialista es levantar un contenedor y añadir una línea; ni el agente ni el frontend se tocan. La pantalla *Sistema* refleja esa lista **dinámicamente** (nombre, transporte, estado, herramientas que aporta) y los filtros del catálogo se derivan de ella. Esto obliga a un cambio técnico: el servidor MCP usa hoy transporte `stdio`, que exige lanzar el servidor como subproceso y **no cruza contenedores** → hay que añadir transporte **HTTP** (R1.6).
+
+**Persistencia del historial: abierta.** R4.4 solo exige el endpoint; queda por decidir si persiste en el navegador o en base de datos.
+
+### Cambios en los requisitos
+
+El diseño del prototipo destapó que los requisitos describían una interfaz de ejecutar herramientas con formularios, **sin agente** — pese a que el título del TFG es *"agente inteligente basado en MCP"* y el propósito del protocolo es precisamente alimentar a un LLM con herramientas. Se corrige:
+
+- **R13 (nuevo) — Agente conversacional**: *tool calling* sobre herramientas descubiertas por MCP; traza y resultado estructurado además de la narración; el veredicto procede de las tools; prompt como configuración versionada; `LLM_Backend` intercambiable; ficha de modelo propia; modo guiado como degradación.
+- **R1 ampliado** — transporte HTTP además de `stdio`; varios servidores declarados por configuración; degradación si uno no responde.
+- **R5 ampliado** — el catálogo agrega herramientas de todos los servidores indicando su procedencia, y se construye por **descubrimiento**, sin listas cableadas.
+- **R6 ampliado** — dos vías de entrada; estado de los servidores conectados; renderizado del resultado estructurado y la traza.
+- **Glosario** — `Agent_Orchestrator`, `LLM_Backend`.
+
+### Spike: validación del *tool calling* con un modelo local (#82)
+
+Todo el diseño del asistente descansaba sobre un supuesto sin verificar: **que un modelo pequeño servido en local decide bien qué herramienta invocar**. Antes de construir nada encima se comprueba, porque el resultado determina la arquitectura: si el modelo no elige bien, el chat pasa a **modo guiado** (R13.8) y el backend decide las herramientas. Scripts reproducibles en [`spikes/`](spikes/).
+
+Modelo: `qwen3.5:2b` (2.3B, Q8_0) con Ollama. Se prueban las **descripciones reales** de los docstrings y el catálogo completo, incluidas las **cuatro herramientas de clickbait con nombres casi idénticos**.
+
+**Diseño de la medición:** las consultas se separan por tipo, porque promediarlas daría una cifra sin sentido — en las *genéricas* («¿es clickbait?») vale cualquier detector, mientras que en las *específicas* solo una es correcta. Son estas últimas las que revelan si el modelo confunde herramientas parecidas.
+
+| Categoría | Acierto |
+|---|---|
+| Genérica (cualquier detector vale) | 4/4 |
+| **Específica (solo una correcta)** | **8/8** |
+| Otro dominio (noticias, modelos) | 3/3 |
+| Sin herramienta (no debe llamar) | 5/5 |
+| **Global** | **20/20 (100 %)** · parámetros válidos 15/15 |
+
+**Lectura:** el modelo discrimina entre las homónimas por el matiz de la petición — «qué pistas léxicas **y dónde**» → `detect_clickbait_lexical`; «dame la **probabilidad**» → `detect_clickbait_linear`. Esa distinción solo puede venir de las descripciones, lo que confirma la premisa de **R13.2**: los *docstrings* son la interfaz con el modelo, y añadir una herramienta no obliga a tocar el agente.
+
+**Modo de fallo detectado (Fase 1):** ante una consulta que debía invocar la herramienta, el modelo **redactó él mismo el análisis** en lugar de llamarla. No admitió no poder: fingió el resultado. Es la justificación empírica de **R13.4** — el veredicto debe proceder de las tools, nunca del modelo.
+
+**La latencia fue el criterio conflictivo, y reveló un problema de infraestructura.** La primera tanda dio **71,7 s de media**: Ollama nunca llegaba a usar la GPU, por dos causas encadenadas —el directorio `cuda_v12` con permisos `700` de root, y por debajo librerías CUDA corruptas (`ldd` → SIGBUS)—, probablemente por una instalación que agotó el espacio en disco. El modelo se cargaba con `offloaded 0/N layers to GPU` **independientemente de su tamaño**: reducirlo de 4B a 2B no cambiaba nada. Reinstalando Ollama se recuperó la GPU (`library=CUDA compute=7.5`, reparto parcial de 17/26 capas por los 3,2 GiB disponibles).
+
+| | CPU | **GPU** |
+|---|---|---|
+| Acierto global | 20/20 | **20/20** |
+| Parámetros válidos | 15/15 | **15/15** |
+| Latencia media | 71,7 s | **20,6 s** |
+
+**El acierto es idéntico en ambas tandas** — buen control experimental: la calidad de la decisión depende del modelo, no del hardware, que solo mueve la latencia; y el resultado se reproduce en dos ejecuciones independientes.
+
+La media, además, engañaba. Excluyendo la primera consulta —150,6 s de **carga en frío**, coste único al montar 2,7 GB de pesos—, la **mediana es de 8,8 s**. Los picos de 30-50 s corresponden a respuestas donde el modelo redacta párrafos explicativos, no a la selección de herramienta: **decidir qué tool llamar cuesta ~8-9 s**. El bucle completo del agente (decidir → ejecutar → narrar) rondará los 20-25 s, aceptable con streaming y un indicador de progreso.
+
+**Decisión:** se adopta el ***tool calling* real** (R13.1) — se cumplen los tres criterios: acierto (100 % ≫ 80 % exigido), parámetros válidos (100 %) y latencia. El **modo guiado** (R13.8) pasa de plan B probable a **degradación reservada para entornos sin GPU**: en CPU pura el mismo modelo tardaba 71,7 s de media y el chat resultaba inviable. La distinción importa porque el despliegue podría acabar siendo en CPU.
+
+**Limitaciones:** 20 consultas, un modelo, y redactadas en un registro limpio — los usuarios reales escriben peor. Es una señal sólida, no una medida definitiva.
+
+#### El bucle completo: encadena bien, pero envuelve mal los datos
+
+Las fases anteriores sólo medían la *selección*. Ejecutando las herramientas de verdad y devolviendo el resultado al modelo (`role="tool"`), el bucle **encadena correctamente**: ante «busca una noticia del NYT y dime si su titular es clickbait» llama a `get_nyt_news`, **toma el titular del resultado** y se lo pasa a los detectores.
+
+El hallazgo relevante es otro: **transcribe bien las cifras, fabrica lo que las rodea.** Los valores se reproducen con exactitud (0.9375 → «93 %»; spans `[0,4]` y `[29,32]` correctos), pero alrededor aparecen invenciones: una escala *«2/3 niveles»* que no existe, explicaciones de qué significa cada cue que ninguna herramienta ha dado, o *«una empresa llamada Researcher's Lab»* cuando el texto decía *«researchers at a small lab»*.
+
+#### ¿Puede corregirlo el prompt? (cuatro variantes)
+
+Como el prompt es configuración versionada (R13.5), comparar variantes es el experimento natural. Se probaron cuatro —cada una escrita **contra los fallos observados en la anterior**— más la ausencia de prompt como control ([`spikes/prompts/`](spikes/prompts/)).
+
+**Lo que quedó establecido:** un prompt elimina las fabricaciones obvias (sin él, siempre tablas, emojis y escalas inventadas, ~1000 caracteres por respuesta), y **las reglas dirigidas funcionan** — cada norma escrita contra un fallo concreto lo corrigió: la escala inventada, la traducción de las categorías, la fusión de posiciones, la auto-atribución («he detectado» → «el detector léxico señala»). La mejor salida obtenida es exacta punto por punto, con cada cue en su propia posición.
+
+**Lo que NO se puede afirmar: cuál prompt es mejor.** La varianza entre ejecuciones domina — una variante fue la mejor en una tanda y peor que el control en la siguiente, con el mismo prompt y las mismas consultas. Con dos consultas por variante y sin repeticiones, **no hay ranking defendible**; harían falta ~5 repeticiones por par (prompt, consulta). Los hallazgos *cualitativos* sí son fiables, porque son errores verificables contra la salida de las herramientas.
+
+**Modo de fallo nuevo:** en dos ejecuciones el modelo invocó las tres herramientas correctamente y **no generó texto final** (respuesta vacía). Ambas fueron la consulta encadenada más larga. Ningún prompt lo previene.
+
+#### Consecuencia de diseño
+
+Ningún prompt alcanza fidelidad total, y el mejor sólo **desplaza el error hacia formas más sutiles**: de inventar una escala (obvio, el usuario sospecha) a fundir dos posiciones en un rango (discreto, suena preciso y es falso). Un error sutil es *más* peligroso que uno llamativo.
+
+Esto convierte las **tarjetas renderizadas desde el JSON de la herramienta** de buena práctica en **necesidad demostrada**, por tres vías independientes: el modelo *inventa* contexto alrededor de datos correctos; a veces *no responde* —y la tarjeta sigue mostrando el análisis aunque falle la narración—; y un detector automático de alucinaciones **siempre va por detrás** (el escrito aquí buscaba escalas «/3» y «/5» y no vio un «2/1» posterior, y no puede detectar un dato correcto mal atribuido, porque el número sí está en la salida). **R13.3 y R13.4 quedan demostrados, no supuestos.**
+
+De aquí sale también un **requisito nuevo, R6.13**: si la narración llega vacía o ilegible, la interfaz debe mostrar igualmente los resultados estructurados —con un aviso discreto de que no hubo resumen— y no condicionar la visualización del análisis a que esa narración exista. No es una precaución hipotética: el análisis se había completado con éxito y sólo faltaba la prosa; mostrar «la respuesta del asistente» habría dejado una pantalla en blanco y tirado un resultado válido.
+
+**Cierre:** se adopta `04-preciso` como prompt de partida —por el razonamiento de sus reglas y su mejor salida, no como «ganador medido»—, y el bucle de `tool_calling_fase3.py` queda como esqueleto del agente real: acepta el prompt de sistema como parámetro, mantiene el historial, ejecuta herramientas y corta a las seis vueltas.
+
+### Diseño de los endpoints REST: contrato de `POST /analyze` (H1, PR #85)
+
+Cierre del tercer bloque de H1 («diseño de los endpoints REST»). Se fija el contrato **antes** de escribir la app porque en el prototipo lo consumen **tres** sitios distintos —el formulario de análisis, las tarjetas embebidas en el chat y el historial—: se diseña una vez y sirve para los tres.
+
+**Tres principios lo gobiernan** (`backend/api/schemas.py`):
+
+1. **Envoltorio uniforme por señal.** Las señales son una *lista* de objetos con la misma forma, no un objeto con un campo por señal. El frontend itera y pinta tarjetas sin conocerlas de antemano: añadir una sexta señal no obliga a tocar Angular. Es el mismo desacople que el catálogo (R5.8).
+2. **El estado va por señal, no global.** Un único campo `status` cubre dos situaciones que, desde el punto de vista de la respuesta, son la misma —esa señal no tiene resultado, las demás sí—: faltan datos de entrada (`no_aplicable`, la incoherencia necesita el cuerpo) o la ejecución falló (`error`; ~1 de cada 5 llamadas a HF da timeout, medido en la Épica 4). `/analyze` **no** devuelve error global mientras alguna señal funcione: perder tres análisis correctos porque el cuarto falló sería el mismo error que evita R6.13.
+3. **Veredicto por dimensiones, no por mayoría.** Cada señal se etiqueta como *forma* (sensacionalismo en la redacción), *engaño* (el titular promete lo que el cuerpo no cumple) o *tono*. La dimensión se lee de `MODEL_CARDS` (R3.9), no se cablea en el orquestador.
+
+**Por qué la mayoría no vale.** Promediar señales que miden cosas distintas produce un veredicto falso. El caso decisivo es un titular sobrio cuyo cuerpo no corresponde:
+
+| Señal | Veredicto |
+|---|---|
+| Zero-shot | no es clickbait |
+| Léxico | no es clickbait |
+| Lineal | no es clickbait |
+| **Incoherencia** | **sí es clickbait** |
+
+Tres a uno, y **la correcta es la cuarta**: por mayoría saldría «factual». La jerarquía es explícita —el engaño pesa más que la forma— y las discrepancias *dentro* de una dimensión se declaran (`null` → `ambiguo`) en lugar de resolverse por votación.
+
+**El tono se muestra pero no vota.** Una narrativa marcadamente positiva o negativa aleja de la objetividad, pero eso no es hacer clickbait, y cuánto pesa es juicio de quien lee. No necesita ningún caso especial en el código: la señal devuelve `is_clickbait: null` y el mismo filtro que ignora las señales caídas la ignora a ella.
+
+**La orquestación** (`backend/api/analyze.py`) lanza las señales con `asyncio.gather(..., return_exceptions=True)`, que en vez de propagar la primera excepción la **devuelve** dentro de la lista de resultados. Cada excepción se traduce a una señal en estado `error` y la respuesta sigue siendo un 200 con lo que sí se pudo calcular. Las señales se declaran en una tabla (nombre de tool + cómo ejecutarla + cómo leer su veredicto) para que el bucle tenga una sola forma: añadir una señal es añadir una fila y su ficha.
+
+**Un desajuste que destapó el diseño.** La ficha del zero-shot tenía `"signal": "detect_clickbait (zero-shot)"` — un campo pensado para leer, usado como clave de búsqueda. En cuanto `/analyze` busca la dimensión por ese valor, cualquier mejora de la etiqueta rompe la búsqueda **en silencio**: no lanza excepción, simplemente no encuentra la ficha. Renombrado al nombre exacto de la tool (la anotación «zero-shot» ya estaba en `name` y `task`, no se pierde nada) y añadido `test_model_cards_signals_match_registered_tools`, que comprueba que los cinco `signal` resuelven contra tools realmente registradas. El renombrado arregla hoy; el test arregla las próximas veces.
+
+**Dos correcciones de paso:**
+- **Validación**: `headline=" "` pasaba `min_length=1` —un espacio mide un carácter— y llegaba hasta las señales, que fallaban una a una: la respuesta era un 200 con `sin_datos` en vez del 422 que corresponde. Ahora recorta antes de medir.
+- **CI**: el filtro `branches` de GitHub Actions es por rama **destino**. Con el flujo `dev→main` adoptado en la Épica 5, las PR de feature apuntan a `dev` y **no disparaban los tests**; el CI no saltaba hasta promocionar `dev→main`, cuando ya es tarde. Añadido `dev` a `pull_request` y `push`.
+
+**Límites de lo entregado.** No hay app FastAPI todavía, así que `analyze()` **no es alcanzable por HTTP** y no existe prueba extremo a extremo: los 29 tests de la orquestación usan dobles, y el camino nunca se ha ejecutado contra HuggingFace ni contra el modelo de embeddings. Quedan también sin diseñar los contratos de `/tools`, `/history` y `/chat`. La app y su router son H2 (issue #86).
+
+### Arquitectura de despliegue: un servidor MCP, no una federación (H2, #86)
+
+Al escribir la app REST había que decidir la topología, y la respuesta obvia —replicar la arquitectura del entorno profesional del autor: un contenedor por MCP especialista, orquestados desde un punto central— resultó apoyarse en una **premisa que aquí no se cumple**.
+
+En esa arquitectura los especialistas (Azure, AKS, Rundeck) **ya existen y son de otros**: la federación resuelve un problema de propiedad del código y de ritmos de despliegue distintos. Aquí no hay ningún MCP de The Guardian que ensamblar — se escribe en este repo, contra su API REST, y comparte `BaseAPI`, `ToolResult`, `observability` y `settings` con las demás. Partirlas obligaría a duplicar esa base o a publicar un paquete compartido.
+
+**Tres niveles que se confunden con facilidad**, y cuya confusión es justo lo que produjo la redacción original de R1.7:
+
+| Nivel | Qué es | Ejemplo | Cuántos hay |
+|---|---|---|---|
+| API externa | servicio de un tercero, ajeno a MCP | `api.nytimes.com` | varios |
+| MCP_Tool | función propia que la envuelve | `get_nyt_news` | 11 |
+| MCP_Server | proceso que expone tools por el protocolo | `tfg-mcp-server` | **uno** |
+
+NYT y Guardian no son servidores: son *hojas* dentro del único servidor.
+
+**Evaluación contra los criterios que importaban** (desacoplamiento, memoria, latencia y el eje de explicabilidad):
+
+- **Memoria: ya estaba resuelta sin contenedores.** `incoherence.py` importa `sentence_transformers` *dentro* de `_get_model`, y `local.py` importa `transformers` dentro de `_get_pipeline`. Torch no entra en memoria si nadie usa esas señales. Separar `nlp` por RAM sería pagar dos veces por lo que ya da la carga perezosa; el argumento que sobrevive es el **tamaño de imagen**, que es asunto de H4.
+- **Latencia: medida, no supuesta.** Un spike levantó el servidor real con `streamable-http` y lo consumió como cliente MCP: handshake **0,212 s**, `list_tools` (11 tools) **0,036 s**, `call_tool` **0,033 s** y **0,006 s** la segunda en la misma sesión. Barato — pero un `/analyze` distribuido sumaría el handshake y cuatro saltos a los **0,4 s** que hoy cuesta importando el núcleo. El spike confirmó además algo que hasta entonces era razonamiento: `call_tool` devuelve `TextContent` cuyo `.text` es un **JSON string**, así que pasar `/analyze` por MCP significa `dict → json.dumps → TextContent → json.loads → dict`.
+- **Explicabilidad: el criterio decisivo.** La transparencia *de sistema* —qué herramienta se invocó, con qué fuentes— vive hoy en una traza única (`log_tool_invocation`). Repartirla entre contenedores la fragmenta sin aportar nada al eje del trabajo.
+
+**Decisión: tres contenedores** — servidor MCP, API REST y web. R1.6 se cumple (el servidor *puede* exponerse por HTTP y desplegarse aparte), R7 también, y `/analyze` conserva su latencia importando el núcleo. La separación de `nlp` se reconsiderará en H4 **si el tamaño de imagen o el arranque en frío duelen de verdad**, con la medición delante; decidirlo ahora sería pagar un coste sin saber si hace falta.
+
+**Cambios en los requisitos** (`docs/requisitos.md`):
+
+- **R1.8 acotado.** Su redacción («si un MCP_Server declarado no responde») y la intención del autor («si una API declarada no está, el sistema sigue funcionando») parecían contradecirse. No lo hacían: **hablan de listas distintas**. R1.8 se refiere a la lista de servidores MCP —nivel 3, sin sentido hasta que exista el cliente— y queda anotado como tal.
+- **R2.8 nuevo.** La intención del autor se convierte en criterio propio donde le corresponde: degradación ante APIs externas caídas. **Ya está satisfecho** desde la Épica 1 — `_aggregate_status` devuelve `degraded` cuando alguna sonda falla—, pero no estaba escrito.
+- **R1.9 nuevo.** El requisito de extensibilidad que sí sirve a este proyecto: añadir una fuente o una señal no debe obligar a tocar las existentes ni la interfaz. Está alineado con la tesis —añadir una señal es añadir una perspectiva contrastable— y **medio construido ya**: el envoltorio uniforme de `schemas.py` hace que una sexta señal no obligue a tocar Angular, `MODEL_CARDS` declara su naturaleza y `register()` la enchufa. Queda un fleco: `main.py` todavía lista los `register()` a mano.
+
+**R1.7 se mantiene sin cambios.** No porque haga falta hoy, sino porque el coste de dejar la puerta abierta es nulo: cuando llegue el cliente MCP en `/tools`, su configuración será una **lista** de endpoints en vez de una URL —cinco líneas— y el requisito seguirá siendo satisfacible el día que se quiera enchufar un servidor MCP ajeno, sin haber construido hoy una federación que no resuelve ningún problema real.
+
+#### Dónde vive CORS, y dónde no
+
+Decidida la topología, conviene fijar en qué salto aplica cada mecanismo, porque es fuente habitual de confusión:
+
+```
+Navegador ──(1)──→ nginx ──(2)──→ FastAPI ──(3)──→ servidor MCP
+                                          ──(4)──→ APIs externas (NYT, HuggingFace…)
+```
+
+| Salto | ¿CORS? | Autenticación |
+|---|---|---|
+| (1) navegador → nginx | **el único donde existe** | ninguna |
+| (2) nginx → FastAPI | no | ninguna, red interna |
+| (3) FastAPI → servidor MCP | no | *bearer*, si algún día se expone fuera |
+| (4) FastAPI → APIs externas | no | API keys (ya implementadas) |
+
+**CORS es un concepto exclusivamente de navegador**: nace de la política del mismo origen, que solo aplican los navegadores. Los saltos 2-4 son servidor a servidor, así que `HF_TOKEN` o `NYT_API_KEY` viajan sin que CORS pinte nada.
+
+**Topología del frontend: nginx como proxy inverso.** Sirve el build de Angular en `/` y reenvía `/api/*` a uvicorn por la red interna. Para el navegador todo es **el mismo origen**: desaparecen CORS y el *preflight* —que hoy convierte cada `POST /analyze` en dos viajes—, pero se mantienen dos contenedores con trabajos separados. En desarrollo el equivalente es el `proxy.conf.json` de Angular, de modo que desarrollo y producción se comporten igual; ese desajuste es el fallo clásico de servir el front en un origen distinto.
+
+Se descartó que **FastAPI sirviera los estáticos**: no es su trabajo, acopla el despliegue del frontend al de la API, y el *catch-all* que exige el enrutado de cliente de Angular puede tragarse `/docs` y `/openapi.json` si se registra en mal orden.
+
+**`CORSMiddleware` se mantiene igualmente**, aunque la topología lo vuelva inerte en producción: R4.7 lo exige, cuesta seis líneas y es la salida si en algún momento se desarrolla sin proxy.
+
+_(Nota sobre `mcp-proxy`: en el entorno profesional del autor los MCP de terceros solo hablan `stdio`, y se exponen por HTTP envolviéndolos con [mcp-proxy](https://github.com/sparfenyuk/mcp-proxy) tras un nginx con bearer. Aquí no hace falta —el SDK de Python habla `streamable-http` de forma nativa, medido arriba— pero **sería la herramienta correcta** el día que se enchufe un servidor MCP ajeno que solo soporte `stdio`.)_
+
+### App REST: primer análisis por HTTP (H2, #86)
+
+Con el contrato y la orquestación ya cerrados en H1, esta parte es delgada a propósito: `backend/api/app.py` monta la aplicación, expone `POST /analyze` y `GET /health`, y delega. Se arranca aparte del servidor MCP:
+
+```bash
+uvicorn backend.api.app:app --reload
+```
+
+**`check_health()` sale de `register()`** en `core/health.py`. Antes vivía dentro de la tool MCP; ahora es una función de módulo que consumen **las dos fachadas**, porque dos sondeos independientes acabarían respondiendo cosas distintas sobre el mismo sistema.
+
+**`configure_logging()` va en el `lifespan`, no a nivel de módulo.** `structlog.configure()` muta estado global del proceso, y a nivel de módulo eso ocurriría **al importar** — que en pytest es durante la colección, antes de que exista ninguna fixture. El repo ya tiene una fixture `autouse` (`_reset_structlog`) puesta tras sufrir justo ese problema, pero **no protegería de un efecto en el import**. El `lifespan` solo corre cuando la app sirve de verdad: `TestClient(app)` no lo dispara, `with TestClient(app)` sí.
+
+**Lo que aporta esta parte no es el código, es la primera ejecución real.** Hasta aquí los 29 tests de la orquestación usaban dobles: el camino nunca se había recorrido contra HuggingFace ni contra el modelo de embeddings.
+
+| Escenario | Latencia |
+|---|---|
+| En caliente | **0,4–0,7 s** (pico observado de 3,8 s) |
+| Arranque de proceso en frío | ~20 s |
+| Primerísima ejecución | ~60 s (descarga de `all-MiniLM-L6-v2`) |
+
+Los 20 s **no son una limitación, son una consecuencia**: `IncoherenceDetector` carga el modelo de forma perezosa, en la primera petición, en vez de al arrancar. Precalentarlo en el `lifespan` los trasladaría del primer usuario a uvicorn — decisión de H4, con el `healthcheck` del contenedor delante, porque un arranque de 20 s cambia el `start_period`.
+
+**Y el sistema discrimina:**
+
+| Titular (con cuerpo coherente) | Veredicto | Señales |
+|---|---|---|
+| *Federal Reserve Holds Interest Rates Steady in March Meeting* | `factual` | las cuatro de acuerdo; lineal p=0.163, similitud 0.579 |
+| *17 Things Nobody Tells You About Moving Abroad* | **`ambiguo`** | zero-shot lo lee como *factual news*; léxico y lineal lo marcan (p=1.000) |
+
+El segundo caso merece atención: **es el escenario de discrepancia que se había trazado sobre el papel al diseñar el contrato, apareciendo por sí solo en la primera prueba real**. Un listicle dispara las pistas de superficie y la lectura semántica no lo acompaña. El sistema lo declara `ambiguo` en vez de resolverlo por mayoría — que es exactamente lo que el principio 3 pretendía.
+
+**Límites.** Sigue sin haber `/tools`, `/history` ni `/chat`. Los 12 tests nuevos cubren la capa HTTP (validación, delegación, CORS, OpenAPI) y **no repiten la orquestación**, que ya cubre `test_analyze.py`. Y `analyze.py` mantiene un efecto de importación conocido —`_api = get_nlp_backend()` a nivel de módulo— que congela el backend NLP al importar, igual que hace `tool.py`.
+
+### Ejecutar una herramienta, y el contrato de retorno que lo bloqueaba (#100)
+
+`/tools` ya publicaba el `inputSchema` de cada herramienta, así que la interfaz podía construir el formulario. Faltaba el endpoint que ejecutara lo que ese formulario produce — para cuando no se quieren las cuatro señales, sólo el sentimiento, o para traer una noticia con la que luego analizar.
+
+Al medirlo antes de escribir nada apareció un bloqueo previo.
+
+#### El endpoint no podía saber si la ejecución había salido bien
+
+| Escenario | `isError` | `content[0].text` |
+|---|---|---|
+| Titular válido | `False` | `{"score": 3, "is_clickbait": true, …}` |
+| Titular vacío (**la tool falla**) | **`False`** | `El titular está vacío o no es válido` |
+| Parámetro inexistente | `True` | `Error executing tool …: validation error` |
+
+`isError` sólo se activaba cuando el fallo ocurría en la **capa MCP**. Si la herramienta *devolvía* un mensaje de error —que es lo que hacían las once— para el protocolo eso era un éxito. Éxito y fallo salían por el mismo canal y sin marca. Y «parsear como JSON» no valía de heurística: `get_forecast` devuelve prosa formateada siendo una ejecución correcta.
+
+**Se descartó `-> ToolResult`**, que era la opción aparentemente obvia por existir ya. Su esquema describe **el sobre, no la carta** —`data` queda como `anyOf: [{}, null]`, «cualquier cosa o nada»— y duplica el eje que MCP ya tiene: como `ToolResult.fail` se devuelve y no se lanza, produciría respuestas con `isError: false` y `success: false` **a la vez**, peor que la ambigüedad de partida. `ToolResult` sigue intacto donde estaba: en los `client.py` y `base_api.py`, transportando resultados dentro del proceso. No aparecía ni aparece en ningún `tool.py`.
+
+#### Un fallo que llevaba desde la Épica 1 escondido
+
+Al hacer que las tools lanzaran, el mensaje de error **seguía perdiéndose**, sustituido por una queja de Pydantic sobre el esquema de salida. La causa estaba en `log_tool_invocation`:
+
+```python
+except Exception:
+    log.error(..., exception=traceback.format_exc())
+    return "Internal error while executing tool"
+```
+
+**El decorador de observabilidad capturaba toda excepción y devolvía una cadena.** Consecuencia real, y anterior a este issue: un `KeyError` o un fallo de red no capturado dentro de una tool llegaba al cliente como **texto normal con `isError` a False** — indistinguible de un análisis correcto.
+
+Y explica por qué el contrato *parecía* coherente: no era que unas tools devolvieran errores por decisión y otras no. Era que el decorador **aplanaba todo a texto**, lo devuelto a propósito y lo lanzado por accidente. El arreglo es un `raise` en lugar de un `return`, con el principio detrás escrito en el código: **el decorador es para observar, no para decidir qué se responde**. El traceback completo sigue yendo al log.
+
+#### Salida estructurada: qué cuesta y qué no
+
+| Retorno declarado | `outputSchema` | `structuredContent` |
+|---|---|---|
+| `-> str` con `json.dumps` *(lo anterior)* | `{"result": string}` | el JSON **como texto** |
+| `-> dict` a secas | **`None`** | **`None`** |
+| `TypedDict` propio | **describe los campos reales** | el objeto, directo |
+
+Anotar `-> dict` no sirve de nada: MCP necesita un tipo **declarado**. Con él, el esquema publicado incluye además el docstring del tipo como `description`, así que el catálogo entrega documentación junto al contrato.
+
+Nueve herramientas declaran su tipo. **`get_alerts` y `get_forecast` se quedan en `-> str`**, y no es una carencia: producen prosa formateada para leer, no datos con estructura; declararles un tipo obligaría a inventar campos que la salida no tiene.
+
+#### El endpoint
+
+`POST /tools/{name}/execute` valida los argumentos contra el `inputSchema` **antes** de invocar (R4.5), acumulando todos los problemas en vez de parar en el primero — quien rellena un formulario prefiere corregirlo de una vez. Que la validación sea *previa* es lo que permite distinguir un campo mal escrito (**422**, con el nombre del campo) de un análisis que salió mal.
+
+Tres categorías, tres respuestas: **404** si la herramienta no existe, **422** si los argumentos no encajan, y **200 con `status` en `error`** si la herramienta se ejecutó y falló. Lo último no es un error HTTP: la petición era correcta y el servidor la atendió, así que se responde igual que en `/analyze`, donde una señal caída no tumba la respuesta.
+
+Y un timeout propio: `mcp_timeout` son 5 s, de sobra para un `list_tools`, pero `detect_clickbait_incoherence` tarda ~20 s la primera vez cargando el modelo de embeddings. Con el margen del descubrimiento, esa llamada moriría siempre en frío.
+
+#### Un fallo que habría llegado a producción
+
+Las excepciones lanzadas **dentro de una sesión MCP salen envueltas en `ExceptionGroup`**, porque la sesión abre un *task group* de anyio y anyio agrupa lo que se lance dentro. El `except InvalidArguments` de la ruta no la habría reconocido, y un argumento mal escrito habría devuelto un **500 en vez del 422** que le corresponde.
+
+La lógica ahora **devuelve** lo que ha ocurrido y decide fuera de la sesión qué excepción sale. Es una restricción general de cualquier código construido sobre anyio, y la segunda vez que aparece en este proyecto: la primera fueron los *cancel scopes* de los tests del catálogo.
+
+#### Y un hueco de cobertura que el cambio destapó
+
+Rehacer el contrato de las once herramientas **no rompió un solo test**. No porque estuviera bien cubierto, sino porque **nadie probaba las tools MCP**: todos los tests atacan la capa cliente (`lexical.detect`, `HFClient`), que devuelve `ToolResult` y no ha cambiado. `tests/integrations/test_tool_contract.py` cubre ahora esa frontera — que todas publiquen esquema, que un fallo marque `isError`, y que las de texto se envuelvan como corresponde.
+
+### Historial persistente: la API deja de ser sin estado (#102)
+
+Hasta aquí cada petición se atendía con lo que traía dentro y no dejaba rastro: reiniciar el proceso no perdía nada porque no había nada que perder. R9 rompe eso — el usuario tiene que poder volver a ver un análisis de ayer— y con ello aparece la primera escritura a disco del backend.
+
+#### Se guardan análisis, no invocaciones
+
+Al pie de la letra, «registrar cada ejecución de herramienta» significaría que un solo `POST /analyze` dejara **cinco filas**, una por señal. La pantalla resultante sería una lista de `detect_clickbait_lexical` repetido, sin el titular por ningún sitio: nadie reconoce ahí lo que hizo.
+
+Esa granularidad sí hace falta, pero **ya existe**: `log_tool_invocation` registra cada invocación con parámetros y duración. Son dos registros con dos públicos —depuración y persona— y mezclarlos estropea los dos. Aquí se guarda lo que el usuario reconoce: un análisis, con su titular y su veredicto.
+
+Se guarda la respuesta **completa**, no sólo el veredicto. Reejecutar al abrir la entrada no valdría por dos motivos: cuesta ~20 s en frío por la carga perezosa de MiniLM, y las señales remotas **no son deterministas**, así que el «resultado anterior» podría salir distinto. Un historial que cambia lo que dice no es un historial.
+
+#### SQLite detrás de tres funciones
+
+Lo que protege de un cambio de requisitos no es elegir el almacén más flexible, sino **aislarlo**: sólo `backend/api/history.py` sabe que hay SQL, y cambiar de motor es reescribir ese fichero sin tocar endpoints ni sus tests. Mismo patrón que `get_nlp_backend`, que permitió pasar de HuggingFace a local sin tocar ninguna señal.
+
+Se descartó **JSONL** —una línea por análisis, aún más simple— porque los requisitos piden paginación, filtros y orden inverso, y con un fichero plano *cada* consulta tendría que leerlo entero, parsearlo y ordenarlo en memoria para quedarse con veinte. Las consultas son justo lo que un fichero plano no sabe hacer.
+
+El aislamiento incluye **el formato**, no sólo el motor: el `json.dumps` y el `json.loads` viven los dos dentro del módulo. Que el segundo estuviera fuera —en `app.py`— hacía el aislamiento falso en una línea: con Postgres y una columna `jsonb` el driver ya devuelve el objeto construido, y ese `json.loads` externo habría reventado con un `TypeError` en un fichero que, por diseño, no debía tocarse.
+
+La base va a **`var/` y no a `data/`**: `data/` está versionado —datasets y splits congelados, que no deben cambiar nunca— y esto es estado que cambia en cada petición. Juntarlos acaba en un `git add data/` que commitea la base de datos. `var/` es además el directorio que se montará como volumen en H4.
+
+`origin` (`form` / `chat` / `api`) se declara desde el primer día aunque el chat no exista todavía: el prototipo ya distingue esos orígenes y añadir la columna después obligaría a migrar. Lo mismo con `tool`, `verdict` y `status`, que sólo se consultarán al llegar el filtrado (#103).
+
+#### Un fallo al guardar no hunde la respuesta
+
+`record` captura y devuelve `None`. Capturar `Exception` a secas suele ser mala señal, y aquí la distinción está en **qué papel juega lo que falla**: el análisis ya se hizo y es correcto, guardarlo es un efecto colateral. Con el disco lleno, devolver un 500 y tirar un análisis bueno de 20 s es peor que servirlo sin guardarlo. El motivo queda en el log.
+
+Es lo contrario del fallo de `log_tool_invocation` corregido en #100, donde lo tragado **era la respuesta**. La regla que separa los dos casos: puedes tragarte un fallo si lo que falla no es lo que te preguntaron.
+
+#### Tres «mejoras evidentes», medidas
+
+Una revisión externa señaló cinco puntos de rendimiento. Medirlos antes de aplicarlos descartó tres y destapó uno que no estaba en la lista.
+
+| Operación | Coste |
+|---|---|
+| `Path.mkdir(parents=True, exist_ok=True)` sobre directorio existente | 7,2 µs |
+| `CREATE TABLE IF NOT EXISTS` sobre tabla existente | 9,9 µs |
+| `_conectar()` + `INSERT` + `commit` | **193 792 µs** |
+
+Ejecutar el esquema y el `mkdir` en cada conexión cuesta el **0,005 %** y el **0,004 %** de lo que envuelven. Se quedan: hacen que el sistema funcione recién clonado el repo sin ningún paso de instalación, y evitar esa comprobación exigiría cachearla en una variable de módulo — que rompe los tests, porque el segundo test que apunta a otro `tmp_path` encontraría el indicador ya puesto y fallaría con `no such table`.
+
+El **timeout** que se proponía añadir ya existía: `sqlite3.connect` lo trae en 5 s por defecto, y medirlo lo confirma (esperó 5,01 s antes de `database is locked`). No fallaba «casi inmediatamente».
+
+#### WAL: la recomendación de manual, descartada por medición
+
+Activar `journal_mode=WAL` es el consejo estándar para SQLite bajo una aplicación web, y aquí **sale más lento**:
+
+| `journal_mode` | `synchronous` | ms/escritura |
+|---|---|---|
+| DELETE *(por defecto)* | FULL | 164 |
+| WAL | FULL | 226 |
+| WAL | NORMAL | 251 |
+| WAL | OFF | 0,47 |
+
+El motivo: al cerrar la **última** conexión a una base en modo WAL, SQLite ejecuta un checkpoint completo. Con «una conexión por operación» eso ocurre en cada escritura. WAL rinde cuando las conexiones se mantienen abiertas — exactamente lo que este diseño no hace. Son dos decisiones acopladas, y quedarse con media de cada una es peor que con cualquiera entera.
+
+Los 0,47 ms de `synchronous=OFF` prueban que esos ~164 ms son **todo `fsync`**. No se toca: un historial que se pierde al cortarse la luz no es un historial, y es el único de los cambios evaluados que sacrifica una garantía real por velocidad. Con la advertencia de que la medida se tomó sobre el disco virtual de WSL2, donde el `fsync` atraviesa hasta el anfitrión Windows; en Linux nativo son décimas de milisegundo. Queda apuntado para volver a medirlo al contenerizar y decidir entonces si la escritura debe salir de la ruta de respuesta.
+
+#### La conexión que no se cerraba
+
+El punto que sí era real, aunque por un motivo distinto del que se le atribuía. En `sqlite3`, el `with` de una conexión gestiona la **transacción** —commit al salir bien, rollback si salta algo— y **no la cierra**. Se afirmaba que eso provocaría un agotamiento de descriptores y la caída del proceso; medido, no es así, pero tampoco es inocuo:
+
+| Escrituras | Descriptores tras la ráfaga | Tras `gc.collect()` |
+|---|---|---|
+| 500 | +75 | +0 |
+| 2 000 | +96 | +0 |
+| 8 000 | +99 | +0 |
+| 20 000 | +163 | +0 |
+| 20 000 **con `close()`** | **+0** | — |
+
+No es una fuga lineal —20 000 escrituras no dejan 20 000 descriptores— pero el atasco crece y `gc.collect()` lo devuelve siempre a cero: **son conexiones esperando al recolector de ciclos**, no al contador de referencias. El código era correcto por accidente, apoyado en un detalle de implementación de CPython que PyPy no comparte. `_conectar` pasa a ser un gestor de contexto propio que cierra en un `finally`, y el orden importa: el `with` interno sale antes, así que confirma y **luego** cierra — al revés se perdería la escritura, porque cerrar con una transacción pendiente la deshace.
+
+#### La ruta relativa y la segunda base de datos
+
+`history_db` es `var/history.db`, una ruta **relativa**, y una ruta relativa se resuelve contra el directorio desde el que se arrancó el proceso. Lanzar `uvicorn` desde `backend/` en lugar de desde la raíz crearía una segunda base de datos vacía — y como se crea sin quejarse, el síntoma no sería un error sino «se ha borrado el historial». Se ancla a la raíz del repo vía `__file__`, respetando las rutas absolutas, que son las que se configurarán en el contenedor.
+
+#### Validar en la firma, no recortar a mano
+
+`limit` y `offset` se declaran con `Query(ge=1, le=100)` en vez de acotarse dentro de la función. Así los topes salen publicados en el esquema OpenAPI —del que se genera el cliente Angular— y pedir de más devuelve un **422** diciendo cuál es el máximo, en lugar de servir otra cosa en silencio.
+
+El mínimo de 1 no es cosmético: **en SQLite un `LIMIT` negativo significa «sin límite»**. Sin ese borde, `?limit=-1` no daría error: traería la tabla entera a memoria y la serializaría a JSON. El caso peligroso no era `?limit=999999`, era el negativo.
+
+#### Los tests escribían en el historial de verdad
+
+Añadir el registro a `/analyze` convirtió, sin avisar, todos los tests de esa ruta en escritores del historial real: una corrida de la suite dejaba cuatro entradas «Un titular» en `var/history.db`. El aislamiento va en un fixture `autouse` de `tests/conftest.py` y no en el fichero que prueba el historial, porque **quien contamina no es quien lo prueba**: lo hace cualquier test que llame a un endpoint que registre, incluidos los que aún no existen.
+
+`tests/api/test_history.py` cubre los dos lados por separado —el almacén llamando a sus funciones, el endpoint por HTTP— porque responden preguntas distintas: si los datos sobreviven y salen en orden, y si la decisión de «una entrada por análisis» se sostiene de verdad.
+
+### Validación E2E de la capa REST, y estructura del repositorio
+
+Antes de cerrar H2 se ejercitó el sistema **de punta a punta por primera vez desde que existe la API**: los 175 tests mockean la red y el protocolo, así que nada había probado la cadena real con el servidor MCP levantado por HTTP. Se corrió con los dos backends NLP, y el historial se apuntó a un fichero temporal para no ensuciar el real.
+
+Todo funcionó. Y aun así salieron tres cosas.
+
+| Paso | Resultado | En frío | En caliente |
+|---|---|---|---|
+| `GET /health` | `ok`, tres integraciones alcanzables | — | 0,43 s |
+| `GET /tools` | 11 herramientas, `degraded: false` | — | 0,068 s |
+| `execute` válido / 404 / 422 | los tres exactos | — | 0,66 s |
+| `POST /analyze` **local** | veredicto correcto | **105,6 s** | 0,363 s |
+| `POST /analyze` **remoto** | mismo veredicto | 38,9 s | 0,610 s |
+| `GET /history` + 10 filtros | todos correctos | — | 0,033 s |
+
+#### El timeout de ejecución no tiene arreglo por número
+
+`detect_clickbait` (BART-large-MNLI) contra un servidor MCP en frío tardó **51,6 s**, con un `mcp_execute_timeout` de **60**. Ocho segundos de margen, y **con el modelo ya descargado**: en una máquina limpia hay que sumar ~1,6 GB y se pasa.
+
+Lo importante es que **subir el número no lo arregla**. Con caché fría el tiempo depende del ancho de banda, así que no está acotado y no existe un valor correcto. La solución es que cargar el modelo no ocurra dentro de una petición: un **calentamiento explícito al arrancar**, que es inherentemente tarea de contenedores y por tanto de H4.
+
+Y la carga perezosa **se queda**: es lo que evita que importar un módulo arrastre 1,6 GB, y lo que permite que el CI corra sin torch. No se sustituye, se complementa con un disparo deliberado en el arranque — donde tardar 105 s es gratis porque hay sondas de *readiness* para eso.
+
+#### `NLP_BACKEND=remote` no hace remoto el sistema
+
+Sólo conmuta **dos de las cinco** señales:
+
+| Señal | Backend |
+|---|---|
+| `detect_clickbait`, `analyze_sentiment` | `remote` \| `local` |
+| `detect_clickbait_incoherence` | **siempre local** (MiniLM) |
+| `detect_clickbait_lexical` | **siempre local** (reglas) |
+| `detect_clickbait_linear` | **siempre local** (pesos en JSON) |
+
+Por eso el «remoto en frío» tardó 38,9 s: era MiniLM cargándose en local, no la red. **Consecuencia para H4: la imagen Docker necesita torch y sentence-transformers aunque se despliegue en modo remoto.** No se consigue una imagen ligera poniendo `remote`.
+
+*(Estaba declarado en las fichas de modelo desde E5-08; lo que no estaba era la consecuencia de despliegue.)*
+
+#### El caso estrella, en vivo — y lo que revela sobre el contraste
+
+El primer análisis reprodujo el listicle que se usa como ejemplo:
+
+```
+forma    -> None   (detect_clickbait=False · lexical=True · linear=True)
+engano   -> True   (incoherence)
+tono            —  (no vota)
+VEREDICTO: enganoso
+```
+
+La dimensión `forma` tenía **2 contra 1** y el sistema **se negó a resolverlo**: declaró la discrepancia en vez de votar. El tono no votó. Y la jerarquía hizo el resto — el engaño pesa más que la forma, así que el veredicto global salió `enganoso` pese a la ambigüedad.
+
+Pero conviene mirar **quiénes** coincidieron: `lexical` y `linear`, que son justo las dos que **comparten extracción de rasgos** — `featurize_cues()` llama a `lexical.detect()`. La que discrepó, `detect_clickbait`, es la única independiente de las tres.
+
+Así que ese «2 contra 1» es en realidad **un par acoplado contra una vista independiente**. Con agregación por mayoría, el sistema habría dictaminado `forma = clickbait` apoyándose en dos señales que ven exactamente lo mismo. **El diseño resultó más robusto ante la dependencia de lo que sabía ser.**
+
+Y de ahí sale la pregunta que sí importa, porque el caso observado fue el benigno:
+
+- Cuando las señales acopladas **discrepan** → se declara ambigüedad. Protegido.
+- Cuando las señales acopladas **coinciden** → cuenta como consenso. **Vulnerable.**
+
+Y dos señales que comparten rasgos coinciden casi siempre: eso es lo que significa estar acopladas. La situación de riesgo es la común. Medir el acuerdo real entre `lexical` y `linear` sobre el split de dev deja de ser tarea documental y pasa a decidir **si el contraste dentro de la dimensión `forma` significa algo**.
+
+#### `docs/estructura.md`: criterios de pertenencia, no descripciones
+
+Se añade un documento que dice qué contiene cada carpeta y, sobre todo, **qué cualifica a una pieza para vivir en ella**. La distinción no es retórica: una descripción se escribe mirando lo que ya hay dentro, así que por construcción lo legitima — «`api/` contiene endpoints, esquemas y la orquestación» habría dado por bueno que la lógica de veredictos viviera ahí. Un criterio en forma de pregunta sí/no («¿existiría esto si no hubiera HTTP?») se aplica a una pieza concreta y la delata.
+
+Escribirlo destapó cuatro tensiones y dos bugs sin ejecutar una línea. La primera tensión —la orquestación en `api/`— resultó tener consecuencia de diseño y se analiza aparte: el servidor MCP no expone ninguna herramienta que contraste señales, así que **el agente conversacional no puede reproducir el veredicto del formulario**.
+
+### Historial: filtros y retención (#103)
+
+La otra mitad de R9. El issue anterior dejaba algo usable —historial paginado y en orden inverso— y éste añade dos refinamientos que traían decisiones propias, más un criterio que hubo que reinterpretar porque su premisa había cambiado.
+
+#### R9.4 se escribió para un historial que no existe
+
+«Filtrado por nombre de herramienta, intervalo de fechas y estado» se redactó pensando en el historial de **invocaciones**, que en #102 se descartó a favor de guardar análisis. Sobre lo que hay, dos de los tres criterios no encajan tal cual:
+
+**«Nombre de herramienta»** no aplica a un análisis, que invocó cinco señales y no tiene *una*. Se resuelve con dos parámetros en vez de uno: `kind` separa análisis de ejecuciones sueltas, y `tool` sólo casa con las segundas, que sí tienen una. Ambas columnas existían ya. Se descartó la lectura literal —guardar qué señales participaron en cada análisis— porque pide tabla nueva o columna de nombres y habilita una consulta de depuración, no de usuario.
+
+La UI es lo que hace que el desajuste no se note: las pestañas superiores son `kind`, y el desplegable de herramientas **sólo aparece dentro de «Herramientas»**. La restricción no se explica, se ve.
+
+**«Estado»** tampoco es una sola cosa. Un análisis puede tener tres señales bien y una caída, así que se desdobla: `verdict` es **qué concluyó** —`enganoso`, `factual`, `ambiguo`…— y es el que le interesa a quien mira sus análisis; `status` es **si funcionó la maquinaria**, y es operativo. En la pantalla sólo el primero merece sitio destacado. Es también el motivo por el que en #102 `status` quedó como cadena y no como enum.
+
+#### La poda: tres formulaciones y una que parecía correcta
+
+Podar al escribir estaba decidido de antemano; lo que no estaba era **cómo escribir el `DELETE`**, y ahí la intuición falló dos veces.
+
+| Formulación | desde 500 | desde 3000 | Coste |
+|---|---|---|---|
+| (a) `MIN` sobre subconsulta | → 700 | → 1000 | 801 µs |
+| (b) `OFFSET` sobre el índice | → 700 | → 1000 | 618 µs |
+| (c) borrar sólo la más vieja | **→ 500** | **→ 3000** | 14 µs |
+| **(d) corte por `MAX(id) - N`** | → 700 | → 1000 | **17,7 µs** |
+
+La (c) era 45 veces más barata que la ganadora y **está mal**: borra incondicionalmente, así que *mantiene* el tamaño de partida en vez de llevarlo al límite. Con 500 filas y techo de 1000 seguía borrando una por escritura — pérdida de datos silenciosa. Y el primer banco de pruebas no lo detectó porque arrancaba justo en el límite, así que su «quedan 1000 filas» salía por construcción y no porque funcionara.
+
+De ahí el criterio con el que se midieron: **convergencia desde ambos lados**, y las dos mitades significan cosas distintas. Desde abajo es **corrección**: borrar por debajo del techo destruye lo que la política dice conservar. Desde arriba es la **ruta de actualización**, y no es hipotética — el historial lleva creciendo sin techo desde #102, así que al desplegar la retención lo primero que se encuentra es una tabla por encima del límite. Que (d) reduzca de golpe —de 3000 a 1000 en *una* sentencia— es lo que evita tener que escribir una migración.
+
+#### Por qué `MAX(id) - N` es exacta, y dos veces que se afirmó mal
+
+La fórmula ganadora es la que *parece* ingenua, y restar del máximo sólo da «la N-ésima más nueva» si los ids son contiguos. Al justificarlo se dio dos veces una razón falsa antes de comprobarlo:
+
+1. «Los huecos vienen de la poda» — **falso**: la poda borra por la cola y deja un bloque contiguo.
+2. «Los huecos vienen de inserciones revertidas, porque `AUTOINCREMENT` quema el id» — **falso también**, y esta vez medido: tras una inserción revertida y una confirmada, la fila tiene el id 1. El contador se deshace con la transacción.
+
+Lo que `AUTOINCREMENT` garantiza es otra cosa: que un id **no se reutilice tras borrar**, para que el 40 podado no reaparezca señalando otro análisis. Que era justo para lo que se eligió en #102.
+
+Así que los ids son contiguos y la fórmula es exacta. Lo que la volvería aproximada es que algo borrara filas del *medio* —«fijar un análisis para que no se pierda», por ejemplo—: entonces el corte caería más arriba y se conservarían algo **menos** de N. Nunca más, así que el techo se respeta siempre y sólo el suelo se vuelve aproximado.
+
+#### El índice, y la pregunta que no se le hizo a WAL
+
+| | 1 000 filas | 10 000 | 50 000 |
+|---|---|---|---|
+| Poda por antigüedad **sin** índice | 2 374 µs | 11 113 µs | 54 595 µs |
+| Poda por antigüedad **con** índice | 0,99 µs | 1,02 µs | 0,97 µs |
+
+Unas 2.400 veces más rápida a 1.000 filas, y constante en vez de lineal. Y **no se paga al escribir**: 14,29 µs sin índice contra 13,91 µs con él, o sea que la diferencia está por debajo del ruido. Esa segunda medición es la que faltó en #102 al evaluar WAL — mirar sólo lo que una optimización acelera, sin mirar lo que encarece, es cómo se acaba adoptando algo que sale más lento.
+
+#### La retención no es sólo higiene de disco
+
+| `SELECT COUNT(*)` | 1 000 filas | 10 000 | 50 000 |
+|---|---|---|---|
+| | 886 µs | 10 215 µs | 50 465 µs |
+
+Perfectamente lineal, ~1 µs por fila, porque SQLite no cachea el conteo sino que recorre. Y `GET /history` lo ejecuta **en cada lectura** desde #102, para devolver el `total`. Sin techo, a 50.000 entradas cada petición gastaría 50 ms sólo en contar. La retención es lo que mantiene barata una lectura ya escrita.
+
+Los límites van a configuración (`history_max_entries`, `history_max_days`, `0` para desactivar) porque el criterio propone «1000 ejecuciones o 30 días» **como ejemplo, no como norma** — y porque en desarrollo interesa desactivarlos para no perder las pruebas propias. Se aplican los dos y manda el más estricto: uno acota el tamaño pero no el horizonte —mil análisis de golpe borran los de ayer— y el otro al revés.
+
+#### Un banco de pruebas que no midió lo que decía
+
+Conviene dejarlo escrito porque el error es fácil de repetir. El primer banco concluía que la poda por cantidad **escala con el tamaño de la tabla**:
+
+```
+1 615 µs (1k filas) → 11 990 µs (10k) → 61 860 µs (50k)
+```
+
+No lo demuestra: estaba escrito pasando `LIMIT = filas + 10`, es decir haciendo crecer **el límite** junto con la tabla. Medía el otro parámetro. En el sistema real el límite es fijo, así que el número que valía era el de la primera fila.
+
+Y el banco rehecho tampoco quedó fiable: con límite fijo sale plano a los tres tamaños, pero **también** al hacer crecer el límite hasta 50.010, lo que contradice al primero. No se explicó ese suelo de ~1 ms y no se construyó ninguna recomendación sobre esos números — la pregunta que importaba, el coste en régimen estacionario, la responde una medida directa.
+
+#### La poda va en la misma transacción, y qué cuesta eso
+
+Las dos sentencias se ejecutan dentro del `with` del `INSERT`, que es lo que hace que se cuelen en el `fsync` ya pagado: ninguna variante medida se acercó al doble de la referencia, así que el `DELETE` no añade sincronización propia.
+
+*(Esa medición sólo sirve para la lectura gruesa. Los deltas concretos eran ruido — podar salía «más rápido» que no podar, lo cual es imposible. La diferencia buscada, ~1,6 ms, es el 1 % de una escritura con `fsync` y no se resuelve contra un ruido del ±40 %.)*
+
+El precio de esa decisión: si la poda falla, **se deshace también el `INSERT`**, y como `record` se traga los errores el síntoma sería «el historial dejó de guardar» sin ruido. Separarlas en dos transacciones lo evitaría, pero perdería el ahorro que justifica podar al escribir. Se asume, cubierto con tests.
+
+#### Dos invariantes frágiles, reforzados sin que hubiera fallo
+
+Ninguno era un bug. Los dos eran código correcto **por razones que nadie había escrito**, que es una categoría distinta y que conviene tratar igual.
+
+**El `WHERE` compuesto.** Los filtros se acumulan en una lista de fragmentos que se unen con `AND`, y los valores viajan aparte por `?`. Era seguro, pero los cuatro filtros de igualdad se construían con `f"{columna} = ?"`: seguro **por dónde venía** esa variable —una tupla tres líneas más arriba—, no por cómo estaba escrita la línea. El día que alguien añada un filtro genérico por campo y pase el nombre desde la petición, esa misma línea se convierte en una inyección sin dar ninguna señal. Ahora el fragmento entero va en la tupla (`"kind = ?"`), y de paso el fichero queda coherente: los filtros de fecha ya eran literales.
+
+**El formato de las fechas.** `created_at` se compara entre cadenas, lo que sólo reproduce el orden cronológico si todo se escribe igual. Se comprobó que hoy acierta, incluso mezclando marcas con microsegundos y sin ellos: el carácter que sigue a los segundos es `.` (46) si los hay y `+` (43) si no, y 46 > 43, que es justo el orden correcto. Acierta por la tabla ASCII, no por diseño. Pero dependía de que **tres sitios** —el `INSERT`, el corte de la poda y los filtros— se acordaran de usar `isoformat()` en UTC. Un sufijo `Z` es el carácter 90 y ordena después de cualquier desfase: mezclarlo rompería las comparaciones en silencio. Todo pasa ahora por una única función.
+
+#### Detalles que costarían una tarde
+
+**El `+` de los desfases horarios.** En una cadena de consulta `+` significa espacio, así que `?since=2026-08-14T00:00:00+00:00` escrito a mano llega como `...00:00:00 00:00` y devuelve 422. No es un fallo de la API —cualquier cliente que codifique sus parámetros funciona— pero está avisado en la descripción del parámetro, que es donde lo verá quien genere el cliente Angular. La forma con sufijo `Z` no tiene el problema.
+
+**El `payload` corrupto.** Ninguna ruta del código puede producirlo: `_guardar` es el único sitio que escribe esa columna y siempre con `json.dumps`. Aun así, una sola fila rota dejaría ilegible el historial entero. Se descartó capturar el error y devolver `{}` —sustituye datos corruptos por datos falsos en silencio, y este sistema declara sus límites en vez de esconderlos— y se optó por que **siga fallando pero diciendo qué fila**: un `JSONDecodeError` pelado no identifica la entrada entre mil.
+
+#### Qué encontró revisar, frente a qué encontró medir
+
+Se aprovechó el issue para probar si una revisión automática sustituye al trabajo a mano. El resultado, con todas las cifras:
+
+| Origen | Resultado |
+|---|---|
+| Revisión multiagente en la nube (75 ficheros, 7.402 líneas) | **0 hallazgos** |
+| Revisión externa, primera tanda | 5 propuestas → 2 falsas, 2 insignificantes (0,005 % y 0,004 %), 1 buena |
+| Revisión externa, segunda tanda | 3 propuestas → 0 bugs, 2 invariantes frágiles que sí valía reforzar |
+| Medir a mano | la conexión sin cerrar, WAL descartado, el `COUNT(*)` lineal, la contaminación de tests, la convergencia de la poda, y cuatro afirmaciones propias desmentidas |
+
+La lectura: **lo que encontró cosas no fue revisar, fue medir.** Lo que aportaron las revisiones no fueron fallos sino la sospecha de que algo era correcto por accidente — y eso resultó ser un tipo de hallazgo útil, distinto del que se busca normalmente. Ninguna de las tres detectó un solo bug real.
+
+Se añade `ASYNC` al conjunto de reglas de ruff, que detecta llamadas bloqueantes dentro de funciones asíncronas. Con la advertencia de que **no conoce `sqlite3`**, así que el caso concreto de este issue se le habría escapado igual.
+
+### Metadata de las tools: categoría y procedencia (#97, primera parte)
+
+El catálogo necesita saber, de cada herramienta, **qué tipo de trabajo hace** y **de dónde viene**. El objeto `Tool` del protocolo MCP trae nombre, descripción y esquema, pero ninguna de esas dos cosas. MCP sí permite adjuntar un `meta` libre por herramienta, y se comprobó que **viaja intacto hasta el cliente**, así que la información se declara en el origen en vez de en un mapa cableado en la API — que obligaría a editarla cada vez que se añade una fuente, justo lo que R1.9 prohíbe.
+
+**Los dos ejes se tratan distinto a propósito.** La **categoría es un juicio** —qué tipo de trabajo hace— y no se puede derivar de dónde vive el fichero: `describe_models` está en `nlp/` pero es una utilidad, no una señal. Así que se declara, y declararla obliga a pensarla al añadir la siguiente. La **integración es un hecho de ubicación**, se deriva del módulo, y por eso **no puede mentir**: declararla a mano permitiría que el paquete dijera una cosa y el `meta` otra, en silencio — el mismo fallo que costó el renombrado del campo `signal` en H1.
+
+**Las categorías de R5.3 se renombraron.** Los ejemplos originales eran «Integración de API» y «Análisis de NLP», y ambos nombraban mal lo que separan:
+
+| Original | Problema | Ahora |
+|---|---|---|
+| Integración de API | Describe la implementación, y es **falso como distinción**: `detect_clickbait` es una llamada a la API de HuggingFace tanto como `get_nyt_news` lo es a la de NYT | **Fuentes de contenido** |
+| Análisis de NLP | Nombra una tecnología, no un propósito — y el proyecto **ya tiene su palabra**, «señal», usada en `SignalResult`, en la orquestación y en las fichas | **Señales de análisis** |
+
+Lo que de verdad separa a los cuatro primeros del resto no es que llamen a una API: es que **traen contenido** en vez de analizarlo.
+
+El renombrado tiene además una propiedad que lo confirma: **«Señales de análisis» son exactamente las cinco que llevan ficha de modelo**. Con los nombres anteriores esa correspondencia parecía casualidad; ahora la categoría *predice* si `model_card` viene o no, y R5.9 deja de ser un añadido suelto para encajar con R5.3.
+
+**Y el índice de fichas se centraliza.** `cards_by_signal()` vive junto a `MODEL_CARDS` porque lo necesitan dos consumidores —la orquestación de `/analyze`, para leer la dimensión de cada señal, y el catálogo, para adjuntar la ficha—. Dos copias del mismo índice acabarían divergiendo.
+
+_(Nota para la memoria: `get_alerts` y `get_forecast` son andamiaje del MVP y no pertenecen al dominio del clickbait. Se conservan porque son herramientas reales del sistema y ocultarlas sería deshonesto, pero su función es demostrar el mecanismo MCP con una API pública sin clave.)_
+
+### `GET /tools`: el catálogo por handshake MCP (#97)
+
+Es **el primer sitio donde la API habla MCP de verdad**. `/analyze` importa el núcleo directamente —dos fachadas sobre el mismo código— y para él es correcto; aquí no vale, y R5.8 lo dice explícitamente: el catálogo debe construirse por descubrimiento. La razón no es purismo, es que **importar módulos daría siempre la misma respuesta aunque el servidor estuviera caído**, que es justo lo contrario de lo que un catálogo debe mostrar.
+
+**Sesión por petición, no persistente.** Al planificar el issue se había propuesto mantener la sesión viva en el `lifespan` para ahorrar los 0,212 s del *handshake*. Al implementarlo no se sostiene: `/tools` se consulta cuando alguien abre la pantalla de Sistema, no en bucle, así que esa latencia es imperceptible. A cambio, la sesión persistente obliga a gestionar reconexión, guardar estado mutable compartido y responder si `ClientSession` aguanta uso concurrente. Se pagará esa complejidad cuando haya un consumidor caliente que la justifique —el agente, con muchas invocaciones por turno— y con una medición delante.
+
+La decisión tiene un efecto que la confirma: **hace desaparecer otra pregunta abierta**. «¿Arranca la API si no hay servidor MCP?» sólo existía porque el catálogo se construía al arrancar. Sin sesión persistente no hay nada que conectar en el arranque: la API arranca siempre, y `/tools` informa del estado real en el momento de la llamada.
+
+**Un servidor caído no rompe la respuesta**, igual que una señal caída no rompe `/analyze`: sale en `servers` con estado `unreachable` y su motivo, `degraded` queda a `true` y las herramientas de los demás se sirven igual. Con la configuración como lista, R1.8 deja de ser un requisito vacío aunque la lista tenga un solo elemento.
+
+**Y sin servidores configurados, el catálogo sale vacío pero NO degradado.** Parece un descuido y es deliberado: `degraded` significa «algo declarado no responde», y sin nada declarado no ha fallado nada — eso es una **mala configuración**, no una degradación. La distinción se conserva porque el contrato permite separarlas: `servers` vacío significa que no hay nada configurado; `servers` con entradas `unreachable` significa que está declarado y no contesta. Si la lista vacía marcara `degraded`, ambas situaciones colapsarían en una y la interfaz no podría decir cuál está ocurriendo.
+
+El resultado, con el servidor real:
+
+```
+servidores: [('tfg-mcp-server', 'ok', 11)]   degradado: False
+
+  detect_clickbait_lexical      Señales de análisis   nlp      interpretable/forma
+  detect_clickbait_incoherence  Señales de análisis   nlp      híbrido/engano
+  analyze_sentiment             Señales de análisis   nlp      opaco/tono
+  get_nyt_news                  Fuentes de contenido  nyt      -
+  health_check                  Utilidades            None     -
+```
+
+El nombre del servidor no sale de la configuración: lo **declara él mismo** en el `handshake` (`serverInfo.name`), lo que demuestra que hubo conversación real y no una lista leída de un fichero.
+
+#### Tres obstáculos que costaron encontrar
+
+Los tests hablan el protocolo completo contra la app **en el mismo proceso**, con un `httpx.AsyncClient` montado sobre `ASGITransport`. Aquí no es una optimización sino una necesidad: el servidor arranca por defecto en `stdio`, así que durante los tests no hay nada escuchando en ningún puerto.
+
+**El *lifespan* no admite una fixture asíncrona.** El primer intento falló con «attempted to exit cancel scope in a different task»: un *cancel scope* de anyio —la región cancelable que abre el `lifespan`— exige abrirse y cerrarse **en la misma tarea**, y pytest-asyncio puede ejecutar la fixture y el cuerpo del test en tareas distintas. Se resuelve con un `@asynccontextmanager` abierto dentro del propio test.
+
+**El gestor de sesiones es de un solo uso, y eso rompió un test que ya funcionaba.** `StreamableHTTPSessionManager.run()` sólo puede llamarse una vez por instancia, y `backend.main.mcp` es un singleton de módulo: el primer test que levantara su app HTTP dejaba el gestor gastado para los demás. Lo grave no es el fallo sino su forma — **dependía del orden de ejecución**, así que `test_main.py` pasaba aislado y fallaba en conjunto. Es el patrón que se acaba etiquetando de *flaky* sin llegar a entenderlo. La solución es una fixture que **construye un servidor nuevo por test**, montado igual que `main.py`; que eso sean tres líneas es rédito directo del descubrimiento automático de #91.
+
+**Y un tercero que hizo lo que debía**: el test que fija las rutas de OpenAPI falló al añadir `/tools`, porque afirmaba que sólo había dos. Un contrato que avisa cuando cambia.
+
+**Límites.** El filtro por categoría (R5.4) y la búsqueda (R5.6) quedan fuera: bajaron a PODRÁ al revisar los requisitos, y once herramientas caben en una pantalla sin desplazarse. Sigue sin existir `/tools/{name}/execute` (R4.3) ni `/history` (R4.4).
+
+### Registro automático de integraciones (#91)
+
+R1.9 —escrito al ordenar la extensibilidad en #86— dice que añadir una fuente de datos o una señal de análisis no debe obligar a modificar las herramientas existentes. La mitad de interfaz ya estaba cumplida por el envoltorio uniforme de señales; la de servidor no: `main.py` listaba los `register()` a mano, así que añadir una integración obligaba a editarlo.
+
+Ahora `backend/integrations/discovery.py` recorre el paquete, importa el `tool` de cada uno y llama a su `register(mcp)`. Añadir una integración pasa a ser **crear su paquete**.
+
+**El chequeo de salud queda fuera, y no como excepción.** Al plantearlo apareció la pregunta de si `health` debía moverse a `integrations/` para que el descubrimiento lo encontrara. La respuesta es que no: **no envuelve ninguna API externa, es infraestructura básica** —del mismo tipo que el *healthcheck* de un contenedor—. Y eso lo deja **fuera del alcance de R1.9 por definición**, porque el requisito habla de «una fuente de datos o una señal de análisis». Que `main.py` lo registre explícitamente no es un caso especial que disculpar: es la separación correcta, y así queda escrita en el módulo.
+
+El fichero pasa de cinco líneas de registro a dos, y esas dos significan algo:
+
+```python
+discover_integrations(mcp)  # todo lo que haya en integrations/
+health.register(mcp)  # núcleo, no integración
+```
+
+**Un paquete roto no tumba el servidor.** Si una integración falla al importarse o su `register` lanza, se anota y se sigue con las demás — misma postura que con las señales en `/analyze`, y lo que piden R1.8 y R2.8. El arranque registra qué se descubrió y qué falló, porque una integración caída deja al sistema con menos herramientas **en silencio**: sin ese log, la única pista sería una tool que ya no aparece.
+
+**El test que importa es el que demuestra el requisito**: crea una integración de mentira en un directorio temporal y comprueba que aparece sola. El truco para no ensuciar el repositorio es extender el `__path__` del paquete `backend.integrations` —la lista donde Python busca submódulos—, de modo que el import funcione de verdad sin copiar ficheros dentro del proyecto. Sin ese test, R1.9 sería una afirmación; con él, es comprobable.
+
+### El catálogo no es un lanzador: R5 replanteado
+
+Al preparar `/tools` se leyó R5 entero por primera vez desde que se escribió, y aparecieron tres problemas —dos de redacción y uno de concepto.
+
+**Una contradicción interna.** R5.1 decía «mantener un registro» y R5.2 «CUANDO se registre una nueva herramienta… almacenar». Eso describe un catálogo **con estado**: una tabla que se rellena en un evento de alta. Pero R5.8 exige construirlo **dinámicamente** por *handshake* MCP, que es una **vista calculada** en cada consulta. No pueden ser las dos cosas — y en el modelo dinámico el evento «se registra una tool» **nunca ocurre**: las herramientas simplemente aparecen o dejan de aparecer en `list_tools`. Corregido a *exponer*. La entrada del glosario arrastraba el mismo error («sistema de registro») y se reescribió igual.
+
+**Un requisito desproporcionado.** R5.6 exigía búsqueda por nombre o palabras clave sobre un catálogo de **11 herramientas**, que caben en una pantalla sin desplazarse. Es un criterio pensado para catálogos de cientos de entradas. Baja a PODRÁ, junto con el filtro por categoría (R5.4), por el mismo motivo. El autor añade una razón de uso: invocar una herramienta concreta en vez de dejar que el sistema elija **es una operación avanzada**, no el camino del usuario medio.
+
+**Y el problema de fondo: el catálogo no es un lanzador.** La historia de usuario original —«descubrir qué herramientas hay y **cómo usarlas**»— venía de concebirlo como un menú desde el que invocar herramientas sueltas. Pero el usuario medio no entra por ahí: entra por *Analizar* o por el chat. Lo que sí necesita es saber **qué compone este sistema y con qué límites**, que es exactamente lo que hace la pantalla *Sistema* del prototipo y lo que piden R3.8 y R3.9.
+
+De ahí sale **R5.9, nuevo**: donde una herramienta sea una señal de análisis, el catálogo debe exponer su **ficha de modelo**. Sin él, el catálogo mostraría
+
+```
+detect_clickbait_linear  →  «Análisis de NLP»
+```
+
+y escondería lo que ya está escrito en `model_cards.py`: que es **interpretable** (no una caja negra), que mide **forma** (no engaño), y que su F1 cae de **0.865 en dominio a 0.476 fuera**. Un catálogo que tira esa metadata desperdicia justamente el eje del trabajo.
+
+**R5.7 reinterpretado.** Decía «agregar las herramientas de todos los MCP_Server conectados». Con un solo servidor eso se cumple trivialmente y no demuestra nada — el mismo problema que R1.7. Pero tiene una lectura que sí aporta: **de qué integración procede** cada herramienta (NYT, Guardian, meteorología, NLP). Esa es información real y útil hoy; la agregación multi-servidor se mantiene como capacidad para cuando haya varios.
+
+**R4.3 se queda, con sus consumidores anotados.** Ese endpoint —ejecutar una tool concreta— existía para que el catálogo lanzara herramientas, así que al dejar de ser lanzador parecía quedarse sin uso. No es el caso: le quedan dos reales, ejecutar **una señal suelta** (sólo el sentimiento, sin lanzar las cuatro) y **traer una noticia** desde la pantalla de análisis. Lo que estaba mal era su justificación, no su forma.
+
+**El nombre se mantiene.** Se valoró renombrar `Tool_Catalog`, ya que no aparece en el código y el cambio saldría barato. Se descarta: un catálogo es **descriptivo por naturaleza** —el de un museo describe obras que no te llevas— y lo que empujaba hacia el lanzador era la historia de usuario, ya corregida. Además la historia de R13 depende del término: *«que el sistema decida por mí qué herramientas usar sin necesidad de conocer el catálogo»* sólo tiene sentido si existe un catálogo que uno podría conocer.
+
+### Transporte del servidor MCP, configurable (#90)
+
+R1.6 llevaba escrito desde la ampliación de requisitos de Fase B y era un **DEBERÁ sin cumplir**: `main.py` cableaba `mcp.run(transport="stdio")`. El problema no es de forma — **`stdio` exige que el cliente arranque el servidor como subproceso y hable con él por tuberías**, cosa que no cruza contenedores. Sin transporte HTTP, H4 no puede separar el servidor MCP de la API.
+
+Ahora sale de configuración (`mcp_transport`, `mcp_host`, `mcp_port`):
+
+```bash
+MCP_TRANSPORT=streamable-http MCP_PORT=8765 python -m backend.main
+```
+
+**El valor por defecto sigue siendo `stdio`, y eso es deliberado.** Es lo que espera un cliente que lanza el servidor como subproceso —así está conectado el entorno de desarrollo del autor— y cambiar el defecto habría roto esa conexión sin que ningún test fallara. Hay un test que fija ese defecto precisamente para que nadie lo cambie por descuido.
+
+Verificado **por los dos caminos**, arrancando el entry point real y conectando un cliente MCP de verdad: por HTTP expone las 11 tools y responde a `call_tool`; por `stdio` sigue haciendo exactamente lo mismo.
+
+**Y la verificación de HTTP quedó automatizada**, que era el hueco evidente: los tests que espían `mcp.run` comprueban el *cableado* pero no que el servidor sirva, porque `run()` bloquea el proceso. La salida no es levantar un servidor en un puerto —lento y frágil en CI— sino pasarle al cliente MCP un `httpx.AsyncClient` montado sobre `ASGITransport`: el protocolo completo corre **contra la app en el mismo proceso**, sin red. Cuesta **0,03 s**, así que va en cada CI en vez de quedarse como comprobación manual.
+
+Dos obstáculos que costaron encontrar y conviene dejar escritos. El primero, que el gestor de sesiones de FastMCP arranca en el *lifespan* de la app y `ASGITransport` no lo ejecuta, así que hay que entrarlo a mano o toda petición falla. El segundo, un `421 Misdirected Request` que resultó ser la protección anti *DNS rebinding* del propio servidor: acepta `127.0.0.1:*` y `ASGITransport` enviaba `Host: 127.0.0.1` sin puerto. Se resuelve poniendo puerto en la URL base — **dejando la protección activa**, que era la tentación fácil de desactivar.
+
+Un detalle de diseño: `host` y `port` se asignan siempre, aunque `stdio` los ignore. Meter un `if` para no tocar dos campos inertes añade una rama que hay que leer y mantener a cambio de nada.
+
+### Análisis estático: adopción de ruff
+
+El proyecto no había tenido nunca linter. Se adopta [`ruff`](https://docs.astral.sh/ruff/) —linter y formateador en un binario, sustituto de la pila flake8 + isort + pyupgrade + black— y el CI lo comprueba en cada PR.
+
+**El conjunto de reglas se declara explícitamente** en `ruff.toml` en vez de heredar el de por defecto. La razón no es purismo: ruff amplía sus defaults entre versiones, y confiando en ellos **una actualización de la herramienta rompería el CI sin que cambiara una línea de código**. Por lo mismo, la versión va pineada.
+
+Tres reglas se desactivan a conciencia:
+
+- **`BLE001`** (capturar `Exception`) — chocaría con la arquitectura, no con un descuido. Capturar excepciones amplias en las fronteras de integración es lo que sostiene el aislamiento de fallos de todo el sistema: `ToolResult.fail`, `gather(return_exceptions=True)`, R6.13. Una señal caída no puede tumbar a las demás, y para eso hay que capturar lo que sea que lance el proveedor.
+- **`E501`** (línea larga) — el formateador ya mantiene el *código* dentro del ancho; lo que no puede partir son literales y prosa. Sus 62 avisos caían casi todos en payloads simulados de los tests (hasta 196 caracteres).
+- **`RUF001-003`** (caracteres Unicode ambiguos) — existen para detectar homoglifos (cirílico disfrazado de latino). Aquí sólo saltaban por comillas tipográficas en texto español legítimo.
+
+**Dos hallazgos reales**, que es lo que justifica el ejercicio:
+
+- **`DTZ011` — zona horaria implícita.** Los clientes de Guardian y NYT calculaban la ventana de «noticias de los últimos N días» con `date.today()`, que usa la zona de la máquina. En Docker el contenedor va en UTC y el equipo de desarrollo no, así que **la misma consulta habría devuelto rangos distintos según dónde se ejecutara**, con un día de desfase cerca de medianoche. Corregido a `datetime.now(timezone.utc).date()`. Es exactamente el tipo de fallo que H4 habría destapado en el peor momento.
+- **`B905` — `zip()` sin `strict`.** Ocho sitios. `zip` **trunca en silencio** al iterable más corto, y el más delicado es `linear.py`, que empareja pesos, nombres de features y vector de entrada: si esos tres dejaran de cuadrar, cada peso se atribuiría al cue equivocado y **la explicación sería falsa** sin que nada avisara. En un trabajo cuyo eje es la explicabilidad, eso es el peor fallo posible. Los ocho pasan a `strict=True` —ruff sólo propone `strict=False`, que hace explícito el truncado pero no lo arregla—, convirtiendo un resultado silenciosamente incorrecto en un error ruidoso. Verificado sobre datos reales: las invariantes se cumplían, ahora quedan vigiladas.
+
+Balance: 43 avisos iniciales, 26 corregidos automáticamente, 12 con criterio y 5 desactivados por regla. 26 ficheros tocados, 98 tests en verde.
 
 
 

@@ -1,10 +1,13 @@
 name: CI
 
+# El filtro `branches` es por rama DESTINO. Con el flujo dev->main, las PRs de
+# feature apuntan a dev: si aquí solo figurara main, se mergearían sin pasar los
+# tests y el CI no saltaría hasta promocionar dev->main, cuando ya es tarde.
 on:
   pull_request:
-    branches: [main]
+    branches: [main, dev]
   push:
-    branches: [main]
+    branches: [main, dev]
 
 jobs:
   test:
@@ -23,3 +26,12 @@ jobs:
         run: pip install -r requirements.txt
       - name: Corriendo tests...
         run: pytest -m "not integration"
+      # Después de los tests a propósito: si el estilo falla, el informe de tests
+      # ya se ha generado. Ruff se instala aparte y pineado —no desde
+      # requirements.txt— para no meter tooling de desarrollo en las
+      # dependencias de ejecución. Reglas y exclusiones, en ruff.toml.
+      - name: Comprobando estilo...
+        run: |
+          pip install ruff==0.16.1
+          ruff check .
+          ruff format --check .

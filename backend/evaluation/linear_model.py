@@ -1,13 +1,11 @@
+import json
 from collections import Counter
-
-from backend.evaluation.splits import load_split
-from backend.integrations.nlp import lexical
-
 
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import precision_recall_fscore_support
-import json
 
+from backend.evaluation.splits import load_split
+from backend.integrations.nlp import lexical
 from backend.integrations.nlp.linear import JSON_FILE, featurize_cues
 
 
@@ -31,12 +29,11 @@ def featurize(headline) -> list[int]:  # -> vector
 
 
 if __name__ == "__main__":
-
     # Splits FÍSICOS (issue #72): mismos ficheros para todos los modelos.
     # El split ya no se hace aquí: se carga (python -m backend.evaluation.splits para crearlos).
     # test NO se carga: congelado hasta el número final del issue.
-    train_h, y_train = zip(*load_split("train"))
-    dev_h, y_dev = zip(*load_split("dev"))
+    train_h, y_train = zip(*load_split("train"), strict=True)
+    dev_h, y_dev = zip(*load_split("dev"), strict=True)
 
     # Features (MULTI_HOT por cue): cada consumidor featuriza aguas abajo.
     X_train = [featurize_cues(h) for h in train_h]
@@ -74,7 +71,7 @@ if __name__ == "__main__":
     )
 
     weight_table = sorted(
-        zip(feature_names, model.coef_[0]),
+        zip(feature_names, model.coef_[0], strict=True),
         key=lambda par: par[1],
         reverse=True,
     )

@@ -7,14 +7,45 @@ marca qué señales son white-box (``interpretable``) frente a caja negra
 
 La otra mitad de R3.9 (intercambiar modelos por configuración) la cubre la
 factoría ``get_nlp_backend`` vía el setting ``nlp_backend`` (remote/local).
+
+El campo ``signal`` es la **clave de máquina**: debe coincidir EXACTAMENTE con el
+nombre de la tool MCP que produce esa señal, porque ``/analyze`` lo usa para
+buscar la ficha de cada resultado. No es una etiqueta legible —para eso están
+``name`` y ``task``— y meterle anotaciones («detect_clickbait (zero-shot)»)
+rompe la búsqueda en silencio: no lanza excepción, simplemente no encuentra la
+ficha. ``test_model_cards_signals_match_registered_tools`` lo vigila.
+
+El campo ``dimension`` indica QUÉ mide cada señal, no cómo de transparente es:
+
+- ``forma``  — sensacionalismo en la redacción del titular (estilo).
+- ``engano`` — que el titular prometa algo que el cuerpo no cumple.
+- ``tono``   — carga emocional del texto; no es una señal de clickbait.
+
+Es lo que permite a ``/analyze`` agrupar los veredictos por dimensión en vez de
+promediar señales que miden cosas distintas: tres señales de *forma* de acuerdo
+no significan que el titular engañe. Sin este campo, el backend tendría que
+cablear qué señal es cuál — justo lo que se evita.
 """
+
+
+def cards_by_signal() -> dict[str, dict]:
+    """Índice de fichas por nombre de tool.
+
+    Vive aquí y no en quien lo usa porque lo necesitan DOS consumidores —la
+    orquestación de ``/analyze``, para leer la dimensión de cada señal, y el
+    catálogo, para adjuntar la ficha— y dos copias del mismo índice acabarían
+    divergiendo.
+    """
+    return {card["signal"]: card for card in MODEL_CARDS}
+
 
 MODEL_CARDS = [
     {
-        "signal": "detect_clickbait (zero-shot)",
+        "signal": "detect_clickbait",
         "name": "facebook/bart-large-mnli",
         "task": "Clasifica el titular como clickbait vs factual por inferencia natural (NLI, zero-shot).",
         "type": "opaco",
+        "dimension": "forma",
         "limitations": [
             "Modelo genérico de NLI, no entrenado específicamente en clickbait.",
             "Caja negra: sin explicación intrínseca (post-hoc opcional, R3.11).",
@@ -28,6 +59,7 @@ MODEL_CARDS = [
         "name": "cardiffnlp/twitter-roberta-base-sentiment-latest",
         "task": "Análisis de sentimiento en 3 clases (positivo / neutral / negativo).",
         "type": "opaco",
+        "dimension": "tono",
         "limitations": [
             "Entrenado en tuits, no en titulares de noticias.",
             "Caja negra.",
@@ -37,6 +69,7 @@ MODEL_CARDS = [
     },
     {
         "signal": "detect_clickbait_incoherence",
+        "dimension": "engano",
         "name": "sentence-transformers/all-MiniLM-L6-v2",
         "task": "Similitud coseno titular↔contenido; una similitud baja indica posible clickbait por incoherencia.",
         "type": "híbrido",
@@ -50,6 +83,7 @@ MODEL_CARDS = [
     },
     {
         "signal": "detect_clickbait_lexical",
+        "dimension": "forma",
         "name": "Léxico por reglas (listas de cues de Chakraborty et al. 2016)",
         "task": "Detecta pistas léxicas/estructurales de clickbait y devuelve qué cues dispararon y dónde.",
         "type": "interpretable",
@@ -64,6 +98,7 @@ MODEL_CARDS = [
     },
     {
         "signal": "detect_clickbait_linear",
+        "dimension": "forma",
         "name": "Regresión logística sobre features léxicas (entrenada en Chakraborty)",
         "task": "Clickbait ponderado: aprende el peso de cada pista y devuelve los cues que más contribuyeron al veredicto.",
         "type": "interpretable",

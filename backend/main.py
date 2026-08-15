@@ -2,45 +2,49 @@
 Servidor MCP principal.
 """
 
-from backend.core.logging import configure_logging
 import structlog
-from backend.core import health
-from backend.config.settings import settings
-
 from mcp.server.fastmcp import FastMCP
 
-from backend.integrations.guardian import tool as guardian_tool
-from backend.integrations.weather import tool as weather_tool
-from backend.integrations.nyt import tool as nyt_tool
-from backend.integrations.nlp import tool as nlp_tool
+from backend.config.settings import settings
+from backend.core import health
+from backend.core.logging import configure_logging
+from backend.integrations.discovery import discover_and_register
 
 log = structlog.get_logger()
 mcp = FastMCP("tfg-mcp-server")
 
 
-# APIS
-weather_tool.register(mcp)
-guardian_tool.register(mcp)
-nyt_tool.register(mcp)
+# Integraciones: se descubren solas recorriendo backend/integrations/.
+# Añadir una fuente o una señal es crear su paquete; este fichero no se toca.
+integraciones = discover_and_register(mcp)
 
-# NLP
-nlp_tool.register(mcp)
-
-# Health check
+# El chequeo de salud va aparte porque NO es una integración: no envuelve
+# ninguna API externa, es infraestructura básica.
 health.register(mcp)
 
 
 def main():
     # Initialize and run the server
     configure_logging()
+
+    # host/port los ignora el transporte stdio.
+    mcp.settings.host = settings.mcp_host
+    mcp.settings.port = settings.mcp_port
+
     log.info(
         "server.start",
         server="tfg-mcp-server",
-        transport="stdio",
+        transport=settings.mcp_transport,
+        host=settings.mcp_host,
+        port=settings.mcp_port,
         log_level=settings.log_level,
         log_format=settings.log_format,
+        # Qué se descubrió. Si una integración falló al cargar, sus tools no
+        # existen y el sistema queda degradado en silencio: aquí es donde se ve.
+        integraciones=list(integraciones.registered),
+        integraciones_fallidas=integraciones.failed or None,
     )
-    mcp.run(transport="stdio")
+    mcp.run(transport=settings.mcp_transport)
 
 
 if __name__ == "__main__":
