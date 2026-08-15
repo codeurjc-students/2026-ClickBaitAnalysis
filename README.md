@@ -1187,6 +1187,74 @@ Añadir el registro a `/analyze` convirtió, sin avisar, todos los tests de esa 
 
 `tests/api/test_history.py` cubre los dos lados por separado —el almacén llamando a sus funciones, el endpoint por HTTP— porque responden preguntas distintas: si los datos sobreviven y salen en orden, y si la decisión de «una entrada por análisis» se sostiene de verdad.
 
+### Validación E2E de la capa REST, y estructura del repositorio
+
+Antes de cerrar H2 se ejercitó el sistema **de punta a punta por primera vez desde que existe la API**: los 175 tests mockean la red y el protocolo, así que nada había probado la cadena real con el servidor MCP levantado por HTTP. Se corrió con los dos backends NLP, y el historial se apuntó a un fichero temporal para no ensuciar el real.
+
+Todo funcionó. Y aun así salieron tres cosas.
+
+| Paso | Resultado | En frío | En caliente |
+|---|---|---|---|
+| `GET /health` | `ok`, tres integraciones alcanzables | — | 0,43 s |
+| `GET /tools` | 11 herramientas, `degraded: false` | — | 0,068 s |
+| `execute` válido / 404 / 422 | los tres exactos | — | 0,66 s |
+| `POST /analyze` **local** | veredicto correcto | **105,6 s** | 0,363 s |
+| `POST /analyze` **remoto** | mismo veredicto | 38,9 s | 0,610 s |
+| `GET /history` + 10 filtros | todos correctos | — | 0,033 s |
+
+#### El timeout de ejecución no tiene arreglo por número
+
+`detect_clickbait` (BART-large-MNLI) contra un servidor MCP en frío tardó **51,6 s**, con un `mcp_execute_timeout` de **60**. Ocho segundos de margen, y **con el modelo ya descargado**: en una máquina limpia hay que sumar ~1,6 GB y se pasa.
+
+Lo importante es que **subir el número no lo arregla**. Con caché fría el tiempo depende del ancho de banda, así que no está acotado y no existe un valor correcto. La solución es que cargar el modelo no ocurra dentro de una petición: un **calentamiento explícito al arrancar**, que es inherentemente tarea de contenedores y por tanto de H4.
+
+Y la carga perezosa **se queda**: es lo que evita que importar un módulo arrastre 1,6 GB, y lo que permite que el CI corra sin torch. No se sustituye, se complementa con un disparo deliberado en el arranque — donde tardar 105 s es gratis porque hay sondas de *readiness* para eso.
+
+#### `NLP_BACKEND=remote` no hace remoto el sistema
+
+Sólo conmuta **dos de las cinco** señales:
+
+| Señal | Backend |
+|---|---|
+| `detect_clickbait`, `analyze_sentiment` | `remote` \| `local` |
+| `detect_clickbait_incoherence` | **siempre local** (MiniLM) |
+| `detect_clickbait_lexical` | **siempre local** (reglas) |
+| `detect_clickbait_linear` | **siempre local** (pesos en JSON) |
+
+Por eso el «remoto en frío» tardó 38,9 s: era MiniLM cargándose en local, no la red. **Consecuencia para H4: la imagen Docker necesita torch y sentence-transformers aunque se despliegue en modo remoto.** No se consigue una imagen ligera poniendo `remote`.
+
+*(Estaba declarado en las fichas de modelo desde E5-08; lo que no estaba era la consecuencia de despliegue.)*
+
+#### El caso estrella, en vivo — y lo que revela sobre el contraste
+
+El primer análisis reprodujo el listicle que se usa como ejemplo:
+
+```
+forma    -> None   (detect_clickbait=False · lexical=True · linear=True)
+engano   -> True   (incoherence)
+tono            —  (no vota)
+VEREDICTO: enganoso
+```
+
+La dimensión `forma` tenía **2 contra 1** y el sistema **se negó a resolverlo**: declaró la discrepancia en vez de votar. El tono no votó. Y la jerarquía hizo el resto — el engaño pesa más que la forma, así que el veredicto global salió `enganoso` pese a la ambigüedad.
+
+Pero conviene mirar **quiénes** coincidieron: `lexical` y `linear`, que son justo las dos que **comparten extracción de rasgos** — `featurize_cues()` llama a `lexical.detect()`. La que discrepó, `detect_clickbait`, es la única independiente de las tres.
+
+Así que ese «2 contra 1» es en realidad **un par acoplado contra una vista independiente**. Con agregación por mayoría, el sistema habría dictaminado `forma = clickbait` apoyándose en dos señales que ven exactamente lo mismo. **El diseño resultó más robusto ante la dependencia de lo que sabía ser.**
+
+Y de ahí sale la pregunta que sí importa, porque el caso observado fue el benigno:
+
+- Cuando las señales acopladas **discrepan** → se declara ambigüedad. Protegido.
+- Cuando las señales acopladas **coinciden** → cuenta como consenso. **Vulnerable.**
+
+Y dos señales que comparten rasgos coinciden casi siempre: eso es lo que significa estar acopladas. La situación de riesgo es la común. Medir el acuerdo real entre `lexical` y `linear` sobre el split de dev deja de ser tarea documental y pasa a decidir **si el contraste dentro de la dimensión `forma` significa algo**.
+
+#### `docs/estructura.md`: criterios de pertenencia, no descripciones
+
+Se añade un documento que dice qué contiene cada carpeta y, sobre todo, **qué cualifica a una pieza para vivir en ella**. La distinción no es retórica: una descripción se escribe mirando lo que ya hay dentro, así que por construcción lo legitima — «`api/` contiene endpoints, esquemas y la orquestación» habría dado por bueno que la lógica de veredictos viviera ahí. Un criterio en forma de pregunta sí/no («¿existiría esto si no hubiera HTTP?») se aplica a una pieza concreta y la delata.
+
+Escribirlo destapó cuatro tensiones y dos bugs sin ejecutar una línea. La primera tensión —la orquestación en `api/`— resultó tener consecuencia de diseño y se analiza aparte: el servidor MCP no expone ninguna herramienta que contraste señales, así que **el agente conversacional no puede reproducir el veredicto del formulario**.
+
 ### Historial: filtros y retención (#103)
 
 La otra mitad de R9. El issue anterior dejaba algo usable —historial paginado y en orden inverso— y éste añade dos refinamientos que traían decisiones propias, más un criterio que hubo que reinterpretar porque su premisa había cambiado.

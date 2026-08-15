@@ -56,9 +56,21 @@ class Settings(BaseSettings):
     mcp_timeout: float = 5.0
 
     # Ejecutar una herramienta necesita mucho más margen que descubrirla: un
-    # `list_tools` tarda milésimas, pero `detect_clickbait_incoherence` puede
-    # tardar ~20 s la primera vez porque carga el modelo de embeddings. Con el
-    # timeout de descubrimiento, esa llamada moriría siempre en frío.
+    # `list_tools` tarda milésimas, pero una señal NLP tiene que cargar su modelo
+    # la primera vez.
+    #
+    # ESTE VALOR SE QUEDA CORTO, y está medido: con `NLP_BACKEND=local`, ejecutar
+    # `detect_clickbait` (BART-large-MNLI) contra un servidor MCP en frío tardó
+    # 51,6 s — ocho segundos por debajo del corte, y con el modelo YA descargado
+    # en la caché de HuggingFace. En una máquina limpia hay que sumarle ~1,6 GB
+    # de descarga y se pasa.
+    #
+    # Subir el número no lo arregla: con caché fría el tiempo depende del ancho
+    # de banda, así que no está acotado y no existe un valor «correcto». La
+    # solución real es que cargar el modelo NO ocurra dentro de una petición —
+    # un calentamiento explícito al arrancar, que es inherentemente una tarea de
+    # contenedores (H4). Hasta entonces, el primer uso en frío de una señal
+    # pesada por `/tools/{name}/execute` puede fallar por timeout.
     mcp_execute_timeout: float = 60.0
 
     # Fichero SQLite del historial.
