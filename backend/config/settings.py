@@ -63,14 +63,24 @@ class Settings(BaseSettings):
     # `detect_clickbait` (BART-large-MNLI) contra un servidor MCP en frío tardó
     # 51,6 s — ocho segundos por debajo del corte, y con el modelo YA descargado
     # en la caché de HuggingFace. En una máquina limpia hay que sumarle ~1,6 GB
-    # de descarga y se pasa.
+    # de descarga y se pasa. `analyze_headline`, que carga los tres modelos,
+    # tardó 151 s.
     #
     # Subir el número no lo arregla: con caché fría el tiempo depende del ancho
     # de banda, así que no está acotado y no existe un valor «correcto». La
     # solución real es que cargar el modelo NO ocurra dentro de una petición —
     # un calentamiento explícito al arrancar, que es inherentemente una tarea de
-    # contenedores (H4). Hasta entonces, el primer uso en frío de una señal
-    # pesada por `/tools/{name}/execute` puede fallar por timeout.
+    # contenedores (H4).
+    #
+    # PERO OJO, Y ESTO ES PEOR: al superarse el corte la petición **no falla,
+    # se CUELGA**. Medido — la tool terminó en el servidor MCP a los 151 s con
+    # `success=True` y la API nunca devolvió nada: seis minutos con la conexión
+    # abierta y 0 % de CPU. Un timeout que devuelve error es manejable; una
+    # petición que no vuelve deja al navegador esperando para siempre.
+    #
+    # El motivo probable —sin verificar— es que el timeout de httpx es POR
+    # LECTURA y no por duración total. Abierto como #113: el arreglo
+    # pasa por acotar la llamada entera, no por ajustar este número.
     mcp_execute_timeout: float = 60.0
 
     # Fichero SQLite del historial.
