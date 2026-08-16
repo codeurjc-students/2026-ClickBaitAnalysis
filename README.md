@@ -1187,6 +1187,74 @@ Añadir el registro a `/analyze` convirtió, sin avisar, todos los tests de esa 
 
 `tests/api/test_history.py` cubre los dos lados por separado —el almacén llamando a sus funciones, el endpoint por HTTP— porque responden preguntas distintas: si los datos sobreviven y salen en orden, y si la decisión de «una entrada por análisis» se sostiene de verdad.
 
+### Un timeout que no cortaba: la petición se colgaba en vez de fallar (#113)
+
+Al probar `analyze_headline` por el protocolo apareció algo que ningún test cubría: **una herramienta que tarda más que su timeout no producía un error, dejaba la petición colgada para siempre.**
+
+```
+servidor MCP   tool.invoke  duration_ms=151326  success=True
+API            sin respuesta · 6 min con la conexión abierta · 0 % de CPU
+cliente        ningún código HTTP
+```
+
+La tool **terminó bien** a los 151 s. El corte configurado eran 60. La API nunca devolvió nada.
+
+#### Por qué es peor que un timeout
+
+Un timeout que devuelve un error es manejable: la interfaz lo enseña, el usuario reintenta, el hueco de conexión se libera. Una petición que no vuelve deja el navegador esperando indefinidamente y ocupa un *worker*. Es un modo de fallo distinto — y era justo el que el ajuste pretendía evitar.
+
+Además afectaba al catálogo, cuyo comentario prometía literalmente lo que no cumplía: *«sin él, un servidor que acepta la conexión y no responde dejaría `/tools` colgado»*. Lo que sí funcionaba era el servidor **caído** —conexión rechazada, falla rápido, sale `unreachable`—; el servidor **lento** es otro caso y no estaba cubierto.
+
+#### La causa: dos timeouts que miden cosas distintas
+
+| | Qué mide |
+|---|---|
+| `timeout` de httpx *(el que había)* | **inactividad entre bytes** |
+| `asyncio.timeout` *(el que faltaba)* | **duración total** |
+
+Con una tool lenta que no envía nada mientras trabaja, el primero no salta. Reproducido sin modelos ni red, con una tool que duerme 10 s y un corte de 2: **25 s esperando** hasta que un vigilante externo lo mató. Con `asyncio.timeout`, corta a los **2,1 s**.
+
+Los dos se conservan: cubren fallos distintos y hacen falta ambos cortes.
+
+#### Se responde 504, no `status: error`
+
+Es una categoría nueva junto al 404 y el 422, y no un `ExecuteResponse` con estado de error. El motivo está medido: **al agotarse la espera la herramienta puede haber terminado bien** —de hecho terminó—. Decirle a quien mira que «el análisis falló» sería mentirle; un 504 dice que está tardando demasiado, que es lo que ocurre.
+
+#### `except*`, y por qué no vale un `except` normal
+
+Lo que sale de una sesión MCP viene envuelto **dos veces**, un task group de anyio por capa:
+
+```
+ExceptionGroup: 'unhandled errors in a TaskGroup'
+  ExceptionGroup: 'unhandled errors in a TaskGroup'
+    TimeoutError
+```
+
+Ese envoltorio **no se puede desactivar**: es la semántica de los task groups, donde pueden fallar varias tareas a la vez y no existe «la» excepción que devolver. *(anyio 3 desenvolvía cuando había una sola; anyio 4 envuelve siempre.)*
+
+Se usa **`except*`** (Python 3.11), que desmonta el grupo y compara por tipo **a cualquier profundidad** — así no depende de cuántas capas ponga la librería mañana. Un test lo fija con 0, 1, 2 y 3 niveles de anidamiento.
+
+Se descartó recorrer el árbol a mano, pero la alternativa queda escrita en el código: `except*` puede entrar en **varias ramas** —un grupo admite tipos distintos— así que un timeout acompañado de otro fallo saldría como 500 en vez de 504. Se asume; un timeout más un fallo independiente no es realmente «no respondió a tiempo».
+
+#### Dos tests, porque uno solo no basta
+
+El **rápido** sustituye la sesión por una que lanza el error ya fabricado: corre en milisegundos, entra en el CI y verifica **la traducción** a 504. Pero si `asyncio.timeout` no cortara, seguiría pasando igual.
+
+El **fiel** —marcado `integration`, fuera del CI— levanta un servidor MCP con una tool lenta y comprueba que la llamada **termina**. Ése prueba el mecanismo.
+
+#### El linter tenía la respuesta y le faltaba una línea
+
+Al declarar `target-version = "py312"` en ruff saltó esto:
+
+```
+ASYNC109  open_session(url, timeout: float)
+          help: Use `asyncio.timeout` instead
+```
+
+La regla `ASYNC` añadida en #103 **estaba señalando este mismo bug** y no podía decirlo: `asyncio.timeout()` existe desde 3.11, así que ruff no lo recomienda si no sabe a qué versión apuntas. Faltaba una línea de configuración para que el linter pudiera avisar de algo que costó una tarde encontrar a mano.
+
+Se queda con un `noqa` explicado —el parámetro es complemento y no sustituto— y en la línea, no en `ruff.toml`, para que la regla siga activa en el resto. Declarar la versión destapó además ocho enums que ruff quiere como `StrEnum`; eso **no** es cosmético —cambia lo que devuelve `str(Dimension.FORMA)`— y va a #108 con su repaso de puntos de uso.
+
 ### La orquestación sale de `api/`: las dos fachadas comparten veredicto (#107)
 
 Al dibujar el flujo de peticiones se comprobó que la orquestación del análisis

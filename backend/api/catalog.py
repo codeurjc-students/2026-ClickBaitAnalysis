@@ -78,8 +78,25 @@ async def fetch_catalog() -> CatalogResponse:
 
 
 async def _consultar(url: str) -> tuple[ServerInfo, list[ToolInfo]]:
-    """Abre una sesión MCP, se presenta y pide el catálogo de ese servidor."""
-    async with open_session(url, settings.mcp_timeout) as (session, inicializacion):
+    """Abre una sesión MCP, se presenta y pide el catálogo de ese servidor.
+
+    El ``asyncio.timeout`` es el que hace verdad la promesa de ``mcp_timeout``:
+    que un servidor lento salga como ``unreachable`` en vez de dejar ``/tools``
+    colgado. El ``timeout`` de httpx no basta —mide inactividad entre bytes, no
+    duración— y sin esto un servidor que acepta la conexión y tarda en responder
+    cuelga la petición para siempre.
+
+    Lo que sí cubría httpx, y sigue cubriendo, es el servidor **caído**: ahí la
+    conexión se rechaza y falla rápido.
+
+    Al agotarse, la excepción sube al ``gather(return_exceptions=True)`` de
+    ``fetch_catalog`` como cualquier otro fallo, así que este servidor sale
+    degradado y los demás se sirven igual. No hace falta tratarla aquí.
+    """
+    async with (
+        asyncio.timeout(settings.mcp_timeout),
+        open_session(url, settings.mcp_timeout) as (session, inicializacion),
+    ):
         listado = await session.list_tools()
 
     nombre = inicializacion.serverInfo.name

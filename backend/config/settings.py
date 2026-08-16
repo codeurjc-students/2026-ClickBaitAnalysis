@@ -72,15 +72,20 @@ class Settings(BaseSettings):
     # un calentamiento explícito al arrancar, que es inherentemente una tarea de
     # contenedores (H4).
     #
-    # PERO OJO, Y ESTO ES PEOR: al superarse el corte la petición **no falla,
-    # se CUELGA**. Medido — la tool terminó en el servidor MCP a los 151 s con
-    # `success=True` y la API nunca devolvió nada: seis minutos con la conexión
-    # abierta y 0 % de CPU. Un timeout que devuelve error es manejable; una
-    # petición que no vuelve deja al navegador esperando para siempre.
+    # Y ojo con QUIÉN corta, porque este número solo no lo hacía: hasta #113, al
+    # superarse el corte la petición **no fallaba, se colgaba** — la tool terminó
+    # en el servidor a los 151 s con `success=True` y la API nunca devolvió nada,
+    # seis minutos con la conexión abierta y 0 % de CPU.
     #
-    # El motivo probable —sin verificar— es que el timeout de httpx es POR
-    # LECTURA y no por duración total. Abierto como #113: el arreglo
-    # pasa por acotar la llamada entera, no por ajustar este número.
+    # El motivo: el `timeout` de httpx mide **inactividad entre bytes**, no
+    # duración. Quien de verdad acota la llamada es el `asyncio.timeout` de
+    # `execute.py`, que usa este mismo valor. Los dos se conservan porque cubren
+    # fallos distintos —duración excesiva frente a un servidor que enmudece— y
+    # hacen falta los dos cortes.
+    #
+    # Al agotarse, la respuesta es un **504**, no un `status: error`: el trabajo
+    # puede haber salido bien al otro lado, así que decir «el análisis falló»
+    # sería falso. Lo que falló es la espera.
     mcp_execute_timeout: float = 60.0
 
     # Fichero SQLite del historial.

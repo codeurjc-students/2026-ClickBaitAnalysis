@@ -1,5 +1,5 @@
 import asyncio
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Literal, TypedDict
 
 import httpx
@@ -78,7 +78,7 @@ async def check_health() -> Salud:
     integrations = dict(zip(PROBES, results, strict=True))
     return {
         "status": _aggregate_status(integrations),
-        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "timestamp": datetime.now(UTC).isoformat(),
         "integrations": integrations,
     }
 
