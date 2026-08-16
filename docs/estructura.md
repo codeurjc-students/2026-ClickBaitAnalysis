@@ -23,6 +23,38 @@ declara tres cosas:
 
 ---
 
+## `backend/analysis/`
+
+**Contiene** — la lógica del dominio del clickbait: el vocabulario del análisis y
+la orquestación que contrasta las señales.
+
+**Criterio** — *si borraras la API REST y el servidor MCP y dejaras sólo una
+función de Python que analiza titulares, ¿esto seguiría haciendo falta?* Si la
+respuesta es **sí**, va aquí.
+
+**No va aquí aunque lo parezca** — nada que describa **cómo se sirve** el
+análisis: servidores, herramientas del catálogo, peticiones o historial. Eso es
+sistema y vive en `api/schemas.py`.
+
+**La regla que lo mantiene honesto**: `api/` puede importar de aquí, **nunca al
+revés**. El dominio no sabe que lo están sirviendo, y por eso puede servirse
+también por MCP. El día que este paquete necesite importar de `api/`, algo está
+mal colocado — es una alarma, no una opinión.
+
+| Fichero | Qué hace |
+|---|---|
+| `domain.py` | El vocabulario: `Dimension`, `SignalType`, `SignalStatus`, `SignalResult`, `DimensionVerdict`, `OverallVerdict`, `AnalyzeRequest/Response` |
+| `orchestrator.py` | Lanza las señales en paralelo, las agrupa por dimensión y deriva el veredicto con jerarquía explícita |
+| `tool.py` | Registra `analyze_headline` como herramienta MCP. Vive aquí y no en `integrations/nlp/tool.py` porque allí sería un ciclo |
+
+Nació al comprobar que la orquestación estaba en `backend/api/analyze.py`, donde
+no le correspondía —estaba ahí porque era donde hizo falta primero—. La
+consecuencia no era estética: el servidor MCP no exponía nada que contrastara
+señales, así que **el agente conversacional no podía reproducir el veredicto del
+formulario**. Ninguna carpeta existente lo admitía, y sus propios criterios lo
+decían: `api/` sí existiría sin HTTP, `core/` no puede saber de clickbait,
+`integrations/` no envuelve nada. Los criterios pidieron un paquete nuevo.
+
 ## `backend/api/`
 
 **Contiene** — la aplicación FastAPI: rutas, contrato y las piezas que sólo
@@ -42,8 +74,12 @@ de historia, no una propiedad suya.
 | `catalog.py` | Construye el catálogo agregando el `list_tools` de cada servidor MCP — `GET /tools` |
 | `execute.py` | Valida los argumentos contra el `inputSchema` e invoca — `POST /tools/{name}/execute` |
 | `mcp_session.py` | Abre sesiones MCP. Es donde la API actúa como **cliente**, no como servidor |
-| `analyze.py` | Orquestación de `POST /analyze` — ⚠️ [tensión 1](#1--la-orquestación-del-análisis-en-api) |
 | `history.py` | Almacén del historial sobre SQLite — ⚠️ [tensión 2](#2--el-almacén-del-historial-en-api) |
+
+`/analyze` ya no orquesta nada: llama a `backend/analysis/orchestrator.py` y se
+limita a servir el resultado. `schemas.py` importa de allí los tipos del dominio
+que necesita —`Dimension` y `SignalType`, para `ToolModelCard`— en la única
+dirección permitida.
 
 ## `backend/core/`
 
@@ -161,15 +197,25 @@ Piezas que **no cumplen el criterio de la carpeta donde están**. Se documentan,
 no se resuelven aquí: convertir este fichero en un refactor encubierto es cómo se
 queda a medias.
 
-### 1 · La orquestación del análisis, en `api/`
+### 1 · La orquestación del análisis, en `api/` — ✅ RESUELTA (#107)
 
-`backend/api/analyze.py` contrasta las señales, las agrupa por dimensión y deriva
-el veredicto. Eso **seguiría teniendo sentido en un sistema sólo-MCP**, así que
-incumple el criterio de `api/`.
+`backend/api/analyze.py` contrastaba las señales desde la capa REST, lo que
+**seguiría teniendo sentido en un sistema sólo-MCP** e incumplía el criterio de
+`api/`. La consecuencia no era estética: el servidor MCP no exponía ninguna
+herramienta que contrastara señales, así que el agente conversacional de R13 no
+podía reproducir el veredicto del formulario.
 
-No es un problema estético: la consecuencia es que el servidor MCP **no expone
-ninguna herramienta que contraste señales**, y por tanto el agente conversacional
-de R13 no puede reproducir el veredicto del formulario. Analizado en **#107**.
+Resuelta moviéndola a [`backend/analysis/`](#backendanalysis) y exponiéndola como
+la tool MCP `analyze_headline`. **Las dos fachadas comparten ahora la misma
+implementación**, y hay un test que lo fija:
+
+```python
+assert analysis_tool.analyze is orchestrator.analyze
+```
+
+Fue además la primera vez que los criterios de este documento se usaron para
+decidir en vez de para describir: las tres carpetas existentes rechazaron la
+pieza por su propio criterio, y eso es lo que pidió el paquete nuevo.
 
 ### 2 · El almacén del historial, en `api/`
 
@@ -189,15 +235,24 @@ que **descubre** y **describe** las integraciones. Cumplen el criterio de `core/
 A favor de dejarlos donde están: operan sobre ese paquete y viven a su lado. En
 contra: por esa regla, cualquier cosa que opere sobre algo debería vivir dentro.
 
-### 4 · `health` conoce MCP desde `core/`
+### 4 · `health` conoce MCP desde `core/` — ✅ con regla (#107)
 
 `backend/core/health.py` es infraestructura —sondea APIs externas, no sabe nada
 de clickbait— pero además **se registra como herramienta MCP**, así que conoce
-FastMCP desde el núcleo.
+FastMCP desde el núcleo. Parecía una excepción incómoda.
 
-O el criterio de `core/` admite explícitamente «puede exponerse como
-herramienta», o esto es una excepción que hay que declarar. Conviene decidirlo
-porque marca si `core/` puede o no depender de la capa de protocolo.
+Al resolver la tensión 1 apareció el mismo caso por segunda vez —
+`analysis/tool.py` también se registra desde fuera de `integrations/`, porque
+hacerlo desde `nlp/tool.py` sería un ciclo— y dos casos ya no son una excepción,
+son un patrón. Queda declarado así:
+
+> **`discover_and_register` encuentra las INTEGRACIONES. Lo que no es una
+> integración —la salud, el análisis— se registra explícitamente desde
+> `main.py`.**
+
+Con eso, un módulo puede exponerse como herramienta sin dejar de pertenecer a su
+capa: lo que importa es **quién decide registrarlo**, y esa decisión vive en el
+punto de entrada, no repartida por el árbol.
 
 ---
 

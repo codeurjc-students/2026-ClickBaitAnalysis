@@ -1187,6 +1187,95 @@ Añadir el registro a `/analyze` convirtió, sin avisar, todos los tests de esa 
 
 `tests/api/test_history.py` cubre los dos lados por separado —el almacén llamando a sus funciones, el endpoint por HTTP— porque responden preguntas distintas: si los datos sobreviven y salen en orden, y si la decisión de «una entrada por análisis» se sostiene de verdad.
 
+### La orquestación sale de `api/`: las dos fachadas comparten veredicto (#107)
+
+Al dibujar el flujo de peticiones se comprobó que la orquestación del análisis
+—contrastar señales, agruparlas por dimensión, derivar el veredicto— vivía en
+`backend/api/analyze.py` y tenía **un solo consumidor**. El servidor MCP exponía
+las cinco señales sueltas y nada que las combinara.
+
+#### Se perdía justo el caso que demuestra el trabajo
+
+Un agente conversacional que recibe cuatro resultados crudos y decide él hará una
+de dos cosas: quedarse con la mayoría, o matizar en prosa. Lo que **no** hará es
+producir `ambiguo` con la discrepancia declarada — que es la tesis del proyecto,
+no un detalle de implementación.
+
+Es decir: el chat y el formulario habrían dado **veredictos distintos al mismo
+titular**, y el que se perdía era el bueno.
+
+#### Los criterios decidieron dónde iba
+
+Fue la primera vez que `docs/estructura.md` se usó para decidir en lugar de para
+describir. Las tres carpetas existentes rechazaron la pieza **por su propio
+criterio**: `api/` porque la orquestación sí existiría sin HTTP, `core/` porque
+no puede saber de clickbait, `integrations/` porque no envuelve nada externo.
+Ninguna la admitía, así que pidieron un paquete nuevo — `backend/analysis/`.
+
+La separación que hubo que hacer es entre **dominio** y **contrato**: `Dimension`,
+`OverallVerdict` o `SignalResult` describen qué es el clickbait y se fueron;
+`ServerInfo`, `ExecuteResponse` o `HistoryEntry` describen el sistema que lo
+sirve y se quedaron. `schemas.py` pasó de 440 a 296 líneas.
+
+Y la dependencia va **en un solo sentido**: `api/` importa de `analysis/`, nunca
+al revés. Es comprobable, y por eso es una alarma y no una opinión — el día que
+`analysis/` necesite importar de `api/`, algo está mal colocado.
+
+#### Qué garantiza el arreglo
+
+```python
+assert analysis_tool.analyze is orchestrator.analyze
+```
+
+Ese test es el issue entero: **no hay dos jerarquías de veredicto capaces de
+divergir**. La herramienta MCP no reimplementa nada, llama a la misma función que
+`/analyze` y devuelve el mismo tipo.
+
+Se descartó que el agente llamara a `POST /analyze` —consistencia trivial, pero
+el título del TFG es «agente basado en MCP» y que su capacidad principal esquive
+MCP es una pregunta previsible en la defensa— y también meter las reglas de
+agregación en el prompt: convertiría en no determinista y opaco justo el paso que
+se diseñó para ser explícito. **Aunque un modelo perfecto siguiera la jerarquía
+sin fallar, tendrías una agregación correcta pero no auditable.**
+
+La división que queda: **el LLM elige qué preguntar; el código decide qué
+significa la respuesta.**
+
+#### Un hallazgo sobre el contrato de salida
+
+MCP sólo publica `outputSchema` si el tipo de retorno está declarado — con
+`-> dict` no publica nada (#100). Las once tools existentes usan `TypedDict`;
+ésta devuelve un modelo Pydantic, que no se había probado. Medido:
+
+| Retorno | `outputSchema` |
+|---|---|
+| `-> dict` | **None** |
+| `TypedDict` | 212 caracteres, 2 propiedades |
+| **`AnalyzeResponse` (Pydantic)** | **4.147 caracteres**, con `$defs` de los 6 tipos anidados |
+
+Pydantic resuelve los tipos anidados y arrastra los docstrings como
+`description`, así que el LLM recibe los valores admitidos de cada enum y no sólo
+los nombres de campo. Mucho mejor que un `TypedDict` plano — y también mucho más
+grande.
+
+Con las definiciones de tools ya en ~2.362 tokens (medido en el spike #82, donde
+`num_ctx=2048` daba 7/20 aciertos frente a 17/20 con 8192), esto sube el catálogo
+de golpe. **Se deja la respuesta completa y se anota**: el límite es de memoria
+del modelo y se alivia con más cómputo. Con el matiz de que no desaparece del
+todo — un catálogo grande también dificulta la selección aunque quepa. Si hace
+falta, la palanca es recortar los `description` heredados de los docstrings.
+
+#### Y una tensión que se resolvió sola
+
+Registrar la tool desde `integrations/nlp/tool.py` habría creado un ciclo, porque
+`analysis/` ya importa las señales de `nlp/`. Se registra desde su propio paquete
+y `main.py` lo llama explícitamente — igual que `health.register(mcp)`.
+
+Eso convirtió la tensión 4 de `docs/estructura.md` (que `health` conociera MCP
+desde `core/`) de excepción incómoda en **patrón declarado**: *el descubrimiento
+encuentra las integraciones; lo que no es una integración se registra a mano*.
+Dos casos ya no son una excepción.
+
 ### Validación E2E de la capa REST, y estructura del repositorio
 
 Antes de cerrar H2 se ejercitó el sistema **de punta a punta por primera vez desde que existe la API**: los 175 tests mockean la red y el protocolo, así que nada había probado la cadena real con el servidor MCP levantado por HTTP. Se corrió con los dos backends NLP, y el historial se apuntó a un fichero temporal para no ensuciar el real.

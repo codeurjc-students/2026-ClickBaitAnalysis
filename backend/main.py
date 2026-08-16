@@ -5,6 +5,7 @@ Servidor MCP principal.
 import structlog
 from mcp.server.fastmcp import FastMCP
 
+from backend.analysis import tool as analysis_tool
 from backend.config.settings import settings
 from backend.core import health
 from backend.core.logging import configure_logging
@@ -18,9 +19,18 @@ mcp = FastMCP("tfg-mcp-server")
 # Añadir una fuente o una señal es crear su paquete; este fichero no se toca.
 integraciones = discover_and_register(mcp)
 
-# El chequeo de salud va aparte porque NO es una integración: no envuelve
-# ninguna API externa, es infraestructura básica.
+# Lo que NO es una integración se registra a mano: `discover_and_register` sólo
+# recorre `integrations/`, y estas dos no viven ahí ni envuelven nada externo.
+#
+# - El chequeo de salud es infraestructura básica.
+# - El análisis completo es lógica de dominio, y registrarlo desde su propio
+#   paquete evita el ciclo que habría si lo hiciera `integrations/nlp/tool.py`:
+#   `analysis` ya importa las señales de `nlp`.
+#
+# Es lo que hace que el agente conversacional pueda reproducir el veredicto del
+# formulario en vez de tener que recomponerlo desde las señales sueltas (#107).
 health.register(mcp)
+analysis_tool.register(mcp)
 
 
 def main():

@@ -28,13 +28,12 @@ import structlog
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 
+from backend.analysis.domain import AnalyzeRequest, AnalyzeResponse
+from backend.analysis.orchestrator import analyze
 from backend.api import history
-from backend.api.analyze import analyze
 from backend.api.catalog import fetch_catalog
 from backend.api.execute import InvalidArguments, ToolNotFound, execute_tool
 from backend.api.schemas import (
-    AnalyzeRequest,
-    AnalyzeResponse,
     CatalogResponse,
     ExecuteRequest,
     ExecuteResponse,

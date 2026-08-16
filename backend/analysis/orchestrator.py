@@ -1,7 +1,7 @@
-"""Orquestación de ``POST /analyze``.
+"""Orquestación del análisis: lanza las señales y agrega su resultado.
 
 Lanza las señales de clickbait a la vez, envuelve cada una en el formato
-uniforme de ``schemas`` y agrega el resultado. Tres invariantes lo gobiernan:
+uniforme de ``domain`` y agrega el resultado. Tres invariantes lo gobiernan:
 
 1. **Una señal vota si —y solo si— su ``is_clickbait`` no es None.** Ahí caen
    sin caso especial tanto las que fallaron como el tono, que por naturaleza no
@@ -21,6 +21,9 @@ vez de propagar la primera excepción la DEVUELVE dentro de la lista de
 resultados, en la posición que le toca. Cada excepción se traduce entonces a una
 señal en estado ``error`` y la respuesta sigue siendo un 200 con lo que sí se
 pudo calcular.
+
+Vive fuera de ``api/`` porque **no depende de que haya HTTP**: es la lógica que
+define qué significa el resultado, y las dos fachadas —REST y MCP— la comparten.
 """
 
 import asyncio
@@ -28,7 +31,7 @@ from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from typing import Any
 
-from backend.api.schemas import (
+from backend.analysis.domain import (
     AnalyzeRequest,
     AnalyzeResponse,
     Dimension,
