@@ -32,7 +32,12 @@ from backend.analysis.domain import AnalyzeRequest, AnalyzeResponse
 from backend.analysis.orchestrator import analyze
 from backend.api import history
 from backend.api.catalog import fetch_catalog
-from backend.api.execute import InvalidArguments, ToolNotFound, execute_tool
+from backend.api.execute import (
+    InvalidArguments,
+    ToolNotFound,
+    ToolTimeout,
+    execute_tool,
+)
 from backend.api.schemas import (
     CatalogResponse,
     ExecuteRequest,
@@ -157,6 +162,12 @@ async def post_execute(name: str, request: ExecuteRequest) -> ExecuteResponse:
     Devuelve **404** si la herramienta no existe, **422** si los argumentos no
     encajan, y **200 con `status` en `error`** si la herramienta se ejecutó y
     falló: eso último no es un error HTTP, porque la petición era correcta.
+
+    Y **504** si el servidor MCP tarda más de `mcp_execute_timeout`. Es una
+    categoría aparte del `status: error` a propósito: al agotarse la espera la
+    herramienta **puede haber terminado bien** —medido en #113, acabó con éxito a
+    los 151 s mientras la API ya había desistido—, así que decir que el análisis
+    falló sería falso. Lo que falló es la espera.
     """
     try:
         respuesta = await execute_tool(name, request.arguments)
@@ -166,6 +177,14 @@ async def post_execute(name: str, request: ExecuteRequest) -> ExecuteResponse:
         ) from None
     except InvalidArguments as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from None
+    except ToolTimeout:
+        raise HTTPException(
+            status_code=504,
+            detail=(
+                f"'{name}' no respondió en {settings.mcp_execute_timeout:.0f} s. "
+                "Puede que siga ejecutándose; vuelve a consultarlo en un momento."
+            ),
+        ) from None
 
     # Sólo se registra lo que llegó a ejecutarse. Una petición rechazada por 404
     # o 422 no es una ejecución: ensuciaría el historial con intentos fallidos

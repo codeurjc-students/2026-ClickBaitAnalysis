@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from backend.config.settings import settings
 from backend.core.base_api import BaseAPI
@@ -51,7 +51,7 @@ class NYTAPI(BaseAPI):
         # UTC explícito, no la zona de la máquina: en Docker el contenedor va en
         # UTC y el equipo de desarrollo no, así que `date.today()` desplazaría la
         # ventana de búsqueda un día cerca de medianoche según dónde se ejecute.
-        today = datetime.now(timezone.utc).date()
+        today = datetime.now(UTC).date()
         new_date = (today - timedelta(days=days)).strftime("%Y%m%d")  # Formato YYYYMMDD
         params = {"begin_date": new_date, "sort": "relevance" if topic else "newest"}
         if topic:

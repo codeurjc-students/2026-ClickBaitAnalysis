@@ -19,7 +19,10 @@ responder 422 y decir qué campo falla.
   petición era correcta y el servidor la atendió; lo que falló es el análisis.
   Mismo criterio que en ``/analyze``, donde una señal caída no tumba la
   respuesta.
+- El servidor tarda más de la cuenta → **504**. Ver ``ToolTimeout``.
 """
+
+import asyncio
 
 import structlog
 from jsonschema import Draft7Validator
@@ -40,6 +43,19 @@ class InvalidArguments(Exception):
     """Los argumentos no encajan en el esquema que publica la herramienta."""
 
 
+class ToolTimeout(Exception):
+    """El servidor MCP no respondió dentro de ``mcp_execute_timeout``.
+
+    Es su **propia** categoría y no un ``ExecuteResponse`` con ``status`` en
+    ``error``, porque no son lo mismo: aquel significa «la herramienta se ejecutó
+    y falló», y aquí puede haber salido perfectamente.
+
+    Lo que ha fallado es la espera, no el análisis. Decirle a quien mira que «el
+    análisis falló» sería mentirle; un 504 le dice que está tardando demasiado,
+    que es lo que pasa de verdad.
+    """
+
+
 async def execute_tool(name: str, arguments: dict) -> ExecuteResponse:
     """Localiza la herramienta, valida los argumentos y la invoca.
 
@@ -50,7 +66,49 @@ async def execute_tool(name: str, arguments: dict) -> ExecuteResponse:
     ha pasado y es aquí, ya fuera, donde se decide qué excepción sale.
     """
     for url in settings.mcp_servers:
-        intento = await _intentar(url, name, arguments)
+        try:
+            intento = await _intentar(url, name, arguments)
+
+        # `except*` y no `except`: lo que sale de la sesión viene envuelto DOS
+        # veces —un task group de anyio por capa, `streamable_http_client` y
+        # `ClientSession`— y un `except TimeoutError` no casa con un grupo:
+        #
+        #     ExceptionGroup: 'unhandled errors in a TaskGroup'
+        #       ExceptionGroup: 'unhandled errors in a TaskGroup'
+        #         TimeoutError          <- lo que de verdad pasó
+        #
+        # Ese envoltorio no se puede desactivar: es la semántica de los task
+        # groups, donde pueden fallar VARIAS tareas a la vez y no existe «la»
+        # excepción que devolver.
+        #
+        # `except*` (Python 3.11+) desmonta el grupo y compara por tipo a
+        # CUALQUIER profundidad, así que cubre también el caso sin envolver y no
+        # depende de cuántas capas ponga la librería el día de mañana.
+        #
+        # Diferencia con un `except` normal, comprobada: `except*` puede entrar
+        # en VARIAS ramas, porque un grupo admite fallos de tipos distintos. Si
+        # llegara un timeout JUNTO A otro fallo, saldría un grupo con el
+        # `ToolTimeout` dentro y la ruta respondería 500 en lugar de 504. Se
+        # asume: un timeout más un fallo independiente no es realmente «no
+        # respondió a tiempo».
+        #
+        # Si esa robustez llegara a hacer falta, la alternativa —descartada por
+        # ser maquinaria a mano donde el lenguaje ya trae herramienta— era
+        # recorrer el árbol y quedarse con el 504 siempre:
+        #
+        #     def _hay_timeout(exc: BaseException) -> bool:
+        #         if isinstance(exc, BaseExceptionGroup):
+        #             return any(_hay_timeout(hija) for hija in exc.exceptions)
+        #         return isinstance(exc, TimeoutError)
+        #
+        #     except BaseExceptionGroup as grupo:
+        #         if not _hay_timeout(grupo):
+        #             raise
+        #         raise ToolTimeout(name) from grupo
+        except* TimeoutError:
+            log.warning("tool.execute.timeout", tool=name, url=url)
+            raise ToolTimeout(name) from None
+
         if intento is None:
             continue  # esta herramienta no está en este servidor
 
@@ -70,10 +128,24 @@ async def _intentar(
     Devuelve ``None`` si no la tiene. Si la tiene, ``(problemas, resultado,
     servidor)``: con ``problemas`` los argumentos no pasaron la validación y no
     se llegó a invocar nada.
+
+    El ``asyncio.timeout`` acota **la operación entera** —handshake, catálogo y
+    llamada— y no sólo ``call_tool``, para que un servidor lento en presentarse
+    tampoco deje la petición sin techo.
+
+    Es el que de verdad corta. El ``timeout`` de httpx que se le pasa a
+    ``open_session`` mide **inactividad entre bytes**, no duración: con una tool
+    que tarda más de la cuenta no salta, y la petición se queda colgada para
+    siempre en vez de fallar (#113, reproducido — 25 s de espera con un corte
+    pedido de 2). Se conserva igualmente porque sí cubre lo suyo: un servidor que
+    acepta la conexión y deja de enviar.
     """
-    async with open_session(url, settings.mcp_execute_timeout) as (
-        session,
-        inicializacion,
+    async with (
+        asyncio.timeout(settings.mcp_execute_timeout),
+        open_session(url, settings.mcp_execute_timeout) as (
+            session,
+            inicializacion,
+        ),
     ):
         tools = {t.name: t for t in (await session.list_tools()).tools}
         if name not in tools:

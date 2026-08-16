@@ -1,5 +1,5 @@
 # Constants
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from backend.config.settings import settings
 from backend.core.base_api import BaseAPI
@@ -47,7 +47,7 @@ class GuardianAPI(BaseAPI):
         # UTC explícito, no la zona de la máquina: en Docker el contenedor va en
         # UTC y el equipo de desarrollo no, así que `date.today()` desplazaría la
         # ventana de búsqueda un día cerca de medianoche según dónde se ejecute.
-        today = datetime.now(timezone.utc).date()
+        today = datetime.now(UTC).date()
         new_date = today - timedelta(days=days)
         params = {"from-date": new_date, "show-fields": "trailText"}
         if topic:  # Usa buscador de tags

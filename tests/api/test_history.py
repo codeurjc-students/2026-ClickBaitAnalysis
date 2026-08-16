@@ -18,7 +18,7 @@ de otro ni deja rastro en `var/`.
 
 import asyncio
 import sqlite3
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta, timezone
 
 import pytest
 from fastapi.testclient import TestClient
@@ -198,7 +198,7 @@ def test_una_excepcion_deshace_la_escritura():
 
 def _sembrar(cuantas, dias=0):
     """Escribe filas saltándose la poda, para preparar un estado de partida."""
-    marca = (datetime.now(timezone.utc) - timedelta(days=dias)).isoformat()
+    marca = (datetime.now(UTC) - timedelta(days=dias)).isoformat()
     with history._conectar() as conexion:
         conexion.executemany(
             history._INSERT,
@@ -512,7 +512,7 @@ def test_filtro_por_fechas():
     _sembrar(4, dias=60)
     _guardar(headline="de hoy")
 
-    desde = (datetime.now(timezone.utc) - timedelta(days=1)).isoformat()
+    desde = (datetime.now(UTC) - timedelta(days=1)).isoformat()
     cuerpo = client.get("/history", params={"since": desde}).json()
 
     assert cuerpo["total"] == 1
@@ -526,7 +526,7 @@ def test_las_fechas_se_normalizan_a_utc():
     _guardar(headline="de hoy")
 
     # El MISMO instante expresado en dos husos distintos: mismo resultado.
-    hace_una_hora = datetime.now(timezone.utc) - timedelta(hours=1)
+    hace_una_hora = datetime.now(UTC) - timedelta(hours=1)
     en_utc = hace_una_hora.isoformat()
     en_otro_huso = hace_una_hora.astimezone(timezone(timedelta(hours=5))).isoformat()
 

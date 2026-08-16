@@ -6,6 +6,13 @@
 
 exclude = ["spikes", ".venv", "data"]
 
+# Sin esto ruff supone una versión antigua y da por indefinidos incorporados que
+# sí existen: `ExceptionGroup` y `BaseExceptionGroup` llegaron en 3.11, y el
+# código usa además `except*` y `asyncio.timeout()`. Se declara aquí porque el
+# proyecto no tiene `pyproject.toml` —de donde ruff leería `requires-python`— y
+# el venv corre 3.12.
+target-version = "py312"
+
 [lint]
 select = [
     "E",   # pycodestyle: errores
@@ -47,6 +54,17 @@ ignore = [
     "RUF001",
     "RUF002",
     "RUF003",
+
+    # Sugiere cambiar `class X(str, Enum)` por `enum.StrEnum` en los ocho enums
+    # del contrato. NO es un cambio cosmético: con el mixin `str, Enum`,
+    # `str(Dimension.FORMA)` devuelve `'Dimension.FORMA'`, y con `StrEnum`
+    # devuelve `'forma'`. Cualquier sitio que interpole el enum en una cadena
+    # cambiaría de salida en silencio.
+    #
+    # Se silencia AQUÍ y no se aplica al vuelo porque exige repasar los puntos de
+    # uso —serialización, logs, f-strings— y eso es una tarea con su propio
+    # riesgo, no un arreglo de paso. Va con la limpieza de #108.
+    "UP042",
 ]
 
 [lint.per-file-ignores]

@@ -23,7 +23,7 @@ import json
 import sqlite3
 from collections.abc import Generator
 from contextlib import contextmanager
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -166,13 +166,13 @@ def _marca(momento: datetime) -> str:
     resultado no dependa de la máquina donde corra el servidor.
     """
     if momento.tzinfo is None:
-        momento = momento.replace(tzinfo=timezone.utc)
-    return momento.astimezone(timezone.utc).isoformat()
+        momento = momento.replace(tzinfo=UTC)
+    return momento.astimezone(UTC).isoformat()
 
 
 def _ahora() -> str:
     """El instante actual, en el formato en que se guarda."""
-    return _marca(datetime.now(timezone.utc))
+    return _marca(datetime.now(UTC))
 
 
 # Poda por cantidad. Parece la fórmula ingenua —«resta N al mayor id»— y hay que
@@ -225,7 +225,7 @@ def _podar(conexion: sqlite3.Connection) -> None:
         conexion.execute(_PODA_CANTIDAD, (settings.history_max_entries,))
 
     if settings.history_max_days > 0:
-        corte = datetime.now(timezone.utc) - timedelta(days=settings.history_max_days)
+        corte = datetime.now(UTC) - timedelta(days=settings.history_max_days)
         conexion.execute(_PODA_ANTIGUEDAD, (_marca(corte),))
 
 

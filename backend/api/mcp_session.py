@@ -35,9 +35,19 @@ def _http_client(timeout: float) -> httpx.AsyncClient:
 
 @asynccontextmanager
 async def open_session(
-    url: str, timeout: float
+    url: str,
+    timeout: float,  # noqa: ASYNC109
 ) -> AsyncGenerator[tuple[ClientSession, InitializeResult]]:
     """Abre una sesión MCP ya inicializada contra ``url``.
+
+    Sobre el ``noqa``: ruff señala el parámetro ``timeout`` y recomienda
+    ``asyncio.timeout``, y **tenía razón** — así se descubrió #113, donde una
+    herramienta lenta colgaba la petición para siempre porque este timeout no
+    cortaba. Pero la solución no fue quitarlo sino **sumarle** el otro: quien
+    llama envuelve la operación en ``asyncio.timeout`` para acotar la DURACIÓN, y
+    éste se conserva porque cubre algo distinto que aquél no ve — un servidor que
+    acepta la conexión y deja de enviar bytes. Son dos fallos diferentes y hacen
+    falta los dos cortes.
 
     Devuelve también el resultado del *handshake*, porque de ahí sale el nombre
     que **declara el propio servidor** (``serverInfo.name``) — no el que figure
