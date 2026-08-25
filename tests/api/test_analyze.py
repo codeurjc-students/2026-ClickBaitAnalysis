@@ -161,6 +161,9 @@ def test_señales_de_acuerdo_dan_veredicto_de_dimension(señales):
 
 def test_señales_en_discrepancia_no_se_resuelven_por_mayoria():
     # Dos a uno NO gana: la discrepancia se declara, no se promedia.
+    # Ejercita `_aggregate` directamente, con tres votantes en `forma`. Desde
+    # #109 esa terna no se da en producción (el zero-shot no vota), pero la
+    # invariante es de la función y debe aguantar los votantes que le lleguen.
     verdicts = _por_dimension(
         _aggregate(
             [
@@ -189,6 +192,29 @@ def test_el_tono_no_vota_y_no_genera_dimension():
         ]
     )
     assert Dimension.TONO not in _por_dimension(verdicts)
+
+
+@pytest.mark.asyncio
+async def test_el_zero_shot_no_vota_pero_sigue_apareciendo(señales):
+    """Regresión de #109: sin este test, un refactor la revierte en silencio.
+
+    La distinción que fija es que NO votar y HABER FALLADO son cosas distintas
+    aunque compartan ``is_clickbait is None``: la tarjeta sigue en estado OK y
+    conserva sus datos para pintarse.
+    """
+    señales()
+    signals = {s.name: s for s in await _run_signals("Un titular", None)}
+
+    zero_shot = signals["detect_clickbait"]
+    assert zero_shot.status == SignalStatus.OK
+    assert zero_shot.is_clickbait is None
+    assert zero_shot.data  # label y score siguen ahí para la interfaz
+
+    forma = _por_dimension(_aggregate(list(signals.values())))[Dimension.FORMA]
+    assert forma.contributing == [
+        "detect_clickbait_lexical",
+        "detect_clickbait_linear",
+    ]
 
 
 def test_señal_fallida_no_genera_dimension():
@@ -358,7 +384,8 @@ async def test_clickbait_de_forma_con_cuerpo_coherente(señales):
 
 @pytest.mark.asyncio
 async def test_forma_sobria_pero_engañosa(señales):
-    # Tres señales dicen "no es clickbait" y solo la incoherencia dice que sí.
+    # Las dos señales de forma que votan dicen "no es clickbait" y solo la
+    # incoherencia dice que sí. (El zero-shot corre pero no vota desde #109.)
     señales(label="factual news", lexico=False, lineal=False, similarity=0.22)
 
     response = await orchestrator.analyze(
