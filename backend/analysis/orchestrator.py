@@ -4,8 +4,9 @@ Lanza las señales de clickbait a la vez, envuelve cada una en el formato
 uniforme de ``domain`` y agrega el resultado. Tres invariantes lo gobiernan:
 
 1. **Una señal vota si —y solo si— su ``is_clickbait`` no es None.** Ahí caen
-   sin caso especial tanto las que fallaron como el tono, que por naturaleza no
-   emite veredicto de clickbait.
+   sin caso especial tres cosas distintas: las que fallaron, el tono —que por
+   naturaleza no emite veredicto de clickbait— y, desde #109, las excluidas por
+   medición, hoy solo el zero-shot (el porqué, en su entrada de ``_SIGNALS``).
 2. **Una dimensión aparece si alguna de sus señales votó.** Si las que votaron
    discrepan, no se promedia ni se resuelve por mayoría: se declara ``None``.
 3. **El veredicto global sale de las dimensiones con jerarquía** —el engaño pesa
@@ -110,7 +111,35 @@ _SIGNALS: tuple[_Signal, ...] = (
     _Signal(
         name="detect_clickbait",
         run=lambda h, c: _api.zero_shot(h, _ZERO_SHOT_MODEL, _ZERO_SHOT_LABELS),
-        verdict=lambda d: d["label"] == "clickbait",
+        # NO VOTA desde #109: se sigue mostrando como tarjeta, pero su veredicto
+        # no entra en `forma`. Devolver None aquí es toda la implementación,
+        # igual que en el tono — pero por un motivo distinto, y conviene no
+        # confundirlos: el tono no vota porque MIDE OTRA COSA; este no vota
+        # porque, midiendo lo mismo, se midió peor.
+        #
+        # Es la señal más floja en los DOS dominios evaluados: 63,7 % de acierto
+        # en Chakraborty dev, frente al 87,0 % del léxico y el 89,3 % del
+        # lineal; y F1 0,405 en Webis-17, frente a 0,526 y 0,519.
+        #
+        # Lo que obligaba a silenciarla no era su error, sino cómo se propagaba.
+        # Al discrepar en solitario dejaba la dimensión en None (invariante 2),
+        # de modo que el 37 % de los titulares salía AMBIGUO — y el 78 % de esa
+        # ambigüedad era un error suyo. «Ambiguo» debe significar que dos
+        # señales fiables discrepan, no que alguna discrepa; si no, se le
+        # presenta al usuario ruido con apariencia de matiz.
+        #
+        # Callarla NO arregla el fondo: `forma` queda entonces sobre el par
+        # léxico+lineal, acoplado POR CONSTRUCCIÓN (el veredicto del léxico es
+        # el indicador de soporte del mismo vector que consume el lineal, con
+        # THRESHOLD=1). La dimensión pasa a descansar sobre una sola familia de
+        # evidencia, y eso está declarado en las fichas.
+        #
+        # El modelo es además un placeholder heredado de E3-02, elegido por
+        # eliminación —lo único que el serverless de HuggingFace servía— y no
+        # por medida. Sustituirlo es #115; se conserva visible mientras tanto
+        # porque, al no haber visto ningún corpus de clickbait, es la única
+        # señal inmune al sesgo de fuente (#78).
+        verdict=lambda d: None,
     ),
     _Signal(
         name="detect_clickbait_lexical",

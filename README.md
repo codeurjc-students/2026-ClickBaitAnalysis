@@ -1187,6 +1187,212 @@ Añadir el registro a `/analyze` convirtió, sin avisar, todos los tests de esa 
 
 `tests/api/test_history.py` cubre los dos lados por separado —el almacén llamando a sus funciones, el endpoint por HTTP— porque responden preguntas distintas: si los datos sobreviven y salen en orden, y si la decisión de «una entrada por análisis» se sostiene de verdad.
 
+### Tres señales de forma, pero una opinión y media (#109)
+
+La dimensión `forma` contrasta tres señales —léxico, lineal y zero-shot— y es la
+que sostiene la tesis del proyecto: enseñar señales de distinta naturaleza en vez
+de un veredicto único de caja negra. #109 preguntaba si ese contraste era real.
+
+No lo era, y el motivo estaba en tres líneas de código.
+
+#### El acoplamiento no es empírico, es estructural
+
+`linear.featurize_cues()` empieza llamando a `lexical.detect()`. El lineal no es
+una segunda opinión sobre el titular: es una segunda regla de agregación sobre
+**el mismo vector**. Y con `THRESHOLD=1`, donde cada match aporta al menos 1, el
+veredicto del léxico resulta ser exactamente el indicador de si ese vector tiene
+algo dentro:
+
+```
+veredicto de lexical == any(featurize_cues(h))   ->   100,0 % de 6.400 titulares
+```
+
+El léxico es, literalmente, una función determinista del *input* del lineal. No
+aporta ningún bit que el lineal no tenga ya. Que el acoplamiento estuviera
+declarado en la ficha del lineal —«usa las mismas pistas de superficie»— se
+quedaba corto: no es que usen pistas parecidas, es que es la misma señal.
+
+#### La mitad del acuerdo es ceguera simultánea
+
+El acoplamiento se había resumido en un kappa de Cohen de 0,880. Ese número
+engaña, y descomponerlo enseña por qué:
+
+| Subconjunto | Acuerdo |
+|---|---|
+| **Chakraborty dev**, global | 94,0 % · kappa 0,880 |
+| — vector vacío (50,0 % de los titulares) | **100 %, forzado** |
+| — vector con contenido (50,0 %) | 88,0 % |
+| **Webis-17**, global | 78,3 % · kappa 0,576 |
+| — vector vacío (47,1 %) | **100 %, forzado** |
+| — vector con contenido (52,9 %) | 59,1 % |
+
+Con 390 rasgos y un intercepto de −1,6349, un vector vacío da `p = 0,163`: el
+lineal responde «no» sin haber mirado nada, y el léxico responde «no» por
+definición. **En la mitad de los titulares no pueden discrepar.** No es que
+juzguen igual: es que son ciegos en los mismos sitios. Medir el acuerdo global
+sin separar esa mitad exagera el acoplamiento y esconde su causa.
+
+#### El techo que ningún reentrenamiento levanta
+
+Esa ceguera tiene una segunda consecuencia, peor que la primera:
+
+| | Chakraborty dev | Webis-17 |
+|---|---|---|
+| Positivos reales con vector vacío | 15,5 % | **32,5 %** |
+| Techo de recall alcanzable | 84,5 % | **67,5 %** |
+
+Un tercio del clickbait real de Webis es invisible para el featurizador: no
+dispara ni un cue de las listas de Chakraborty. Como `w · 0 = 0` sea cual sea
+`w`, **reentrenar los pesos no puede pasar de 0,675** — y el recall medido sobre
+el corpus completo ya está en 0,478, así que el margen real del reentrenamiento
+son veinte puntos y se acabó.
+
+Eso invierte el orden previsto: **#75 (featurización) pasa a ser prerrequisito de
+#78 (reentrenamiento)**, no un experimento opcional posterior. Y hay un motivo
+para alegrarse: el punto ciego compartido y el techo de recall son *el mismo
+hecho*, así que rellenarlo desacopla las señales **y** levanta el techo. Una sola
+intervención para los dos problemas.
+
+#### El sesgo de fuente, ahora con número
+
+El intercepto negativo permite medir cuánto vale por sí solo que **dispare algún
+cue**, sin mirar cuál ni con qué peso — es decir, cuánto vale el atajo:
+
+| | Chakraborty dev | Webis-17 |
+|---|---|---|
+| Aciertos por defecto en el grupo de vector vacío | 84,5 % | 78,6 % |
+| Tasa base de la clase mayoritaria | 50,0 % | 69,0 % |
+| **Ganancia sobre no mirar** | **+34,5 pts** | **+9,6 pts** |
+
+El atajo vale **3,6 veces menos** fuera de Chakraborty. Y no por falta de
+cobertura del vocabulario, que es casi idéntica en los dos corpus (47,1 % de
+vectores vacíos frente a 50,0 %): dentro de Chakraborty el vocabulario separa
+BuzzFeed de NYT, y allí eso coincide con la etiqueta. En Webis las dos clases
+comparten medio y el atajo se queda sin nada que separar. Es la confirmación
+cuantificada de lo que #76 había destapado de forma cualitativa.
+
+#### El zero-shot deja de votar, y eso es un aplazamiento declarado
+
+Con el par acoplado reducido a una señal, la única independiente en `forma` era
+el zero-shot. Se midió, y es la más floja **en los dos dominios**:
+
+| Señal | Chakraborty dev · n=300 (acierto) | Webis-17 · n=600 (F1) |
+|---|---|---|
+| léxico | 87,0 % | 0,526 |
+| lineal | 89,3 % | 0,519 |
+| zero-shot | **63,7 %** | **0,405** |
+
+Se había especulado con que su flojera dentro de dominio fuera en realidad la
+robustez de no haberse sobreajustado a nada. La medida externa lo descarta: es
+peor en los dos sitios.
+
+El problema no era su error, sino cómo se propagaba. Al discrepar en solitario
+dejaba la dimensión en `None` por la invariante 2, de modo que **el 37 % de los
+titulares salía AMBIGUO, y el 78 % de esa ambigüedad era un error suyo**. De ahí
+el criterio que se adopta: *ambiguo* debe significar que **dos señales fiables
+discrepan**, no que alguna discrepa. Si no, al usuario se le presenta ruido con
+apariencia de matiz — justo lo contrario de lo que persigue la explicabilidad.
+
+Así que deja de votar. Devolver `None` en su `verdict` es toda la
+implementación, igual que en el tono, pero conviene no confundir los dos casos:
+el tono no vota porque **mide otra cosa**; el zero-shot no vota porque, midiendo
+lo mismo, **se midió peor**.
+
+Ahora bien: callarlo **no arregla el fondo, y decirlo importa**. `forma` queda
+sobre el par acoplado, o sea sobre una sola familia de evidencia, y la dimensión
+deja de ser un contraste. Además el modelo era ya un placeholder de E3-02,
+elegido por eliminación —lo único que el serverless de HuggingFace servía
+entonces— y no por medida. Silenciarlo sin sustituirlo mantiene ese aplazamiento,
+sólo que callado. Por eso queda **escrito en su ficha** como placeholder
+pendiente de #115, en vez de disimulado: la sustitución del modelo es una
+decisión propia, con su propia comparativa de candidatos, y no un apéndice de una
+PR sobre acoplamiento.
+
+Se conserva visible en lugar de retirarlo porque, al no haber visto ningún corpus
+de clickbait, es la única señal del sistema inmune al sesgo de fuente. Es mala,
+pero es mala de forma independiente.
+
+#### Lo que se descartó
+
+**Subir el `THRESHOLD` del léxico.** Haría que usara la magnitud del score y no
+sólo su soporte, y el kappa bajaría de inmediato. Pero esa magnitud vive dentro
+del mismo vector que el lineal ya recibe entero: bajaría la métrica de
+acoplamiento sin añadir un solo bit de información al sistema. Mejora cosmética,
+y de las peores, porque el número mejora mientras el problema sigue igual.
+
+**Sustituir el lineal por un modelo dedicado de terceros.**
+`elozano/bert-base-cased-clickbait-news` da un **99,7 %** en Chakraborty dev
+(n=300), un número que en este corpus es motivo de sospecha y no de celebración.
+En Webis-17 completo (n=2.459): acierto 69,6 %, precisión 0,545, **recall 0,112,
+F1 0,185** — contra una clase mayoritaria de 69,0 %, o sea indistinguible de no
+mirar. Memorización del corpus, no capacidad.
+
+El caso vale más como resultado que como descarte: **refuerza que el algoritmo no
+es la palanca, lo es la supervisión**. Un tercero, con más capacidad y mejor
+entrenamiento, no escapó del atajo — lo explotó mejor. Y de paso queda como caso
+de calibración del banco de pruebas: cualquier candidato futuro que puntúe muy
+alto en Chakraborty y se hunda en Webis está haciendo lo mismo.
+
+#### El resultado que no se buscaba
+
+Al estratificar el recall por `truthMean` —el juicio medio de los anotadores
+humanos de Webis— para comprobar si el modelo dedicado sólo veía el clickbait
+flagrante, apareció otra cosa:
+
+| Tramo | truthMean | dedicado | zero-shot | lineal | **léxico** |
+|---|---|---|---|---|---|
+| tibios | 0,52 | 4,8 % | 27,4 % | 29,0 % | **51,6 %** |
+| medios | 0,65 | 11,3 % | 30,6 % | 61,3 % | **75,8 %** |
+| flagrantes | 0,81 | 12,9 % | 41,9 % | 62,9 % | **85,5 %** |
+
+*(62 positivos por tramo, sobre la muestra de 600.)*
+
+**El recall de la señal de reglas sigue el juicio humano de intensidad casi
+linealmente, y fuera de su dominio de entrenamiento.** Es la que mejor generaliza
+de las cuatro, y el detalle fino importa: el lineal —que es su propio
+featurizado, re-pesado sobre Chakraborty— la sigue de lejos y **se estanca en los
+dos tramos altos** (61,3 % → 62,9 %), justo donde el léxico despega hasta el
+85,5 %. Aprender los pesos sobre etiquetas por-fuente no mejoró la regla: la
+empeoró donde el clickbait es más evidente.
+
+En un trabajo cuyo eje es la explicabilidad, eso no es un adorno: es evidencia
+empírica —propia y medida— de que renunciar a la interpretabilidad no compraba
+aquí ninguna capacidad.
+
+La segunda lectura es sobre el dedicado: no detecta ni el clickbait flagrante
+(12,9 %). No aprendió un concepto que escale en severidad; memorizó los rasgos de
+un corpus concreto.
+
+Y una tercera, que abre trabajo: **la etiqueta binaria está tirando información**.
+Si el juicio humano es graduado y las señales responden a esa graduación,
+entrenar contra un 0/1 desaprovecha lo que los anotadores sí midieron. Queda
+propuesto en #78 valorar `truthMean` como objetivo continuo.
+
+#### Reproducir estos números
+
+Ninguna cifra de esta sección es un dato suelto de una libreta: todas salen de
+tres módulos que se pueden volver a correr, y los tamaños de muestra van
+etiquetados porque no todos coinciden.
+
+```
+python -m backend.evaluation.eval_featurizado                    # segundos
+python -m backend.evaluation.eval_acoplamiento --con-zero-shot 300
+NLP_BACKEND=local python -m backend.evaluation.eval_transferencia # minutos
+```
+
+El primero no carga ningún modelo —es todo regex y un producto escalar—, así que
+la parte estructural del hallazgo se comprueba al instante. Los otros dos cachean
+sus predicciones en `var/`, con el tamaño y la semilla en el nombre del fichero:
+reutilizar una caché contra otra muestra daría un resultado equivocado en
+silencio, así que además se comparan los titulares guardados.
+
+`NLP_BACKEND=local` no es opcional. En remoto los veredictos dependen de qué
+sirva HuggingFace ese día, y entonces las cifras dejan de ser reproducibles —
+cosa que se descubrió justamente al escribir esto, cuando una corrida remota se
+cayó a mitad y reventó al indexar un `data` que era `None`. Los dos scripts que
+llaman al backend comprueban ahora el `ToolResult` y fallan diciendo en qué
+titular y por qué.
+
 ### Un timeout que no cortaba: la petición se colgaba en vez de fallar (#113)
 
 Al probar `analyze_headline` por el protocolo apareció algo que ningún test cubría: **una herramienta que tarda más que su timeout no producía un error, dejaba la petición colgada para siempre.**
