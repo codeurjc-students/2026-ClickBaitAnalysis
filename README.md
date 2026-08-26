@@ -1187,6 +1187,89 @@ Añadir el registro a `/analyze` convirtió, sin avisar, todos los tests de esa 
 
 `tests/api/test_history.py` cubre los dos lados por separado —el almacén llamando a sus funciones, el endpoint por HTTP— porque responden preguntas distintas: si los datos sobreviven y salen en orden, y si la decisión de «una entrada por análisis» se sostiene de verdad.
 
+### Un campo que servía a tres amos: los ids de modelo (#116)
+
+Tres modelos, **ocho declaraciones de su identificador** repartidas por el
+backend. Cambiar el modelo de una señal en un sitio y no en los otros dejaba las
+dos fachadas —REST y MCP— respondiendo con **modelos distintos al mismo
+titular**, y sin que nada fallara: los dos caminos seguían devolviendo una
+etiqueta válida y bien formada.
+
+Salió al preparar #115, que es precisamente un cambio de modelo.
+
+#### Por qué no se había arreglado antes
+
+El `TODO` que lo registraba explicaba también el obstáculo:
+
+> *«Unificar leyéndolos de `MODEL_CARDS["name"]` exige antes normalizar ese
+> campo, que hoy mezcla ids de HuggingFace con descripciones en prosa.»*
+
+Y era exacto. `name` valía `"facebook/bart-large-mnli"` en tres fichas y
+`"Léxico por reglas (listas de cues de Chakraborty et al. 2016)"` en dos. Un solo
+campo intentando ser a la vez identificador de máquina y etiqueta para personas,
+que son cosas que no se parecen en nada: una tiene que coincidir carácter a
+carácter con lo que espera un tercero, la otra tiene que leerse bien en una
+tarjeta de la interfaz. Cuando un campo sirve a dos amos, hay que elegir a cuál
+servir mal.
+
+#### La separación
+
+| Campo | Quién lo consume | Ejemplo |
+|---|---|---|
+| `signal` | `/analyze`, para buscar la ficha de cada resultado | `detect_clickbait` |
+| `model_id` | el orquestador y la tool, para construir la llamada | `facebook/bart-large-mnli` |
+| `name` | la interfaz | `BART-large MNLI (zero-shot por inferencia)` |
+
+`model_id` es **`None`** en el léxico y el lineal. No es un hueco: dice que esa
+señal no es un modelo descargable —una son regex y listas de cues, la otra un
+JSON de pesos del propio repo—, y esa distinción se consulta desde fuera.
+
+El campo entra también en `FichaModelo`, el `TypedDict` que MCP publica como
+`outputSchema` de `describe_models`. Si sólo estuviera en el diccionario, el
+contrato publicado y la realidad divergirían — que es el mismo error, una capa
+más arriba.
+
+#### Una divergencia que ya estaba ahí
+
+Al recorrer los ocho sitios apareció uno que no era duplicación sino
+**discrepancia**: `IncoherenceDetector.MODEL` decía `"all-MiniLM-L6-v2"` mientras
+su ficha decía `"sentence-transformers/all-MiniLM-L6-v2"`.
+
+Dos cadenas distintas para el mismo modelo. Resolvían igual —`sentence-transformers`
+busca los nombres desnudos en su propia organización—, así que **no rompía nada**
+y podía durar indefinidamente con la divulgación diciendo una cosa y el código
+cargando otra. Es el caso que mejor ilustra la issue: el daño de la duplicación
+no es que falle, es que **no falla**.
+
+#### Unificar no basta
+
+Poner el id en un sitio no impide que vuelva a salir de ahí; sólo lo hace menos
+probable. Lo que lo impide es un test que capture **con qué modelo se llama de
+verdad** por cada camino: se sustituye el backend por un espía, se invocan las
+tools por el protocolo y las señales por el orquestador, y se compara lo
+capturado contra la ficha.
+
+Y como un test de regresión que nunca se ha visto fallar no demuestra nada, se
+comprobó introduciendo cada divergencia posible y verificando que la caza:
+
+```
+tool MCP con otro id                                       lo caza
+orquestador REST con otro id                               lo caza
+detector con el nombre desnudo (la divergencia que HABÍA)  lo caza
+```
+
+#### Lo que sigue duplicado, a propósito
+
+Las etiquetas candidatas `["clickbait", "factual news"]` continúan escritas en
+`orchestrator.py` y en `tool.py`. No se mueven a la ficha por dos razones: una
+ficha **divulga qué es una señal, no cómo se la invoca**, y meterle parámetros de
+llamada la convierte en configuración; y #115 sustituye ese modelo por un
+clasificador, que no lleva etiquetas candidatas — sería trabajo para borrarlo en
+la PR siguiente.
+
+O sea que #116 unifica **el identificador**, no toda la invocación. Queda anotado
+en el código como decisión, no como olvido.
+
 ### Tres señales de forma, pero una opinión y media (#109)
 
 La dimensión `forma` contrasta tres señales —léxico, lineal y zero-shot— y es la
