@@ -8,12 +8,24 @@ marca qué señales son white-box (``interpretable``) frente a caja negra
 La otra mitad de R3.9 (intercambiar modelos por configuración) la cubre la
 factoría ``get_nlp_backend`` vía el setting ``nlp_backend`` (remote/local).
 
-El campo ``signal`` es la **clave de máquina**: debe coincidir EXACTAMENTE con el
-nombre de la tool MCP que produce esa señal, porque ``/analyze`` lo usa para
-buscar la ficha de cada resultado. No es una etiqueta legible —para eso están
-``name`` y ``task``— y meterle anotaciones («detect_clickbait (zero-shot)»)
-rompe la búsqueda en silencio: no lanza excepción, simplemente no encuentra la
-ficha. ``test_model_cards_signals_match_registered_tools`` lo vigila.
+TRES CAMPOS QUE PARECEN LO MISMO Y NO LO SON
+
+- ``signal`` — **clave de máquina**: coincide EXACTAMENTE con el nombre de la
+  tool MCP que produce esa señal, porque ``/analyze`` la usa para buscar la ficha
+  de cada resultado. Meterle anotaciones («detect_clickbait (zero-shot)») rompe
+  la búsqueda en silencio: no lanza excepción, simplemente no encuentra la ficha.
+  ``test_model_cards_signals_match_registered_tools`` lo vigila.
+- ``model_id`` — **identificador en HuggingFace**, y la fuente ÚNICA desde la que
+  el orquestador y la tool construyen su llamada. Es ``None`` en las señales que
+  no son un modelo descargable (léxico y lineal), y ese ``None`` es información.
+- ``name`` — **etiqueta para personas**, la que se pinta en la interfaz.
+
+Estaban fundidos en ``name``, que era un id crudo en tres fichas y prosa en dos,
+así que el id acabó cableado en cinco sitios y las dos fachadas —REST y MCP—
+podían quedarse con modelos distintos sin que nada fallara (#116). Separarlos es
+lo que permite que el id viva en un solo lugar; ``test_los_ids_de_las_fichas_son_los_que_se_usan``
+comprueba que la llamada real usa el de la ficha, que es lo único que impide que
+vuelvan a separarse.
 
 El campo ``dimension`` indica QUÉ mide cada señal, no cómo de transparente es:
 
@@ -42,7 +54,8 @@ def cards_by_signal() -> dict[str, dict]:
 MODEL_CARDS = [
     {
         "signal": "detect_clickbait",
-        "name": "facebook/bart-large-mnli",
+        "model_id": "facebook/bart-large-mnli",
+        "name": "BART-large MNLI (zero-shot por inferencia)",
         "task": "Clasifica el titular como clickbait vs factual por inferencia natural (NLI, zero-shot).",
         "type": "opaco",
         "dimension": "forma",
@@ -58,7 +71,8 @@ MODEL_CARDS = [
     },
     {
         "signal": "analyze_sentiment",
-        "name": "cardiffnlp/twitter-roberta-base-sentiment-latest",
+        "model_id": "cardiffnlp/twitter-roberta-base-sentiment-latest",
+        "name": "RoBERTa afinado en tuits (3 clases)",
         "task": "Análisis de sentimiento en 3 clases (positivo / neutral / negativo).",
         "type": "opaco",
         "dimension": "tono",
@@ -72,7 +86,8 @@ MODEL_CARDS = [
     {
         "signal": "detect_clickbait_incoherence",
         "dimension": "engano",
-        "name": "sentence-transformers/all-MiniLM-L6-v2",
+        "model_id": "sentence-transformers/all-MiniLM-L6-v2",
+        "name": "MiniLM-L6-v2 (embeddings de frase)",
         "task": "Similitud coseno titular↔contenido; una similitud baja indica posible clickbait por incoherencia.",
         "type": "híbrido",
         "limitations": [
@@ -86,6 +101,8 @@ MODEL_CARDS = [
     {
         "signal": "detect_clickbait_lexical",
         "dimension": "forma",
+        # Sin `model_id`: no hay nada que descargar. Son regex y listas de cues.
+        "model_id": None,
         "name": "Léxico por reglas (listas de cues de Chakraborty et al. 2016)",
         "task": "Detecta pistas léxicas/estructurales de clickbait y devuelve qué cues dispararon y dónde.",
         "type": "interpretable",
@@ -103,6 +120,8 @@ MODEL_CARDS = [
     {
         "signal": "detect_clickbait_linear",
         "dimension": "forma",
+        # Sin `model_id`: los pesos son un JSON del repo, no un modelo de la Hub.
+        "model_id": None,
         "name": "Regresión logística sobre features léxicas (entrenada en Chakraborty)",
         "task": "Clickbait ponderado: aprende el peso de cada pista y devuelve los cues que más contribuyeron al veredicto.",
         "type": "interpretable",

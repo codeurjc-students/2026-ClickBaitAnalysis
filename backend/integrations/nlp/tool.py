@@ -30,6 +30,11 @@ def register(mcp: FastMCP):
     api = get_nlp_backend()
     detector = IncoherenceDetector()
 
+    # Los ids de modelo salen de las fichas (#116), no cableados aquí. Se
+    # resuelven una vez al registrar y no en cada llamada: MODEL_CARDS es una
+    # constante de módulo, así que releerla por invocación sería trabajo inútil.
+    _ficha = model_cards.cards_by_signal()
+
     @mcp.tool(meta=tool_meta("Señales de análisis", __name__))
     @log_tool_invocation
     async def detect_clickbait(headline: str) -> Etiqueta:
@@ -51,8 +56,7 @@ def register(mcp: FastMCP):
         """
         response = await api.zero_shot(
             headline,
-            "facebook/bart-large-mnli",
-            # modelo Zero-SHot para MVP
+            _ficha["detect_clickbait"]["model_id"],
             ["clickbait", "factual news"],
             # Labels para crear y descartar hipotesis. FIJOS para no confundir LLM.
         )
@@ -78,9 +82,7 @@ def register(mcp: FastMCP):
         Raises:
             Si la llamada al modelo falla (timeout o caída del proveedor).
         """
-        response = await api.classify(
-            text, "cardiffnlp/twitter-roberta-base-sentiment-latest"
-        )
+        response = await api.classify(text, _ficha["analyze_sentiment"]["model_id"])
         if not response.has_content():
             raise ToolError(response.error or "Error al analizar el sentimiento")
         return response.data

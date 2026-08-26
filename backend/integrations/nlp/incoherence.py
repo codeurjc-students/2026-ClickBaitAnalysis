@@ -1,10 +1,17 @@
 import asyncio
 
 from backend.core.models import ToolResult
+from backend.integrations.nlp.model_cards import cards_by_signal
 
 
 class IncoherenceDetector:
-    MODEL = "all-MiniLM-L6-v2"
+    # El id sale de la ficha (#116). Antes estaba aquí como "all-MiniLM-L6-v2",
+    # SIN el prefijo `sentence-transformers/` que sí llevaba la ficha: dos
+    # cadenas distintas para el mismo modelo. Resolvían igual —la librería busca
+    # los nombres desnudos en su propia organización—, así que la divergencia no
+    # rompía nada y podía sobrevivir indefinidamente mientras la divulgación
+    # decía una cosa y el código cargaba otra. Es el caso exacto que motiva #116.
+    MODEL = cards_by_signal()["detect_clickbait_incoherence"]["model_id"]
     THRESHOLD = 0.3  # Lower es clickbait #TODO: Parametrizable
 
     def __init__(self) -> None:

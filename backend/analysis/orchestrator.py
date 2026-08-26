@@ -62,12 +62,18 @@ _detector = IncoherenceDetector()
 # test_model_cards_signals_match_registered_tools.
 _CARDS = cards_by_signal()
 
-# TODO(deuda): estos ids están duplicados en integrations/nlp/tool.py. Unificar
-# leyéndolos de MODEL_CARDS["name"] exige antes normalizar ese campo, que hoy
-# mezcla ids de HuggingFace con descripciones en prosa.
-_ZERO_SHOT_MODEL = "facebook/bart-large-mnli"
+# Los ids salen de la ficha (#116). Antes estaban cableados aquí y otra vez en
+# integrations/nlp/tool.py, así que cambiar el modelo en un sitio dejaba las dos
+# fachadas —REST y MCP— respondiendo con modelos distintos al mismo titular, y
+# sin que nada fallara: los dos caminos seguían devolviendo una etiqueta válida.
+_ZERO_SHOT_MODEL = _CARDS["detect_clickbait"]["model_id"]
+_SENTIMENT_MODEL = _CARDS["analyze_sentiment"]["model_id"]
+
+# Las etiquetas candidatas SIGUEN duplicadas en tool.py, y es deliberado: una
+# ficha divulga qué es cada señal, no cómo se la invoca. Además #115 sustituye
+# este modelo por un clasificador, que no lleva etiquetas candidatas — meterlas
+# ahora en la ficha sería trabajo para borrarlo en la siguiente PR.
 _ZERO_SHOT_LABELS = ["clickbait", "factual news"]
-_SENTIMENT_MODEL = "cardiffnlp/twitter-roberta-base-sentiment-latest"
 
 
 @dataclass(frozen=True)

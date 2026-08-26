@@ -69,9 +69,20 @@ class SalidaIncoherencia(TypedDict):
 
 
 class FichaModelo(TypedDict):
-    """Una entrada de la divulgación de modelos."""
+    """Una entrada de la divulgación de modelos.
+
+    Tres campos parecen lo mismo y no lo son, así que conviene fijarlos aquí:
+    ``signal`` es el nombre de la tool MCP, ``model_id`` el identificador en
+    HuggingFace y ``name`` la etiqueta que lee una persona. Cada uno lo consume
+    alguien distinto —el orquestador, la llamada al backend y la interfaz—, y
+    cuando eran un solo campo había que elegir a quién servir mal (#116).
+
+    ``model_id`` es ``None`` en las señales que no son un modelo descargable —el
+    léxico y el lineal—, y ese ``None`` es información, no un hueco.
+    """
 
     signal: str
+    model_id: str | None
     name: str
     task: str
     type: str
