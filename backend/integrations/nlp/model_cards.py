@@ -5,8 +5,21 @@ forward-compatible con un futuro frontend. El campo ``type`` enlaza con R3.8:
 marca qué señales son white-box (``interpretable``) frente a caja negra
 (``opaco``), pasando por las ``híbrido`` (decisión transparente, feature opaca).
 
-La otra mitad de R3.9 (intercambiar modelos por configuración) la cubre la
-factoría ``get_nlp_backend`` vía el setting ``nlp_backend`` (remote/local).
+CUIDADO CON LA OTRA MITAD DE R3.9
+
+Este docstring afirmaba que «intercambiar modelos por configuración» lo cubría la
+factoría ``get_nlp_backend`` vía el setting ``nlp_backend``. **Es falso, y se
+comprobó al cambiar de modelo en #115**: ``nlp_backend`` decide DÓNDE corre el
+modelo (remoto o local), no CUÁL es. Sustituir el modelo de la señal de clickbait
+exigió tocar esta tabla, escribir ``dedicated.py`` y añadir un mapeo de
+etiquetas — todo código, que es justo lo que el requisito excluye.
+
+Queda por tanto **sin cumplir**, y anotado como tal en vez de darlo por hecho.
+#116 lo dejó a un paso —el id ya vive en un único sitio, así que leerlo de
+settings con la ficha como defecto es pequeño—, pero hay una tensión de fondo: el
+mapeo de etiquetas NO se configura igual de fácil, porque cada modelo trae su
+propio vocabulario. Intercambiar cualquier modelo por configuración sólo es
+realista dentro de una familia que comparta convención.
 
 TRES CAMPOS QUE PARECEN LO MISMO Y NO LO SON
 
@@ -54,18 +67,18 @@ def cards_by_signal() -> dict[str, dict]:
 MODEL_CARDS = [
     {
         "signal": "detect_clickbait",
-        "model_id": "facebook/bart-large-mnli",
-        "name": "BART-large MNLI (zero-shot por inferencia)",
-        "task": "Clasifica el titular como clickbait vs factual por inferencia natural (NLI, zero-shot).",
+        "model_id": "Stremie/roberta-base-clickbait",
+        "name": "RoBERTa dedicado (entrenado en Webis-17)",
+        "task": "Clasifica el titular como clickbait vs factual con un modelo afinado específicamente para esta tarea.",
         "type": "opaco",
         "dimension": "forma",
         "limitations": [
-            "Modelo genérico de NLI, no entrenado específicamente en clickbait.",
             "Caja negra: sin explicación intrínseca (post-hoc opcional, R3.11).",
-            "Solo inglés.",
-            "En backend remoto (HF): sujeto a timeouts/caídas del proveedor.",
-            "NO VOTA (#109): se muestra pero su veredicto no entra en la dimensión `forma`. Es la señal más floja en los dos dominios medidos — 63.7% de acierto en Chakraborty dev (vs 87.0% del léxico y 89.3% del lineal) y F1 0.405 en Webis-17 (vs 0.526 y 0.519) — y al discrepar en solitario dejaba el 37% de los titulares en AMBIGUO.",
-            "PLACEHOLDER pendiente de #115: elegido en E3-02 por eliminación (lo único que el serverless de HuggingFace servía entonces), no por medida. Se conserva visible en vez de retirarlo porque, al no haber visto ningún corpus de clickbait, es la única señal inmune al sesgo de fuente (#78).",
+            "Solo inglés. Entrenado sobre `postText` de Webis-17, es decir TUITS de medios, no titulares de portada.",
+            "INDEPENDENCIA DESCONOCIDA, que no es lo mismo que buena: su único corpus de test honesto es Chakraborty, donde tres clasificadores competentes coinciden por fuerza (kappa 0.726 con el léxico y 0.772 con el lineal). En Webis no se puede medir, porque es su material de entrenamiento.",
+            "Sustituye a `facebook/bart-large-mnli` (#115), elegido en E3-02 por eliminación y medido en #109 al 63.7%. La sustitución sí se decidió por medida: F1 0.946 en Chakraborty — corpus que NO vio — frente al 0.473 del anterior, y con la ambigüedad de `forma` cayendo del 37% al 15%.",
+            "A favor, y es lo que más pesa: entrenado con ETIQUETA HUMANA (`truthMean` de anotadores), no por fuente. Es la única señal del sistema con supervisión no sesgada por el medio que publicó el titular — el fallo que #76 destapó y #109 cuantificó.",
+            "No memoriza, verificado: rinde MEJOR fuera de su dominio (F1 0.946 en Chakraborty) que dentro (0.631 en Webis), el patrón inverso al de `elozano/bert-base-cased-clickbait-news`, descartado por 99.7% dentro y F1 0.185 fuera.",
         ],
         "backend": "remote | local",
     },

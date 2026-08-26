@@ -513,16 +513,27 @@ async def test_las_dos_fachadas_usan_el_id_de_la_ficha(monkeypatch):
     fichas = model_cards.cards_by_signal()
 
     class _Espia:
+        """Registra CADA llamada, no la última por método.
+
+        La primera versión guardaba en un dict con clave `zero_shot`/`classify`.
+        Cuando #115 pasó la señal de clickbait de `zero_shot` a `classify`, las
+        dos señales que usan `classify` empezaron a pisarse: el test seguía en
+        verde comprobando la mitad de lo que decía comprobar.
+        """
+
         def __init__(self):
-            self.modelos = {}
+            self.llamadas = []
 
         async def zero_shot(self, text, model, labels):
-            self.modelos["zero_shot"] = model
+            self.llamadas.append(model)
             return ToolResult.ok({"label": "clickbait", "score": 0.9})
 
         async def classify(self, text, model):
-            self.modelos["classify"] = model
-            return ToolResult.ok({"label": "neutral", "score": 0.8})
+            self.llamadas.append(model)
+            # `Clickbait` es lo que devuelve el modelo dedicado; `dedicated`
+            # lo traduce. El doble tiene que hablar como el modelo real, no
+            # como el contrato, o no se estaría probando la traducción.
+            return ToolResult.ok({"label": "Clickbait", "score": 0.8})
 
     # --- fachada MCP ---
     espia_mcp = _Espia()
@@ -538,11 +549,14 @@ async def test_las_dos_fachadas_usan_el_id_de_la_ficha(monkeypatch):
     await orchestrator._run_signals("Un titular", None)
 
     esperado = {
-        "zero_shot": fichas["detect_clickbait"]["model_id"],
-        "classify": fichas["analyze_sentiment"]["model_id"],
+        fichas["detect_clickbait"]["model_id"],
+        fichas["analyze_sentiment"]["model_id"],
     }
-    assert espia_mcp.modelos == esperado, "la tool MCP no usa el id de la ficha"
-    assert espia_rest.modelos == esperado, "el orquestador no usa el id de la ficha"
+    assert set(espia_mcp.llamadas) == esperado, "la tool MCP no usa el id de la ficha"
+    assert len(espia_mcp.llamadas) == 2, "alguna señal no llamó al backend"
+    assert set(espia_rest.llamadas) == esperado, (
+        "el orquestador no usa el id de la ficha"
+    )
 
     # El tercero no pasa por el backend NLP: carga su modelo él mismo. Antes
     # decía "all-MiniLM-L6-v2" mientras la ficha decía la ruta completa — dos
