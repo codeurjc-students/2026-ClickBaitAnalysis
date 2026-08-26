@@ -8,6 +8,7 @@ globales del módulo EN CADA LLAMADA, así que monkeypatchear el módulo basta.
 
 import asyncio
 import time
+from typing import ClassVar
 
 import pytest
 from pydantic import ValidationError
@@ -28,7 +29,7 @@ from backend.analysis.orchestrator import (
     _run_signals,
 )
 from backend.core.models import ToolResult
-from backend.integrations.nlp import lexical, linear
+from backend.integrations.nlp import dedicated, lexical, linear
 
 _SPECS = {spec.name: spec for spec in _SIGNALS}
 
@@ -37,7 +38,23 @@ _SPECS = {spec.name: spec for spec in _SIGNALS}
 
 
 class _FakeAPI:
-    """Backend NLP sin red. `delay` sirve para medir la concurrencia."""
+    """Backend NLP sin red. `delay` sirve para medir la concurrencia.
+
+    `classify` DESPACHA POR MODELO desde #115. Antes sólo lo usaba el tono, así
+    que devolver siempre su etiqueta bastaba; ahora la señal de clickbait usa el
+    mismo método, y un doble que ignorase el modelo le devolvería «neutral» a
+    `dedicated`, que lo rechazaría por no estar en su mapeo. El test pasaría o
+    fallaría por el motivo equivocado.
+
+    `label` sigue expresándose en el vocabulario del CONTRATO (`clickbait` /
+    `factual news`) porque es como lo escriben los tests; se traduce aquí al del
+    modelo, que es lo que `dedicated` espera recibir y normalizar.
+    """
+
+    _AL_MODELO: ClassVar[dict[str, str]] = {
+        "clickbait": "Clickbait",
+        "factual news": "Not Clickbait",
+    }
 
     def __init__(self, label="clickbait", sentiment="neutral", delay=0.0):
         self.label, self.sentiment, self.delay = label, sentiment, delay
@@ -48,11 +65,9 @@ class _FakeAPI:
 
     async def classify(self, text, model):
         await asyncio.sleep(self.delay)
+        if model == dedicated.MODEL:
+            return ToolResult.ok({"label": self._AL_MODELO[self.label], "score": 0.91})
         return ToolResult.ok({"label": self.sentiment, "score": 0.84})
-
-
-async def _revienta(*args, **kwargs):
-    raise TimeoutError("el proveedor no respondió")
 
 
 async def _falla(*args, **kwargs):
@@ -161,9 +176,10 @@ def test_señales_de_acuerdo_dan_veredicto_de_dimension(señales):
 
 def test_señales_en_discrepancia_no_se_resuelven_por_mayoria():
     # Dos a uno NO gana: la discrepancia se declara, no se promedia.
-    # Ejercita `_aggregate` directamente, con tres votantes en `forma`. Desde
-    # #109 esa terna no se da en producción (el zero-shot no vota), pero la
-    # invariante es de la función y debe aguantar los votantes que le lleguen.
+    # La terna vuelve a darse en producción desde #115, que devolvió el voto a
+    # la señal dedicada. Entre #109 y #115 no se daba, y el test siguió siendo
+    # correcto igualmente: la invariante es de `_aggregate`, que debe aguantar
+    # los votantes que le lleguen, no de quién vote esta semana.
     verdicts = _por_dimension(
         _aggregate(
             [
@@ -195,26 +211,53 @@ def test_el_tono_no_vota_y_no_genera_dimension():
 
 
 @pytest.mark.asyncio
-async def test_el_zero_shot_no_vota_pero_sigue_apareciendo(señales):
-    """Regresión de #109: sin este test, un refactor la revierte en silencio.
+async def test_la_señal_dedicada_vota_y_su_etiqueta_va_normalizada(señales):
+    """#115 devuelve el voto que #109 había quitado, y fija la normalización.
 
-    La distinción que fija es que NO votar y HABER FALLADO son cosas distintas
-    aunque compartan ``is_clickbait is None``: la tarjeta sigue en estado OK y
-    conserva sus datos para pintarse.
+    Las dos cosas van juntas a propósito. El voto depende de que el veredicto se
+    extraiga con ``d["label"] == "clickbait"``, y el modelo de debajo dice
+    ``Clickbait``: si la traducción de ``dedicated`` se cayera, la comparación
+    no casaría, TODOS los titulares saldrían factuales y ningún test de voto lo
+    notaría — porque seguiría habiendo voto, sólo que siempre el mismo.
     """
-    señales()
+    señales(label="clickbait")
     signals = {s.name: s for s in await _run_signals("Un titular", None)}
 
-    zero_shot = signals["detect_clickbait"]
-    assert zero_shot.status == SignalStatus.OK
-    assert zero_shot.is_clickbait is None
-    assert zero_shot.data  # label y score siguen ahí para la interfaz
+    dedicada = signals["detect_clickbait"]
+    assert dedicada.status == SignalStatus.OK
+    assert dedicada.is_clickbait is True
+    assert dedicada.data["label"] == "clickbait"  # no «Clickbait»
 
     forma = _por_dimension(_aggregate(list(signals.values())))[Dimension.FORMA]
     assert forma.contributing == [
+        "detect_clickbait",
         "detect_clickbait_lexical",
         "detect_clickbait_linear",
     ]
+
+
+@pytest.mark.asyncio
+async def test_una_etiqueta_desconocida_del_modelo_no_pasa_por_factual(
+    señales, monkeypatch
+):
+    """El fallo silencioso que más caro sale: el modelo cambia de convención.
+
+    Si `dedicated` dejara pasar la etiqueta cruda, el extractor la compararía
+    con «clickbait», no coincidiría, y la señal declararía factual TODO sin que
+    nada fallara. Tiene que degradarse a error, que sí se ve.
+    """
+    señales()
+
+    async def responde_raro(text, model):
+        return ToolResult.ok({"label": "LABEL_0", "score": 0.9})
+
+    monkeypatch.setattr(orchestrator._api, "classify", responde_raro)
+    signals = {s.name: s for s in await _run_signals("Un titular", None)}
+
+    dedicada = signals["detect_clickbait"]
+    assert dedicada.status == SignalStatus.ERROR
+    assert dedicada.is_clickbait is None
+    assert "LABEL_0" in dedicada.detail  # dice QUÉ llegó, para poder arreglarlo
 
 
 def test_señal_fallida_no_genera_dimension():
@@ -293,7 +336,18 @@ async def test_cuerpo_en_blanco_equivale_a_no_tenerlo(señales, cuerpo):
 @pytest.mark.asyncio
 async def test_una_señal_que_revienta_no_tumba_a_las_demas(señales, monkeypatch):
     señales()
-    monkeypatch.setattr(orchestrator._api, "zero_shot", _revienta)
+
+    # Se rompe SÓLO el modelo dedicado, no el método. Desde #115 el tono comparte
+    # `classify` con él, así que parchear el método entero tumbaría dos señales y
+    # el test dejaría de probar lo que dice: que las demás sobreviven.
+    original = orchestrator._api.classify
+
+    async def revienta_solo_el_dedicado(text, model):
+        if model == dedicated.MODEL:
+            raise TimeoutError("el proveedor no respondió")
+        return await original(text, model)
+
+    monkeypatch.setattr(orchestrator._api, "classify", revienta_solo_el_dedicado)
 
     signals = {s.name: s for s in await _run_signals("Un titular", "Un cuerpo")}
 

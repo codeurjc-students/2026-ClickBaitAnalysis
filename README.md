@@ -1187,6 +1187,180 @@ Añadir el registro a `/analyze` convirtió, sin avisar, todos los tests de esa 
 
 `tests/api/test_history.py` cubre los dos lados por separado —el almacén llamando a sus funciones, el endpoint por HTTP— porque responden preguntas distintas: si los datos sobreviven y salen en orden, y si la decisión de «una entrada por análisis» se sostiene de verdad.
 
+### Una decisión que caducó dos épicas antes de que nadie volviera (#115)
+
+`detect_clickbait` usaba `facebook/bart-large-mnli`. El registro de **E3-02** dice
+por qué, sin ambigüedad:
+
+> *«el serverless `hf-inference` **no sirve ningún modelo de clickbait
+> específico** […] Lo **único** viable para clickbait en remoto es zero-shot vía
+> `bart-large-mnli`.»*
+>
+> *«**Decisión:** zero-shot remoto con `bart-large-mnli` **para el MVP**. […]
+> dejamos `elozano` como **mejora futura** en backend local, **si llega la
+> infra**.»*
+
+Se eligió **por eliminación**, no por mérito. La evidencia que lo sostenía era
+*«discrimina bien, ver ejemplo arriba»*: un ejemplo suelto, no una medida.
+
+Y la infra llegó. `LocalNLPClient`, construido en la Épica 5, carga cualquier
+modelo de HuggingFace sin pasar por el proveedor serverless que era la
+restricción original. **La condición del aplazamiento se cumplió dos épicas antes
+de que nadie volviera a la nota**, porque nadie tenía motivo para releerla.
+
+#### El sustituto obvio era el equivocado
+
+E3-02 dejaba nombre y apellidos: `elozano/bert-base-cased-clickbait-news`, un
+modelo entrenado *en* clickbait. Medido en #109 dio **99,7 %** sobre Chakraborty
+dev — y ese número, en ese corpus, es motivo de sospecha y no de celebración.
+Fuera: **F1 0,185** contra una clase mayoritaria del 69,0 %. Memorización.
+
+Eso obligó a buscar de verdad, con tres criterios y en este orden:
+
+1. **Licencia** clara que permita uso citando.
+2. **Procedencia de la etiqueta.** Humana vale; por-fuente reproduce el atajo que
+   #76 destapó y #109 cuantificó.
+3. **Independencia** del par acoplado — porque la plaza no necesita otra
+   confirmación, necesita una señal capaz de discrepar con fundamento.
+
+#### Y ahí salió el hallazgo que no buscábamos
+
+39 datasets candidatos en el Hub. En inglés y con licencia permisiva, cinco. Los
+cinco son **Chakraborty reempaquetado**, medido por solapamiento de titulares:
+
+| Dataset | Licencia | Solapamiento |
+|---|---|---|
+| `marksverdhei/clickbait_title_classification` | MIT | **100 %** |
+| `christinacdl/Multilingual_Clickbait_Dataset` | Apache-2.0 | 86 % |
+| `christinacdl/clickbait_detection_dataset` | Apache-2.0 | 86 % |
+| `christinacdl/clickbait_notclickbait_dataset` | Apache-2.0 | 57 % |
+| `christinacdl/Clickbait_New` | Apache-2.0 | 56 % |
+
+*(100 filas de cada uno; es cota inferior.)*
+
+**La variedad de corpus de clickbait es ilusoria: un dataset con cinco
+envoltorios.** Eso explica estructuralmente el caso de elozano —no fue mala
+suerte al elegir, es que casi todo lo que hay arrastra las mismas etiquetas
+por-fuente— y responde el bullet de #78 «búsqueda de corpus adicionales» con un
+**no medido** en vez de con un «no encontré».
+
+El inventario real en inglés es **Chakraborty** (etiqueta por fuente) y
+**Webis-17** (etiqueta humana). Nada más.
+
+#### El elegido, y por qué su patrón es el inverso
+
+`Stremie/roberta-base-clickbait`, Apache-2.0, cuyo README declara entrenamiento
+sobre **Webis-17** y **`postText`** — el mismo campo que tenemos vendorizado, sin
+desajuste — con ~0,7 de F1 en su test.
+
+|  | En su propio corpus | Fuera |
+|---|---|---|
+| `elozano` | 99,7 % (Chakraborty) | **F1 0,185** (Webis) |
+| `Stremie` | F1 0,631 (Webis) | **F1 0,946** (Chakraborty) |
+
+Alto **fuera** y más bajo **dentro**: eso es generalizar, no memorizar. Un modelo
+que hubiera memorizado rozaría el 1,0 en su propio material.
+
+Y el detalle que más pesa para la memoria: ese 0,946 en Chakraborty **supera al
+0,865 que el lineal saca dentro de su propio dominio**. Un modelo entrenado con
+juicio humano transfiere al corpus etiquetado por fuente mejor de lo que el
+modelo entrenado en ese corpus se maneja en él. Es el argumento de #78 —*la
+palanca es la supervisión, no el algoritmo*— medido por segunda vez y desde el
+otro lado.
+
+*(De paso contextualiza todos los números de Webis: si un modelo entrenado allí
+sólo llega a 0,631, el ~0,50 de nuestras señales no estaba tan lejos del techo
+real como parecía.)*
+
+#### El voto vuelve, y no es una marcha atrás
+
+#109 le había quitado el voto a esta señal. La sustitución lo devuelve:
+
+| Tercera señal | Acierto | `forma` AMBIGUO | de esa ambigüedad, error suyo |
+|---|---|---|---|
+| BART (antes) | 63,7 % | 37,0 % | **78,4 %** |
+| Stremie | **94,7 %** | **15,0 %** | **20,0 %** |
+
+Cuatro de cada cinco ambigüedades pasan de ser ruido a ser discrepancia legítima.
+Ése es el criterio, y no el acierto: *ambiguo* debe querer decir que dos señales
+fiables no coinciden, no que alguna se equivocó.
+
+No es contradecir a #109. Aquel silencio se declaró **condicional** en la propia
+ficha —«placeholder pendiente de #115»— precisamente para que se pudiera
+encontrar cuando llegara el momento. Es la lección de E3-02 aplicada: una nota
+provisional debe decir **qué la desbloquearía**.
+
+#### `dedicated.py`, o por qué faltaba un módulo
+
+Al ir a escribir la traducción de etiquetas apareció la causa de fondo de #116.
+Tres de las cinco señales tenían módulo propio —`lexical`, `linear`,
+`incoherence`—; ésta y el tono, no: llamaban al backend directamente **desde las
+dos fachadas**. Por eso su id y sus etiquetas acabaron duplicados: no había dónde
+ponerlos.
+
+`backend/integrations/nlp/dedicated.py` cierra esa asimetría. Contiene el id (que
+lee de la ficha), el mapeo de etiquetas y la normalización, y las dos fachadas lo
+llaman. El vocabulario del modelo **no sale hacia fuera**: la tool sigue
+publicando `clickbait`/`factual news`, que es contrato leído por el LLM, de modo
+que el próximo cambio de modelo no se propaga a quien consume la señal.
+
+Y ese mapeo **falla en vez de dejar pasar** una etiqueta que no conozca. Si se
+colara, el extractor de veredicto la compararía con `clickbait`, no coincidiría,
+y **todos los titulares saldrían factuales sin que se levantara ninguna
+excepción**. Es el mismo patrón que #116: el fallo peligroso no es el que rompe,
+es el que no rompe.
+
+#### Lo que no arregla
+
+Sigue siendo una señal **opaca**, así que `forma` gana acierto y no gana
+transparencia. Y su independencia del par acoplado es **desconocida, que no es lo
+mismo que buena**: su único corpus de test honesto es Chakraborty, donde tres
+clasificadores competentes coinciden por fuerza (kappa 0,726 y 0,772), y en Webis
+no se puede medir porque es su material de entrenamiento. Queda declarado en la
+ficha en esos términos.
+
+La segunda señal interpretable e independiente que a `forma` le sigue faltando es
+#75.
+
+#### Auditar el requisito destapó que el código mentía
+
+Cambiar de modelo es la prueba de fuego de **R3.9**, que pide divulgar los
+modelos empleados **y permitir intercambiarlos por configuración, sin cambios de
+código**. Así que al terminar se comprobó contra `docs/requisitos.md`.
+
+La primera mitad se cumple. La segunda **no**: la sustitución exigió tocar la
+tabla de fichas, escribir `dedicated.py` y añadir un mapeo de etiquetas. Todo
+código, que es justo lo que el requisito excluye.
+
+Lo llamativo es que el docstring de `model_cards.py` **afirmaba lo contrario**:
+
+> *«La otra mitad de R3.9 (intercambiar modelos por configuración) la cubre la
+> factoría `get_nlp_backend` vía el setting `nlp_backend` (remote/local).»*
+
+`nlp_backend` decide **dónde** corre el modelo, no **cuál** es. El docstring
+confundía las dos cosas y daba por cumplido un requisito que no lo estaba —
+durante dos épicas, sin que nadie lo notara, porque hasta ahora nunca se había
+cambiado un modelo. Corregido aquí; el hueco queda en **#119**.
+
+Y hay una tensión que conviene registrar antes de implementar nada, porque puede
+que la respuesta correcta sea matizar el requisito y no forzar el código: **el id
+se configura fácil, el mapeo de etiquetas no**. Cada modelo trae su vocabulario
+—`Clickbait`/`Not Clickbait` aquí, `LABEL_0`/`LABEL_1` en muchos otros— y la
+traducción es específica de cada uno. Se suma la diferencia de modo de
+invocación: un clasificador se llama con `classify`, un NLI con `zero_shot` más
+etiquetas candidatas. Cambiar entre esas dos familias no es cambiar un id.
+
+Del resto de lo auditado, dos apuntes que no son incumplimiento:
+
+- **R3.5** (texto vacío → error) sale **reforzado**: `dedicated.detect` comprueba
+  el titular antes de llamar al modelo.
+- **R3.8** (priorizar medios interpretables) gana **evidencia propia a favor**: lo
+  medido en #109 dice que la señal white-box es la que mejor generaliza fuera de
+  dominio, por delante de las opacas.
+- **R3.6** (tiempos razonables) probablemente mejora —el modelo pasa de
+  BART-large a un roberta-base—, pero **no se ha medido**, así que no se apunta
+  como mejora.
+
 ### Un campo que servía a tres amos: los ids de modelo (#116)
 
 Tres modelos, **ocho declaraciones de su identificador** repartidas por el

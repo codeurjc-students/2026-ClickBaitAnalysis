@@ -4,9 +4,10 @@ Lanza las señales de clickbait a la vez, envuelve cada una en el formato
 uniforme de ``domain`` y agrega el resultado. Tres invariantes lo gobiernan:
 
 1. **Una señal vota si —y solo si— su ``is_clickbait`` no es None.** Ahí caen
-   sin caso especial tres cosas distintas: las que fallaron, el tono —que por
-   naturaleza no emite veredicto de clickbait— y, desde #109, las excluidas por
-   medición, hoy solo el zero-shot (el porqué, en su entrada de ``_SIGNALS``).
+   sin caso especial las que fallaron y el tono, que por naturaleza no emite
+   veredicto de clickbait. Entre #109 y #115 hubo un tercer caso —una señal
+   excluida por medirse peor que las demás— y el mismo ``None`` bastó para
+   expresarlo sin tocar la agregación: la palanca ya estaba puesta.
 2. **Una dimensión aparece si alguna de sus señales votó.** Si las que votaron
    discrepan, no se promedia ni se resuelve por mayoría: se declara ``None``.
 3. **El veredicto global sale de las dimensiones con jerarquía** —el engaño pesa
@@ -43,7 +44,7 @@ from backend.analysis.domain import (
     SignalType,
 )
 from backend.core.models import ToolResult
-from backend.integrations.nlp import lexical, linear
+from backend.integrations.nlp import dedicated, lexical, linear
 from backend.integrations.nlp.factory import get_nlp_backend
 from backend.integrations.nlp.incoherence import IncoherenceDetector
 from backend.integrations.nlp.model_cards import cards_by_signal
@@ -62,18 +63,15 @@ _detector = IncoherenceDetector()
 # test_model_cards_signals_match_registered_tools.
 _CARDS = cards_by_signal()
 
-# Los ids salen de la ficha (#116). Antes estaban cableados aquí y otra vez en
+# El id sale de la ficha (#116). Antes estaba cableado aquí y otra vez en
 # integrations/nlp/tool.py, así que cambiar el modelo en un sitio dejaba las dos
 # fachadas —REST y MCP— respondiendo con modelos distintos al mismo titular, y
 # sin que nada fallara: los dos caminos seguían devolviendo una etiqueta válida.
-_ZERO_SHOT_MODEL = _CARDS["detect_clickbait"]["model_id"]
+#
+# Sólo queda el del tono: la señal de clickbait pasó a `integrations/nlp/dedicated`
+# en #115, que es donde viven ya sus hermanas —léxico, lineal, incoherencia— y
+# donde el id y el mapeo de etiquetas tienen un único sitio.
 _SENTIMENT_MODEL = _CARDS["analyze_sentiment"]["model_id"]
-
-# Las etiquetas candidatas SIGUEN duplicadas en tool.py, y es deliberado: una
-# ficha divulga qué es cada señal, no cómo se la invoca. Además #115 sustituye
-# este modelo por un clasificador, que no lleva etiquetas candidatas — meterlas
-# ahora en la ficha sería trabajo para borrarlo en la siguiente PR.
-_ZERO_SHOT_LABELS = ["clickbait", "factual news"]
 
 
 @dataclass(frozen=True)
@@ -116,36 +114,26 @@ class _Signal:
 _SIGNALS: tuple[_Signal, ...] = (
     _Signal(
         name="detect_clickbait",
-        run=lambda h, c: _api.zero_shot(h, _ZERO_SHOT_MODEL, _ZERO_SHOT_LABELS),
-        # NO VOTA desde #109: se sigue mostrando como tarjeta, pero su veredicto
-        # no entra en `forma`. Devolver None aquí es toda la implementación,
-        # igual que en el tono — pero por un motivo distinto, y conviene no
-        # confundirlos: el tono no vota porque MIDE OTRA COSA; este no vota
-        # porque, midiendo lo mismo, se midió peor.
+        run=lambda h, c: dedicated.detect(_api, h),
+        # VUELVE A VOTAR (#115), después de que #109 se lo quitara. No es una
+        # marcha atrás: aquel silencio se declaró condicional en la ficha —
+        # «placeholder pendiente de #115»— y esto es la condición cumpliéndose.
         #
-        # Es la señal más floja en los DOS dominios evaluados: 63,7 % de acierto
-        # en Chakraborty dev, frente al 87,0 % del léxico y el 89,3 % del
-        # lineal; y F1 0,405 en Webis-17, frente a 0,526 y 0,519.
+        # Lo que #109 silenció fue un modelo elegido POR ELIMINACIÓN en E3-02,
+        # que acertaba el 63,7 %. Su problema no era el error sino cómo se
+        # propagaba: al discrepar en solitario dejaba la dimensión en None
+        # (invariante 2), y así el 37 % de los titulares salía AMBIGUO con el
+        # 78 % de esa ambigüedad siendo un error suyo.
         #
-        # Lo que obligaba a silenciarla no era su error, sino cómo se propagaba.
-        # Al discrepar en solitario dejaba la dimensión en None (invariante 2),
-        # de modo que el 37 % de los titulares salía AMBIGUO — y el 78 % de esa
-        # ambigüedad era un error suyo. «Ambiguo» debe significar que dos
-        # señales fiables discrepan, no que alguna discrepa; si no, se le
-        # presenta al usuario ruido con apariencia de matiz.
+        # El sustituto cambia esos dos números a 15 % y 20 %. O sea que cuatro
+        # de cada cinco ambigüedades pasan a ser discrepancia legítima, y
+        # AMBIGUO recupera el significado que la tesis le atribuye. Ése es el
+        # criterio, y no el acierto: «ambiguo» debe querer decir que dos señales
+        # fiables no coinciden, no que alguna se equivocó.
         #
-        # Callarla NO arregla el fondo: `forma` queda entonces sobre el par
-        # léxico+lineal, acoplado POR CONSTRUCCIÓN (el veredicto del léxico es
-        # el indicador de soporte del mismo vector que consume el lineal, con
-        # THRESHOLD=1). La dimensión pasa a descansar sobre una sola familia de
-        # evidencia, y eso está declarado en las fichas.
-        #
-        # El modelo es además un placeholder heredado de E3-02, elegido por
-        # eliminación —lo único que el serverless de HuggingFace servía— y no
-        # por medida. Sustituirlo es #115; se conserva visible mientras tanto
-        # porque, al no haber visto ningún corpus de clickbait, es la única
-        # señal inmune al sesgo de fuente (#78).
-        verdict=lambda d: None,
+        # La etiqueta la normaliza `dedicated`, no esta tabla: el veredicto se
+        # lee igual que antes aunque el modelo de debajo hable otro idioma.
+        verdict=lambda d: d["label"] == "clickbait",
     ),
     _Signal(
         name="detect_clickbait_lexical",
