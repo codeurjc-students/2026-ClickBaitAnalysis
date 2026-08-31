@@ -6,7 +6,19 @@ real evaluando la vía shipeada (lexical.detect / linear.predict) sobre
 Webis-Clickbait-17 (tuits de 27 medios USA, dominio distinto) SIN reentrenar
 ni afinar nada: cero adaptación, número honesto de transferencia.
 
-Ejecutar:  python -m backend.evaluation.eval_external
+LOS DOS SPLITS (#121)
+
+Webis reparte el corpus en trozos **disjuntos**, como cualquier competición, y
+conviene no confundirlos: medido, comparten UN titular de 2.380. El zip del
+segundo se llama «train-170630» pero su carpeta interna dice «validation», que es
+la nomenclatura del Clickbait Challenge.
+
+- ``train170331`` — 2.459. El extracto original de #76, y el que por defecto
+  siguen cargando quienes ya llamaban a ``load_external()``.
+- ``validation170630`` — 19.484. Ocho veces más, y trae los CINCO juicios
+  individuales de cada anotador (ver ``eval_ambiguedad``).
+
+Ejecutar:  python -m backend.evaluation.eval_external [split]
 """
 
 import gzip
@@ -17,26 +29,48 @@ from sklearn.metrics import confusion_matrix, precision_recall_fscore_support
 
 from backend.integrations.nlp import lexical, linear
 
-EXTERNAL_FILE = (
-    Path(__file__).resolve().parent.parent.parent
-    / "data"
-    / "external"
-    / "webis17_train170331.jsonl.gz"
-)
+_EXTERNAL_DIR = Path(__file__).resolve().parent.parent.parent / "data" / "external"
+
+SPLITS = {
+    "train170331": "webis17_train170331.jsonl.gz",
+    "validation170630": "webis17_validation170630.jsonl.gz",
+}
+
+# Se conserva como defecto el de #76 para que los números ya publicados sigan
+# saliendo con la misma llamada: cambiar el defecto reescribiría en silencio el
+# significado de todo lo medido antes.
+SPLIT_POR_DEFECTO = "train170331"
 
 
-def load_external() -> list[tuple[str, int, float]]:
-    """Carga el extracto vendorizado -> lista de (headline, label, truthMean)."""
-    data = []
-    with gzip.open(EXTERNAL_FILE, "rt", encoding="utf-8") as f:
-        for line in f:
-            r = json.loads(line)
-            data.append((r["headline"], r["label"], r["truthMean"]))
-    return data
+def _ruta(split: str) -> Path:
+    if split not in SPLITS:
+        raise ValueError(f"split desconocido «{split}»; hay {sorted(SPLITS)}")
+    return _EXTERNAL_DIR / SPLITS[split]
+
+
+def load_external(split: str = SPLIT_POR_DEFECTO) -> list[tuple[str, int, float]]:
+    """Extracto vendorizado -> lista de (headline, label, truthMean)."""
+    return [(r["headline"], r["label"], r["truthMean"]) for r in load_records(split)]
+
+
+def load_records(split: str = SPLIT_POR_DEFECTO) -> list[dict]:
+    """Igual, pero sin tirar campos.
+
+    ``load_external`` devuelve ternas por compatibilidad con sus consumidores,
+    y en esa forma se pierden el ``id`` y los ``truthJudgments`` — que son
+    justamente lo que hace falta para cruzar splits y para medir el techo de la
+    tarea. Quien los necesite usa esta.
+    """
+    with gzip.open(_ruta(split), "rt", encoding="utf-8") as f:
+        return [json.loads(linea) for linea in f]
 
 
 if __name__ == "__main__":
-    data = load_external()
+    import sys
+
+    split = sys.argv[1] if len(sys.argv) > 1 else SPLIT_POR_DEFECTO
+    print(f"split: {split}")
+    data = load_external(split)
     y_true = [label for _, label, _ in data]
     pos = sum(y_true)
     print(

@@ -1187,6 +1187,137 @@ Añadir el registro a `/analyze` convirtió, sin avisar, todos los tests de esa 
 
 `tests/api/test_history.py` cubre los dos lados por separado —el almacén llamando a sus funciones, el endpoint por HTTP— porque responden preguntas distintas: si los datos sobreviven y salen en orden, y si la decisión de «una entrada por análisis» se sostiene de verdad.
 
+### Contra qué techo estábamos midiendo (#121)
+
+Durante toda la Épica 5 y la Fase B las métricas se han leído contra un 1,0
+implícito: un F1 de 0,50 «es flojo», uno de 0,90 «es bueno». Eso presupone que la
+tarea tiene una respuesta correcta y que un sistema perfecto la acertaría
+siempre.
+
+Al bajar el Webis-17 completo —para desbloquear #75 y poder calibrar `engano`—
+apareció que el corpus guarda los **cinco juicios individuales** de cada titular,
+no sólo su media. Con eso se puede comprobar el supuesto.
+
+#### La tarea es intrínsecamente ambigua
+
+Sobre 19.484 titulares:
+
+| | |
+|---|---|
+| Titulares con los 5 anotadores de acuerdo | **34,9 %** |
+| Un juicio individual coincide con el consenso | 81,5 % |
+| **Un anotador contra el consenso de su grupo** | **F1 0,665** (P 0,598 · R 0,749) |
+
+**Dos de cada tres titulares tienen al menos una persona que ve otra cosa.** Y una
+persona, juzgando contra lo que acuerdan sus compañeros, no pasa de 0,665.
+
+Eso reencuadra todo lo medido hasta ahora. El 0,50 del léxico no está a medio
+camino de lo posible: está a dos tercios. Y el 0,758 de la señal dedicada, que
+parecía mediocre comparado con su 0,946 en Chakraborty, **está por encima de lo
+que consigue un anotador individual**.
+
+Con un matiz que hay que decir para que el número no se sobrevenda: predecir el
+**consenso de un grupo** es más fácil que predecir un juicio suelto, porque el
+agregado promedia el ruido individual. Que el modelo supere a una persona en esa
+tarea no significa que juzgue el clickbait mejor que ella. (Y el 0,665 es, si
+acaso, generoso con el humano: el consenso incluye al anotador evaluado.)
+
+#### Por qué Chakraborty da números tan altos
+
+Chakraborty etiqueta **por fuente** —BuzzFeed es clickbait, NYT no—, y ese método
+**no puede producir un caso dudoso**: cada titular cae limpio de un lado. Webis
+etiqueta por juicio humano y tiene un 65,1 % de zona gris.
+
+Restringiendo Webis a sus titulares unánimes, que es lo más parecido a
+Chakraborty que existe dentro de Webis:
+
+| Subconjunto | n | % positivos | F1 de la señal dedicada |
+|---|---|---|---|
+| Todo Webis-630 | 19.484 | 24,2 % | 0,758 |
+| **Los 5 de acuerdo** | 6.808 | 12,9 % | **0,906** |
+| Al menos uno discrepa | 12.676 | 30,3 % | 0,725 |
+| *Chakraborty, referencia* | *300* | *50 %* | *0,946* |
+
+Quitando la zona gris, 0,758 → 0,906; el resto lo explica el balance de clases.
+
+**El 0,946 no dice nada especial sobre ese modelo: dice que Chakraborty mide la
+mitad fácil del problema.** Y es una segunda objeción al corpus, independiente
+del sesgo de fuente que ya conocíamos de #76 y #109: no sólo su etiqueta apunta a
+quién publicó, es que además **elimina la zona donde el clickbait deja de ser
+evidente y empieza a ser interesante**.
+
+Conviene aplicárselo a los números propios: el 87,0 % del léxico y el 89,3 % del
+lineal están medidos ahí.
+
+#### El léxico no falla por difícil: falla por ciego
+
+Sobre clickbait **inequívoco** —los cinco anotadores de acuerdo— el léxico caza
+el 69,4 %. #109 había medido, por cobertura de vocabulario, un techo de recall
+del **67,5 %**.
+
+Está en su techo. Lo que se le escapa del clickbait más evidente no se le escapa
+por sutil, se le escapa porque **no dispara ningún cue**. Es la misma conclusión
+de #109 llegando por un camino independiente, y vuelve a señalar a #75.
+
+*(El F1 del léxico BAJA en el subconjunto unánime —0,448 a 0,351— y eso no
+contradice lo anterior: ese subconjunto tiene sólo un 12,9 % de positivos, y con
+tantos negativos una señal que se pasa de marcar pierde precisión y con ella F1.
+El recall es la columna comparable entre grupos, porque el balance de clases no
+lo toca.)*
+
+#### Dos cosas que salieron sin buscarlas
+
+**Los errores viven en la zona gris.** El 92,9 % de los fallos de la señal
+dedicada caen en los titulares dudosos, que son el 65,1 % del corpus. Si fallara
+al azar, le tocaría el 65 %. **Se equivoca casi exclusivamente donde las personas
+tampoco se ponen de acuerdo.**
+
+**Y su confianza sigue la duda humana**: 0,918 de media en los unánimes, 0,834 en
+los dudosos; por debajo de 0,9 cae el 21,3 % de los primeros y el 52,8 % de los
+segundos. Nadie se lo enseñó — se entrenó con la etiqueta binaria y nunca vio los
+juicios individuales.
+
+Eso convierte la confianza en **información y no en decoración**: cuando la señal
+dice 0,83 está marcando, con bastante fidelidad, un titular sobre el que cinco
+personas discutirían. Es un argumento medido para exponerla en la interfaz en vez
+de un sí/no, y entra en R3.8 y en la pantalla de resultados de H3.
+
+#### Corrección a lo que se afirmó en #115
+
+La sección de #115 decía:
+
+> *«El inventario real en inglés es Chakraborty (etiqueta por fuente) y Webis-17
+> (etiqueta humana). Nada más.»*
+
+**Es falso, y el error fue de método:** esa búsqueda sólo miró el Hub de
+HuggingFace. Buscando en Zenodo aparecen más corpus en inglés con etiqueta
+humana y licencia permisiva — entre ellos **Webis-Clickbait-16** (2.992 tuits
+anotados por tres personas, CC BY 4.0), que es un tercer corpus distinto.
+
+Lo que sí aguanta, y sigue explicando el caso de `elozano`, es la parte acotada:
+**en el Hub de HuggingFace no hay más que Chakraborty reempaquetado**. La
+distinción vale para la memoria porque dice **dónde** buscar: en los repositorios
+académicos publican los autores de los papers; en el Hub, quien reempaqueta para
+entrenar.
+
+#### Lo que se vendoriza, y lo que no
+
+El corpus completo son **937 MB** de zip, la mayoría imágenes de los tuits. Del
+extracto se parte en dos por tamaño: los **titulares** (1,10 MB) van versionados
+a `data/external/`, y los **cuerpos de artículo** (29 MB) a `var/`, gitignorados
+y regenerables con `python -m backend.evaluation.webis_extract <zip>`.
+
+Dos campos que el extracto de #76 no guardaba y ahora sí: el **`id`** —sin él,
+cruzar los dos splits obliga a comparar por texto normalizado— y los
+**`truthJudgments`**, sin los cuales nada de esta sección se podría haber medido.
+
+Y una trampa de nomenclatura que conviene dejar escrita: el zip se llama
+`clickbait17-train-170630` pero su carpeta interna se llama
+`clickbait17-validation-170630`. Los dos splits etiquetados son **disjuntos**
+—comparten un titular de 2.380, medido— así que no son dos versiones del mismo
+material sino dos trozos distintos. Confundirlos llevaría a evaluar un modelo
+sobre su propio entrenamiento.
+
 ### Una decisión que caducó dos épicas antes de que nadie volviera (#115)
 
 `detect_clickbait` usaba `facebook/bart-large-mnli`. El registro de **E3-02** dice
@@ -1244,8 +1375,13 @@ suerte al elegir, es que casi todo lo que hay arrastra las mismas etiquetas
 por-fuente— y responde el bullet de #78 «búsqueda de corpus adicionales» con un
 **no medido** en vez de con un «no encontré».
 
-El inventario real en inglés es **Chakraborty** (etiqueta por fuente) y
-**Webis-17** (etiqueta humana). Nada más.
+En **el Hub** el inventario real es **Chakraborty** (etiqueta por fuente) y
+**Webis-17** (etiqueta humana), y nada más.
+
+> **Corregido en #121.** Esta frase se escribió como «el inventario real en
+> inglés», sin acotar, y así era falsa: la búsqueda sólo miró HuggingFace. En
+> Zenodo hay más corpus en inglés con etiqueta humana y licencia permisiva —
+> entre ellos Webis-Clickbait-16. Lo que aguanta es la versión acotada al Hub.
 
 #### El elegido, y por qué su patrón es el inverso
 
