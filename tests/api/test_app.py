@@ -160,3 +160,44 @@ def test_openapi_documenta_las_rutas_y_el_contrato():
     # consume /docs y lo que hereda el cliente TypeScript generado.
     propiedades = esquema["components"]["schemas"]["SignalResult"]["properties"]
     assert "herramienta MCP" in propiedades["name"]["description"]
+
+
+# ----- Precalentado (#125) -----
+
+
+def test_por_defecto_no_se_precalienta(monkeypatch):
+    """El defecto es lo que protege a los otros 193 tests de volverse lentos.
+
+    Precalentar cuesta ~102 s medidos. Si el defecto fuera `True`, cada
+    `TestClient(app)` de la suite cargaría tres modelos, y eso no se nota como
+    un fallo: se nota como que los tests «van lentos» y nadie sabe por qué.
+    """
+    llamadas = []
+    monkeypatch.setattr(app_mod, "precalentar", lambda: llamadas.append(1))
+
+    assert settings.preheat_models is False
+    with TestClient(app):
+        pass
+    assert llamadas == []
+
+
+def test_con_el_flag_encendido_se_precalienta_antes_de_servir(monkeypatch, analisis):
+    """Y que ocurre DENTRO del lifespan, no en la primera petición.
+
+    Es la diferencia entre trasladar la espera a uvicorn —que es el objetivo— y
+    dejarla donde estaba.
+    """
+    orden = []
+
+    async def falso_precalentar():
+        orden.append("precalienta")
+        return {"detect_clickbait_incoherence": 1.23}
+
+    monkeypatch.setattr(settings, "preheat_models", True)
+    monkeypatch.setattr(app_mod, "precalentar", falso_precalentar)
+
+    with TestClient(app) as cliente:
+        orden.append("sirve")
+        cliente.post("/analyze", json={"headline": "Un titular"})
+
+    assert orden == ["precalienta", "sirve"]
