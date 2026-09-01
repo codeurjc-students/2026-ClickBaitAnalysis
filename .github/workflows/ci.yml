@@ -35,3 +35,46 @@ jobs:
           pip install ruff==0.16.1
           ruff check .
           ruff format --check .
+
+  # El frontend va en un job APARTE y no como pasos del de Python: son cadenas
+  # de herramientas independientes y así un fallo de TypeScript no oculta el
+  # resultado de pytest, ni al revés. Además corren en paralelo.
+  frontend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      # `npm ci` y no `npm install`: instala EXACTAMENTE lo del lock y falla si
+      # package.json y el lock no concuerdan, en vez de resolverlo por su cuenta.
+      # En CI eso es lo que se quiere — que la build sea la misma que en local.
+      - name: Instalando dependencias...
+        run: npm ci
+      # El `schema.d.ts` commiteado tiene que ser el que sale del `openapi.json`
+      # commiteado. Esta es la mitad Node de la comprobación; la otra mitad —que
+      # ese JSON refleje los modelos Pydantic— la hace
+      # `test_el_contrato_commiteado_esta_al_dia` en el job de Python, que es
+      # donde se puede importar la app.
+      #
+      # Va ANTES de compilar: con los tipos rancios la build puede pasar
+      # igualmente y estar mintiendo. Aquí no hace falta Python, el
+      # `openapi.json` ya viene en el repositorio.
+      - name: Comprobando que los tipos están al día...
+        run: |
+          npm run gen:api
+          git diff --exit-code src/app/api/schema.d.ts || {
+            echo "::error::schema.d.ts no coincide con openapi.json. Corre 'npm run gen:api' en frontend/ y commitea el resultado."
+            exit 1
+          }
+      - name: Compilando...
+        run: npm run build
+      # Los tests usan vitest sobre jsdom, no Karma: no hace falta navegador ni
+      # instalar Chrome en el runner.
+      - name: Corriendo tests...
+        run: npm test

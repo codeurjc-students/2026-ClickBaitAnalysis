@@ -20,6 +20,7 @@ from backend.analysis.domain import (
 )
 from backend.api import app as app_mod
 from backend.api.app import app
+from backend.api.export_openapi import DESTINO, contrato
 from backend.config.settings import settings
 
 client = TestClient(app)
@@ -160,6 +161,31 @@ def test_openapi_documenta_las_rutas_y_el_contrato():
     # consume /docs y lo que hereda el cliente TypeScript generado.
     propiedades = esquema["components"]["schemas"]["SignalResult"]["properties"]
     assert "herramienta MCP" in propiedades["name"]["description"]
+
+
+def test_el_contrato_commiteado_esta_al_dia():
+    """`frontend/openapi.json` debe ser el que produce el código de hoy (#126).
+
+    De ese fichero se genera el cliente TypeScript, y una copia rancia NO se
+    manifiesta como un fallo: el frontend compila igual contra una forma que ya
+    no existe, y el dato llega `undefined` al navegador.
+
+    Se comprueba aquí, y no sólo en el CI, para que salte antes de empujar —en el
+    mismo `pytest` que ya se corre—. Cierra el PRIMER eslabón, que el JSON
+    refleja los modelos; el segundo, que el `.d.ts` sale de ese JSON, lo cierra
+    el job de frontend, que es el que tiene Node.
+    """
+    # `pytest.fail` y no `assert ... == ...` a propósito: la comparación de dos
+    # JSON de 36 kB imprime cientos de líneas de diff que no sirven de nada,
+    # porque esto no se arregla editando el fichero sino regenerándolo. Lo útil
+    # es la instrucción, no la diferencia.
+    if not DESTINO.exists() or DESTINO.read_text(encoding="utf-8") != contrato():
+        pytest.fail(
+            "`frontend/openapi.json` no coincide con el contrato que produce el "
+            "código actual. Se arregla regenerando: "
+            "`python -m backend.api.export_openapi`, luego `npm run gen:api` "
+            "dentro de `frontend/`, y se commitean las dos salidas."
+        )
 
 
 # ----- Precalentado (#125) -----
