@@ -1187,6 +1187,181 @@ Añadir el registro a `/analyze` convirtió, sin avisar, todos los tests de esa 
 
 `tests/api/test_history.py` cubre los dos lados por separado —el almacén llamando a sus funciones, el endpoint por HTTP— porque responden preguntas distintas: si los datos sobreviven y salen en orden, y si la decisión de «una entrada por análisis» se sostiene de verdad.
 
+### El umbral que estaba a ojo, y lo que se vio al mirarlo (#92)
+
+`IncoherenceDetector.THRESHOLD = 0.3` se puso a estima. Y no es un umbral
+cualquiera: la incoherencia es la única señal que mide *engaño*, la dimensión que
+**manda sobre `forma`** en la jerarquía de `_overall`, así que ese número decide
+el veredicto justo en los casos que más pesan.
+
+#### El problema del 0,3 no era el valor: era que mezclaba dos preguntas
+
+Un umbral confunde dos cosas que hay que medir por separado:
+
+1. **¿Cuánta información tiene la señal?** Es una propiedad del detector,
+   independiente de dónde se corte.
+2. **¿Dónde conviene cortar?** Depende de qué cueste cada tipo de error, y eso es
+   una decisión de producto, no de datos.
+
+La primera se responde con el **AUC**, que es exactamente la probabilidad de que,
+cogiendo un clickbait y un factual al azar, el detector le dé menos similitud al
+clickbait. Sin cortar por ningún lado. Si sale 0,5 es una moneda al aire y ningún
+umbral lo arregla.
+
+```
+ROC-AUC   0,720      (0,5 = azar)
+PR-AUC    0,486      (línea base 0,242, la tasa de positivos)
+```
+
+Hay señal. Duplica la línea base, así que tiene sentido preguntar dónde cortar.
+
+#### El método, para que el número se pueda defender
+
+**Elegir en unos datos y reportar en otros.** Coger el corte que maximiza el F1 y
+presentar ese F1 es inflarlo: el umbral se ajustó a esos mismos datos. Se calibra
+en una mitad de los 19.484 pares y se mide en la otra — la disciplina de #72
+aplicada a un escalar.
+
+**Criterio declarado antes de ver la curva.** Como `engano` pisa a `forma`, un
+falso positivo suyo declara «engañoso» anulando a las otras tres señales: su
+precisión pesa más que su recall. El criterio se fija en `MIN_PRECISION = 0.50`
+arriba del módulo, antes de mirar nada. Si el criterio se elige después de ver
+los resultados no es un criterio, es una excusa.
+
+#### Y resultó que la estimación era buena
+
+En test, sobre datos que no eligieron el umbral:
+
+| Umbral | Precisión | Recall | F1 | Marca |
+|---|---|---|---|---|
+| **0,30** — la estimación | **0,649** | 0,197 | 0,302 | 7,4 % |
+| 0,46 — criterio declarado | 0,516 | 0,380 | 0,438 | 17,9 % |
+| 0,56 — argmax de F1 | 0,412 | 0,599 | 0,488 | 35,4 % |
+
+El 0,3 no era un mal valor: es **el punto de mayor precisión de toda la curva**, y
+supera con holgura el suelo que habíamos exigido. Lo que le falta no es acierto,
+es cobertura — sólo se pronuncia en el 7 % de los titulares.
+
+La curva no tiene codo: la precisión se degrada suave y continuamente, así que no
+hay ningún valor «correcto» escondido en los datos. Hay un intercambio, y elegir
+dónde pararse es una decisión de producto. Que es exactamente lo que el método
+servía para dejar a la vista en vez de resolverlo por su cuenta.
+
+**El umbral se queda en 0,3**, ahora con una curva detrás en lugar de una
+intuición.
+
+#### El truncado silencioso, que resultó ser inocuo
+
+`all-MiniLM-L6-v2` corta a 256 tokens y los cuerpos de Webis miden 959 de media:
+**el 84 % del artículo no llegaba nunca al modelo**, y el corte caía a mitad de
+frase. Estábamos comparando el titular con el primer cuarto del texto sin que
+nada lo dijera.
+
+Antes de dar por débil la señal había que quitarle esa mordaza. Cuatro formas de
+agregar, todas con el mismo modelo para aislar el efecto:
+
+| Variante | AUC global |
+|---|---|
+| truncado (lo que hacía) | 0,716 |
+| primer trozo, cortando por frase | 0,716 |
+| **trocear todo y quedarse con el máximo** | **0,717** |
+| media de todos los trozos | 0,692 |
+
+**El 84 % que tirábamos no aportaba nada.** Toda la información está en el
+*lead*, lo cual encaja con cómo se escribe una noticia: el primer párrafo cumple
+lo que promete el titular. Y promediar el artículo entero sale *peor*, porque
+diluye la señal con párrafos que hablan de otra cosa.
+
+Así que el detector recorta ahora a 1.000 caracteres **de forma explícita y
+cortando por final de frase**. No ahorra cómputo —el modelo ya sólo procesaba 256
+tokens— pero convierte un límite invisible en uno declarado, y evita que entre en
+la similitud el embedding de media frase, que no representa nada.
+
+#### La pregunta que de verdad importaba
+
+Todo lo anterior mide la incoherencia contra la etiqueta de *clickbait*, y esta
+señal no existe para eso. Existe para cazar **el titular sobrio que engaña**, el
+caso que las señales de forma no pueden ver por construcción.
+
+```
+titulares que NINGUNA señal de forma marca   8.793  (45,1 %)
+de esos, los humanos dicen que sí engañaban    470  (5,3 %)
+ROC-AUC de la incoherencia ahí                0,628
+precisión con el umbral en 0,30               0,120
+```
+
+El hueco existe y la señal separa por encima del azar. Pero **cuando dice
+«engañoso» ahí, acierta una de cada nueve veces**.
+
+Y no es culpa del umbral: es aritmética de tasa base. De 1.000 titulares sobrios,
+53 engañan y 947 no. Aunque el detector ordene bien, bajar el corte para pescar
+unos pocos de esos 53 arrastra decenas de los 947, simplemente porque hay
+dieciocho veces más. **Un buen orden no garantiza buena precisión cuando lo que
+buscas es raro.**
+
+Eso explica también por qué su precisión global (0,649) parecía decente: venía de
+los casos donde las señales de forma **también** disparaban. Era precisión
+prestada — donde está sola, rinde mal.
+
+#### La cascada: sí sube la precisión, no compra veredicto
+
+Si la precisión depende de la tasa base, filtrar antes con otra señal debería
+mejorarla sin cambiar nada del detector. Se comprueba:
+
+| Filtro previo | n dentro | Tasa base | Precisión de la incoherencia |
+|---|---|---|---|
+| *(sin filtro)* | 19.484 | 24,2 % | 0,673 |
+| lexical | 9.079 | 34,1 % | 0,663 |
+| linear | 5.698 | 41,0 % | 0,708 |
+| **dedicada** | 5.417 | **70,9 %** | **0,852** |
+
+Funciona, y el detalle lo remata: dentro del grupo de la dedicada su **AUC baja**
+(0,617 frente a 0,720) — ordena *peor* y aun así es más precisa. Precisión y
+calidad de ordenación son cosas distintas.
+
+Pero el veredicto no mejora:
+
+| Combinación | Precisión | Recall | F1 |
+|---|---|---|---|
+| dedicada sola | 0,709 | 0,814 | **0,758** |
+| dedicada ∧ incoherencia | 0,852 | 0,198 | 0,322 |
+| dedicada ∨ incoherencia | 0,673 | 0,822 | 0,740 |
+
+Y aparece lo que responde de verdad la pregunta de fondo:
+
+```
+lexical  solo  F1 0,448   →   lexical  ∨ incoherencia  F1 0,488
+linear   solo  F1 0,448   →   linear   ∨ incoherencia  F1 0,517
+dedicada sola  F1 0,758   →   dedicada ∨ incoherencia  F1 0,740
+```
+
+**La incoherencia aporta a las señales débiles y no aporta a la fuerte.** Sabe
+cosas que el léxico y el lineal no saben, pero la señal dedicada ya las sabe casi
+todas. Su aportación no es nula: es *redundante con la que ya tenemos*.
+
+Y hay que anotar un coste que no sale en ninguna de estas tablas: **una cascada
+no es un contraste**. Si B sólo ve lo que A dejó pasar, B ya no puede discrepar
+de A en lo que A descartó, y `AMBIGUO` deja de significar «dos señales miraron lo
+mismo y no coincidieron». Encadenar compra precisión pagando con la propiedad que
+sostiene la tesis del proyecto.
+
+#### Lo que esto abre, y que ya no es calibrar
+
+`dedicada ∨ incoherencia` baja la precisión de 0,709 a 0,673: **cuando la
+incoherencia dispara y la dedicada dice que no, la incoherencia suele estar
+equivocada.** Y eso es exactamente lo que hace hoy `_overall`, donde `engano`
+pisa a `forma`.
+
+Le estamos dando derecho de veto a una señal que, en los casos donde discrepan,
+acierta menos que aquella a la que anula. **Los números no sostienen esa
+jerarquía**, y revisarla es una decisión de arquitectura que merece su propia
+issue.
+
+Se guarda además un punto de operación que puede servir a la interfaz:
+`dedicada ∧ incoherencia` da **precisión 0,852**, la más alta medida en todo el
+proyecto. Sólo dispara en el 5,6 % de los titulares, así que no vale como
+veredicto principal — pero sí como «esto es clickbait con alta confianza».
+
 ### Contra qué techo estábamos midiendo (#121)
 
 Durante toda la Épica 5 y la Fase B las métricas se han leído contra un 1,0
