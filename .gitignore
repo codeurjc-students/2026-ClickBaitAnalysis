@@ -11,3 +11,16 @@ CLAUDE.md
 # data/, que guarda datasets y splits versionados, esto NO debe commitearse.
 var/
 repomix-output.xml
+
+# Frontend Angular (H3). node_modules/ sin acotar a frontend/ y a cualquier
+# profundidad: un solo npm install descuidado en otro directorio metería
+# decenas de miles de ficheros en el primer git status, y a esas alturas ya
+# cuesta distinguir qué se coló.
+node_modules/
+npm-debug.log*
+
+# Salida de compilacion y cache local de Angular: derivados regenerables, del
+# mismo tipo que var/. Se acotan a frontend/ porque dist/ suelto es un nombre
+# demasiado comun para ignorarlo en todo el repositorio.
+frontend/dist/
+frontend/.angular/
