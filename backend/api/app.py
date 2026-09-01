@@ -20,6 +20,7 @@ al llegar a ``/tools``, que sí necesita la capa MCP: enumerar las herramientas
 conectadas en runtime no se puede hacer importando módulos.
 """
 
+import time
 from contextlib import asynccontextmanager
 from datetime import datetime
 from typing import Annotated
@@ -29,7 +30,7 @@ from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 
 from backend.analysis.domain import AnalyzeRequest, AnalyzeResponse
-from backend.analysis.orchestrator import analyze
+from backend.analysis.orchestrator import analyze, precalentar
 from backend.api import history
 from backend.api.catalog import fetch_catalog
 from backend.api.execute import (
@@ -69,7 +70,24 @@ async def lifespan(app: FastAPI):
         service="clickbait-api",
         nlp_backend=settings.nlp_backend,
         cors_origins=settings.cors_origins,
+        preheat_models=settings.preheat_models,
     )
+
+    # Precalentado BLOQUEANTE, a propósito (#125). Hacerlo en segundo plano
+    # dejaría a uvicorn aceptando conexiones mientras los modelos cargan: las
+    # primeras peticiones seguirían siendo lentas y encima no habría forma
+    # limpia de saber cuándo está listo. Bloquear es lo que quiere un
+    # orquestador de contenedores — el servicio no está *ready* hasta que lo
+    # está — a cambio de un `start_period` generoso en el healthcheck de H4.
+    if settings.preheat_models:
+        inicio = time.perf_counter()
+        tiempos = await precalentar()
+        log.info(
+            "api.preheat",
+            total_s=round(time.perf_counter() - inicio, 1),
+            **{k: round(v, 1) for k, v in tiempos.items()},
+        )
+
     yield
 
 

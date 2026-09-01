@@ -1023,7 +1023,9 @@ uvicorn backend.api.app:app --reload
 | Arranque de proceso en frío | ~20 s |
 | Primerísima ejecución | ~60 s (descarga de `all-MiniLM-L6-v2`) |
 
-Los 20 s **no son una limitación, son una consecuencia**: `IncoherenceDetector` carga el modelo de forma perezosa, en la primera petición, en vez de al arrancar. Precalentarlo en el `lifespan` los trasladaría del primer usuario a uvicorn — decisión de H4, con el `healthcheck` del contenedor delante, porque un arranque de 20 s cambia el `start_period`.
+Los 20 s **no son una limitación, son una consecuencia**: `IncoherenceDetector` carga el modelo de forma perezosa, en la primera petición, en vez de al arrancar. Precalentarlo en el `lifespan` los traslada del primer usuario a uvicorn.
+
+> **Resuelto en #125**, adelantado desde H4 al arrancar H3: con la SPA por delante dejó de ser una optimización de despliegue. Y los 20 s medidos aquí se quedaron cortos — eran sólo el detector de incoherencia; con los tres modelos son ~102 s. Sigue en pie la nota sobre el `start_period` del `healthcheck`, que ahora tiene que cubrir ~75 s de arranque.
 
 **Y el sistema discrimina:**
 
@@ -1186,6 +1188,95 @@ El mínimo de 1 no es cosmético: **en SQLite un `LIMIT` negativo significa «si
 Añadir el registro a `/analyze` convirtió, sin avisar, todos los tests de esa ruta en escritores del historial real: una corrida de la suite dejaba cuatro entradas «Un titular» en `var/history.db`. El aislamiento va en un fixture `autouse` de `tests/conftest.py` y no en el fichero que prueba el historial, porque **quien contamina no es quien lo prueba**: lo hace cualquier test que llame a un endpoint que registre, incluidos los que aún no existen.
 
 `tests/api/test_history.py` cubre los dos lados por separado —el almacén llamando a sus funciones, el endpoint por HTTP— porque responden preguntas distintas: si los datos sobreviven y salen en orden, y si la decisión de «una entrada por análisis» se sostiene de verdad.
+
+### Precalentar los modelos, adelantado desde H4 (#125)
+
+`/analyze` en frío tardaba **~105 s**. Estaba anotado como decisión de H4 —donde
+el argumento era el arranque del contenedor— pero al empezar H3 dejó de ser una
+optimización de despliegue: con ese tiempo no se puede desarrollar una pantalla
+de resultados, porque **cada reinicio del backend cuesta lo mismo**.
+
+#### Primero, dónde se iban los 105 s
+
+Antes de decidir qué precalentar había que saber en qué se gastaban. El desglose
+reparte el tiempo de forma muy distinta a lo que parecía:
+
+| | |
+|---|---|
+| `import torch` | 22,83 s |
+| `import transformers` | 11,99 s |
+| `import sentence_transformers` | 18,69 s |
+| **coste único de imports** | **53,5 s** |
+| carga del modelo dedicado | 10,11 s |
+| carga del de sentimiento | 14,70 s |
+| carga del de embeddings | 8,16 s |
+| **carga de los tres modelos** | **33,0 s** |
+| primera inferencia (ver abajo) | 15,5 s |
+
+**El 52 % es importar librerías**, que es coste único compartido por los tres
+modelos. Cargar los modelos son sólo 33 s.
+
+#### Y un detalle que decide el diseño
+
+```
+dedicada, primera inferencia      9,78 s   ·  segunda  0,01 s
+sentimiento, primera inferencia   0,01 s   ·  segunda  0,01 s
+incoherencia, primera inferencia  5,75 s   ·  segunda  0,01 s
+```
+
+La primera inferencia del sentimiento tarda 0,01 s. No es que el modelo sea
+rápido: es que **para cuando le toca, torch ya hizo su primer forward** con el
+dedicado y pagó la inicialización. El coste de «primera inferencia» también es
+**global**, no por modelo.
+
+De ahí sale que basta con **ejercitar**, no sólo cargar — esos 15,5 s no los paga
+`SentenceTransformer(...)`, los paga hacerle pasar una entrada— y que calentar
+una señal ya abarata las demás.
+
+#### Cuatro decisiones
+
+**Apagado por defecto.** El defecto importa más que el flag: si fuera `True`,
+cada `TestClient(app)` de la suite cargaría tres modelos. Eso no se manifiesta
+como un fallo sino como que «los tests van lentos», que es mucho peor de
+diagnosticar. Hay un test que lo vigila. Y en desarrollo con `--reload` pasaría
+lo mismo en cada reinicio.
+
+**Respeta `nlp_backend`.** Con el defecto `remote`, las señales de titular van
+por HTTP a HuggingFace: precalentar sus modelos en local sería cargar cosas que
+las peticiones no van a usar. Sólo la incoherencia corre siempre en local.
+
+**Bloquea el arranque.** Hacerlo en segundo plano dejaría a uvicorn aceptando
+conexiones mientras los modelos cargan: las primeras peticiones seguirían siendo
+lentas y no habría forma limpia de saber cuándo está listo. Bloquear es lo que
+quiere un orquestador de contenedores — el servicio no está *ready* hasta que lo
+está. **Consecuencia para H4:** un arranque de ~75 s obliga a un `start_period`
+generoso en el `healthcheck`, o el orquestador matará el contenedor por no
+responder a tiempo.
+
+**Vive en `orchestrator.py`, no en la app REST.** Y no es cuestión de capas:
+`LocalNLPClient` cachea sus pipelines **por instancia**, así que hay que calentar
+los objetos `_api` y `_detector` concretos que usará la petición. Calentar otros
+equivalentes pagaría el coste dos veces y dejaría la primera petición igual de
+lenta.
+
+#### El resultado
+
+```
+PRECALENTADO                     74,7 s
+  detect_clickbait                 57,1 s   ← paga los imports por todos
+  analyze_sentiment                 9,6 s   ← sólo carga: torch ya está caliente
+  detect_clickbait_incoherence      8,0 s
+
+primer análisis                   0,05 s
+segundo análisis                  0,06 s
+```
+
+**De ~102 s a 0,05 s.** Y se ve el efecto predicho: la primera señal se come 57 s
+pagando los imports, y las otras dos bajan a 9,6 y 8,0 porque ya están pagados.
+
+Un fallo al precalentar **no impide arrancar**: se registra y se sigue. Un modelo
+que no carga no debería dejar sin servir `/tools` ni `/history`, que no lo
+necesitan.
 
 ### El umbral que estaba a ojo, y lo que se vio al mirarlo (#92)
 

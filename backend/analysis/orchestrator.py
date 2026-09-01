@@ -29,9 +29,12 @@ define qué significa el resultado, y las dos fachadas —REST y MCP— la compa
 """
 
 import asyncio
+import time
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from typing import Any
+
+import structlog
 
 from backend.analysis.domain import (
     AnalyzeRequest,
@@ -49,11 +52,16 @@ from backend.integrations.nlp.factory import get_nlp_backend
 from backend.integrations.nlp.incoherence import IncoherenceDetector
 from backend.integrations.nlp.model_cards import cards_by_signal
 
+log = structlog.get_logger()
+
 # Instancias únicas: LocalNLPClient cachea los pipelines por instancia y el
 # detector carga el modelo de forma perezosa, así que crearlos por petición
 # tiraría la caché y recargaría el modelo cada vez. Como contrapartida, el
 # backend queda fijado al importar: cambiarlo exige reiniciar, igual que en la
 # tool MCP (que lo fija en register()).
+#
+# Y es lo que obliga a que precalentar() viva aquí: hay que calentar ESTAS dos
+# instancias, no unas equivalentes, o el coste se paga dos veces.
 _api = get_nlp_backend()
 _detector = IncoherenceDetector()
 
@@ -162,6 +170,63 @@ _SIGNALS: tuple[_Signal, ...] = (
         verdict=lambda d: None,
     ),
 )
+
+
+async def precalentar() -> dict[str, float]:
+    """Carga y ejercita los modelos antes de la primera petición (#125).
+
+    Vive aquí y no en la app REST porque ``LocalNLPClient`` cachea sus pipelines
+    **por instancia**: hay que calentar exactamente los objetos ``_api`` y
+    ``_detector`` que va a usar la petición. Calentar otros equivalentes pagaría
+    el coste dos veces y dejaría la primera petición igual de lenta.
+
+    EJERCITA, no sólo carga. Medido en #125, el desglose de los ~102 s en frío:
+
+        imports de torch/transformers/sentence-transformers   53,5 s
+        carga de los tres modelos                             33,0 s
+        PRIMERA inferencia                                    15,5 s
+
+    Esos últimos 15,5 s no los paga cargar el modelo, sólo hacerle pasar una
+    entrada. Y son en su mayoría coste GLOBAL, no por modelo: la primera
+    inferencia del dedicado tardó 9,78 s y la del sentimiento 0,01 s, porque
+    para entonces torch ya había inicializado lo suyo.
+
+    Respeta ``nlp_backend``: con ``remote`` las señales de titular van por HTTP a
+    HuggingFace y cargar sus modelos en local sería trabajo tirado. La
+    incoherencia corre siempre en local, así que se calienta siempre.
+
+    Devuelve los tiempos por señal para poder registrarlos, en vez de imprimir
+    desde aquí: quien llama decide si eso se loguea y cómo.
+    """
+    from backend.config.settings import settings
+
+    tiempos: dict[str, float] = {}
+    titular = "Precalentando el modelo"
+
+    async def cronometrar(etiqueta: str, tarea) -> None:
+        inicio = time.perf_counter()
+        try:
+            await tarea()
+        except Exception as exc:
+            # No se propaga: un modelo que no carga no debe impedir que la API
+            # sirva `/tools` o `/history`. Se registra el fallo con un tiempo
+            # negativo para que sea inconfundible en los logs.
+            log.warning("preheat.failed", signal=etiqueta, error=str(exc))
+            tiempos[etiqueta] = -1.0
+            return
+        tiempos[etiqueta] = time.perf_counter() - inicio
+
+    if settings.nlp_backend == "local":
+        await cronometrar("detect_clickbait", lambda: dedicated.detect(_api, titular))
+        await cronometrar(
+            "analyze_sentiment", lambda: _api.classify(titular, _SENTIMENT_MODEL)
+        )
+
+    await cronometrar(
+        "detect_clickbait_incoherence",
+        lambda: _detector.detect(titular, "Un cuerpo cualquiera para calentar."),
+    )
+    return tiempos
 
 
 async def analyze(request: AnalyzeRequest) -> AnalyzeResponse:

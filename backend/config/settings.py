@@ -20,6 +20,23 @@ class Settings(BaseSettings):
         "remote"  # Añadimos dos opciones de backend NLP, así mantenemos remoto sin cambiar mucho.
     )
 
+    # Cargar los modelos NLP al arrancar en vez de en la primera petición.
+    #
+    # POR DEFECTO APAGADO, y el defecto importa más que el flag. Precalentar
+    # cuesta ~102 s medidos (#125) y hay dos casos habituales donde eso es PEOR
+    # que la carga perezosa: desarrollar con `--reload`, donde se pagarían en
+    # cada reinicio, y los tests, que no deben cargar un modelo jamás.
+    #
+    # Encendido tiene sentido en despliegue, donde el contenedor arranca antes
+    # de recibir tráfico: traslada la espera del primer usuario a uvicorn. Ojo
+    # en H4 — un arranque de ~102 s obliga a un `start_period` generoso en el
+    # `healthcheck`, o el orquestador matará el contenedor por no responder.
+    #
+    # Respeta `nlp_backend`: con `remote` sólo la incoherencia corre en local,
+    # así que precalentar los otros dos sería cargar modelos que las peticiones
+    # no van a usar.
+    preheat_models: bool = False
+
     # Orígenes permitidos por CORS. Configurable porque el frontend vive
     # en localhost:4200 en desarrollo pero no en despliegue. Desde el
     # entorno se pasa como JSON: CORS_ORIGINS='["https://ejemplo.org"]'
