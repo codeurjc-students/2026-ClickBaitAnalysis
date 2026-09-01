@@ -1,0 +1,999 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "ClickBait Analysis API",
+    "description": "API REST del TFG *Agente inteligente basado en MCP para la detección y análisis de clickbait en medios digitales*.\n\nEl sistema **no emite un veredicto único de caja negra**: contrasta varias señales de distinta naturaleza (interpretable, híbrida y opaca) y las agrupa por lo que miden —forma, engaño y tono—, declarando las discrepancias en vez de promediarlas.",
+    "version": "0.3.0-dev"
+  },
+  "paths": {
+    "/analyze": {
+      "post": {
+        "tags": [
+          "análisis"
+        ],
+        "summary": "Post Analyze",
+        "description": "Analiza un titular contrastando todas las señales disponibles.\n\nDevuelve **200 aunque alguna señal falle**: cada una lleva su propio\n`status`, y perder tres análisis correctos porque el cuarto dio timeout\nsería un error. Si el cuerpo de la noticia no se\nenvía, la señal de incoherencia queda en `no_aplicable` y la dimensión de\nengaño no se puede evaluar.\n\nCada análisis queda registrado en el historial. Si esa escritura\nfalla, la respuesta se devuelve igual: perder un análisis correcto porque el\ndisco esté lleno sería peor que no guardarlo.",
+        "operationId": "post_analyze_analyze_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AnalyzeRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnalyzeResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/tools": {
+      "get": {
+        "tags": [
+          "catálogo"
+        ],
+        "summary": "Get Tools",
+        "description": "Catálogo de herramientas disponibles, descubierto en el momento.\n\nNo es un menú de lanzamiento: responde **qué compone el sistema y con qué\nlímites**. Cada herramienta trae su categoría, de qué integración procede y\n—si es una señal de análisis— su ficha de modelo, con el tipo, la dimensión\nque mide y sus límites conocidos.\n\nDevuelve **200 aunque un servidor MCP no responda**: sale en `servers` con\nestado `unreachable` y `degraded` queda a `true`, pero las herramientas de\nlos demás se sirven igual.",
+        "operationId": "get_tools_tools_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CatalogResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/tools/{name}/execute": {
+      "post": {
+        "tags": [
+          "catálogo"
+        ],
+        "summary": "Post Execute",
+        "description": "Ejecuta una herramienta concreta con los argumentos indicados.\n\nPara cuando no se quieren las cuatro señales —sólo el sentimiento, por\nejemplo— o para traer una noticia con la que luego analizar.\n\nLos argumentos se validan contra el `input_schema` que publica `/tools`\n**antes** de invocar, así que un campo mal escrito devuelve un 422 diciendo\ncuál, en vez de llegar como un fallo de ejecución indistinguible de un\nanálisis que salió mal.\n\nDevuelve **404** si la herramienta no existe, **422** si los argumentos no\nencajan, y **200 con `status` en `error`** si la herramienta se ejecutó y\nfalló: eso último no es un error HTTP, porque la petición era correcta.\n\nY **504** si el servidor MCP tarda más de `mcp_execute_timeout`. Es una\ncategoría aparte del `status: error` a propósito: al agotarse la espera la\nherramienta **puede haber terminado bien** —medido en #113, acabó con éxito a\nlos 151 s mientras la API ya había desistido—, así que decir que el análisis\nfalló sería falso. Lo que falló es la espera.",
+        "operationId": "post_execute_tools__name__execute_post",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Name"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ExecuteRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExecuteResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/history": {
+      "get": {
+        "tags": [
+          "historial"
+        ],
+        "summary": "Get History",
+        "description": "Análisis y ejecuciones anteriores, del más reciente al más antiguo.\n\nUna entrada por **análisis**, no por herramienta invocada: un `/analyze`\nejecuta cinco señales y produce una sola línea, con su titular y su\nveredicto. La traza de invocaciones vive en los logs, que es donde sirve.\n\nCada entrada trae la respuesta completa en `payload`, así que la interfaz\npuede volver a mostrar el resultado sin reejecutar — que además de tardar\npodría dar otro resultado, porque las señales remotas no son deterministas.\n\n`limit` y `offset` se validan en la firma en vez de recortarse a mano dentro:\nasí los topes salen publicados en el esquema OpenAPI —del que se genera el\ncliente Angular— y pedir de más devuelve un **422** diciendo cuál es el\nmáximo, en vez de servir otra cosa en silencio.\n\nEl mínimo de 1 no es cosmético: en SQLite un **LIMIT negativo significa «sin\nlímite»**, así que `?limit=-1` no daría error, traería la tabla ENTERA a\nmemoria y la serializaría. Es el borde que hay que tapar, no el `?limit=9999`.\n\nLos filtros se acumulan con AND y el `total` se calcula **ya filtrado**, para\nque la interfaz no pinte «1-3 de 500» sobre una lista de tres.\n\nHay dos parámetros donde el criterio hablaba de uno, y no es un descuido:\n`verdict` es **qué concluyó el análisis** y es el que le importa a quien mira\nsus análisis; `status` es **si funcionó la maquinaria** y es operativo. En la\npantalla sólo el primero merece sitio destacado.\n\nLa respuesta incluye `retention` para que la interfaz pueda explicar por qué\nfaltan los análisis viejos y acotar el selector de fechas sin cablear los\nnúmeros.",
+        "operationId": "get_history_history_get",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "default": 20,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0,
+              "title": "Offset"
+            }
+          },
+          {
+            "name": "kind",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/HistoryKind"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "`analysis` o `tool`. Las pestañas de la pantalla.",
+              "title": "Kind"
+            },
+            "description": "`analysis` o `tool`. Las pestañas de la pantalla."
+          },
+          {
+            "name": "tool",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 100
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Nombre de la herramienta. Sólo casa con ejecuciones sueltas: un análisis invoca cinco señales y no tiene *una* herramienta.",
+              "title": "Tool"
+            },
+            "description": "Nombre de la herramienta. Sólo casa con ejecuciones sueltas: un análisis invoca cinco señales y no tiene *una* herramienta."
+          },
+          {
+            "name": "verdict",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 50
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Qué CONCLUYÓ el análisis: `enganoso`, `factual`, `ambiguo`…",
+              "title": "Verdict"
+            },
+            "description": "Qué CONCLUYÓ el análisis: `enganoso`, `factual`, `ambiguo`…"
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 50
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Si funcionó la MAQUINARIA: `ok` o `error`. Filtro operativo.",
+              "title": "Status"
+            },
+            "description": "Si funcionó la MAQUINARIA: `ok` o `error`. Filtro operativo."
+          },
+          {
+            "name": "since",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Desde esta fecha, inclusive. Ojo: en una cadena de consulta `+` significa ESPACIO, así que un desfase escrito a pelo (`...T00:00:00+00:00`) llega roto y devuelve 422. Usa el sufijo `Z` o codifica el parámetro.",
+              "title": "Since"
+            },
+            "description": "Desde esta fecha, inclusive. Ojo: en una cadena de consulta `+` significa ESPACIO, así que un desfase escrito a pelo (`...T00:00:00+00:00`) llega roto y devuelve 422. Usa el sufijo `Z` o codifica el parámetro."
+          },
+          {
+            "name": "until",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Hasta esta fecha, inclusive.",
+              "title": "Until"
+            },
+            "description": "Hasta esta fecha, inclusive."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HistoryPage"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/health": {
+      "get": {
+        "tags": [
+          "operación"
+        ],
+        "summary": "Get Health",
+        "description": "Estado de las integraciones externas.\n\nSondea cada API con una petición ligera y agrega: `ok` si todas responden,\n`degraded` si alguna falla, `down` si ninguna. Es el mismo sondeo que expone\nla tool MCP `health_check`.",
+        "operationId": "get_health_health_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response Get Health Health Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "AnalyzeRequest": {
+        "properties": {
+          "headline": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Headline",
+            "description": "Titular a analizar (en inglés)."
+          },
+          "content": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Content",
+            "description": "Cuerpo o teaser. Opcional: sin él, la señal de incoherencia queda en 'no_aplicable' y no se puede evaluar la dimensión de engaño."
+          }
+        },
+        "type": "object",
+        "required": [
+          "headline"
+        ],
+        "title": "AnalyzeRequest"
+      },
+      "AnalyzeResponse": {
+        "properties": {
+          "headline": {
+            "type": "string",
+            "title": "Headline"
+          },
+          "content": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Content"
+          },
+          "signals": {
+            "items": {
+              "$ref": "#/components/schemas/SignalResult"
+            },
+            "type": "array",
+            "title": "Signals"
+          },
+          "dimensions": {
+            "items": {
+              "$ref": "#/components/schemas/DimensionVerdict"
+            },
+            "type": "array",
+            "title": "Dimensions"
+          },
+          "verdict": {
+            "$ref": "#/components/schemas/OverallVerdict"
+          }
+        },
+        "type": "object",
+        "required": [
+          "headline",
+          "signals",
+          "dimensions",
+          "verdict"
+        ],
+        "title": "AnalyzeResponse"
+      },
+      "CatalogResponse": {
+        "properties": {
+          "servers": {
+            "items": {
+              "$ref": "#/components/schemas/ServerInfo"
+            },
+            "type": "array",
+            "title": "Servers"
+          },
+          "tools": {
+            "items": {
+              "$ref": "#/components/schemas/ToolInfo"
+            },
+            "type": "array",
+            "title": "Tools"
+          },
+          "degraded": {
+            "type": "boolean",
+            "title": "Degraded",
+            "description": "¿Falta algún servidor por responder?\n\nVa como campo calculado y no como ``@property`` a secas porque la\ninterfaz lo necesita EN EL JSON: una propiedad normal no se serializa,\ny obligaría al frontend a recorrer la lista para deducir lo mismo.",
+            "readOnly": true
+          }
+        },
+        "type": "object",
+        "required": [
+          "servers",
+          "tools",
+          "degraded"
+        ],
+        "title": "CatalogResponse",
+        "description": "Catálogo completo: qué servidores se consultaron y qué ofrecen."
+      },
+      "Dimension": {
+        "type": "string",
+        "enum": [
+          "forma",
+          "engano",
+          "tono"
+        ],
+        "title": "Dimension",
+        "description": "Qué mide una señal. Determina cómo se agrupan los veredictos."
+      },
+      "DimensionVerdict": {
+        "properties": {
+          "dimension": {
+            "$ref": "#/components/schemas/Dimension"
+          },
+          "is_clickbait": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Is Clickbait",
+            "description": "None si las señales de esta dimensión se contradicen: no se promedian ni se resuelven por mayoría, se declara la discrepancia."
+          },
+          "contributing": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Contributing",
+            "description": "Señales que han contribuido a este veredicto."
+          }
+        },
+        "type": "object",
+        "required": [
+          "dimension"
+        ],
+        "title": "DimensionVerdict",
+        "description": "Veredicto agregado de las señales que miden lo mismo (principio 3).\n\nSolo aparecen las dimensiones en las que alguna señal llegó a emitir\nveredicto. Si ninguna lo hizo —fallaron, faltaba el cuerpo, o la dimensión\nno vota— la dimensión no se incluye, en vez de añadir un objeto vacío que la\ninterfaz tendría que aprender a ignorar. El motivo no se pierde: está en la\ntarjeta de cada señal, que es donde el usuario lo lee."
+      },
+      "ExecuteRequest": {
+        "properties": {
+          "arguments": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Arguments",
+            "description": "Argumentos de la herramienta, según su `input_schema`."
+          }
+        },
+        "type": "object",
+        "title": "ExecuteRequest",
+        "description": "Parámetros con los que invocar la herramienta.\n\nVan en un diccionario libre y no en campos declarados porque **cada\nherramienta tiene los suyos**: la forma correcta la publica su\n``input_schema`` en el catálogo, y contra ese esquema se validan antes de\nejecutar."
+      },
+      "ExecuteResponse": {
+        "properties": {
+          "tool": {
+            "type": "string",
+            "title": "Tool"
+          },
+          "server": {
+            "type": "string",
+            "title": "Server"
+          },
+          "status": {
+            "$ref": "#/components/schemas/ExecuteStatus"
+          },
+          "data": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Data",
+            "description": "Salida estructurada de la herramienta, tal como la declara su `output_schema`. Las que devuelven texto o listas llegan envueltas en `result`, porque el protocolo sólo deja sin envolver los objetos."
+          },
+          "detail": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Detail",
+            "description": "Motivo legible cuando `status` es `error`."
+          }
+        },
+        "type": "object",
+        "required": [
+          "tool",
+          "server",
+          "status"
+        ],
+        "title": "ExecuteResponse",
+        "description": "Resultado de ejecutar una herramienta.\n\nQue la herramienta falle **no es un error HTTP**: la petición era válida y\nel servidor la atendió: lo que falló es el análisis. Por eso se responde 200\ncon ``status`` en ``error``, igual que una señal caída en ``/analyze`` no\ntumba la respuesta. Los códigos de error se reservan para lo que sí es\nculpa de la petición: 404 si la herramienta no existe, 422 si los argumentos\nno encajan en su esquema."
+      },
+      "ExecuteStatus": {
+        "type": "string",
+        "enum": [
+          "ok",
+          "error"
+        ],
+        "title": "ExecuteStatus",
+        "description": "Cómo acabó la ejecución."
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "HistoryEntry": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/HistoryKind"
+          },
+          "origin": {
+            "$ref": "#/components/schemas/Origin"
+          },
+          "headline": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Headline",
+            "description": "Titular analizado. Nulo en ejecuciones sueltas."
+          },
+          "tool": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tool",
+            "description": "Herramienta invocada. Nulo en análisis completos."
+          },
+          "verdict": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Verdict",
+            "description": "Veredicto global. Nulo en ejecuciones sueltas."
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "payload": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Payload",
+            "description": "La respuesta COMPLETA que se devolvió en su momento. Es lo que permite volver a mostrar el resultado sin reejecutar — que además de costar ~20 s podría dar otro resultado, porque las señales remotas no son deterministas."
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "created_at",
+          "kind",
+          "origin",
+          "status",
+          "payload"
+        ],
+        "title": "HistoryEntry",
+        "description": "Una entrada del historial.\n\nSobre por qué unos campos son enums y otros cadenas sueltas: los enums\ndescriben lo que se calcula AHORA, y publican en OpenAPI el conjunto cerrado\nde valores para que el cliente pueda generar un tipo unión. Pero esto son\n**datos leídos de disco, que pudo escribir otra versión del código**, y un\nenum sobre eso es una bomba de relojería: el día que cambie un valor, las\nfilas antiguas dejan de validar y `GET /history` devuelve un 500 por una\nentrada de hace seis meses.\n\nDe ahí el reparto: `kind` y `origin` son un conjunto minúsculo, estable y\nbajo nuestro control (si cambiara, se migraría a mano) → enum. `verdict`\nprocede de ``OverallVerdict``, un vocabulario de dominio que va a CRECER\nconforme se añadan tipos de clickbait → cadena. `status` se queda en cadena\nporque su significado aún difiere entre tipos —en un análisis es «alguna\nseñal funcionó», en una herramienta es «no falló»— y eso se replantea al\nllegar el filtrado (#103)."
+      },
+      "HistoryKind": {
+        "type": "string",
+        "enum": [
+          "analysis",
+          "tool"
+        ],
+        "title": "HistoryKind",
+        "description": "Define qué acción produjo la entrada en el historial."
+      },
+      "HistoryPage": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/HistoryEntry"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total",
+            "description": "Entradas totales que casan con el filtro, no las de esta página. La interfaz lo necesita para paginar; sin él sólo puede saber si hay más pidiendo la siguiente. Ojo con leerlo como «cuántos análisis he hecho»: con retención activa es «cuántos se conservan»."
+          },
+          "limit": {
+            "type": "integer",
+            "title": "Limit"
+          },
+          "offset": {
+            "type": "integer",
+            "title": "Offset"
+          },
+          "retention": {
+            "$ref": "#/components/schemas/RetentionPolicy"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items",
+          "total",
+          "limit",
+          "offset",
+          "retention"
+        ],
+        "title": "HistoryPage",
+        "description": "Una página del historial, en orden cronológico inverso."
+      },
+      "Origin": {
+        "type": "string",
+        "enum": [
+          "form",
+          "chat",
+          "api"
+        ],
+        "title": "Origin",
+        "description": "Desde dónde se pidió la entrada en el historial. El prototipo distingue chat y formulario."
+      },
+      "OverallVerdict": {
+        "type": "string",
+        "enum": [
+          "enganoso",
+          "clickbait_de_forma",
+          "factual",
+          "ambiguo",
+          "sin_datos"
+        ],
+        "title": "OverallVerdict",
+        "description": "Etiqueta única, para listados compactos como el historial.\n\nSe deriva de las dimensiones con una jerarquía explícita —el engaño pesa más\nque la forma— en lugar de por mayoría de señales."
+      },
+      "RetentionPolicy": {
+        "properties": {
+          "max_entries": {
+            "type": "integer",
+            "title": "Max Entries",
+            "description": "Entradas conservadas. 0 = sin límite."
+          },
+          "max_days": {
+            "type": "integer",
+            "title": "Max Days",
+            "description": "Días conservados. 0 = sin límite."
+          }
+        },
+        "type": "object",
+        "required": [
+          "max_entries",
+          "max_days"
+        ],
+        "title": "RetentionPolicy",
+        "description": "Política de retención vigente, para que la interfaz no la cablee.\n\nVa en la respuesta porque la pantalla la necesita para dos cosas, y las dos\nson de usabilidad, no de adorno:\n\n1. **Explicar por qué faltan análisis viejos.** La poda es invisible, y eso\n   es justo el problema: quien analizó algo hace cuarenta días y no lo\n   encuentra no piensa «se habrá podado», piensa que la aplicación ha perdido\n   sus datos. Un borrado silencioso se lee como un fallo.\n2. **Acotar el selector de fechas.** Un calendario libre que permita pedir\n   «hace seis meses» y devuelva siempre vacío es una mala experiencia.\n\nY va aquí en vez de como constantes en Angular para que esos números salgan\nde la configuración REAL: cableados, se desincronizarían el día que cambie\nel `.env` y la pantalla seguiría prometiendo 30 días."
+      },
+      "ServerInfo": {
+        "properties": {
+          "url": {
+            "type": "string",
+            "title": "Url"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name",
+            "description": "Nombre que el propio servidor declara en el handshake."
+          },
+          "status": {
+            "$ref": "#/components/schemas/ServerStatus"
+          },
+          "tool_count": {
+            "type": "integer",
+            "title": "Tool Count",
+            "default": 0
+          },
+          "detail": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Detail",
+            "description": "Motivo legible cuando no se pudo consultar."
+          }
+        },
+        "type": "object",
+        "required": [
+          "url",
+          "status"
+        ],
+        "title": "ServerInfo",
+        "description": "Un servidor MCP declarado en la configuración, respondiera o no.\n\nAparece aunque esté caído: es lo que convierte «seguir operando con los\nrestantes y reflejar el estado degradado» en algo observable en vez de en\nuna lista más corta sin explicación."
+      },
+      "ServerStatus": {
+        "type": "string",
+        "enum": [
+          "ok",
+          "unreachable"
+        ],
+        "title": "ServerStatus",
+        "description": "Estado de un servidor MCP consultado."
+      },
+      "SignalResult": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name",
+            "description": "Nombre de la herramienta MCP que la produjo."
+          },
+          "status": {
+            "$ref": "#/components/schemas/SignalStatus"
+          },
+          "dimension": {
+            "$ref": "#/components/schemas/Dimension"
+          },
+          "type": {
+            "$ref": "#/components/schemas/SignalType",
+            "description": "Naturaleza del modelo, para el badge de la UI."
+          },
+          "is_clickbait": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Is Clickbait",
+            "description": "Veredicto de esta señal, o None si no aporta ninguno: porque no pudo ejecutarse, o porque por naturaleza no lo emite (el tono). El agregado ignora los None en ambos casos; ``status`` distingue cuál de los dos ha sido."
+          },
+          "data": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Data",
+            "description": "JSON CRUDO devuelto por la herramienta, sin aplanar. Es lo que alimenta las tarjetas de explicabilidad (spans, top_cues, similitud...). No se transforma aquí para no perder información que la interfaz pueda necesitar."
+          },
+          "detail": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Detail",
+            "description": "Motivo legible cuando no hay resultado: «requiere el cuerpo de la noticia», «el proveedor no respondió». Permite pintar la tarjeta en gris explicando por qué, en vez de omitirla sin más."
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "status",
+          "dimension",
+          "type"
+        ],
+        "title": "SignalResult",
+        "description": "Resultado de UNA señal, con el mismo envoltorio sea cual sea (principio 1)."
+      },
+      "SignalStatus": {
+        "type": "string",
+        "enum": [
+          "ok",
+          "no_aplicable",
+          "error"
+        ],
+        "title": "SignalStatus",
+        "description": "Por qué una señal tiene o no resultado."
+      },
+      "SignalType": {
+        "type": "string",
+        "enum": [
+          "interpretable",
+          "híbrido",
+          "opaco"
+        ],
+        "title": "SignalType",
+        "description": "Naturaleza del modelo. Se muestra como badge en la interfaz.\n\nNo mide cuán complejo es el modelo sino **dónde está la transparencia**:\n``híbrido`` es decisión transparente sobre un rasgo opaco — un umbral legible\naplicado a una similitud de embeddings, por ejemplo."
+      },
+      "ToolInfo": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description",
+            "description": "Docstring de la tool, tal como la lee el LLM."
+          },
+          "input_schema": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Input Schema",
+            "description": "Esquema JSON de los parámetros, CRUDO. No se aplana: perdería las restricciones (mínimos, máximos, valores por defecto) que la interfaz necesita para validar el formulario antes de enviar."
+          },
+          "category": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Category",
+            "description": "Qué tipo de trabajo hace: fuente, señal de análisis o utilidad."
+          },
+          "integration": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Integration",
+            "description": "Paquete del que procede (nyt, guardian, weather, nlp). None si es del núcleo y no envuelve ninguna fuente externa."
+          },
+          "server": {
+            "type": "string",
+            "title": "Server",
+            "description": "Servidor MCP que la expone."
+          },
+          "model_card": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ToolModelCard"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Sólo para las señales de análisis; None para el resto."
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "input_schema",
+          "server"
+        ],
+        "title": "ToolInfo",
+        "description": "Una herramienta del catálogo, con su procedencia y sus metadatos."
+      },
+      "ToolModelCard": {
+        "properties": {
+          "type": {
+            "$ref": "#/components/schemas/SignalType"
+          },
+          "dimension": {
+            "$ref": "#/components/schemas/Dimension"
+          },
+          "limitations": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Limitations"
+          }
+        },
+        "type": "object",
+        "required": [
+          "type",
+          "dimension",
+          "limitations"
+        ],
+        "title": "ToolModelCard",
+        "description": "Ficha del modelo que hay detrás de una señal de análisis.\n\nEs lo que evita que el catálogo enseñe «detect_clickbait_linear — Señales de\nanálisis» y esconda que es interpretable, que mide forma y que su F1 cae\nfuera de dominio. Reutiliza los enums de las señales en vez de duplicar\ncadenas sueltas."
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "ctx": {
+            "type": "object",
+            "title": "Context"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      }
+    }
+  }
+}

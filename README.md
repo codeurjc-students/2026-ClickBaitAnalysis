@@ -1189,6 +1189,176 @@ Añadir el registro a `/analyze` convirtió, sin avisar, todos los tests de esa 
 
 `tests/api/test_history.py` cubre los dos lados por separado —el almacén llamando a sus funciones, el endpoint por HTTP— porque responden preguntas distintas: si los datos sobreviven y salen en orden, y si la decisión de «una entrada por análisis» se sostiene de verdad.
 
+### Andamiaje de la SPA: proyecto Angular, proxy y cliente tipado (#126)
+
+Primera pieza de código del frontend. Y no es sólo correr `ng new`: casi todo lo
+que se decide aquí condiciona el resto de H3, porque el primer componente que se
+escriba mal se copia en los siguientes. Dos decisiones salieron al revés de lo
+previsto.
+
+#### El generador ya no trae `zone.js`, y eso asciende una convención a requisito
+
+El plan era arrancar con `zone.js` —que parchea las APIs asíncronas y, ante
+cualquier evento, revisa el árbol de componentes entero— y escribir *signals*
+igualmente, para que migrar más tarde costara una línea. Pero `ng new` de
+Angular 22 genera **zoneless por defecto**: `zone.js` ni siquiera aparece en
+`package.json`, y el componente que produce ya viene con `signal()`. Se decidió
+quedarse ahí, porque volver atrás sería instalar lo que el CLI quita a propósito
+y remar contra un generador que a partir de ahora escribe con signals.
+
+Lo que cambia no es una dependencia, es el estatus de una convención. Guardar el
+estado en un campo normal en vez de en un `signal()` pasa de ser mal estilo a ser
+**un fallo de corrección**:
+
+```ts
+resultado = signal<AnalyzeResponse | null>(null);   // sí
+resultado: AnalyzeResponse | null = null;           // no — no se repinta
+```
+
+Y un fallo mudo: esa parte de la pantalla deja de actualizarse **sin lanzar
+ningún error**, a veces sólo en un caso concreto. Los tests unitarios no lo
+cubren, porque comprueban lógica y no repintado.
+
+**SSR descartado** (`--ssr=false`). Obligaría a un servidor Node en producción
+—complicando el Docker de H4— y a que el código funcione tanto en navegador como
+en Node, donde no existen `window` ni `document`. A cambio no se gana nada aquí:
+no hay contenido público que indexar y la primera carga es local.
+
+#### Node vive en WSL, y el proxy se pone el primer día
+
+Node se instaló **dentro de WSL** con nvm (v22.23.2; el CLI 22.1.6 exige
+`^22.22.3`). Usar el Node de Windows contra la ruta de WSL cruzaría el puente 9p
+en cada operación de fichero: `npm install` lentísimo y —lo que de verdad duele—
+el *watch* de `ng serve` poco fiable, porque las notificaciones de cambio no se
+propagan bien y la recarga automática falla de forma intermitente.
+
+`proxy.conf.json` entra ahora y no al final, cuando haga falta. H4 ya tiene
+decidido `nginx` como proxy inverso en producción, y esto es su equivalente en
+desarrollo: así los dos entornos se comportan igual desde el principio, en vez de
+descubrir en diciembre que algo dependía del CORS.
+
+El CI monta un **job aparte** para el frontend en lugar de añadir pasos al de
+Python. Son cadenas de herramientas independientes: así un fallo de TypeScript no
+oculta el informe de `pytest` ni al revés, y además corren en paralelo. Los tests
+usan **vitest sobre jsdom**, no Karma, así que el runner no necesita navegador.
+
+#### El cliente TypeScript se genera del contrato, no se escribe
+
+FastAPI publica en `/openapi.json` la descripción completa de la API —rutas y
+forma de cada cuerpo— deduciéndola de las anotaciones de tipo. Son **23 esquemas
+sobre 5 rutas**: `AnalyzeResponse` sola arrastra tres modelos anidados y cuatro
+enums.
+
+Escribir eso a mano en el frontend crearía una segunda definición de la misma
+verdad, y esa copia **no falla al desincronizarse**: TypeScript compila igual y el
+dato llega `undefined` al navegador. Es el mismo patrón que costó #116, donde el
+mismo id de modelo vivía en cinco sitios.
+
+```
+backend/analysis/domain.py            la verdad, en Python
+        v   python -m backend.api.export_openapi
+frontend/openapi.json                 el contrato
+        v   npm run gen:api
+frontend/src/app/api/schema.d.ts      la misma verdad, en TypeScript
+        v
+frontend/src/app/api/models.ts        nombres cortos
+```
+
+El volcado **importa la app** en vez de pedirle el JSON a un servidor corriendo,
+que es lo que documenta FastAPI: no hay que arrancar uvicorn, ni elegir un puerto
+libre, ni esperar a que levante, ni matarlo. Cuesta 3,4 s y no carga ningún
+modelo NLP —eso ocurre en el `lifespan`, que aquí no llega a correr—, así que
+también vale en el CI, que instala sólo `requirements.txt`.
+
+Un detalle que sale gratis: los enums llegan como **uniones de cadenas**, no como
+`enum` de TypeScript.
+
+```ts
+Dimension: "forma" | "engano" | "tono";
+SignalType: "interpretable" | "híbrido" | "opaco";
+```
+
+Al ser estructurales, comparar contra `"engaño"` con eñe no compila. Y las
+descripciones de los `Field` viajan como JSDoc, así que el frontend hereda la
+documentación del backend al pasar el ratón.
+
+**Sólo los tipos.** Se descartó generar un cliente HTTP entero (`ng-openapi-gen`
+produce servicios Angular ya montados): mete una capa que hay que regenerar y
+revisar en cada cambio, y aquí son cinco rutas escritas con `HttpClient`. Lo que
+se desincroniza son los tipos, no el `post`.
+
+#### Un `peer` desactualizado, y por qué no se apagó la comprobación entera
+
+`openapi-typescript@7.13.0` declara `peer typescript@"^5.x"` y Angular 22 trae el
+**6.0.3**, así que `npm install` lo rechaza con `ERESOLVE`. Antes de rendirse se
+midió: corriendo el generador contra nuestro contrato real produce las 747 líneas
+sin un solo aviso. El rango está desactualizado; no describe una incompatibilidad.
+
+Se descartó `--legacy-peer-deps`, que era lo cómodo: apaga la comprobación de
+*peers* **para todo el proyecto y para siempre**, así que taparía también una
+incompatibilidad real de un paquete de Angular el día que la haya. En su lugar va
+un `overrides` que afecta sólo a ese paquete, y se verificó que `npm ci` —que es
+lo que corre el CI, no `npm install`— instala desde el lock sin protestar.
+
+`package.json` es JSON estricto y no admite comentarios, así que **este párrafo es
+el único sitio donde consta el porqué de ese bloque**. La alternativa examinada,
+`@hey-api/openapi-ts`, sí declara compatibilidad con TypeScript 6; quedó apuntada
+por si el `overrides` diera problemas, pero genera más de lo que hace falta.
+
+#### Dos eslabones, dos guardianes
+
+Que lo generado esté commiteado tiene una razón —así el `git diff` de una pull
+request enseña qué cambió del contrato, cosa que generándolo en el build sería
+invisible en la revisión— y un riesgo: que la copia se quede rancia. Cada eslabón
+tiene su vigilante, cada uno donde está su herramienta.
+
+| Eslabón | Quién lo vigila |
+|---|---|
+| el JSON refleja los modelos Pydantic | `test_el_contrato_commiteado_esta_al_dia`, en `pytest` |
+| el `.d.ts` sale de ese JSON | un paso del job de frontend, que es el que tiene Node |
+
+El primero es un **test y no un paso de CI** a propósito: corriendo dentro de
+`pytest` salta antes de empujar, no veinte minutos después en el runner.
+
+Los dos fallan con la instrucción de cómo arreglarlo, no con el diff. De ahí que
+use `pytest.fail` en vez de `assert a == b`: comparar dos JSON de 36 kB imprime
+cientos de líneas que no sirven de nada, porque esto no se arregla editando el
+fichero sino regenerándolo. Lo útil es la orden, no la diferencia.
+
+Los dos se probaron **en negativo**, ensuciando el contrato a mano y rompiendo un
+alias de `models.ts`. Lo segundo no era evidente: nadie importa `models.ts`
+todavía, y sólo se comprueba porque `tsconfig.app.json` incluye `src/**/*.ts` en
+vez de partir del punto de entrada. Sin esa línea los alias serían decorativos
+hasta que alguien los usara. Rota, `ng build` falla con `TS2339` y la línea
+exacta.
+
+#### Un `.gitattributes`, que no existía
+
+El git de WSL tiene `core.autocrlf` sin poner; el de Windows lo trae en `true`.
+Un checkout desde ese lado dejaría `openapi.json` y `schema.d.ts` con CRLF en
+disco mientras las herramientas que los producen los escriben con LF. Y como esos
+dos ficheros se comparan justamente contra su versión regenerada, el desajuste no
+saldría como un detalle de formato: saldría como **un diff permanente que no se
+arregla regenerando**, que es justo lo que ordena el mensaje de error. El fallo
+diría una cosa y la solución sería otra.
+
+`* text=auto eol=lf` lo cierra sin efectos colaterales: `git ls-files --eol` no
+encontró un solo CRLF en el índice, y los binarios —los `.gz` de `data/`, el
+favicon— ya se detectan solos.
+
+El mismo fichero lleva una segunda marca, `linguist-generated=true` sobre
+`schema.d.ts`, para que GitHub lo colapse en el diff de las pull requests. Son
+747 líneas que cambian enteras cada vez que se toca un modelo y que nadie va a
+leer, porque son la traducción mecánica del JSON. `openapi.json` **no** la lleva,
+a propósito: ése es el que cuenta qué cambió de la API, y es la mitad de la
+pareja que sí hay que revisar.
+
+#### Estado
+
+Bundle inicial de **217 kB** (59,6 kB transferidos), 196 tests de Python (uno
+nuevo) y los 2 del frontend en verde, ruff limpio. La SPA todavía no pinta nada
+propio: eso empieza en #127.
+
 ### Precalentar los modelos, adelantado desde H4 (#125)
 
 `/analyze` en frío tardaba **~105 s**. Estaba anotado como decisión de H4 —donde

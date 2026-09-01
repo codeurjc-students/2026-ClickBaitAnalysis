@@ -56,6 +56,22 @@ jobs:
       # En CI eso es lo que se quiere — que la build sea la misma que en local.
       - name: Instalando dependencias...
         run: npm ci
+      # El `schema.d.ts` commiteado tiene que ser el que sale del `openapi.json`
+      # commiteado. Esta es la mitad Node de la comprobación; la otra mitad —que
+      # ese JSON refleje los modelos Pydantic— la hace
+      # `test_el_contrato_commiteado_esta_al_dia` en el job de Python, que es
+      # donde se puede importar la app.
+      #
+      # Va ANTES de compilar: con los tipos rancios la build puede pasar
+      # igualmente y estar mintiendo. Aquí no hace falta Python, el
+      # `openapi.json` ya viene en el repositorio.
+      - name: Comprobando que los tipos están al día...
+        run: |
+          npm run gen:api
+          git diff --exit-code src/app/api/schema.d.ts || {
+            echo "::error::schema.d.ts no coincide con openapi.json. Corre 'npm run gen:api' en frontend/ y commitea el resultado."
+            exit 1
+          }
       - name: Compilando...
         run: npm run build
       # Los tests usan vitest sobre jsdom, no Karma: no hace falta navegador ni
