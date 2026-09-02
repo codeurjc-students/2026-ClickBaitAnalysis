@@ -1,0 +1,101 @@
+<h1>Analizar un titular</h1>
+<p class="subtitulo">
+  Se llaman todas las señales y se contrastan entre sí, sin agente de por medio.
+</p>
+
+@if (resultado(); as r) {
+  <section class="barra">
+    <p class="barra__etiqueta">Titular analizado</p>
+    <p class="barra__titular" lang="en">«{{ r.headline }}»</p>
+    <p class="barra__meta">
+      @if (r.content) {
+        con cuerpo · {{ r.content.length }} caracteres
+      } @else {
+        sin cuerpo
+      }
+      · {{ r.signals.length }} señales
+    </p>
+    <button type="button" class="secundario" (click)="nuevoAnalisis()">
+      ← Nuevo análisis
+    </button>
+  </section>
+} @else {
+  <form [formGroup]="formulario" (ngSubmit)="analizar()">
+    <label for="headline">Titular <span aria-hidden="true">*</span></label>
+    <input
+      id="headline"
+      type="text"
+      lang="en"
+      required
+      formControlName="headline"
+      placeholder="10 Amazing Things You Won't Believe"
+      [attr.aria-invalid]="errorEnTitular() ? 'true' : null"
+      aria-describedby="error-headline"
+    />
+    @if (errorEnTitular()) {
+      <p id="error-headline" class="error-campo">
+        Escribe un titular: no puede estar en blanco.
+      </p>
+    }
+
+    <p class="ejemplos">
+      <span>Ejemplos:</span>
+      <button type="button" (click)="ejemplo('10 Amazing Things You Won\'t Believe')">
+        clickbait claro
+      </button>
+      <button type="button" (click)="ejemplo('Federal Reserve Holds Interest Rates Steady')">
+        titular factual
+      </button>
+      <button type="button" (click)="ejemplo('17 Things Nobody Tells You About Moving Abroad')">
+        caso ambiguo
+      </button>
+    </p>
+
+    <label for="content">Contenido / cuerpo de la noticia (opcional)</label>
+    <textarea
+      id="content"
+      rows="5"
+      lang="en"
+      formControlName="content"
+      placeholder="Pega aquí el cuerpo o el teaser…"
+      aria-describedby="ayuda-content"
+    ></textarea>
+    <p id="ayuda-content" class="ayuda">
+      Sin contenido no se calcula la señal de incoherencia (titular ↔ cuerpo).
+    </p>
+
+    <button type="submit" [disabled]="enviando()">
+      {{ enviando() ? 'Analizando…' : 'Analizar' }}
+    </button>
+  </form>
+}
+
+@if (enviando()) {
+  <p class="cargando" role="status">Analizando las señales…</p>
+}
+
+@if (error(); as mensaje) {
+  <p class="error" role="alert">{{ mensaje }}</p>
+}
+
+@if (resultado(); as r) {
+  <section class="veredicto">
+    <h2>{{ veredicto() }}</h2>
+    <p class="titular" lang="en">{{ r.headline }}</p>
+    <ul class="dimensiones">
+      @for (d of r.dimensions; track d.dimension) {
+        <li>{{ dimension(d.dimension) }}: {{ resumen(d) }}</li>
+      }
+    </ul>
+  </section>
+
+  <h2 class="seccion">Señales contrastadas ({{ r.signals.length }})</h2>
+  <ul class="pastillas">
+    @for (s of r.signals; track s.name) {
+      <li class="pastilla" [attr.data-tipo]="tipo(s)">
+        <strong>{{ nombre(s) }}</strong>
+        <span>{{ estado(s) }}</span>
+      </li>
+    }
+  </ul>
+}
