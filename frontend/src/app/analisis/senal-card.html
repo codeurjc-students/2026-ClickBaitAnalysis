@@ -1,0 +1,85 @@
+<article class="tarjeta" [attr.data-tipo]="tipo(senal())">
+  <button
+    type="button"
+    class="cabecera"
+    (click)="alternar()"
+    [attr.aria-expanded]="abierta()"
+  >
+    <strong>{{ nombre(senal()) }}</strong>
+    <span class="badge">{{ senal().type }}</span>
+    <span class="estado">{{ estado(senal()) }}</span>
+    <span class="chevron" aria-hidden="true">{{ abierta() ? '▾' : '▸' }}</span>
+  </button>
+
+  @if (senal().status !== 'ok') {
+    <p class="motivo">{{ senal().detail }}</p>
+  } @else if (abierta()) {
+    @switch (senal().name) {
+      @case ('detect_clickbait_lexical') {
+        @if (lexico(); as datos) {
+          <p class="resumen">{{ datos.score }} pistas encontradas</p>
+          <ul class="pistas">
+            @for (pista of datos.matches; track $index) {
+              <li [attr.data-categoria]="pista.category">
+                {{ categoria(pista.category) }}: {{ pista.cue }}
+              </li>
+            }
+          </ul>
+          <p class="nota">
+            Las pistas SON la explicación. El veredicto es exactamente «¿disparó
+            algún cue?».
+          </p>
+        }
+      }
+      @case ('detect_clickbait_linear') {
+        @if (lineal(); as datos) {
+          <p class="resumen">probabilidad {{ numero(datos.probability) }}</p>
+          <ul class="cues">
+            @for (cue of datos.top_cues; track cue[0]) {
+              <li>
+                <span class="cue">{{ cue[0] }}</span>
+                <span
+                  class="barra"
+                  [class.contra]="cue[1] < 0"
+                  [style.width.%]="anchoDeCue(cue[1])"
+                ></span>
+                <span class="peso">{{ numero(cue[1]) }}</span>
+              </li>
+            }
+          </ul>
+          <p class="nota">
+            Los pesos SON la explicación: rojo empuja a clickbait, verde en
+            contra.
+          </p>
+        }
+      }
+      @case ('detect_clickbait_incoherence') {
+        @if (incoherencia(); as datos) {
+          <p class="resumen">similitud {{ numero(datos.similarity) }}</p>
+          <div class="medidor">
+            <span [style.width.%]="porcentaje(datos.similarity)"></span>
+          </div>
+          <p class="nota">
+            Decisión transparente —un umbral— sobre un rasgo opaco (embeddings).
+            @if (datos.threshold !== undefined) {
+              Umbral {{ numero(datos.threshold) }}.
+            }
+          </p>
+        }
+      }
+      @default {
+        @if (etiqueta(); as datos) {
+          <p class="resumen">
+            {{ datos.label }} · confianza {{ numero(datos.score) }}
+          </p>
+          <div class="medidor">
+            <span [style.width.%]="porcentaje(datos.score)"></span>
+          </div>
+          <p class="nota">Caja negra: sin explicación intrínseca.</p>
+        } @else {
+          <pre class="crudo">{{ crudo() }}</pre>
+        }
+      }
+    }
+  }
+</article>

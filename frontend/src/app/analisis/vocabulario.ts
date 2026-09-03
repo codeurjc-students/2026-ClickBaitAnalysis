@@ -72,6 +72,14 @@ export function estadoDeSenal(senal: SignalResult): string {
   return senal.is_clickbait ? 'clickbait' : 'no clickbait';
 }
 
+/** Decimales con coma. `DecimalPipe` daría «0.99» sin registrar el locale. */
+export function numero(valor: number, decimales = 2): string {
+  return valor.toLocaleString('es-ES', {
+    minimumFractionDigits: decimales,
+    maximumFractionDigits: decimales,
+  });
+}
+
 /** Tres casos, no dos: el `null` ES el resultado, no un hueco. */
 export function resumenDimension(veredicto: DimensionVerdict): string {
   if (veredicto.is_clickbait == null) return 'las señales discrepan';

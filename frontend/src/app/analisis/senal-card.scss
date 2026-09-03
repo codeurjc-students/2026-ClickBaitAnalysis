@@ -1,0 +1,188 @@
+.tarjeta {
+  margin-bottom: 0.75rem;
+  border: 1px solid var(--borde);
+  border-radius: 8px;
+  border-left-width: 4px;
+  overflow: hidden;
+}
+
+/* El borde izquierdo lleva el TIPO de señal, no su veredicto. */
+.tarjeta[data-tipo='interpretable'] {
+  border-left-color: var(--interpretable);
+}
+.tarjeta[data-tipo='hibrido'] {
+  border-left-color: var(--hibrido);
+}
+.tarjeta[data-tipo='opaco'] {
+  border-left-color: var(--opaco);
+}
+
+.cabecera {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  width: 100%;
+  padding: 0.7rem 0.9rem;
+  border: 0;
+  background: none;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.cabecera:hover {
+  background: var(--fondo-suave);
+}
+
+.cabecera:focus-visible {
+  outline: 2px solid var(--acento);
+  outline-offset: -2px;
+}
+
+.badge {
+  padding: 0.1rem 0.5rem;
+  border-radius: 999px;
+  background: var(--fondo-suave);
+  font-size: 0.7rem;
+}
+
+[data-tipo='interpretable'] .badge {
+  background: var(--interpretable-fondo);
+}
+[data-tipo='hibrido'] .badge {
+  background: var(--hibrido-fondo);
+}
+[data-tipo='opaco'] .badge {
+  background: var(--opaco-fondo);
+}
+
+.estado {
+  color: var(--texto-suave);
+  font-size: 0.85rem;
+}
+
+.chevron {
+  margin-left: auto;
+  color: var(--texto-suave);
+}
+
+.motivo,
+.resumen,
+.nota,
+.pistas,
+.cues,
+.medidor,
+.crudo {
+  margin: 0 0.9rem 0.6rem;
+}
+
+.motivo {
+  padding: 0.5rem 0.7rem;
+  border-radius: 6px;
+  background: var(--fondo-suave);
+  color: var(--texto-suave);
+  font-size: 0.85rem;
+}
+
+.resumen {
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+.nota {
+  color: var(--texto-suave);
+  font-size: 0.8rem;
+  font-style: italic;
+  padding-bottom: 0.3rem;
+}
+
+/* --- Léxico --- */
+
+.pistas {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  padding: 0;
+  list-style: none;
+}
+
+.pistas li {
+  padding: 0.2rem 0.6rem;
+  border: 1px solid var(--borde);
+  border-radius: 999px;
+  font-size: 0.8rem;
+}
+
+.pistas li[data-categoria='leading_number'] {
+  background: var(--interpretable-fondo);
+}
+.pistas li[data-categoria='hyperbole'] {
+  background: var(--opaco-fondo);
+}
+.pistas li[data-categoria='forward_reference'] {
+  background: #dae8fc;
+}
+.pistas li[data-categoria='curiosity_gap'] {
+  background: #e1d5e7;
+}
+
+/* --- Lineal --- */
+
+.cues {
+  padding: 0;
+  list-style: none;
+  font-size: 0.8rem;
+}
+
+.cues li {
+  display: grid;
+  grid-template-columns: 8rem 1fr 3rem;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.2rem;
+}
+
+.cues .cue {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cues .barra {
+  height: 0.7rem;
+  border-radius: 3px;
+  background: var(--opaco-fondo);
+}
+
+.cues .barra.contra {
+  background: var(--interpretable-fondo);
+}
+
+.cues .peso {
+  text-align: right;
+  color: var(--texto-suave);
+  font-variant-numeric: tabular-nums;
+}
+
+/* --- Medidor (similitud, confianza) --- */
+
+.medidor {
+  height: 0.8rem;
+  border: 1px solid var(--borde);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.medidor span {
+  display: block;
+  height: 100%;
+  background: var(--acento);
+}
+
+.crudo {
+  padding: 0.5rem;
+  border-radius: 6px;
+  background: var(--fondo-suave);
+  font-size: 0.75rem;
+  overflow-x: auto;
+}

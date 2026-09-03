@@ -11,6 +11,7 @@ import { AnalyzeService } from '../api/analyze.service';
 import type { AnalyzeResponse } from '../api/models';
 import { comoLexico, type Pista } from './datos';
 import { mensajeDeError } from './errores';
+import { SenalCard } from './senal-card';
 import { TitularResaltado } from './titular-resaltado';
 import {
   claseDeTipo,
@@ -28,7 +29,7 @@ function noEnBlanco(control: AbstractControl<string>): ValidationErrors | null {
 
 @Component({
   selector: 'app-analisis-page',
-  imports: [ReactiveFormsModule, TitularResaltado],
+  imports: [ReactiveFormsModule, TitularResaltado, SenalCard],
   templateUrl: './analisis-page.html',
   styleUrl: './analisis-page.scss',
 })

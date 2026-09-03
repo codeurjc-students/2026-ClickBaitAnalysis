@@ -20,6 +20,23 @@ export interface DatosLexico {
   matches: Pista[];
 }
 
+export interface DatosLineal {
+  probability: number;
+  top_cues: [string, number][];
+}
+
+export interface DatosIncoherencia {
+  similarity: number;
+  incoherent: boolean;
+  /** Llegará con #133; hoy no viaja. Opcional para que la tarjeta lo calle. */
+  threshold?: number;
+}
+
+export interface DatosEtiqueta {
+  label: string;
+  score: number;
+}
+
 export function comoLexico(crudo: unknown): DatosLexico | null {
   const datos = crudo as DatosLexico | null;
   if (!datos || typeof datos.score !== 'number' || !Array.isArray(datos.matches)) {
@@ -35,4 +52,22 @@ export function comoLexico(crudo: unknown): DatosLexico | null {
       pista.span.length === 2,
   );
   return validas ? datos : null;
+}
+
+export function comoLineal(crudo: unknown): DatosLineal | null {
+  const datos = crudo as DatosLineal | null;
+  if (!datos || typeof datos.probability !== 'number') return null;
+  return Array.isArray(datos.top_cues) ? datos : null;
+}
+
+export function comoIncoherencia(crudo: unknown): DatosIncoherencia | null {
+  const datos = crudo as DatosIncoherencia | null;
+  return datos && typeof datos.similarity === 'number' ? datos : null;
+}
+
+/** Sirve a las dos señales que devuelven `{label, score}`, y a las futuras. */
+export function comoEtiqueta(crudo: unknown): DatosEtiqueta | null {
+  const datos = crudo as DatosEtiqueta | null;
+  if (!datos || typeof datos.label !== 'string') return null;
+  return typeof datos.score === 'number' ? datos : null;
 }

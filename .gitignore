@@ -25,3 +25,4 @@ npm-debug.log*
 frontend/dist/
 frontend/.angular/
 *:Zone.Identifier
+*Zone.Identifier

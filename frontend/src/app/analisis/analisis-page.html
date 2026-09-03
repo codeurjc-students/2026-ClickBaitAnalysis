@@ -97,6 +97,8 @@
   </section>
 
   <h2 class="seccion">Señales contrastadas ({{ analisis.signals.length }})</h2>
+
+  <!-- Índice compacto: todas las señales caben sobre la línea de flotación. -->
   <ul class="pastillas">
     @for (senal of analisis.signals; track senal.name) {
       <li class="pastilla" [attr.data-tipo]="tipo(senal)">
@@ -105,4 +107,8 @@
       </li>
     }
   </ul>
+
+  @for (senal of analisis.signals; track senal.name) {
+    <app-senal-card [senal]="senal" />
+  }
 }
