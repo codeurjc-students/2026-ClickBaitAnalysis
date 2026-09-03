@@ -22,6 +22,17 @@ const VEREDICTOS: Record<string, string> = {
   sin_datos: 'Sin datos',
 };
 
+/** Las siete categorías de pista de `lexical.py`. */
+const CATEGORIAS: Record<string, string> = {
+  hyperbole: 'hipérbole',
+  forward_reference: 'referencia vaga',
+  curiosity_gap: 'brecha de curiosidad',
+  leading_number: 'número inicial',
+  question: 'pregunta',
+  all_caps: 'mayúsculas',
+  ellipsis: 'puntos suspensivos',
+};
+
 const DIMENSIONES: Record<string, string> = {
   forma: 'Forma',
   engano: 'Engaño', // la clave del backend viene sin ñ
@@ -40,6 +51,10 @@ export function nombreDeVeredicto(verdict: string): string {
 
 export function nombreDeDimension(dimension: string): string {
   return DIMENSIONES[dimension] ?? dimension;
+}
+
+export function nombreDeCategoria(categoria: string): string {
+  return CATEGORIAS[categoria] ?? categoria;
 }
 
 /** `híbrido` lleva tilde, y como valor de atributo es frágil de casar en CSS. */

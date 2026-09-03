@@ -19,7 +19,13 @@ const RESPUESTA: AnalyzeResponse = {
       dimension: 'forma',
       type: 'interpretable',
       is_clickbait: true,
-      data: { score: 3 },
+      data: {
+        score: 2,
+        matches: [
+          { category: 'leading_number', cue: '10', span: [0, 2] },
+          { category: 'hyperbole', cue: 'Amazing', span: [3, 10] },
+        ],
+      },
     },
     {
       name: 'detect_clickbait_incoherence',
@@ -111,6 +117,19 @@ describe('AnalisisPage', () => {
     expect(pastillas[1].getAttribute('data-tipo')).toBe('hibrido');
   });
 
+  it('resalta sobre el titular las pistas que encontró el léxico', async () => {
+    pagina.formulario.controls.headline.setValue('Un titular');
+    await enviar();
+
+    http.expectOne('/api/analyze').flush(RESPUESTA);
+    await fixture.whenStable();
+
+    const marcas = [...html().querySelectorAll('mark[data-categoria]')];
+    const resaltado = marcas.map((marca) => marca.textContent);
+    expect(resaltado).toContain('10');
+    expect(resaltado).toContain('Amazing');
+  });
+
   // Una señal sin resultado no se esconde: se muestra diciendo por qué.
   it('muestra el estado de las señales que no votaron', async () => {
     pagina.formulario.controls.headline.setValue('Un titular');
@@ -120,7 +139,7 @@ describe('AnalisisPage', () => {
     await fixture.whenStable();
 
     const textos = [...html().querySelectorAll('.pastilla')].map(
-      (p) => p.textContent ?? '',
+      (pastilla) => pastilla.textContent ?? '',
     );
     expect(textos[1]).toContain('no aplicable');
     expect(textos[2]).toContain('no vota');

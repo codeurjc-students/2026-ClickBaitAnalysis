@@ -9,7 +9,9 @@ import {
 
 import { AnalyzeService } from '../api/analyze.service';
 import type { AnalyzeResponse } from '../api/models';
+import { comoLexico, type Pista } from './datos';
 import { mensajeDeError } from './errores';
+import { TitularResaltado } from './titular-resaltado';
 import {
   claseDeTipo,
   estadoDeSenal,
@@ -26,7 +28,7 @@ function noEnBlanco(control: AbstractControl<string>): ValidationErrors | null {
 
 @Component({
   selector: 'app-analisis-page',
-  imports: [ReactiveFormsModule],
+  imports: [ReactiveFormsModule, TitularResaltado],
   templateUrl: './analisis-page.html',
   styleUrl: './analisis-page.scss',
 })
@@ -96,6 +98,19 @@ export class AnalisisPage {
 
   ejemplo(titular: string): void {
     this.formulario.controls.headline.setValue(titular);
+  }
+
+  /**
+   * Las pistas léxicas con las que se resalta el titular.
+   *
+   * Vacío si la señal falló o si su `data` no tiene la forma esperada: el
+   * titular se pinta entero y sin marcas, que es degradar, no romperse.
+   */
+  pistasDe(analisis: AnalyzeResponse): Pista[] {
+    const lexica = analisis.signals.find(
+      (senal) => senal.name === 'detect_clickbait_lexical',
+    );
+    return comoLexico(lexica?.data)?.matches ?? [];
   }
 
   /** La condición se usa dos veces: el mensaje y el `aria-invalid`. */

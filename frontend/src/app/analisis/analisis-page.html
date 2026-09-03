@@ -3,17 +3,17 @@
   Se llaman todas las señales y se contrastan entre sí, sin agente de por medio.
 </p>
 
-@if (resultado(); as r) {
+@if (resultado(); as analisis) {
   <section class="barra">
     <p class="barra__etiqueta">Titular analizado</p>
-    <p class="barra__titular" lang="en">«{{ r.headline }}»</p>
+    <p class="barra__titular" lang="en">«{{ analisis.headline }}»</p>
     <p class="barra__meta">
-      @if (r.content) {
-        con cuerpo · {{ r.content.length }} caracteres
+      @if (analisis.content) {
+        con cuerpo · {{ analisis.content.length }} caracteres
       } @else {
         sin cuerpo
       }
-      · {{ r.signals.length }} señales
+      · {{ analisis.signals.length }} señales
     </p>
     <button type="button" class="secundario" (click)="nuevoAnalisis()">
       ← Nuevo análisis
@@ -78,23 +78,30 @@
   <p class="error" role="alert">{{ mensaje }}</p>
 }
 
-@if (resultado(); as r) {
+@if (resultado(); as analisis) {
   <section class="veredicto">
     <h2>{{ veredicto() }}</h2>
-    <p class="titular" lang="en">{{ r.headline }}</p>
+
+    <app-titular-resaltado
+      [titular]="analisis.headline"
+      [pistas]="pistasDe(analisis)"
+    />
+
     <ul class="dimensiones">
-      @for (d of r.dimensions; track d.dimension) {
-        <li>{{ dimension(d.dimension) }}: {{ resumen(d) }}</li>
+      @for (porDimension of analisis.dimensions; track porDimension.dimension) {
+        <li>
+          {{ dimension(porDimension.dimension) }}: {{ resumen(porDimension) }}
+        </li>
       }
     </ul>
   </section>
 
-  <h2 class="seccion">Señales contrastadas ({{ r.signals.length }})</h2>
+  <h2 class="seccion">Señales contrastadas ({{ analisis.signals.length }})</h2>
   <ul class="pastillas">
-    @for (s of r.signals; track s.name) {
-      <li class="pastilla" [attr.data-tipo]="tipo(s)">
-        <strong>{{ nombre(s) }}</strong>
-        <span>{{ estado(s) }}</span>
+    @for (senal of analisis.signals; track senal.name) {
+      <li class="pastilla" [attr.data-tipo]="tipo(senal)">
+        <strong>{{ nombre(senal) }}</strong>
+        <span>{{ estado(senal) }}</span>
       </li>
     }
   </ul>

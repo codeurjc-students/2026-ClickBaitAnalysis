@@ -1,0 +1,55 @@
+.titular {
+  margin: 0.5rem 0;
+  font-size: 1.15rem;
+  line-height: 1.9;
+}
+
+mark {
+  padding: 0.1rem 0.15rem;
+  border-radius: 3px;
+  background: var(--fondo-suave);
+  color: inherit;
+}
+
+/* Un color por categoría léxica. Los tres primeros son los del prototipo. */
+mark[data-categoria='leading_number'] {
+  background: var(--interpretable-fondo);
+}
+mark[data-categoria='hyperbole'] {
+  background: var(--opaco-fondo);
+}
+mark[data-categoria='forward_reference'] {
+  background: #dae8fc;
+}
+mark[data-categoria='curiosity_gap'] {
+  background: #e1d5e7;
+}
+mark[data-categoria='question'],
+mark[data-categoria='all_caps'],
+mark[data-categoria='ellipsis'] {
+  background: var(--hibrido-fondo);
+}
+
+.leyenda {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 1rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  color: var(--texto-suave);
+  font-size: 0.8rem;
+}
+
+.leyenda li {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.leyenda mark {
+  width: 0.9rem;
+  height: 0.9rem;
+  padding: 0;
+  border: 1px solid var(--borde);
+}
