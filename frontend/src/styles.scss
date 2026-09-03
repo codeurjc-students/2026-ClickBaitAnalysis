@@ -1,1 +1,40 @@
-/* You can add global styles to this file, and also import other style files */
+/* Tokens globales. */
+
+:root {
+  color-scheme: light;
+
+  --texto: #1a1a1a;
+  --texto-suave: #5c5c5c;
+  --borde: #d8d8d8;
+  --fondo: #ffffff;
+  --fondo-suave: #f7f7f7;
+  --acento: #6c8ebf;
+
+  /* Tipo de señal. NO es «cuán bueno es el modelo» sino dónde está la
+   * transparencia: interpretable / híbrido / opaco. */
+  --interpretable: #82b366;
+  --interpretable-fondo: #d5e8d4;
+  --hibrido: #d6b656;
+  --hibrido-fondo: #fff2cc;
+  --opaco: #b85450;
+  --opaco-fondo: #f8cecc;
+
+  --aviso: #996600;
+  --aviso-fondo: #fff2cc;
+  --error: #b85450;
+  --error-fondo: #f8cecc;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  color: var(--texto);
+  background: var(--fondo);
+  font-family: Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+    Helvetica, Arial, sans-serif;
+  font-size: 15px;
+  line-height: 1.5;
+}

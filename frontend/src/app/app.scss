@@ -1,0 +1,43 @@
+.cabecera {
+  display: flex;
+  align-items: center;
+  gap: 2rem;
+  padding: 0.75rem 1.5rem;
+  border-bottom: 1px solid var(--borde);
+  background: var(--fondo-suave);
+}
+
+.marca {
+  font-size: 1.15rem;
+  font-weight: 600;
+  color: inherit;
+  text-decoration: none;
+}
+
+.nav {
+  display: flex;
+  gap: 0.5rem;
+  margin-left: auto;
+}
+
+.nav a {
+  padding: 0.35rem 0.9rem;
+  border: 1px solid var(--borde);
+  border-radius: 999px;
+  color: var(--texto-suave);
+  text-decoration: none;
+}
+
+/* `routerLinkActive` pone esta clase sola cuando la ruta está activa. */
+.nav a.activo {
+  border-color: var(--acento);
+  background: color-mix(in srgb, var(--acento) 12%, transparent);
+  color: var(--acento);
+  font-weight: 600;
+}
+
+.contenido {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 1.5rem;
+}

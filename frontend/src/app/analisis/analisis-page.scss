@@ -1,0 +1,226 @@
+h1 {
+  margin: 0 0 0.25rem;
+  font-size: 1.5rem;
+}
+
+.subtitulo {
+  margin: 0 0 1.5rem;
+  color: var(--texto-suave);
+}
+
+/* --- Formulario --- */
+
+form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+label {
+  margin-top: 0.75rem;
+  font-weight: 600;
+}
+
+input,
+textarea {
+  padding: 0.6rem 0.7rem;
+  border: 1px solid var(--borde);
+  border-radius: 6px;
+  font: inherit;
+}
+
+input:focus-visible,
+textarea:focus-visible,
+button:focus-visible {
+  outline: 2px solid var(--acento);
+  outline-offset: 2px;
+}
+
+input[aria-invalid='true'] {
+  border-color: var(--error);
+}
+
+.ayuda {
+  margin: 0;
+  color: var(--texto-suave);
+  font-size: 0.85rem;
+}
+
+.error-campo {
+  margin: 0;
+  color: var(--error);
+  font-size: 0.85rem;
+}
+
+.ejemplos {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0.5rem 0 0;
+  font-size: 0.85rem;
+  color: var(--texto-suave);
+}
+
+.ejemplos button {
+  padding: 0.25rem 0.7rem;
+  border: 1px solid var(--borde);
+  border-radius: 999px;
+  background: var(--fondo-suave);
+  font: inherit;
+  cursor: pointer;
+}
+
+button[type='submit'] {
+  align-self: flex-start;
+  margin-top: 1rem;
+  padding: 0.6rem 1.6rem;
+  border: 1px solid var(--interpretable);
+  border-radius: 6px;
+  background: var(--interpretable-fondo);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+button[disabled] {
+  opacity: 0.6;
+  cursor: progress;
+}
+
+/* --- Barra plegada --- */
+
+.barra {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 0.15rem 1rem;
+  padding: 0.9rem 1.1rem;
+  border: 1px solid var(--borde);
+  border-radius: 8px;
+}
+
+.barra__etiqueta {
+  grid-column: 1;
+  margin: 0;
+  color: var(--texto-suave);
+  font-size: 0.7rem;
+  text-transform: uppercase; /* en el DOM va en caja normal, por los lectores */
+  letter-spacing: 0.05em;
+}
+
+.barra__titular {
+  grid-column: 1;
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 600;
+}
+
+.barra__meta {
+  grid-column: 1;
+  margin: 0;
+  color: var(--texto-suave);
+  font-size: 0.85rem;
+}
+
+.barra .secundario {
+  grid-column: 2;
+  grid-row: 1 / span 3;
+  padding: 0.5rem 1rem;
+  border: 1px solid var(--borde);
+  border-radius: 6px;
+  background: var(--fondo);
+  font: inherit;
+  cursor: pointer;
+}
+
+/* --- Estados --- */
+
+.cargando,
+.error {
+  margin: 1rem 0 0;
+  padding: 0.7rem 1rem;
+  border-radius: 6px;
+}
+
+.cargando {
+  background: var(--fondo-suave);
+  color: var(--texto-suave);
+}
+
+.error {
+  border: 1px solid var(--error);
+  background: var(--error-fondo);
+}
+
+/* --- Resultado --- */
+
+.veredicto {
+  margin-top: 1.5rem;
+  padding: 1.1rem 1.3rem;
+  border: 1px solid var(--hibrido);
+  border-radius: 8px;
+  background: var(--hibrido-fondo);
+}
+
+.veredicto h2 {
+  margin: 0;
+  color: var(--aviso);
+  font-size: 1.6rem;
+  text-transform: uppercase;
+}
+
+.dimensiones {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 1.25rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  color: var(--texto-suave);
+  font-size: 0.9rem;
+}
+
+.seccion {
+  margin: 1.75rem 0 0.75rem;
+  font-size: 1.1rem;
+}
+
+.pastillas {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.pastilla {
+  display: flex;
+  gap: 0.5rem;
+  align-items: baseline;
+  padding: 0.4rem 0.9rem;
+  border: 1px solid var(--borde);
+  border-radius: 999px;
+  font-size: 0.85rem;
+}
+
+/* El color es el TIPO de señal, no su veredicto. */
+.pastilla[data-tipo='interpretable'] {
+  border-color: var(--interpretable);
+  background: var(--interpretable-fondo);
+}
+
+.pastilla[data-tipo='hibrido'] {
+  border-color: var(--hibrido);
+  background: var(--hibrido-fondo);
+}
+
+.pastilla[data-tipo='opaco'] {
+  border-color: var(--opaco);
+  background: var(--opaco-fondo);
+}
+
+.pastilla span {
+  color: var(--texto-suave);
+}

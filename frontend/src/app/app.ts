@@ -1,12 +1,18 @@
-import { Component, signal } from '@angular/core';
-import { RouterOutlet } from '@angular/router';
+import { Component } from '@angular/core';
+import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 
+/**
+ * Cáscara de la aplicación: cabecera y hueco donde el router pinta la pantalla.
+ *
+ * La navegación del prototipo tiene cuatro pestañas (Chat · Analizar ·
+ * Historial · Sistema) y aquí sólo hay una: las otras tres son #128, #129 y el
+ * agente de R13. Enlaces a rutas que no existen serían deuda visible, así que
+ * cada pestaña aparece cuando aparece su pantalla.
+ */
 @Component({
-  imports: [RouterOutlet],
+  imports: [RouterOutlet, RouterLink, RouterLinkActive],
   selector: 'app-root',
   styleUrl: './app.scss',
   templateUrl: './app.html',
 })
-export class App {
-  protected readonly title = signal('clickbait-web');
-}
+export class App {}

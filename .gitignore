@@ -24,3 +24,5 @@ npm-debug.log*
 # demasiado comun para ignorarlo en todo el repositorio.
 frontend/dist/
 frontend/.angular/
+*:Zone.Identifier
+*Zone.Identifier

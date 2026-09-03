@@ -1189,6 +1189,187 @@ Añadir el registro a `/analyze` convirtió, sin avisar, todos los tests de esa 
 
 `tests/api/test_history.py` cubre los dos lados por separado —el almacén llamando a sus funciones, el endpoint por HTTP— porque responden preguntas distintas: si los datos sobreviven y salen en orden, y si la decisión de «una entrada por análisis» se sostiene de verdad.
 
+### La pantalla de análisis: el lienzo de explicabilidad (#127)
+
+La primera pantalla que pinta algo propio, y la que sostiene la tesis del
+trabajo: contrastar señales de distinta naturaleza en vez de dar un veredicto
+único. Casi todo lo que se decidió aquí salió de una tensión entre lo que el
+prototipo dibujó en julio y lo que el backend devuelve hoy.
+
+#### Una ruta y no dos, porque `/analyze` no devuelve ningún id
+
+El prototipo dibuja «Analizar» y «Resultados» como pantallas separadas, con una
+flecha de navegación entre ellas. Como **rutas** no se sostienen: `POST /analyze`
+no devuelve identificador, así que `/resultados` no sería enlazable, no
+sobreviviría a una recarga, y obligaría a un servicio de estado cuyo único
+cometido sería cruzar la navegación.
+
+Se hace en **una sola ruta** con el formulario que se pliega al llegar el
+resultado. El «← Nuevo análisis» pasa de navegar a **restablecer**: mismo gesto y
+misma etiqueta, sin ruta que pueda quedarse huérfana.
+
+No es un compromiso a la baja. `/analisis/:id` **se añadirá** cuando el id exista
+(#133), y no compite con ésta: `/analizar` es donde se escribe, `/analisis/42`
+donde se lee uno guardado. Para que ese día sea aditivo, el bloque de resultados
+recibe el `AnalyzeResponse` **como entrada** y no lo busca él.
+
+El prototipo no se reescribió. Se añadió un diagrama **`3b - Análisis (una
+ruta)`** a `docs/prototipo-ui.drawio`, dejando intacta la pantalla 3: es lo que
+se validó con el tutor en #73 y borrarlo perdería el registro de qué se acordó
+entonces.
+
+#### El número de señales es variable, así que el layout no puede fijarlo
+
+La primera versión del dibujo era una rejilla de cinco tarjetas. Eso contradice
+el principio 1 de `analysis/domain.py` —las señales son una lista uniforme
+justamente para que «añadir una quinta no obligue a tocar Angular»— sólo que una
+capa más arriba.
+
+La solución no es **limitar a cuatro**, que vuelve a cablear un número: es un
+criterio del que el número salga solo.
+
+- Una **fila de pastillas**, una por señal, con su veredicto y su estado. Crece
+  con la lista y cabe entera sobre la línea de flotación: se ve cuántas señales
+  hay y qué dijo cada una sin bajar.
+- Las **tarjetas se despliegan por tipo**: `interpretable` e `híbrido` abiertas,
+  `opaco` plegadas.
+
+El argumento no es el espacio, es que **una tarjeta opaca no tiene explicación
+que desplegar**. El léxico despliega sus pistas con su posición; el lineal, sus
+pesos; la incoherencia, su similitud. El RoBERTa dedicado sólo tiene etiqueta y
+confianza, dos datos que ya caben en la cabecera. Y R3.8 pide priorizar lo
+interpretable. Añadir mañana una señal interpretable la abre sola; una opaca, la
+pliega sola.
+
+Se descartó el panel «Plegadas» agrupado del dibujo: agrupar era un recurso de
+maquetación estática, y una lista uniforme comunica la misma regla sin romper la
+uniformidad del componente.
+
+#### El `data` llega sin tipar, y eso obliga a elegir entre castear o comprobar
+
+El contrato declara `data` como diccionario libre (`dict[str, Any]`) **a
+propósito**, para no perder información. El precio lo paga la interfaz, que tiene
+que decir qué espera de cada señal.
+
+Castear (`data as DatosLexico`) miente en silencio el día que el backend cambie.
+Se hace lo otro: cada forma tiene una función que **comprueba y devuelve `null`**
+si no encaja, y la tarjeta degrada a JSON crudo en lugar de pintar `undefined`.
+Con el `@default` del `switch`, una señal que nadie ha previsto **nunca
+desaparece de la pantalla**: sale fea, con su JSON, pero sale.
+
+El criterio de qué se comprueba no es «¿valida contra el esquema?» sino **«¿qué
+rompería el pintado?»**. Ejemplo real: `span` se comprueba que tenga longitud 2
+porque con un elemento el destructurado deja `fin` en `undefined`, y
+`slice(inicio, undefined)` **no falla** — se lleva el resto de la cadena y
+resalta medio titular sin un solo error en consola.
+
+Validarlo todo convertiría esto en un validador de esquemas, y entonces lo
+sensato sería generar uno del contrato. Pero **no hay contrato que validar**:
+`data` es un diccionario libre. El arreglo de fondo es que el backend declare la
+forma de salida, no un guardián más gordo aquí.
+
+#### Los spans del léxico se solapan, y eso hay que resolverlo
+
+Un mismo trozo del titular puede disparar más de una categoría. Sin resolverlo
+salen tramos duplicados y el titular se lee dos veces. La regla —arbitraria pero
+determinista— es **gana la que empieza antes, y a igualdad la más larga**.
+
+La invariante que sostiene la función es que `cursor` cuenta cuánto del titular
+va emitido, y de ahí sale la propiedad que sí merece un test: **juntar todos los
+tramos devuelve el titular exacto**, sin texto perdido ni repetido. La leyenda se
+construye con las categorías que aparecieron, no con una lista fija.
+
+#### Zoneless: un riesgo que se midió en vez de suponerlo
+
+El mensaje de validación depende de `touched` e `invalid` del formulario
+reactivo, que **no son señales**. En zoneless la vista se repinta cuando cambia
+una señal o cuando salta un manejador de eventos; el `blur` del input y el
+`ngSubmit` lo son, así que *debería* funcionar.
+
+Eso es un razonamiento, no una medida, y es exactamente la clase de fallo mudo
+que motivó la decisión de #126. Hay un test que pulsa Analizar con el campo vacío
+y comprueba que **el mensaje aparece en el DOM**. Funciona; si algún día deja de
+hacerlo, lo dirá.
+
+Para el plegado de las tarjetas se usa **`linkedSignal`**: estado escribible —el
+usuario pliega y despliega— pero que se **resiembra** cuando llega otra señal.
+Con un `signal` normal habría que reiniciarlo a mano, y olvidarlo dejaría la
+tarjeta abierta arrastrando el estado del análisis anterior.
+
+#### Lo que enseñó ejecutarla contra la API de verdad
+
+**El modelo dedicado no se puede servir en remoto.** Con `NLP_BACKEND=remote`,
+`detect_clickbait` devuelve `400 — Model not supported by provider hf-inference`.
+No es un timeout ocasional como los medidos en la Épica 4: es **permanente**.
+`Stremie/roberta-base-clickbait`, el modelo que #115 eligió por medida, sólo es
+usable en local. Es un límite a tener presente en H4.
+
+**Una tarjeta que decía «error» y se callaba el motivo.** Al verlo en pantalla se
+destapó que `detail` —que sí viaja: «Model not supported…», «Requiere el cuerpo o
+teaser de la noticia»— no se pintaba en ningún sitio. Se corrigió: el motivo se
+enseña **siempre**, incluso con la tarjeta plegada. Un fallo que no explica por
+qué es peor que un hueco.
+
+**El camino de error, comprobado sin buscarlo.** Reiniciar el preview se llevó
+por delante el proceso de la API y el proxy devolvió un 502. La pantalla mostró
+«La API falló al analizar (502). Vuelve a intentarlo.» con el formulario intacto
+debajo. R6.7 verificado contra un fallo real y no contra un doble.
+
+**Y un caso en el filo que ilustra la jerarquía.** El titular
+`10 Amazing Things You Won't Believe` con un cuerpo genérico dio similitud
+**0,29** — una centésima por debajo del umbral de 0,30. La incoherencia votó
+«sí», y como `engano` manda sobre `forma`, el veredicto global salió **ENGAÑOSO**
+en vez de `CLICKBAIT DE FORMA`, con las otras cuatro señales diciendo lo mismo
+que antes. Una centésima cambió la etiqueta.
+
+#### Tres huecos del contrato, encontrados por el camino
+
+Los tres tienen la misma forma: **un dato que el backend ya tiene calculado y no
+deja salir**, y que obliga a la interfaz a inventárselo. Van juntos en #133
+porque caben en una sola regeneración del contrato y una sola revisión.
+
+1. **El id del análisis.** `history.record()` lo devuelve y `post_analyze` lo
+   descarta una línea antes de responder. Sin él no hay ruta enlazable.
+2. **La etiqueta legible de cada señal.** Existe desde #71 en `MODEL_CARDS`, pero
+   no viaja: ni en `/analyze` ni en `/tools`. La interfaz mantiene mientras tanto
+   un diccionario `tool → nombre`, que es una segunda copia sin vigilancia — la
+   forma exacta del fallo de #116.
+3. **El umbral de la incoherencia.** El más elocuente: la tarjeta dice «similitud
+   0,29» y **no dice contra qué**. La señal híbrida acaba enseñando su número
+   opaco y escondiendo justo la parte transparente, que es su umbral. Cablear el
+   0,30 sería peor que copiar el nombre, porque #93 propone parametrizarlo.
+
+De paso salió #134: `Dimension.ENGANO` vale `"engano"` sin eñe mientras
+`SignalType.HIBRIDO` vale `"híbrido"` con tilde. **El dominio no sigue su propia
+regla**, y el frontend necesita una función que sólo existe para traducir esa
+tilde a algo que no sea frágil como valor de atributo.
+
+#### Accesibilidad, que no la pide ningún requisito
+
+Ninguno de los trece criterios de R6 la exige. Se hace igualmente, porque cuesta
+un atributo y porque un análisis posterior sobre plantillas que no la tuvieron en
+cuenta es un rediseño, no una comprobación.
+
+- **El veredicto va en caja normal en el DOM** y son las mayúsculas las que pone
+  el CSS: muchos lectores de pantalla deletrean las palabras escritas en caja
+  alta porque las toman por siglas.
+- **`lang="en"` en los titulares.** El contrato dice que van en inglés y la
+  página está en castellano; sin eso se pronuncian con fonética española.
+- **El mensaje de error está atado a su campo** con `aria-describedby` y
+  `aria-invalid`, en vez de suelto en la página.
+- **La cabecera de cada tarjeta es un `<button>`** con `aria-expanded`, no un
+  `div` con un `click`: se llega con el tabulador y se activa con Enter.
+- `role="status"` para lo que informa y `role="alert"` sólo para lo que
+  interrumpe. Comprobado en el árbol de accesibilidad del navegador.
+
+#### Estado
+
+Los cinco puntos del alcance de #127 cubiertos: formulario con contenido
+opcional, las cinco señales con su dimensión y su tipo, resaltado de cues sobre
+el titular, estados de carga (R6.6) y errores entendibles (R6.7). **25 tests** en
+el frontend, y la pantalla validada contra la API real con los cinco detectores
+en local.
+
 ### Andamiaje de la SPA: proyecto Angular, proxy y cliente tipado (#126)
 
 Primera pieza de código del frontend. Y no es sólo correr `ng new`: casi todo lo

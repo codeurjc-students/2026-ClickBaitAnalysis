@@ -480,6 +480,335 @@
     </mxGraphModel>
   </diagram>
 
+  <diagram name="3b - Análisis (una ruta)" id="pAnalisisUnaRuta">
+    <mxGraphModel dx="1100" dy="1580" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1100" pageHeight="1580" math="0" shadow="0">
+      <root>
+        <mxCell id="b0" />
+        <mxCell id="b1" parent="b0" />
+
+        <mxCell id="bHdr" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#F5F5F5;strokeColor=#666666;" vertex="1" parent="b1">
+          <mxGeometry x="40" y="40" width="1020" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="bLogo" value="ClickBait Analysis" style="text;html=1;align=left;verticalAlign=middle;fontSize=18;fontStyle=1" vertex="1" parent="b1">
+          <mxGeometry x="60" y="55" width="300" height="30" as="geometry" />
+        </mxCell>
+        <UserObject label="Chat" id="bNav0" link="data:page/id,pChat">
+          <mxCell style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#666666;" vertex="1" parent="b1">
+            <mxGeometry x="590" y="55" width="100" height="30" as="geometry" />
+          </mxCell>
+        </UserObject>
+        <UserObject label="Analizar" id="bNav1" link="data:page/id,pAnalisisUnaRuta">
+          <mxCell style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontStyle=1" vertex="1" parent="b1">
+            <mxGeometry x="700" y="55" width="100" height="30" as="geometry" />
+          </mxCell>
+        </UserObject>
+        <UserObject label="Historial" id="bNav2" link="data:page/id,pHistorial">
+          <mxCell style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#666666;" vertex="1" parent="b1">
+            <mxGeometry x="810" y="55" width="100" height="30" as="geometry" />
+          </mxCell>
+        </UserObject>
+        <UserObject label="Sistema" id="bNav3" link="data:page/id,pModelos">
+          <mxCell style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#666666;" vertex="1" parent="b1">
+            <mxGeometry x="920" y="55" width="100" height="30" as="geometry" />
+          </mxCell>
+        </UserObject>
+
+        <mxCell id="bTitle" value="Analizar un titular" style="text;html=1;align=left;verticalAlign=middle;fontSize=20;fontStyle=1" vertex="1" parent="b1">
+          <mxGeometry x="40" y="118" width="400" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="bSub" value="UNA SOLA RUTA (/analizar): el formulario se pliega y el resultado se queda con la pantalla." style="text;html=1;align=left;verticalAlign=middle;fontSize=12;fontColor=#666666;" vertex="1" parent="b1">
+          <mxGeometry x="40" y="146" width="800" height="20" as="geometry" />
+        </mxCell>
+
+        <mxCell id="bBar" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#666666;" vertex="1" parent="b1">
+          <mxGeometry x="40" y="180" width="1020" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="bBarLbl" value="TITULAR ANALIZADO" style="text;html=1;align=left;verticalAlign=middle;fontSize=10;fontColor=#999999;" vertex="1" parent="b1">
+          <mxGeometry x="60" y="190" width="300" height="16" as="geometry" />
+        </mxCell>
+        <mxCell id="bBarH" value="«10 Amazing Things You Won&#39;t Believe»" style="text;html=1;align=left;verticalAlign=middle;fontSize=15;fontStyle=1" vertex="1" parent="b1">
+          <mxGeometry x="60" y="208" width="760" height="26" as="geometry" />
+        </mxCell>
+        <mxCell id="bBarMeta" value="con cuerpo · 1.240 caracteres · 5 señales · 1,2 s" style="text;html=1;align=left;verticalAlign=middle;fontSize=11;fontColor=#666666;" vertex="1" parent="b1">
+          <mxGeometry x="60" y="234" width="600" height="16" as="geometry" />
+        </mxCell>
+        <UserObject label="&#8592; Nuevo análisis" id="bBarBtn" link="data:page/id,pAnalisisUnaRuta">
+          <mxCell style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#666666;" vertex="1" parent="b1">
+            <mxGeometry x="880" y="200" width="160" height="40" as="geometry" />
+          </mxCell>
+        </UserObject>
+        <mxCell id="bBarNote" value="El formulario se CONTRAE al llegar el resultado; «Nuevo análisis» lo despliega otra vez. No hay cambio de ruta ni estado que cruzar." style="text;html=1;align=left;verticalAlign=middle;fontSize=11;fontColor=#666666;fontStyle=2" vertex="1" parent="b1">
+          <mxGeometry x="60" y="264" width="960" height="18" as="geometry" />
+        </mxCell>
+
+        <mxCell id="bVerd" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF2CC;strokeColor=#D6B656;" vertex="1" parent="b1">
+          <mxGeometry x="40" y="300" width="1020" height="170" as="geometry" />
+        </mxCell>
+        <mxCell id="bVerdT" value="CLICKBAIT DE FORMA" style="text;html=1;align=left;verticalAlign=middle;fontSize=26;fontStyle=1;fontColor=#996600" vertex="1" parent="b1">
+          <mxGeometry x="60" y="314" width="520" height="36" as="geometry" />
+        </mxCell>
+        <mxCell id="bVerdP" value="forma: 3 de 4 señales · engaño: coherente · tono: no vota" style="text;html=1;align=right;verticalAlign=middle;fontSize=13;fontColor=#666666" vertex="1" parent="b1">
+          <mxGeometry x="560" y="314" width="480" height="36" as="geometry" />
+        </mxCell>
+        <mxCell id="bHl1" value="10" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#D5E8D4;strokeColor=none;fontSize=16;" vertex="1" parent="b1">
+          <mxGeometry x="60" y="364" width="44" height="32" as="geometry" />
+        </mxCell>
+        <mxCell id="bHl2" value="Amazing" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#F8CECC;strokeColor=none;fontSize=16;" vertex="1" parent="b1">
+          <mxGeometry x="108" y="364" width="100" height="32" as="geometry" />
+        </mxCell>
+        <mxCell id="bHl3" value="Things" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=none;fontSize=16;" vertex="1" parent="b1">
+          <mxGeometry x="212" y="364" width="80" height="32" as="geometry" />
+        </mxCell>
+        <mxCell id="bHl4" value="You" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=none;fontSize=16;" vertex="1" parent="b1">
+          <mxGeometry x="296" y="364" width="56" height="32" as="geometry" />
+        </mxCell>
+        <mxCell id="bHl5" value="Won&#39;t Believe" style="text;html=1;align=left;verticalAlign=middle;fontSize=16;" vertex="1" parent="b1">
+          <mxGeometry x="360" y="364" width="200" height="32" as="geometry" />
+        </mxCell>
+        <mxCell id="bLeg" value="Leyenda: verde = número inicial · rojo = hipérbole · azul = referencia vaga     (hover = categoría)" style="text;html=1;align=left;verticalAlign=middle;fontSize=11;fontColor=#666666;fontStyle=2" vertex="1" parent="b1">
+          <mxGeometry x="60" y="406" width="900" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="bGap" value="Clickbait de FORMA (estilo), no de ENGAÑO: el cuerpo sí corresponde al titular." style="text;html=1;align=left;verticalAlign=middle;fontSize=12;fontStyle=1;fontColor=#996600" vertex="1" parent="b1">
+          <mxGeometry x="60" y="430" width="900" height="20" as="geometry" />
+        </mxCell>
+
+        <mxCell id="bSecT" value="Señales contrastadas (5)" style="text;html=1;align=left;verticalAlign=middle;fontSize=16;fontStyle=1" vertex="1" parent="b1">
+          <mxGeometry x="40" y="492" width="400" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="bSecAll" value="Desplegar todas &#9662;" style="text;html=1;align=right;verticalAlign=middle;fontSize=12;fontColor=#6C8EBF" vertex="1" parent="b1">
+          <mxGeometry x="880" y="492" width="180" height="28" as="geometry" />
+        </mxCell>
+
+        <mxCell id="bCh1" value="Léxico · CLICKBAIT" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#D5E8D4;strokeColor=#82B366;fontSize=11;" vertex="1" parent="b1">
+          <mxGeometry x="40" y="530" width="190" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="bCh2" value="Lineal · CLICKBAIT" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#D5E8D4;strokeColor=#82B366;fontSize=11;" vertex="1" parent="b1">
+          <mxGeometry x="240" y="530" width="190" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="bCh3" value="Incoherencia · coherente" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF2CC;strokeColor=#D6B656;fontSize=11;" vertex="1" parent="b1">
+          <mxGeometry x="440" y="530" width="210" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="bCh4" value="RoBERTa · CLICKBAIT 0.83" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8CECC;strokeColor=#B85450;fontSize=11;" vertex="1" parent="b1">
+          <mxGeometry x="660" y="530" width="220" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="bCh5" value="Tono · no vota" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8CECC;strokeColor=#B85450;fontSize=11;" vertex="1" parent="b1">
+          <mxGeometry x="890" y="530" width="170" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="bChN" value="UNA PASTILLA POR SEÑAL, con su veredicto y su estado: la fila crece con la lista, no está cableada a cinco. El color es el TIPO — verde interpretable · amarillo híbrido · rojo opaco. Aquí también aparecen las que fallaron o quedaron en «no aplicable»." style="text;html=1;align=left;verticalAlign=middle;fontSize=11;fontColor=#666666;fontStyle=2" vertex="1" parent="b1">
+          <mxGeometry x="40" y="566" width="1020" height="20" as="geometry" />
+        </mxCell>
+
+        <mxCell id="bC1" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#666666;" vertex="1" parent="b1">
+          <mxGeometry x="40" y="600" width="500" height="210" as="geometry" />
+        </mxCell>
+        <mxCell id="bC1T" value="Léxico (reglas)" style="text;html=1;align=left;verticalAlign=middle;fontSize=14;fontStyle=1" vertex="1" parent="b1">
+          <mxGeometry x="60" y="612" width="260" height="24" as="geometry" />
+        </mxCell>
+        <mxCell id="bC1B" value="interpretable" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#D5E8D4;strokeColor=#82B366;fontSize=10;" vertex="1" parent="b1">
+          <mxGeometry x="420" y="612" width="100" height="22" as="geometry" />
+        </mxCell>
+        <mxCell id="bC1V" value="CLICKBAIT · 3 pistas" style="text;html=1;align=left;verticalAlign=middle;fontSize=13;" vertex="1" parent="b1">
+          <mxGeometry x="60" y="644" width="300" height="24" as="geometry" />
+        </mxCell>
+        <mxCell id="bC1c1" value="hipérbole: amazing" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8CECC;strokeColor=#B85450;fontSize=11;" vertex="1" parent="b1">
+          <mxGeometry x="60" y="676" width="160" height="26" as="geometry" />
+        </mxCell>
+        <mxCell id="bC1c2" value="ref. vaga: you" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11;" vertex="1" parent="b1">
+          <mxGeometry x="230" y="676" width="130" height="26" as="geometry" />
+        </mxCell>
+        <mxCell id="bC1c3" value="nº inicial: 10" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#D5E8D4;strokeColor=#82B366;fontSize=11;" vertex="1" parent="b1">
+          <mxGeometry x="370" y="676" width="120" height="26" as="geometry" />
+        </mxCell>
+        <mxCell id="bC1N" value="Las pistas SON la explicación (white-box). Sólo detecta clickbait de forma." style="text;html=1;whiteSpace=wrap;align=left;verticalAlign=top;fontSize=11;fontColor=#666666;fontStyle=2" vertex="1" parent="b1">
+          <mxGeometry x="60" y="716" width="440" height="40" as="geometry" />
+        </mxCell>
+
+        <mxCell id="bC2" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#666666;" vertex="1" parent="b1">
+          <mxGeometry x="560" y="600" width="500" height="210" as="geometry" />
+        </mxCell>
+        <mxCell id="bC2T" value="Modelo lineal (entrenado)" style="text;html=1;align=left;verticalAlign=middle;fontSize=14;fontStyle=1" vertex="1" parent="b1">
+          <mxGeometry x="580" y="612" width="280" height="24" as="geometry" />
+        </mxCell>
+        <mxCell id="bC2B" value="interpretable" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#D5E8D4;strokeColor=#82B366;fontSize=10;" vertex="1" parent="b1">
+          <mxGeometry x="940" y="612" width="100" height="22" as="geometry" />
+        </mxCell>
+        <mxCell id="bC2V" value="CLICKBAIT · probabilidad 0.99" style="text;html=1;align=left;verticalAlign=middle;fontSize=13;" vertex="1" parent="b1">
+          <mxGeometry x="580" y="640" width="300" height="24" as="geometry" />
+        </mxCell>
+        <mxCell id="bC2Bar" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#999999;" vertex="1" parent="b1">
+          <mxGeometry x="580" y="666" width="440" height="16" as="geometry" />
+        </mxCell>
+        <mxCell id="bC2Fill" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#F8CECC;strokeColor=none;" vertex="1" parent="b1">
+          <mxGeometry x="581" y="667" width="430" height="14" as="geometry" />
+        </mxCell>
+        <mxCell id="bC2L" value="Cues que más pesaron:" style="text;html=1;align=left;verticalAlign=middle;fontSize=11;fontStyle=1" vertex="1" parent="b1">
+          <mxGeometry x="580" y="688" width="300" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="bC2b1" value="you  +5.9" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#F8CECC;strokeColor=none;fontSize=11;align=left;spacingLeft=6;" vertex="1" parent="b1">
+          <mxGeometry x="580" y="710" width="300" height="18" as="geometry" />
+        </mxCell>
+        <mxCell id="bC2b2" value="amazing  +3.0" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#F8CECC;strokeColor=none;fontSize=11;align=left;spacingLeft=6;" vertex="1" parent="b1">
+          <mxGeometry x="580" y="732" width="160" height="18" as="geometry" />
+        </mxCell>
+        <mxCell id="bC2b3" value="all_caps  -0.8" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#D5E8D4;strokeColor=none;fontSize=11;align=left;spacingLeft=6;" vertex="1" parent="b1">
+          <mxGeometry x="580" y="754" width="80" height="18" as="geometry" />
+        </mxCell>
+        <mxCell id="bC2N" value="Barras a favor (rojo) y en contra (verde). Los pesos SON la explicación." style="text;html=1;whiteSpace=wrap;align=left;verticalAlign=top;fontSize=11;fontColor=#666666;fontStyle=2" vertex="1" parent="b1">
+          <mxGeometry x="580" y="778" width="450" height="24" as="geometry" />
+        </mxCell>
+
+        <mxCell id="bC3" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#666666;" vertex="1" parent="b1">
+          <mxGeometry x="40" y="830" width="500" height="210" as="geometry" />
+        </mxCell>
+        <mxCell id="bC3T" value="Incoherencia titular &#8596; cuerpo" style="text;html=1;align=left;verticalAlign=middle;fontSize=14;fontStyle=1" vertex="1" parent="b1">
+          <mxGeometry x="60" y="842" width="320" height="24" as="geometry" />
+        </mxCell>
+        <mxCell id="bC3B" value="híbrido" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF2CC;strokeColor=#D6B656;fontSize=10;" vertex="1" parent="b1">
+          <mxGeometry x="440" y="842" width="80" height="22" as="geometry" />
+        </mxCell>
+        <mxCell id="bC3V" value="COHERENTE · similitud 0.62" style="text;html=1;align=left;verticalAlign=middle;fontSize=13;" vertex="1" parent="b1">
+          <mxGeometry x="60" y="872" width="300" height="24" as="geometry" />
+        </mxCell>
+        <mxCell id="bC3G" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#999999;" vertex="1" parent="b1">
+          <mxGeometry x="60" y="904" width="440" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="bC3F" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#D5E8D4;strokeColor=none;" vertex="1" parent="b1">
+          <mxGeometry x="61" y="905" width="272" height="18" as="geometry" />
+        </mxCell>
+        <mxCell id="bC3Thr" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#B85450;strokeColor=none;" vertex="1" parent="b1">
+          <mxGeometry x="192" y="900" width="3" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="bC3ThrL" value="umbral 0.30 (calibrado, #92)" style="text;html=1;align=left;verticalAlign=middle;fontSize=10;fontColor=#B85450;" vertex="1" parent="b1">
+          <mxGeometry x="150" y="930" width="240" height="16" as="geometry" />
+        </mxCell>
+        <mxCell id="bC3N" value="Decisión transparente (umbral) sobre un rasgo opaco (embeddings). Requiere el cuerpo: sin él la tarjeta sale en gris, «no aplicable», con su motivo." style="text;html=1;whiteSpace=wrap;align=left;verticalAlign=top;fontSize=11;fontColor=#666666;fontStyle=2" vertex="1" parent="b1">
+          <mxGeometry x="60" y="956" width="440" height="44" as="geometry" />
+        </mxCell>
+
+        <mxCell id="bPleg" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F5F5F5;strokeColor=#999999;" vertex="1" parent="b1">
+          <mxGeometry x="560" y="830" width="500" height="210" as="geometry" />
+        </mxCell>
+        <mxCell id="bPlegT" value="Plegadas &#8212; no tienen explicación que desplegar" style="text;html=1;align=left;verticalAlign=middle;fontSize=13;fontStyle=1" vertex="1" parent="b1">
+          <mxGeometry x="580" y="842" width="460" height="24" as="geometry" />
+        </mxCell>
+        <mxCell id="bP1" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#CCCCCC;" vertex="1" parent="b1">
+          <mxGeometry x="580" y="876" width="460" height="44" as="geometry" />
+        </mxCell>
+        <mxCell id="bP1T" value="RoBERTa dedicado (Webis-17)" style="text;html=1;align=left;verticalAlign=middle;fontSize=12;fontStyle=1" vertex="1" parent="b1">
+          <mxGeometry x="594" y="881" width="260" height="18" as="geometry" />
+        </mxCell>
+        <mxCell id="bP1V" value="CLICKBAIT · confianza 0.83" style="text;html=1;align=left;verticalAlign=middle;fontSize=11;fontColor=#666666;" vertex="1" parent="b1">
+          <mxGeometry x="594" y="899" width="260" height="16" as="geometry" />
+        </mxCell>
+        <mxCell id="bP1B" value="opaco" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8CECC;strokeColor=#B85450;fontSize=9;" vertex="1" parent="b1">
+          <mxGeometry x="860" y="888" width="70" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="bP1C" value="&#9662;" style="text;html=1;align=right;verticalAlign=middle;fontSize=14;fontColor=#6C8EBF" vertex="1" parent="b1">
+          <mxGeometry x="950" y="886" width="76" height="24" as="geometry" />
+        </mxCell>
+        <mxCell id="bP2" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#CCCCCC;" vertex="1" parent="b1">
+          <mxGeometry x="580" y="930" width="460" height="44" as="geometry" />
+        </mxCell>
+        <mxCell id="bP2T" value="Tono (sentimiento)" style="text;html=1;align=left;verticalAlign=middle;fontSize=12;fontStyle=1" vertex="1" parent="b1">
+          <mxGeometry x="594" y="935" width="260" height="18" as="geometry" />
+        </mxCell>
+        <mxCell id="bP2V" value="NEGATIVO · 0.71 &#8212; no vota" style="text;html=1;align=left;verticalAlign=middle;fontSize=11;fontColor=#666666;" vertex="1" parent="b1">
+          <mxGeometry x="594" y="953" width="260" height="16" as="geometry" />
+        </mxCell>
+        <mxCell id="bP2B" value="opaco" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8CECC;strokeColor=#B85450;fontSize=9;" vertex="1" parent="b1">
+          <mxGeometry x="860" y="942" width="70" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="bP2C" value="&#9662;" style="text;html=1;align=right;verticalAlign=middle;fontSize=14;fontColor=#6C8EBF" vertex="1" parent="b1">
+          <mxGeometry x="950" y="940" width="76" height="24" as="geometry" />
+        </mxCell>
+        <mxCell id="bPlegN" value="SE PLIEGA POR TIPO, NO POR NÚMERO: una señal opaca no tiene nada que desplegar más allá de su etiqueta y su confianza, que ya están aquí. R3.8 pide priorizar lo interpretable. Añadir una señal interpretable la despliega sola; añadir una opaca la pliega sola." style="text;html=1;whiteSpace=wrap;align=left;verticalAlign=top;fontSize=11;fontColor=#666666;fontStyle=2" vertex="1" parent="b1">
+          <mxGeometry x="580" y="988" width="460" height="46" as="geometry" />
+        </mxCell>
+
+        <mxCell id="bFold" style="endArrow=none;dashed=1;html=1;strokeColor=#B85450;strokeWidth=2;" edge="1" parent="b1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="40" y="820" as="sourcePoint" />
+            <mxPoint x="1060" y="820" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="bFoldL" value="&#8593; sin scroll: veredicto, TODAS las señales en la fila de pastillas, y las dos interpretables enteras &#8595; scroll" style="text;html=1;align=right;verticalAlign=middle;fontSize=10;fontColor=#B85450;fontStyle=1" vertex="1" parent="b1">
+          <mxGeometry x="420" y="798" width="640" height="18" as="geometry" />
+        </mxCell>
+
+        <UserObject label="Ver fichas de los modelos" id="bFoot2" link="data:page/id,pModelos">
+          <mxCell style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#666666;" vertex="1" parent="b1">
+            <mxGeometry x="40" y="1064" width="240" height="40" as="geometry" />
+          </mxCell>
+        </UserObject>
+        <UserObject label="Preguntar al asistente sobre este resultado" id="bFoot3" link="data:page/id,pChat">
+          <mxCell style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#666666;" vertex="1" parent="b1">
+            <mxGeometry x="300" y="1064" width="300" height="40" as="geometry" />
+          </mxCell>
+        </UserObject>
+        <mxCell id="bFootN" value="«Guardar en historial» desaparece del prototipo original: desde #102 cada análisis se registra solo, y un botón que promete algo que ya ha pasado confunde." style="text;html=1;whiteSpace=wrap;align=left;verticalAlign=middle;fontSize=11;fontColor=#666666;fontStyle=2" vertex="1" parent="b1">
+          <mxGeometry x="620" y="1064" width="440" height="40" as="geometry" />
+        </mxCell>
+
+        <mxCell id="bIA" value="" style="rounded=0;whiteSpace=wrap;html=1;dashed=1;fillColor=none;strokeColor=#D6B656;" vertex="1" parent="b1">
+          <mxGeometry x="40" y="1140" width="500" height="230" as="geometry" />
+        </mxCell>
+        <mxCell id="bIAT" value="Estado inicial (antes de analizar)" style="text;html=1;align=left;verticalAlign=middle;fontSize=12;fontStyle=1;fontColor=#996600" vertex="1" parent="b1">
+          <mxGeometry x="60" y="1152" width="400" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="bIAL1" value="Titular *" style="text;html=1;align=left;verticalAlign=middle;fontSize=11;fontStyle=1" vertex="1" parent="b1">
+          <mxGeometry x="60" y="1180" width="200" height="18" as="geometry" />
+        </mxCell>
+        <mxCell id="bIAIn1" value="10 Amazing Things You Won&#39;t Believe" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#999999;align=left;spacingLeft=8;fontColor=#999999;fontSize=11;" vertex="1" parent="b1">
+          <mxGeometry x="60" y="1200" width="460" height="32" as="geometry" />
+        </mxCell>
+        <mxCell id="bIAL2" value="Contenido / cuerpo de la noticia (opcional)" style="text;html=1;align=left;verticalAlign=middle;fontSize=11;fontStyle=1" vertex="1" parent="b1">
+          <mxGeometry x="60" y="1240" width="360" height="18" as="geometry" />
+        </mxCell>
+        <mxCell id="bIAIn2" value="Pegar aquí el cuerpo o teaser..." style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#999999;align=left;verticalAlign=top;spacingLeft=8;spacingTop=4;fontColor=#999999;fontSize=11;" vertex="1" parent="b1">
+          <mxGeometry x="60" y="1260" width="460" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="bIABtn" value="Analizar" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#D5E8D4;strokeColor=#82B366;fontSize=12;fontStyle=1" vertex="1" parent="b1">
+          <mxGeometry x="60" y="1320" width="140" height="34" as="geometry" />
+        </mxCell>
+        <mxCell id="bIAN" value="El mismo formulario de la pantalla 2, en ESTA ruta. Al responder se contrae a la barra de arriba." style="text;html=1;whiteSpace=wrap;align=left;verticalAlign=middle;fontSize=10;fontColor=#666666;fontStyle=2" vertex="1" parent="b1">
+          <mxGeometry x="210" y="1320" width="310" height="34" as="geometry" />
+        </mxCell>
+
+        <mxCell id="bIB" value="" style="rounded=0;whiteSpace=wrap;html=1;dashed=1;fillColor=none;strokeColor=#D6B656;" vertex="1" parent="b1">
+          <mxGeometry x="560" y="1140" width="500" height="230" as="geometry" />
+        </mxCell>
+        <mxCell id="bIBT" value="Estado «analizando…» (R6.6)" style="text;html=1;align=left;verticalAlign=middle;fontSize=12;fontStyle=1;fontColor=#996600" vertex="1" parent="b1">
+          <mxGeometry x="580" y="1152" width="400" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="bIBBar" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#CCCCCC;" vertex="1" parent="b1">
+          <mxGeometry x="580" y="1180" width="460" height="56" as="geometry" />
+        </mxCell>
+        <mxCell id="bIBBarT" value="«10 Amazing Things You Won&#39;t Believe»" style="text;html=1;align=left;verticalAlign=middle;fontSize=12;fontStyle=1" vertex="1" parent="b1">
+          <mxGeometry x="596" y="1190" width="400" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="bIBBarM" value="analizando 5 señales…" style="text;html=1;align=left;verticalAlign=middle;fontSize=11;fontColor=#666666;" vertex="1" parent="b1">
+          <mxGeometry x="596" y="1210" width="300" height="16" as="geometry" />
+        </mxCell>
+        <mxCell id="bIBs1" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EEEEEE;strokeColor=none;" vertex="1" parent="b1">
+          <mxGeometry x="580" y="1250" width="460" height="18" as="geometry" />
+        </mxCell>
+        <mxCell id="bIBs2" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EEEEEE;strokeColor=none;" vertex="1" parent="b1">
+          <mxGeometry x="580" y="1274" width="320" height="18" as="geometry" />
+        </mxCell>
+        <mxCell id="bIBs3" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EEEEEE;strokeColor=none;" vertex="1" parent="b1">
+          <mxGeometry x="580" y="1298" width="400" height="18" as="geometry" />
+        </mxCell>
+        <mxCell id="bIBN" value="El botón se deshabilita y las tarjetas llegan como esqueleto. Sigue haciendo falta pese al precalentado de #125 (105 s &#8594; 0,05 s): la red y el arranque en frío existen." style="text;html=1;whiteSpace=wrap;align=left;verticalAlign=top;fontSize=10;fontColor=#666666;fontStyle=2" vertex="1" parent="b1">
+          <mxGeometry x="580" y="1324" width="460" height="40" as="geometry" />
+        </mxCell>
+
+        <mxCell id="bAnn" value="VARIANTE DE LA PANTALLA 3 CON UNA SOLA RUTA. Por qué: /analyze no devuelve hoy ningún id (issue #133), así que una ruta /resultados no sería enlazable ni sobreviviría a una recarga, y obligaría a un servicio de estado sólo para cruzar la navegación. El «&#8592; Nuevo análisis» pasa de navegar a restablecer: mismo gesto, misma etiqueta. Cuando #133 esté hecha, /analisis/:id se AÑADE como segunda ruta sin tocar esto. La pantalla 3 se conserva intacta como lo validado en #73.&#10;&#10;Dos cambios de fondo respecto al original: (1) el número de señales es VARIABLE — la fila de pastillas las muestra todas y las tarjetas se despliegan por TIPO, no por posición en una rejilla fija; (2) el contenido se actualiza a lo que el backend devuelve HOY: la cuarta señal ya no es zero-shot NLI sino un RoBERTa dedicado (#115), el umbral de incoherencia está calibrado (#92), aparece el tono como quinta señal que no vota, y el guardado en historial es automático (#102). Cifras ilustrativas, como en el original." style="rounded=0;whiteSpace=wrap;html=1;dashed=1;fillColor=#FFF2CC;strokeColor=#D6B656;align=left;spacingLeft=10;spacingTop=6;fontSize=11;verticalAlign=top;" vertex="1" parent="b1">
+          <mxGeometry x="40" y="1400" width="1020" height="150" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+
   <diagram name="4 - Sistema" id="pModelos">
     <mxGraphModel dx="1100" dy="1000" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1100" pageHeight="1000" math="0" shadow="0">
       <root>
