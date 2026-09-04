@@ -12,6 +12,12 @@ CLAUDE.md
 var/
 repomix-output.xml
 
+# Base de datos SQLite donde coverage.py va anotando qué líneas se ejecutan
+# mientras corren los tests. Es del mismo tipo que var/ —estado local y
+# regenerable, que sólo significa algo en la máquina que lo produjo— y aparece en
+# cuanto alguien lanza `pytest --cov`, que es lo que hará #138.
+.coverage
+
 # Frontend Angular (H3). node_modules/ sin acotar a frontend/ y a cualquier
 # profundidad: un solo npm install descuidado en otro directorio metería
 # decenas de miles de ficheros en el primer git status, y a esas alturas ya
