@@ -1189,6 +1189,173 @@ Añadir el registro a `/analyze` convirtió, sin avisar, todos los tests de esa 
 
 `tests/api/test_history.py` cubre los dos lados por separado —el almacén llamando a sus funciones, el endpoint por HTTP— porque responden preguntas distintas: si los datos sobreviven y salen en orden, y si la decisión de «una entrada por análisis» se sostiene de verdad.
 
+### Diagramas del flujo de peticiones, y dos reglas que pasan a tener test (#106)
+
+`docs/arquitectura.md` se declaraba «documento vivo» y reflejaba el estado al
+cerrar el MVP, en junio. Desde entonces se había construido la capa REST entera y
+el documento no la mencionaba: su tabla marcaba `R4–R9 ⬜ Fase B` con R4, R5 y R9
+completos. Y el camino que sigue una petición no estaba dibujado en ninguna parte.
+
+#### Un documento que se equivocaba sobre sí mismo
+
+La cabecera decía, desde junio, *«Diagramas en Mermaid (se renderizan en
+GitHub)»*. **Sus dos diagramas eran SVG exportados de draw.io.** Llevaba meses
+afirmando algo falso sobre su propio contenido, y nadie lo notó porque una
+cabecera no se relee.
+
+Es el argumento entero de esta issue en pequeño: **una afirmación que nada
+sostiene se desincroniza en silencio**. Vale para la cabecera de un fichero y
+vale para una regla de arquitectura, y por eso el trabajo acabó incluyendo tests.
+
+#### El formato: los dos, con un criterio
+
+Mermaid para los diagramas de flujo, draw.io para el UML que va a la memoria. La
+diferencia no es estética:
+
+- Un diagrama de secuencia en XML de draw.io **se escribe una vez y no se
+  actualiza nunca**. Vive fuera del texto, no aparece en el diff de una PR y
+  nadie sabe si sigue siendo cierto.
+- En Mermaid vive dentro del Markdown, se corrige en una línea y **se revisa en
+  la pull request** como cualquier otro cambio.
+
+De ahí sale el criterio que queda escrito en el propio documento:
+
+> Si un diagrama necesita control fino de la disposición, o va en draw.io, o está
+> diciendo dos cosas y hay que partirlo.
+
+Los dos SVG de la Fase A se conservan, reencuadrados: describen **el servidor
+MCP**, que sigue siendo cierto como componente aunque ya no sea el sistema entero.
+
+#### Un diagrama, un mensaje
+
+El primer borrador del diagrama de fachadas salió con las líneas cruzándose, y la
+tentación era culpar al motor de disposición. No era suya:
+
+- **Llevaba dos mensajes a la vez** —quién cruza la frontera MCP y quién escribe
+  en el historial—. Partido en dos, los dos quedan limpios.
+- **El de capas cruzaba por una flecha «prohibido»** que iba hacia atrás.
+  Cualquier arista que remonte el flujo obliga a rodear el grafo entero. Y lo
+  importante: esa flecha **dibujaba una ausencia**. La regla dice que ese import
+  no existe, así que representarlo era representar lo que no hay. Fuera del
+  dibujo y escrita debajo.
+
+#### Dos trampas de Mermaid, y lo que costaron
+
+Encontradas al renderizar, no leyendo documentación:
+
+- **`#` inicia un código de entidad** (`#quot;` y compañía) y se traga lo que
+  venga detrás. Escribir `(#133)` produjo `(`. En este repositorio, donde las
+  issues se citan por número constantemente, es una trampa esperando.
+- **`;` termina la sentencia.** Una etiqueta con punto y coma se parte en dos y
+  **el diagrama entero deja de renderizarse**, sin error visible en el Markdown.
+
+Las dos quedan anotadas en la cabecera del documento.
+
+#### Verificar el documento, no una copia
+
+Los diagramas se validaron primero en un HTML aparte, y ahí apareció un tercer
+problema que era del método y no del contenido: metiendo la fuente en un
+`<pre class="mermaid">`, **el navegador interpreta las etiquetas HTML antes que
+Mermaid**, así que un `<b>` dentro de una etiqueta llegaba ya convertido y rompía
+el análisis sintáctico. En GitHub eso no pasa —una valla ```` ```mermaid ````
+entrega el texto crudo—, así que el banco de pruebas estaba inventando un fallo.
+
+La comprobación final se hace al revés: un script **extrae las siete vallas del
+propio `arquitectura.md` ya escrito** y las renderiza. Las siete devuelven SVG.
+Lo verificado es exactamente lo que se commitea, no una versión paralela que
+podría haber divergido.
+
+#### Dos diagramas fuera del alcance original
+
+La issue pedía cuatro. Se añaden dos más porque son los que sirven para decidir,
+no sólo para explicar:
+
+- **El dominio del análisis.** Ahí se ve de un vistazo que `data` es un
+  diccionario sin tipo que nadie vigila, y que un `is_clickbait` nulo en una
+  dimensión **es el resultado** —dos señales fiables que no coinciden— y no un
+  hueco. Las dos cosas están en el centro de las decisiones abiertas.
+- **Las capas y su dirección permitida.** Hace visual dónde puede entrar la
+  configuración sin romper nada, que es la pregunta que trae la parametrización
+  de umbrales (#93).
+
+#### El alcance creció: dos reglas pasan a tener test
+
+Al escribir el diagrama de capas hubo que verificar sus dos afirmaciones, y las
+dos resultaron ciertas… y sostenidas por nada:
+
+1. Ninguna capa del núcleo importa de las fachadas.
+2. Los detectores —`lexical`, `linear`, `incoherence`, `dedicated`— no importan
+   `settings`; sólo lo hacen `client.py`, que necesita el token, y `factory.py`,
+   cuyo trabajo es leer configuración.
+
+Publicar un diagrama que dibuja una regla que nada defiende es repetir el error
+de la cabecera. Así que `tests/test_arquitectura.py` entra en una issue de
+documentación, a propósito.
+
+**Parsea el árbol con `ast`, no hace `grep`:** un import comentado no debe hacer
+fallar nada. Y recorre el árbol entero, así que **también ve los imports dentro
+de funciones** — hay uno legítimo en `precalentar()`, y es por ahí por donde se
+esquivaría la regla sin querer.
+
+**Se comprobó rompiéndolas.** Se añadió `from backend.api import schemas` a
+`core/models.py` y `from backend.config.settings import settings` a `lexical.py`,
+y los dos tests fallaron nombrando fichero e import culpables. Un test de
+arquitectura que pasa, pero que nadie ha visto fallar, no demuestra nada: podría
+estar recorriendo un directorio vacío.
+
+**La segunda regla lista excepciones, no detectores.** Recorre *todos* los
+módulos de `integrations/nlp/` y sólo perdona a dos. Así un detector nuevo queda
+cubierto sin tocar nada, y meter `settings` en un módulo de esa capa obliga a
+**editar la lista a mano** — que es justo la decisión consciente que se quiere
+forzar cuando llegue #93. La regla no sólo describe el pasado: defiende una
+decisión futura.
+
+**Se descartó `import-linter`**, que es la herramienta hecha para esto y expresa
+el apilado completo de forma declarativa. Para dos reglas traería una dependencia
+más y un paso de CI más —el job de Python instala sólo `requirements.txt` y añade
+`ruff` aparte y pineado— mientras que esto usa la biblioteca estándar y corre en
+el `pytest` que ya existe. Con cinco contratos de capas, se reconsidera.
+
+#### Lo que estaba desfasado, corregido
+
+| Decía | Dice |
+| :--- | :--- |
+| «Diagramas en Mermaid» siendo SVG | el criterio real, con sus dos trampas |
+| «un servidor MCP, transporte stdio» | dos fachadas, y el transporte configurable (#90) |
+| `detect_clickbait` = zero-shot BART | el dominio se describe por su forma, no por el modelo de turno (#115) |
+| R3.7 (incoherencia) pendiente | ✅ (#56) |
+| `R4–R9 ⬜ Fase B` | R4, R5 y R9 ✅; R6 parcial; R7 y el CD pendientes |
+| Sin rastro de `analysis/` | es la capa central del diagrama de capas |
+
+La tabla de requisitos dice ahora también **lo que falta y con qué issue**: R3.9 a
+medias (#119), el texto de excepción sin sanear (#89) y las tres pantallas que
+quedan de R6.
+
+#### Lo que sigue sin vigilancia, dicho para que no se olvide
+
+- **Las formas del `data` están declaradas dos veces**: tres `TypedDict` en
+  `outputs.py` para MCP y cuatro guardianes escritos a mano en `datos.ts`. Ningún
+  guardián del CI ve esa duplicación, porque el contrato REST declara `data` como
+  diccionario libre.
+- **Los diccionarios de `vocabulario.ts` no están atados a los enums.**
+  `VEREDICTOS` y `DIMENSIONES` son `Record<string, string>` cuando podrían ser
+  `Record<OverallVerdict, string>` y `Record<Dimension, string>`, que ya son
+  uniones generadas: entonces añadir un veredicto en el backend rompería el build
+  en vez de pintar la clave cruda. `NOMBRES` y `CATEGORIAS` **no** se pueden
+  tipar así, porque no viajan en el contrato — y eso separa solo lo que el
+  contrato puede defender de lo que no.
+- **`tests/api/test_analyze.py` prueba `analysis/orchestrator`.** El código se
+  movió en #107 y sus tests se quedaron, rompiendo el espejo `tests/` ↔
+  `backend/` del PR #52.
+- **No se mide cobertura.** `pytest-cov` está en `requirements.in` y el CI no lo
+  invoca, así que «qué más no tiene test» hoy sólo se responde leyendo.
+
+#### Una nota sobre la versión
+
+La issue pedía que esto entrara **antes del tag `v0.3.0`**, para que la release no
+quedara sin la documentación de su propia arquitectura. No llegó a tiempo, y los
+tags son cortes en el tiempo que no se reabren: entra en **`v0.4.0`**, con H3.
+
 ### La pantalla de análisis: el lienzo de explicabilidad (#127)
 
 La primera pantalla que pinta algo propio, y la que sostiene la tesis del
