@@ -126,7 +126,7 @@ async def test_las_senales_traen_su_ficha_de_modelo(monkeypatch, servidor_mcp):
     ficha = tools["detect_clickbait_lexical"].model_card
     assert ficha is not None
     assert ficha.type.value == "interpretable"
-    assert ficha.dimension.value == "forma"
+    assert ficha.dimension.value == "form"
     # Los límites medidos son lo que evita que el catálogo prometa de más.
     assert any("0.498" in limite for limite in ficha.limitations)
 

@@ -10,7 +10,7 @@ import type { AnalyzeResponse } from './models';
 
 /**
  * Respuesta mínima que sigue validando contra el contrato: sin señales y con
- * `sin_datos`, que es lo que devuelve el backend cuando ninguna llegó a
+ * `no_data`, que es lo que devuelve el backend cuando ninguna llegó a
  * pronunciarse. Aquí no se prueba el análisis, sólo el transporte.
  */
 const RESPUESTA: AnalyzeResponse = {
@@ -18,7 +18,7 @@ const RESPUESTA: AnalyzeResponse = {
   content: null,
   signals: [],
   dimensions: [],
-  verdict: 'sin_datos',
+  verdict: 'no_data',
 };
 
 describe('AnalyzeService', () => {

@@ -6,7 +6,7 @@ import { SenalCard } from './senal-card';
 const LEXICA: SignalResult = {
   name: 'detect_clickbait_lexical',
   status: 'ok',
-  dimension: 'forma',
+  dimension: 'form',
   type: 'interpretable',
   is_clickbait: true,
   data: {
@@ -21,8 +21,8 @@ const LEXICA: SignalResult = {
 const OPACA: SignalResult = {
   name: 'detect_clickbait',
   status: 'ok',
-  dimension: 'forma',
-  type: 'opaco',
+  dimension: 'form',
+  type: 'opaque',
   is_clickbait: true,
   data: { label: 'clickbait', score: 0.83 },
 };
@@ -30,8 +30,8 @@ const OPACA: SignalResult = {
 const CAIDA: SignalResult = {
   name: 'detect_clickbait',
   status: 'error',
-  dimension: 'forma',
-  type: 'opaco',
+  dimension: 'form',
+  type: 'opaque',
   data: null,
   detail: 'HTTP error: 400 - Model not supported by provider hf-inference',
 };
@@ -39,7 +39,7 @@ const CAIDA: SignalResult = {
 const DESCONOCIDA: SignalResult = {
   name: 'una_senal_futura',
   status: 'ok',
-  dimension: 'forma',
+  dimension: 'form',
   type: 'interpretable',
   is_clickbait: false,
   data: { algo: 'que nadie ha previsto' },

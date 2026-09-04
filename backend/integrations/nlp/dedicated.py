@@ -26,7 +26,7 @@ Su patrón es además **el inverso** del que descartó a ``elozano``:
 Alto FUERA y más bajo DENTRO. Eso es generalizar, no memorizar — y su 0,946 en
 Chakraborty supera al 0,865 que el lineal saca *dentro* de su propio dominio.
 
-Con él, la dimensión ``forma`` deja el 15 % de titulares sin resolver en vez del
+Con él, la dimensión ``form`` deja el 15 % de titulares sin resolver en vez del
 37 %, y sólo el 20 % de esa ambigüedad restante es error suyo (antes, el 78 %).
 Por eso **vuelve a votar**: el motivo por el que #109 lo silenció desaparece.
 

@@ -20,7 +20,7 @@ export interface paths {
          *     Devuelve **200 aunque alguna señal falle**: cada una lleva su propio
          *     `status`, y perder tres análisis correctos porque el cuarto dio timeout
          *     sería un error. Si el cuerpo de la noticia no se
-         *     envía, la señal de incoherencia queda en `no_aplicable` y la dimensión de
+         *     envía, la señal de incoherencia queda en `not_applicable` y la dimensión de
          *     engaño no se puede evaluar.
          *
          *     Cada análisis queda registrado en el historial. Si esa escritura
@@ -187,7 +187,7 @@ export interface components {
             headline: string;
             /**
              * Content
-             * @description Cuerpo o teaser. Opcional: sin él, la señal de incoherencia queda en 'no_aplicable' y no se puede evaluar la dimensión de engaño.
+             * @description Cuerpo o teaser. Opcional: sin él, la señal de incoherencia queda en 'not_applicable' y no se puede evaluar la dimensión de engaño.
              */
             content?: string | null;
         };
@@ -227,7 +227,7 @@ export interface components {
          * @description Qué mide una señal. Determina cómo se agrupan los veredictos.
          * @enum {string}
          */
-        Dimension: "forma" | "engano" | "tono";
+        Dimension: "form" | "deception" | "tone";
         /**
          * DimensionVerdict
          * @description Veredicto agregado de las señales que miden lo mismo (principio 3).
@@ -403,7 +403,7 @@ export interface components {
          *     que la forma— en lugar de por mayoría de señales.
          * @enum {string}
          */
-        OverallVerdict: "enganoso" | "clickbait_de_forma" | "factual" | "ambiguo" | "sin_datos";
+        OverallVerdict: "deceptive" | "stylistic_clickbait" | "factual" | "ambiguous" | "no_data";
         /**
          * RetentionPolicy
          * @description Política de retención vigente, para que la interfaz no la cablee.
@@ -505,17 +505,17 @@ export interface components {
          * @description Por qué una señal tiene o no resultado.
          * @enum {string}
          */
-        SignalStatus: "ok" | "no_aplicable" | "error";
+        SignalStatus: "ok" | "not_applicable" | "error";
         /**
          * SignalType
          * @description Naturaleza del modelo. Se muestra como badge en la interfaz.
          *
          *     No mide cuán complejo es el modelo sino **dónde está la transparencia**:
-         *     ``híbrido`` es decisión transparente sobre un rasgo opaco — un umbral legible
+         *     ``hybrid`` es decisión transparente sobre un rasgo opaco — un umbral legible
          *     aplicado a una similitud de embeddings, por ejemplo.
          * @enum {string}
          */
-        SignalType: "interpretable" | "híbrido" | "opaco";
+        SignalType: "interpretable" | "hybrid" | "opaque";
         /**
          * ToolInfo
          * @description Una herramienta del catálogo, con su procedencia y sus metadatos.
@@ -687,7 +687,7 @@ export interface operations {
                 kind?: components["schemas"]["HistoryKind"] | null;
                 /** @description Nombre de la herramienta. Sólo casa con ejecuciones sueltas: un análisis invoca cinco señales y no tiene *una* herramienta. */
                 tool?: string | null;
-                /** @description Qué CONCLUYÓ el análisis: `enganoso`, `factual`, `ambiguo`… */
+                /** @description Qué CONCLUYÓ el análisis: `deceptive`, `factual`, `ambiguous`… */
                 verdict?: string | null;
                 /** @description Si funcionó la MAQUINARIA: `ok` o `error`. Filtro operativo. */
                 status?: string | null;

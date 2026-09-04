@@ -14,7 +14,7 @@ Tres principios los gobiernan:
 2. **El estado va por señal, no global.** Un único campo ``status`` cubre dos
    situaciones que, desde el punto de vista de la respuesta, son la misma —esa
    señal no tiene resultado, pero las demás sí—: que falten datos de entrada
-   (``no_aplicable``: la incoherencia necesita el cuerpo) y que la ejecución
+   (``not_applicable``: la incoherencia necesita el cuerpo) y que la ejecución
    falle (``error``: ~1 de cada 5 llamadas a HuggingFace da timeout, medido en la
    Épica 4). El análisis NO devuelve error global mientras alguna señal funcione:
    perder tres análisis correctos porque el cuarto falló sería el mismo error que
@@ -29,6 +29,17 @@ Tres principios los gobiernan:
    objetividad no es lo mismo que hacer clickbait, y cuánto pesa eso es juicio
    de quien lee. No hace falta ningún caso especial para conseguirlo —
    simplemente no emite veredicto, igual que una señal que ha fallado.
+
+**Las claves van en inglés y sin diacríticos** (#134). Los valores de estos enums
+son claves de máquina: viajan por JSON, acaban como atributos del DOM y como
+selectores CSS. Traducirlos a «Engaño», «Híbrido» o «Sin datos» es trabajo de la
+capa de vocabulario del frontend, que es donde vive esa decisión.
+
+Hasta #134 convivían dos reglas opuestas en este mismo fichero —``engano``
+renunciaba a la ñ y ``híbrido`` la conservaba—, así que no se podía responder
+«¿las claves llevan tildes?» mirando el código. El síntoma era una función en el
+frontend cuyo único trabajo era convertir ``híbrido`` en ``hibrido`` para poder
+casarla en CSS.
 """
 
 from enum import Enum
@@ -38,7 +49,7 @@ from pydantic import BaseModel, Field, StringConstraints
 
 # Recorta antes de medir. Con un simple `min_length=1`, un titular de un solo
 # espacio pasa la validación —mide 1 carácter— y llega hasta las señales, que
-# fallan una a una: la respuesta sería un 200 con veredicto `sin_datos` en vez
+# fallan una a una: la respuesta sería un 200 con veredicto `no_data` en vez
 # del 422 que corresponde a una petición inválida. Pydantic aplica
 # `strip_whitespace` antes que `min_length`, así que el blanco se rechaza aquí.
 NonBlankStr = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)]
@@ -48,29 +59,29 @@ class SignalStatus(str, Enum):
     """Por qué una señal tiene o no resultado."""
 
     OK = "ok"
-    NO_APLICABLE = "no_aplicable"  # faltan datos de entrada (p. ej. el cuerpo)
+    NOT_APPLICABLE = "not_applicable"  # faltan datos de entrada (p. ej. el cuerpo)
     ERROR = "error"  # la ejecución falló (timeout, proveedor caído...)
 
 
 class Dimension(str, Enum):
     """Qué mide una señal. Determina cómo se agrupan los veredictos."""
 
-    FORMA = "forma"  # sensacionalismo en la redacción
-    ENGANO = "engano"  # el titular promete algo que el cuerpo no cumple
-    TONO = "tono"  # carga emocional; contexto que se muestra, no veredicto
+    FORM = "form"  # sensacionalismo en la redacción
+    DECEPTION = "deception"  # el titular promete algo que el cuerpo no cumple
+    TONE = "tone"  # carga emocional; contexto que se muestra, no veredicto
 
 
 class SignalType(str, Enum):
     """Naturaleza del modelo. Se muestra como badge en la interfaz.
 
     No mide cuán complejo es el modelo sino **dónde está la transparencia**:
-    ``híbrido`` es decisión transparente sobre un rasgo opaco — un umbral legible
+    ``hybrid`` es decisión transparente sobre un rasgo opaco — un umbral legible
     aplicado a una similitud de embeddings, por ejemplo.
     """
 
     INTERPRETABLE = "interpretable"
-    HIBRIDO = "híbrido"
-    OPACO = "opaco"
+    HYBRID = "hybrid"
+    OPAQUE = "opaque"
 
 
 class SignalResult(BaseModel):
@@ -142,11 +153,11 @@ class OverallVerdict(str, Enum):
     que la forma— en lugar de por mayoría de señales.
     """
 
-    ENGANOSO = "enganoso"  # hay engaño: el cuerpo no corresponde al titular
-    CLICKBAIT_DE_FORMA = "clickbait_de_forma"  # sensacionalista, pero sin engañar
+    DECEPTIVE = "deceptive"  # hay engaño: el cuerpo no corresponde al titular
+    STYLISTIC_CLICKBAIT = "stylistic_clickbait"  # sensacionalista, pero sin engañar
     FACTUAL = "factual"
-    AMBIGUO = "ambiguo"  # las señales de una misma dimensión se contradicen
-    SIN_DATOS = "sin_datos"  # ninguna señal llegó a emitir veredicto
+    AMBIGUOUS = "ambiguous"  # las señales de una misma dimensión se contradicen
+    NO_DATA = "no_data"  # ninguna señal llegó a emitir veredicto
 
 
 class AnalyzeRequest(BaseModel):
@@ -155,7 +166,7 @@ class AnalyzeRequest(BaseModel):
         default=None,
         description=(
             "Cuerpo o teaser. Opcional: sin él, la señal de incoherencia queda "
-            "en 'no_aplicable' y no se puede evaluar la dimensión de engaño."
+            "en 'not_applicable' y no se puede evaluar la dimensión de engaño."
         ),
     )
 

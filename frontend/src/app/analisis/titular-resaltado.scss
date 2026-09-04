@@ -16,7 +16,7 @@ mark[data-categoria='leading_number'] {
   background: var(--interpretable-fondo);
 }
 mark[data-categoria='hyperbole'] {
-  background: var(--opaco-fondo);
+  background: var(--opaque-fondo);
 }
 mark[data-categoria='forward_reference'] {
   background: #dae8fc;
@@ -27,7 +27,7 @@ mark[data-categoria='curiosity_gap'] {
 mark[data-categoria='question'],
 mark[data-categoria='all_caps'],
 mark[data-categoria='ellipsis'] {
-  background: var(--hibrido-fondo);
+  background: var(--hybrid-fondo);
 }
 
 .leyenda {

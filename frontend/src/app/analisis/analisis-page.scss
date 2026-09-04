@@ -158,9 +158,9 @@ button[disabled] {
 .veredicto {
   margin-top: 1.5rem;
   padding: 1.1rem 1.3rem;
-  border: 1px solid var(--hibrido);
+  border: 1px solid var(--hybrid);
   border-radius: 8px;
-  background: var(--hibrido-fondo);
+  background: var(--hybrid-fondo);
 }
 
 .veredicto h2 {
@@ -211,14 +211,14 @@ button[disabled] {
   background: var(--interpretable-fondo);
 }
 
-.pastilla[data-tipo='hibrido'] {
-  border-color: var(--hibrido);
-  background: var(--hibrido-fondo);
+.pastilla[data-tipo='hybrid'] {
+  border-color: var(--hybrid);
+  background: var(--hybrid-fondo);
 }
 
-.pastilla[data-tipo='opaco'] {
-  border-color: var(--opaco);
-  background: var(--opaco-fondo);
+.pastilla[data-tipo='opaque'] {
+  border-color: var(--opaque);
+  background: var(--opaque-fondo);
 }
 
 .pastilla span {

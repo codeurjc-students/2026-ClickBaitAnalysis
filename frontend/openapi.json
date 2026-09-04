@@ -12,7 +12,7 @@
           "análisis"
         ],
         "summary": "Post Analyze",
-        "description": "Analiza un titular contrastando todas las señales disponibles.\n\nDevuelve **200 aunque alguna señal falle**: cada una lleva su propio\n`status`, y perder tres análisis correctos porque el cuarto dio timeout\nsería un error. Si el cuerpo de la noticia no se\nenvía, la señal de incoherencia queda en `no_aplicable` y la dimensión de\nengaño no se puede evaluar.\n\nCada análisis queda registrado en el historial. Si esa escritura\nfalla, la respuesta se devuelve igual: perder un análisis correcto porque el\ndisco esté lleno sería peor que no guardarlo.",
+        "description": "Analiza un titular contrastando todas las señales disponibles.\n\nDevuelve **200 aunque alguna señal falle**: cada una lleva su propio\n`status`, y perder tres análisis correctos porque el cuarto dio timeout\nsería un error. Si el cuerpo de la noticia no se\nenvía, la señal de incoherencia queda en `not_applicable` y la dimensión de\nengaño no se puede evaluar.\n\nCada análisis queda registrado en el historial. Si esa escritura\nfalla, la respuesta se devuelve igual: perder un análisis correcto porque el\ndisco esté lleno sería peor que no guardarlo.",
         "operationId": "post_analyze_analyze_post",
         "requestBody": {
           "content": {
@@ -206,10 +206,10 @@
                   "type": "null"
                 }
               ],
-              "description": "Qué CONCLUYÓ el análisis: `enganoso`, `factual`, `ambiguo`…",
+              "description": "Qué CONCLUYÓ el análisis: `deceptive`, `factual`, `ambiguous`…",
               "title": "Verdict"
             },
-            "description": "Qué CONCLUYÓ el análisis: `enganoso`, `factual`, `ambiguo`…"
+            "description": "Qué CONCLUYÓ el análisis: `deceptive`, `factual`, `ambiguous`…"
           },
           {
             "name": "status",
@@ -338,7 +338,7 @@
               }
             ],
             "title": "Content",
-            "description": "Cuerpo o teaser. Opcional: sin él, la señal de incoherencia queda en 'no_aplicable' y no se puede evaluar la dimensión de engaño."
+            "description": "Cuerpo o teaser. Opcional: sin él, la señal de incoherencia queda en 'not_applicable' y no se puede evaluar la dimensión de engaño."
           }
         },
         "type": "object",
@@ -426,9 +426,9 @@
       "Dimension": {
         "type": "string",
         "enum": [
-          "forma",
-          "engano",
-          "tono"
+          "form",
+          "deception",
+          "tone"
         ],
         "title": "Dimension",
         "description": "Qué mide una señal. Determina cómo se agrupan los veredictos."
@@ -684,11 +684,11 @@
       "OverallVerdict": {
         "type": "string",
         "enum": [
-          "enganoso",
-          "clickbait_de_forma",
+          "deceptive",
+          "stylistic_clickbait",
           "factual",
-          "ambiguo",
-          "sin_datos"
+          "ambiguous",
+          "no_data"
         ],
         "title": "OverallVerdict",
         "description": "Etiqueta única, para listados compactos como el historial.\n\nSe deriva de las dimensiones con una jerarquía explícita —el engaño pesa más\nque la forma— en lugar de por mayoría de señales."
@@ -839,7 +839,7 @@
         "type": "string",
         "enum": [
           "ok",
-          "no_aplicable",
+          "not_applicable",
           "error"
         ],
         "title": "SignalStatus",
@@ -849,11 +849,11 @@
         "type": "string",
         "enum": [
           "interpretable",
-          "híbrido",
-          "opaco"
+          "hybrid",
+          "opaque"
         ],
         "title": "SignalType",
-        "description": "Naturaleza del modelo. Se muestra como badge en la interfaz.\n\nNo mide cuán complejo es el modelo sino **dónde está la transparencia**:\n``híbrido`` es decisión transparente sobre un rasgo opaco — un umbral legible\naplicado a una similitud de embeddings, por ejemplo."
+        "description": "Naturaleza del modelo. Se muestra como badge en la interfaz.\n\nNo mide cuán complejo es el modelo sino **dónde está la transparencia**:\n``hybrid`` es decisión transparente sobre un rasgo opaco — un umbral legible\naplicado a una similitud de embeddings, por ejemplo."
       },
       "ToolInfo": {
         "properties": {

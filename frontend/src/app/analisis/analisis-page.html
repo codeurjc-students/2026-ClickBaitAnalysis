@@ -101,7 +101,7 @@
   <!-- Índice compacto: todas las señales caben sobre la línea de flotación. -->
   <ul class="pastillas">
     @for (senal of analisis.signals; track senal.name) {
-      <li class="pastilla" [attr.data-tipo]="tipo(senal)">
+      <li class="pastilla" [attr.data-tipo]="senal.type">
         <strong>{{ nombre(senal) }}</strong>
         <span>{{ estado(senal) }}</span>
       </li>

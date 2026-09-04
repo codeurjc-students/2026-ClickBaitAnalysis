@@ -73,7 +73,7 @@ def test_no_se_presenta_como_una_senal_mas(tool):
 
 def test_el_cuerpo_es_opcional(tool):
     """Sin cuerpo no se puede evaluar el engaño, pero el análisis sigue siendo
-    válido: la señal queda en `no_aplicable` y las demás votan igual."""
+    válido: la señal queda en `not_applicable` y las demás votan igual."""
     requeridos = tool.inputSchema.get("required", [])
     assert "headline" in requeridos
     assert "content" not in requeridos

@@ -148,7 +148,7 @@ def _por_dimension(verdicts):
 @pytest.mark.parametrize("blanco", [" ", "", "\t\n", "   "])
 def test_headline_en_blanco_se_rechaza(blanco):
     # Un titular de solo espacios medía 1 carácter y pasaba `min_length=1`,
-    # produciendo un 200 con `sin_datos` en lugar de un 422.
+    # produciendo un 200 con `no_data` en lugar de un 422.
     with pytest.raises(ValidationError):
         AnalyzeRequest(headline=blanco)
 
@@ -170,8 +170,8 @@ def test_señales_de_acuerdo_dan_veredicto_de_dimension(señales):
             ]
         )
     )
-    assert verdicts[Dimension.FORMA].is_clickbait is True
-    assert len(verdicts[Dimension.FORMA].contributing) == 3
+    assert verdicts[Dimension.FORM].is_clickbait is True
+    assert len(verdicts[Dimension.FORM].contributing) == 3
 
 
 def test_señales_en_discrepancia_no_se_resuelven_por_mayoria():
@@ -189,15 +189,15 @@ def test_señales_en_discrepancia_no_se_resuelven_por_mayoria():
             ]
         )
     )
-    assert verdicts[Dimension.FORMA].is_clickbait is None
-    assert len(verdicts[Dimension.FORMA].contributing) == 3
+    assert verdicts[Dimension.FORM].is_clickbait is None
+    assert len(verdicts[Dimension.FORM].contributing) == 3
 
 
 def test_veredicto_negativo_cuenta_como_voto():
     # Regresión: con `if not signal.is_clickbait` en vez de `is None`, los votos
-    # False se descartarían y un titular factual saldría sin_datos.
+    # False se descartarían y un titular factual saldría no_data.
     verdicts = _por_dimension(_aggregate([_signal("detect_clickbait_lexical", False)]))
-    assert verdicts[Dimension.FORMA].is_clickbait is False
+    assert verdicts[Dimension.FORM].is_clickbait is False
 
 
 def test_el_tono_no_vota_y_no_genera_dimension():
@@ -207,7 +207,7 @@ def test_el_tono_no_vota_y_no_genera_dimension():
             _signal("detect_clickbait_lexical", True),
         ]
     )
-    assert Dimension.TONO not in _por_dimension(verdicts)
+    assert Dimension.TONE not in _por_dimension(verdicts)
 
 
 @pytest.mark.asyncio
@@ -228,7 +228,7 @@ async def test_la_señal_dedicada_vota_y_su_etiqueta_va_normalizada(señales):
     assert dedicada.is_clickbait is True
     assert dedicada.data["label"] == "clickbait"  # no «Clickbait»
 
-    forma = _por_dimension(_aggregate(list(signals.values())))[Dimension.FORMA]
+    forma = _por_dimension(_aggregate(list(signals.values())))[Dimension.FORM]
     assert forma.contributing == [
         "detect_clickbait",
         "detect_clickbait_lexical",
@@ -277,36 +277,36 @@ def _dim(dimension, is_clickbait):
 def test_sin_dimensiones_es_sin_datos():
     # Debe comprobarse ANTES que la ambigüedad: con la lista vacía el any() da
     # False y caería en FACTUAL, declarando factual lo que nadie pudo analizar.
-    assert _overall([]) == OverallVerdict.SIN_DATOS
+    assert _overall([]) == OverallVerdict.NO_DATA
 
 
 def test_el_engaño_pesa_mas_que_la_forma():
     # Tres señales de forma dicen "no" y una de engaño dice "sí": gana la de
     # engaño. Por mayoría saldría "factual", que es justo el error a evitar.
-    verdict = _overall([_dim(Dimension.FORMA, False), _dim(Dimension.ENGANO, True)])
-    assert verdict == OverallVerdict.ENGANOSO
+    verdict = _overall([_dim(Dimension.FORM, False), _dim(Dimension.DECEPTION, True)])
+    assert verdict == OverallVerdict.DECEPTIVE
 
 
 def test_forma_sin_engaño_es_clickbait_de_forma():
-    verdict = _overall([_dim(Dimension.FORMA, True), _dim(Dimension.ENGANO, False)])
-    assert verdict == OverallVerdict.CLICKBAIT_DE_FORMA
+    verdict = _overall([_dim(Dimension.FORM, True), _dim(Dimension.DECEPTION, False)])
+    assert verdict == OverallVerdict.STYLISTIC_CLICKBAIT
 
 
 def test_todo_negativo_es_factual():
-    verdict = _overall([_dim(Dimension.FORMA, False), _dim(Dimension.ENGANO, False)])
+    verdict = _overall([_dim(Dimension.FORM, False), _dim(Dimension.DECEPTION, False)])
     assert verdict == OverallVerdict.FACTUAL
 
 
 def test_dimension_sin_resolver_es_ambiguo():
-    verdict = _overall([_dim(Dimension.FORMA, None), _dim(Dimension.ENGANO, False)])
-    assert verdict == OverallVerdict.AMBIGUO
+    verdict = _overall([_dim(Dimension.FORM, None), _dim(Dimension.DECEPTION, False)])
+    assert verdict == OverallVerdict.AMBIGUOUS
 
 
 def test_una_deteccion_positiva_pesa_mas_que_una_discrepancia():
     # Decisión consciente: la ambigüedad de forma no oculta el engaño detectado.
     # Sigue visible en dimensions[], solo no manda en la etiqueta única.
-    verdict = _overall([_dim(Dimension.FORMA, None), _dim(Dimension.ENGANO, True)])
-    assert verdict == OverallVerdict.ENGANOSO
+    verdict = _overall([_dim(Dimension.FORM, None), _dim(Dimension.DECEPTION, True)])
+    assert verdict == OverallVerdict.DECEPTIVE
 
 
 # ----- _run_signals: aplicabilidad, aislamiento, orden -----
@@ -318,7 +318,7 @@ async def test_sin_cuerpo_la_incoherencia_queda_no_aplicable(señales):
     signals = {s.name: s for s in await _run_signals("Un titular", None)}
 
     incoherencia = signals["detect_clickbait_incoherence"]
-    assert incoherencia.status == SignalStatus.NO_APLICABLE
+    assert incoherencia.status == SignalStatus.NOT_APPLICABLE
     assert incoherencia.is_clickbait is None
     assert incoherencia.detail  # explica por qué, para pintarla en gris
     # Las demás sí corren.
@@ -330,7 +330,7 @@ async def test_sin_cuerpo_la_incoherencia_queda_no_aplicable(señales):
 async def test_cuerpo_en_blanco_equivale_a_no_tenerlo(señales, cuerpo):
     señales()
     signals = {s.name: s for s in await _run_signals("Un titular", cuerpo)}
-    assert signals["detect_clickbait_incoherence"].status == SignalStatus.NO_APLICABLE
+    assert signals["detect_clickbait_incoherence"].status == SignalStatus.NOT_APPLICABLE
 
 
 @pytest.mark.asyncio
@@ -412,9 +412,9 @@ async def test_la_dimension_y_el_tipo_salen_de_la_ficha(señales):
     señales()
     signals = {s.name: s for s in await _run_signals("Un titular", "Un cuerpo")}
 
-    assert signals["detect_clickbait_incoherence"].dimension == Dimension.ENGANO
-    assert signals["analyze_sentiment"].dimension == Dimension.TONO
-    assert signals["detect_clickbait_lexical"].dimension == Dimension.FORMA
+    assert signals["detect_clickbait_incoherence"].dimension == Dimension.DECEPTION
+    assert signals["analyze_sentiment"].dimension == Dimension.TONE
+    assert signals["detect_clickbait_lexical"].dimension == Dimension.FORM
 
 
 # ----- analyze: extremo a extremo (con dobles) -----
@@ -428,12 +428,12 @@ async def test_clickbait_de_forma_con_cuerpo_coherente(señales):
         AnalyzeRequest(headline="You Won't Believe What Happened Next", content="...")
     )
 
-    assert response.verdict == OverallVerdict.CLICKBAIT_DE_FORMA
+    assert response.verdict == OverallVerdict.STYLISTIC_CLICKBAIT
     assert response.has_any_result
     assert len(response.signals) == len(_SIGNALS)
     # El tono aparece como tarjeta pero no como dimensión.
     assert "analyze_sentiment" in {s.name for s in response.signals}
-    assert Dimension.TONO not in {d.dimension for d in response.dimensions}
+    assert Dimension.TONE not in {d.dimension for d in response.dimensions}
 
 
 @pytest.mark.asyncio
@@ -446,10 +446,10 @@ async def test_forma_sobria_pero_engañosa(señales):
         AnalyzeRequest(headline="Report Details Q3 Financial Results", content="...")
     )
 
-    assert response.verdict == OverallVerdict.ENGANOSO
+    assert response.verdict == OverallVerdict.DECEPTIVE
     dimensiones = _por_dimension(response.dimensions)
-    assert dimensiones[Dimension.FORMA].is_clickbait is False
-    assert dimensiones[Dimension.ENGANO].is_clickbait is True
+    assert dimensiones[Dimension.FORM].is_clickbait is False
+    assert dimensiones[Dimension.DECEPTION].is_clickbait is True
 
 
 @pytest.mark.asyncio
@@ -462,7 +462,7 @@ async def test_si_todas_las_señales_fallan_no_hay_veredicto(señales, monkeypat
 
     response = await orchestrator.analyze(AnalyzeRequest(headline="Un titular"))
 
-    assert response.verdict == OverallVerdict.SIN_DATOS
+    assert response.verdict == OverallVerdict.NO_DATA
     assert not response.has_any_result
     assert response.dimensions == []
     # Aun así la respuesta es informativa: cada tarjeta dice qué le pasó.

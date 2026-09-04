@@ -129,7 +129,7 @@ async def post_analyze(request: AnalyzeRequest) -> AnalyzeResponse:
     Devuelve **200 aunque alguna señal falle**: cada una lleva su propio
     `status`, y perder tres análisis correctos porque el cuarto dio timeout
     sería un error. Si el cuerpo de la noticia no se
-    envía, la señal de incoherencia queda en `no_aplicable` y la dimensión de
+    envía, la señal de incoherencia queda en `not_applicable` y la dimensión de
     engaño no se puede evaluar.
 
     Cada análisis queda registrado en el historial. Si esa escritura
@@ -245,7 +245,7 @@ async def get_history(
         str | None,
         Query(
             max_length=50,
-            description="Qué CONCLUYÓ el análisis: `enganoso`, `factual`, `ambiguo`…",
+            description="Qué CONCLUYÓ el análisis: `deceptive`, `factual`, `ambiguous`…",
         ),
     ] = None,
     status: Annotated[

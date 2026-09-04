@@ -255,7 +255,7 @@ async def _run_signals(headline: str, content: str | None) -> list[SignalResult]
         if spec.needs_content and not (content and content.strip()):
             by_name[spec.name] = _build(
                 spec,
-                SignalStatus.NO_APLICABLE,
+                SignalStatus.NOT_APPLICABLE,
                 detail="Requiere el cuerpo o teaser de la noticia.",
             )
         else:
@@ -346,7 +346,7 @@ def _aggregate(signals: list[SignalResult]) -> list[DimensionVerdict]:
         # `is None` y no `if not signal.is_clickbait`: False es un veredicto
         # VÁLIDO —"esta señal dice que no es clickbait"— y con la comprobación
         # por falsedad se perderían todos los votos negativos, dejando cualquier
-        # titular factual en sin_datos. Este único filtro cubre a la vez las
+        # titular factual en no_data. Este único filtro cubre a la vez las
         # señales que fallaron y las que no votan por naturaleza (el tono).
         if signal.is_clickbait is None:
             continue
@@ -381,21 +381,21 @@ def _overall(dimensions: list[DimensionVerdict]) -> OverallVerdict:
     # Primero: con la lista vacía, el any() de abajo daría False y caería en
     # FACTUAL, declarando factual un titular que nadie pudo analizar.
     if not dimensions:
-        return OverallVerdict.SIN_DATOS
+        return OverallVerdict.NO_DATA
 
     by_dimension = {d.dimension: d for d in dimensions}
-    engano = by_dimension.get(Dimension.ENGANO)
-    forma = by_dimension.get(Dimension.FORMA)
+    deception = by_dimension.get(Dimension.DECEPTION)
+    form = by_dimension.get(Dimension.FORM)
 
     # El engaño manda: un titular que promete lo que el cuerpo no cumple es
     # clickbait aunque esté redactado con sobriedad.
-    if engano is not None and engano.is_clickbait:
-        return OverallVerdict.ENGANOSO
-    if forma is not None and forma.is_clickbait:
-        return OverallVerdict.CLICKBAIT_DE_FORMA
+    if deception is not None and deception.is_clickbait:
+        return OverallVerdict.DECEPTIVE
+    if form is not None and form.is_clickbait:
+        return OverallVerdict.STYLISTIC_CLICKBAIT
     # Una detección positiva pesa más que una discrepancia: solo si nadie ha
     # detectado nada importa que alguna dimensión quedara sin resolver. La
     # discrepancia no se pierde, sigue visible en dimensions[].
     if any(d.is_clickbait is None for d in dimensions):
-        return OverallVerdict.AMBIGUO
+        return OverallVerdict.AMBIGUOUS
     return OverallVerdict.FACTUAL
