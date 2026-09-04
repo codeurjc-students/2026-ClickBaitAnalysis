@@ -1189,6 +1189,120 @@ Añadir el registro a `/analyze` convirtió, sin avisar, todos los tests de esa 
 
 `tests/api/test_history.py` cubre los dos lados por separado —el almacén llamando a sus funciones, el endpoint por HTTP— porque responden preguntas distintas: si los datos sobreviven y salen en orden, y si la decisión de «una entrada por análisis» se sostiene de verdad.
 
+### Las claves del dominio, en inglés y sin diacríticos (#134)
+
+Salió al escribir la plantilla de #127. Para pintar cada señal con el color de su
+naturaleza hay que llevar `type` a un atributo del HTML, y ahí se vio que el
+dominio **no seguía su propia regla**:
+
+```python
+class Dimension(str, Enum):
+    ENGANO = "engano"  # sin ñ
+
+
+class SignalType(str, Enum):
+    HIBRIDO = "híbrido"  # con tilde
+```
+
+Dos enums, el mismo fichero, reglas opuestas. Que `engano` renunciara a la ñ dice
+que en algún momento se decidió que las claves fueran ASCII; `híbrido` se saltó
+esa decisión, o nunca llegó a ser explícita. El resultado es que no se podía
+responder «¿las claves llevan diacríticos?» mirando el código.
+
+#### Se eligió el inglés, no sólo quitar la tilde
+
+La opción barata era `HIBRIDO = "hibrido"`: un valor, y la regla ASCII pasa a
+cumplirse. Se descartó por ser **media medida** — arregla el síntoma y deja la
+mezcla de idiomas en claves que son de máquina.
+
+Lo que entra es el vocabulario completo en inglés: `form` / `deception` / `tone`,
+`interpretable` / `hybrid` / `opaque`, `deceptive` / `stylistic_clickbait` /
+`factual` / `ambiguous` / `no_data`. Es coherente con todo lo que ya lo estaba
+—los nombres de las tools (`detect_clickbait_lexical`), las etiquetas que
+publican (`clickbait` / `factual news`), los corpus y la literatura—, sale ASCII
+de regalo y no deja ninguna decisión de diacríticos pendiente para el futuro.
+
+La regla queda **escrita en el docstring de `domain.py`**, que es lo que faltaba:
+antes había dos reglas conviviendo y ninguna declarada.
+
+#### El enum que la issue se dejaba
+
+La issue enumeraba tres enums. Hay cuatro:
+
+```python
+class SignalStatus(str, Enum):
+    OK = "ok"
+    NO_APLICABLE = "no_aplicable"  # ← castellano
+    ERROR = "error"
+```
+
+Dejarlo fuera habría hecho que la regla **naciera ya incumplida**, que es
+exactamente el reproche que la issue le hace a la media medida. Y no era un valor
+escondido: el frontend lo compara literalmente en `estadoDeSenal()`. Entra como
+`not_applicable`.
+
+Los **nombres de miembro siguen a los valores** (`Dimension.DECEPTION`,
+`SignalType.HYBRID`, `OverallVerdict.STYLISTIC_CLICKBAIT`). `ENGANO = "deception"`
+habría sido cambiar una incoherencia por otra.
+
+#### Qué se tocó de la prosa, y qué no
+
+La regla aplicada: **se actualiza toda cita del valor entre comillas invertidas,
+salvo en `evaluation/` y `spikes/`**, que son registro de experimentos ya
+ejecutados y describen lo que se hizo entonces.
+
+Lo que NO cambia es la prosa en castellano que nombra el concepto —los nombres de
+los tests, los comentarios de diseño, `docs/requisitos.md`, este README— porque
+ahí «engaño» y «forma» no son claves: son las palabras del dominio, y son las que
+la interfaz sigue enseñando al usuario.
+
+Hay una excepción a la vista y es deliberada: el docstring de `domain.py`
+conserva `engano` e `híbrido` escritos tal cual, porque está contando **qué se
+arregló**. Y `R5.9` en `docs/requisitos.md` sigue enumerando «interpretable /
+híbrido / opaco» en castellano; tocarlo obligaría a justificar un cambio de
+requisito por algo puramente cosmético.
+
+#### Lo que NO arregla, para no venderlo de más
+
+**La capa de traducción a texto legible se queda entera.** `nombreDeDimension()`
+hace falta igual, porque la pantalla dice «Engaño» tanto si la clave es `engano`
+como si es `deception`. Lo único que desaparece de verdad es `claseDeTipo()`, una
+función cuyo trabajo completo era convertir `híbrido` en `hibrido` para poder
+casarlo en un selector CSS.
+
+O sea: esto es **coherencia y robustez, no ahorro de código**. Vendido como lo
+segundo, no compensaría.
+
+#### El historial viejo no se rompe, y eso estaba previsto
+
+Las filas ya escritas en SQLite guardan la respuesta completa, así que dicen
+`clickbait_de_forma`. No falla nada, y no por suerte: `HistoryEntry.verdict` es
+`str | None` y **no un enum**, decisión tomada en #102 con este motivo exacto
+anotado —«son datos leídos de disco, que pudo escribir otra versión del código»—.
+El frontend las pinta con su valor crudo gracias al `??` de `nombreDeVeredicto`:
+fea, pero visible, que es la misma regla que gobierna las señales desconocidas.
+
+Repoblar la base es opcional, y se puede porque los datos guardados son de prueba.
+
+#### El cliente tipado cazó lo que el grep no vio
+
+El primer barrido buscó `engano` e `híbrido` —los dos casos que nombra el título
+de la issue— y **se dejó `opaco`, `forma` y `tono` como valores sueltos**. Quedó
+vivo un `this.senal().type !== 'opaco'` en `senal-card.ts`, que decide si una
+tarjeta nace abierta.
+
+No lo encontró una búsqueda: lo paró `ng build`. Con `SignalType` generado desde
+el contrato como `"interpretable" | "hybrid" | "opaque"`, comparar contra
+`'opaco'` deja de compilar porque los tipos no se solapan. Es la cadena de #126
+haciendo el trabajo para el que se montó, en el primer refactor que la ejercita:
+sin ella el fallo habría sido silencioso —una comparación siempre falsa, tarjetas
+abriéndose cuando no toca— y sin ninguna línea roja en ningún sitio.
+
+#### Verificación
+
+198 tests de Python y 25 del frontend en verde, ruff limpio, y el contrato
+regenerado en el mismo commit — los dos guardianes de #126 lo comprueban.
+
 ### Diagramas del flujo de peticiones, y dos reglas que pasan a tener test (#106)
 
 `docs/arquitectura.md` se declaraba «documento vivo» y reflejaba el estado al

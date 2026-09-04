@@ -472,8 +472,8 @@ def test_model_cards_wellformed():
         "limitations",
         "backend",
     }
-    valid_types = {"interpretable", "híbrido", "opaco"}
-    valid_dimensions = {"forma", "engano", "tono"}
+    valid_types = {"interpretable", "hybrid", "opaque"}
+    valid_dimensions = {"form", "deception", "tone"}
     assert isinstance(model_cards.MODEL_CARDS, list) and model_cards.MODEL_CARDS
     for card in model_cards.MODEL_CARDS:
         assert required <= card.keys()

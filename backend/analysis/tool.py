@@ -56,7 +56,7 @@ def register(mcp: FastMCP):
             headline: El titular a analizar, en inglés.
             content: Cuerpo o teaser de la noticia. Opcional; sin él no se puede
                 evaluar la dimensión de engaño y esa señal queda como
-                `no_aplicable`.
+                `not_applicable`.
 
         Returns:
             El veredicto global, el resultado de cada señal con su naturaleza

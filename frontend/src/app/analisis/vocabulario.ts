@@ -15,11 +15,11 @@ const NOMBRES: Record<string, string> = {
 // En caja normal a propósito: las mayúsculas las pone el CSS. Muchos lectores
 // de pantalla deletrean las palabras escritas en caja alta.
 const VEREDICTOS: Record<string, string> = {
-  enganoso: 'Engañoso',
-  clickbait_de_forma: 'Clickbait de forma',
+  deceptive: 'Engañoso',
+  stylistic_clickbait: 'Clickbait de forma',
   factual: 'Factual',
-  ambiguo: 'Ambiguo',
-  sin_datos: 'Sin datos',
+  ambiguous: 'Ambiguo',
+  no_data: 'Sin datos',
 };
 
 /** Las siete categorías de pista de `lexical.py`. */
@@ -34,9 +34,9 @@ const CATEGORIAS: Record<string, string> = {
 };
 
 const DIMENSIONES: Record<string, string> = {
-  forma: 'Forma',
-  engano: 'Engaño', // la clave del backend viene sin ñ
-  tono: 'Tono',
+  form: 'Forma',
+  deception: 'Engaño',
+  tone: 'Tono',
 };
 
 // El `??` es lo que hace que una señal desconocida se pinte con su id crudo en
@@ -57,14 +57,9 @@ export function nombreDeCategoria(categoria: string): string {
   return CATEGORIAS[categoria] ?? categoria;
 }
 
-/** `híbrido` lleva tilde, y como valor de atributo es frágil de casar en CSS. */
-export function claseDeTipo(senal: SignalResult): string {
-  return senal.type === 'híbrido' ? 'hibrido' : senal.type;
-}
-
 /** Qué dijo la señal, o por qué no dijo nada. */
 export function estadoDeSenal(senal: SignalResult): string {
-  if (senal.status === 'no_aplicable') return 'no aplicable';
+  if (senal.status === 'not_applicable') return 'no aplicable';
   if (senal.status === 'error') return 'error';
   // `== null` cubre null Y undefined: el campo es opcional en el contrato, y
   // con `=== null` una señal sin él se pintaría como «no clickbait».

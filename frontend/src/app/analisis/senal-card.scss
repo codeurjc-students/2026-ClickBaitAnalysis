@@ -10,11 +10,11 @@
 .tarjeta[data-tipo='interpretable'] {
   border-left-color: var(--interpretable);
 }
-.tarjeta[data-tipo='hibrido'] {
-  border-left-color: var(--hibrido);
+.tarjeta[data-tipo='hybrid'] {
+  border-left-color: var(--hybrid);
 }
-.tarjeta[data-tipo='opaco'] {
-  border-left-color: var(--opaco);
+.tarjeta[data-tipo='opaque'] {
+  border-left-color: var(--opaque);
 }
 
 .cabecera {
@@ -49,11 +49,11 @@
 [data-tipo='interpretable'] .badge {
   background: var(--interpretable-fondo);
 }
-[data-tipo='hibrido'] .badge {
-  background: var(--hibrido-fondo);
+[data-tipo='hybrid'] .badge {
+  background: var(--hybrid-fondo);
 }
-[data-tipo='opaco'] .badge {
-  background: var(--opaco-fondo);
+[data-tipo='opaque'] .badge {
+  background: var(--opaque-fondo);
 }
 
 .estado {
@@ -117,7 +117,7 @@
   background: var(--interpretable-fondo);
 }
 .pistas li[data-categoria='hyperbole'] {
-  background: var(--opaco-fondo);
+  background: var(--opaque-fondo);
 }
 .pistas li[data-categoria='forward_reference'] {
   background: #dae8fc;
@@ -151,7 +151,7 @@
 .cues .barra {
   height: 0.7rem;
   border-radius: 3px;
-  background: var(--opaco-fondo);
+  background: var(--opaque-fondo);
 }
 
 .cues .barra.contra {

@@ -22,7 +22,7 @@ class IncoherenceDetector:
     # curva es el punto de mayor precisión (0,649 en test), a cambio de
     # pronunciarse sólo en el 7,4 % de los titulares.
     #
-    # Se conserva justamente por eso. `engano` PISA a `forma` en la jerarquía de
+    # Se conserva justamente por eso. `deception` PISA a `form` en la jerarquía de
     # `_overall`, así que un falso positivo suyo declara «engañoso» anulando a
     # las otras tres señales: aquí la precisión pesa más que el recall, y los
     # umbrales más generosos la hunden (0,516 con 0,46; 0,412 con 0,56).

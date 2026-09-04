@@ -16,7 +16,7 @@ const RESPUESTA: AnalyzeResponse = {
     {
       name: 'detect_clickbait_lexical',
       status: 'ok',
-      dimension: 'forma',
+      dimension: 'form',
       type: 'interpretable',
       is_clickbait: true,
       data: {
@@ -29,29 +29,29 @@ const RESPUESTA: AnalyzeResponse = {
     },
     {
       name: 'detect_clickbait_incoherence',
-      status: 'no_aplicable',
-      dimension: 'engano',
-      type: 'híbrido',
+      status: 'not_applicable',
+      dimension: 'deception',
+      type: 'hybrid',
       is_clickbait: null,
       detail: 'Requiere el cuerpo o teaser de la noticia.',
     },
     {
       name: 'analyze_sentiment',
       status: 'ok',
-      dimension: 'tono',
-      type: 'opaco',
+      dimension: 'tone',
+      type: 'opaque',
       is_clickbait: null,
       data: { label: 'negative', score: 0.71 },
     },
   ],
   dimensions: [
     {
-      dimension: 'forma',
+      dimension: 'form',
       is_clickbait: true,
       contributing: ['detect_clickbait_lexical'],
     },
   ],
-  verdict: 'clickbait_de_forma',
+  verdict: 'stylistic_clickbait',
 };
 
 describe('AnalisisPage', () => {
@@ -114,7 +114,7 @@ describe('AnalisisPage', () => {
     const pastillas = html().querySelectorAll('.pastilla');
     expect(pastillas.length).toBe(3);
     // El tipo va al atributo, y de ahí sale el color.
-    expect(pastillas[1].getAttribute('data-tipo')).toBe('hibrido');
+    expect(pastillas[1].getAttribute('data-tipo')).toBe('hybrid');
   });
 
   it('resalta sobre el titular las pistas que encontró el léxico', async () => {

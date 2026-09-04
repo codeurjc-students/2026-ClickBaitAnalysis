@@ -14,7 +14,6 @@ import { mensajeDeError } from './errores';
 import { SenalCard } from './senal-card';
 import { TitularResaltado } from './titular-resaltado';
 import {
-  claseDeTipo,
   estadoDeSenal,
   nombreDeDimension,
   nombreDeSenal,
@@ -57,7 +56,6 @@ export class AnalisisPage {
   protected readonly estado = estadoDeSenal;
   protected readonly dimension = nombreDeDimension;
   protected readonly resumen = resumenDimension;
-  protected readonly tipo = claseDeTipo;
 
   analizar(): void {
     // Dos envíos son dos ejecuciones de los modelos y dos entradas de historial.
@@ -74,7 +72,7 @@ export class AnalisisPage {
 
     this.analyze
       // Sin cuerpo se omite la clave entera, que es lo que deja la incoherencia
-      // en `no_aplicable`. Mandar "" sería otra cosa: un cuerpo vacío.
+      // en `not_applicable`. Mandar "" sería otra cosa: un cuerpo vacío.
       .analizar({
         headline: headline.trim(),
         content: content.trim() || undefined,

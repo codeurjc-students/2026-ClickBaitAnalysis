@@ -84,11 +84,11 @@ def test_el_payload_vuelve_como_diccionario():
     tendría que saber que aquí dentro se guarda serializado. Con Postgres y una
     columna `jsonb` ese `json.loads` de fuera reventaría.
     """
-    _guardar(payload={"verdict": "enganoso", "signals": [{"name": "lexical"}]})
+    _guardar(payload={"verdict": "deceptive", "signals": [{"name": "lexical"}]})
 
     filas, _ = _leer()
     assert filas[0]["payload"] == {
-        "verdict": "enganoso",
+        "verdict": "deceptive",
         "signals": [{"name": "lexical"}],
     }
 
@@ -289,7 +289,7 @@ def _respuesta_analisis(headline="Un titular"):
             SignalResult(
                 name="detect_clickbait_lexical",
                 status=SignalStatus.OK,
-                dimension=Dimension.FORMA,
+                dimension=Dimension.FORM,
                 type=SignalType.INTERPRETABLE,
                 is_clickbait=True,
                 data={"score": 2},
@@ -297,12 +297,12 @@ def _respuesta_analisis(headline="Un titular"):
         ],
         dimensions=[
             DimensionVerdict(
-                dimension=Dimension.FORMA,
+                dimension=Dimension.FORM,
                 is_clickbait=True,
                 contributing=["detect_clickbait_lexical"],
             )
         ],
-        verdict=OverallVerdict.CLICKBAIT_DE_FORMA,
+        verdict=OverallVerdict.STYLISTIC_CLICKBAIT,
     )
 
 
@@ -348,7 +348,7 @@ def test_un_analyze_deja_UNA_entrada_y_no_una_por_senal(analisis):
     assert cuerpo["total"] == 1
     assert cuerpo["items"][0]["kind"] == "analysis"
     assert cuerpo["items"][0]["headline"] == "Un titular"
-    assert cuerpo["items"][0]["verdict"] == "clickbait_de_forma"
+    assert cuerpo["items"][0]["verdict"] == "stylistic_clickbait"
 
 
 def test_la_entrada_guarda_la_respuesta_completa(analisis):
@@ -357,7 +357,7 @@ def test_la_entrada_guarda_la_respuesta_completa(analisis):
     client.post("/analyze", json={"headline": "Un titular"})
 
     payload = client.get("/history").json()["items"][0]["payload"]
-    assert payload["verdict"] == "clickbait_de_forma"
+    assert payload["verdict"] == "stylistic_clickbait"
     assert payload["signals"][0]["name"] == "detect_clickbait_lexical"
     assert payload["signals"][0]["data"] == {"score": 2}
 
@@ -445,9 +445,9 @@ def test_los_topes_salen_en_el_esquema_openapi():
 
 def _poblar():
     """Un historial variado: análisis con tres veredictos y dos herramientas."""
-    _guardar(headline="engañoso", verdict="enganoso", status="ok")
+    _guardar(headline="engañoso", verdict="deceptive", status="ok")
     _guardar(headline="factual", verdict="factual", status="ok")
-    _guardar(headline="roto", verdict="sin_datos", status="error")
+    _guardar(headline="roto", verdict="no_data", status="error")
     _guardar(kind=HistoryKind.TOOL, tool="analyze_sentiment", status="ok")
     _guardar(kind=HistoryKind.TOOL, tool="health_check", status="error")
 
@@ -476,7 +476,7 @@ def test_filtro_por_verdict():
     """Lo que CONCLUYÓ: es el filtro que quiere quien mira sus análisis."""
     _poblar()
 
-    cuerpo = client.get("/history?verdict=enganoso").json()
+    cuerpo = client.get("/history?verdict=deceptive").json()
     assert cuerpo["total"] == 1
     assert cuerpo["items"][0]["headline"] == "engañoso"
 
@@ -496,7 +496,7 @@ def test_los_filtros_se_acumulan():
 
     cuerpo = client.get("/history?kind=analysis&status=ok").json()
     assert cuerpo["total"] == 2
-    assert {i["verdict"] for i in cuerpo["items"]} == {"enganoso", "factual"}
+    assert {i["verdict"] for i in cuerpo["items"]} == {"deceptive", "factual"}
 
 
 def test_el_total_va_ya_filtrado():

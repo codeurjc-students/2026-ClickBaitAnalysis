@@ -34,7 +34,7 @@ def _respuesta(headline="Un titular", content=None):
             SignalResult(
                 name="detect_clickbait_lexical",
                 status=SignalStatus.OK,
-                dimension=Dimension.FORMA,
+                dimension=Dimension.FORM,
                 type=SignalType.INTERPRETABLE,
                 is_clickbait=True,
                 data={"score": 2, "is_clickbait": True},
@@ -42,12 +42,12 @@ def _respuesta(headline="Un titular", content=None):
         ],
         dimensions=[
             DimensionVerdict(
-                dimension=Dimension.FORMA,
+                dimension=Dimension.FORM,
                 is_clickbait=True,
                 contributing=["detect_clickbait_lexical"],
             )
         ],
-        verdict=OverallVerdict.CLICKBAIT_DE_FORMA,
+        verdict=OverallVerdict.STYLISTIC_CLICKBAIT,
     )
 
 
@@ -72,7 +72,7 @@ def test_analyze_devuelve_la_respuesta_completa(analisis):
 
     assert response.status_code == 200
     cuerpo = response.json()
-    assert cuerpo["verdict"] == "clickbait_de_forma"
+    assert cuerpo["verdict"] == "stylistic_clickbait"
     assert cuerpo["signals"][0]["name"] == "detect_clickbait_lexical"
     # El JSON crudo de la herramienta viaja sin aplanar: alimenta las tarjetas
     # de explicabilidad.
@@ -92,7 +92,7 @@ def test_sin_content_la_peticion_es_valida(analisis):
 
 @pytest.mark.parametrize("blanco", [" ", "", "\t\n"])
 def test_titular_en_blanco_es_422(blanco, analisis):
-    # 422 y no un 200 con `sin_datos`: la petición es inválida, no es que el
+    # 422 y no un 200 con `no_data`: la petición es inválida, no es que el
     # análisis no haya dado resultado.
     assert client.post("/analyze", json={"headline": blanco}).status_code == 422
 

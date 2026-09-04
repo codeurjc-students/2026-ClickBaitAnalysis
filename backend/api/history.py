@@ -458,7 +458,7 @@ async def query(
     el total de lo filtrado, no el de la tabla.
 
     `verdict` y `status` responden preguntas distintas y por eso son dos y no
-    uno: el veredicto es **qué concluyó el análisis** (`enganoso`, `factual`…) y
+    uno: el veredicto es **qué concluyó el análisis** (`deceptive`, `factual`…) y
     es el que le interesa a quien mira sus análisis; el estado es **si funcionó
     la maquinaria**, y es operativo. Meterlos en un solo parámetro «estado» era
     lo que hacía que el criterio no encajara.

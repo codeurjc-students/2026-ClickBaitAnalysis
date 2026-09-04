@@ -3,7 +3,7 @@
 Fuente única, consultable en runtime vía la tool ``describe_models`` y
 forward-compatible con un futuro frontend. El campo ``type`` enlaza con R3.8:
 marca qué señales son white-box (``interpretable``) frente a caja negra
-(``opaco``), pasando por las ``híbrido`` (decisión transparente, feature opaca).
+(``opaque``), pasando por las ``hybrid`` (decisión transparente, feature opaca).
 
 CUIDADO CON LA OTRA MITAD DE R3.9
 
@@ -42,9 +42,9 @@ vuelvan a separarse.
 
 El campo ``dimension`` indica QUÉ mide cada señal, no cómo de transparente es:
 
-- ``forma``  — sensacionalismo en la redacción del titular (estilo).
-- ``engano`` — que el titular prometa algo que el cuerpo no cumple.
-- ``tono``   — carga emocional del texto; no es una señal de clickbait.
+- ``form``      — sensacionalismo en la redacción del titular (estilo).
+- ``deception`` — que el titular prometa algo que el cuerpo no cumple.
+- ``tone``      — carga emocional del texto; no es una señal de clickbait.
 
 Es lo que permite a ``/analyze`` agrupar los veredictos por dimensión en vez de
 promediar señales que miden cosas distintas: tres señales de *forma* de acuerdo
@@ -70,8 +70,8 @@ MODEL_CARDS = [
         "model_id": "Stremie/roberta-base-clickbait",
         "name": "RoBERTa dedicado (entrenado en Webis-17)",
         "task": "Clasifica el titular como clickbait vs factual con un modelo afinado específicamente para esta tarea.",
-        "type": "opaco",
-        "dimension": "forma",
+        "type": "opaque",
+        "dimension": "form",
         "limitations": [
             "Caja negra: sin explicación intrínseca (post-hoc opcional, R3.11).",
             "Solo inglés. Entrenado sobre `postText` de Webis-17, es decir TUITS de medios, no titulares de portada.",
@@ -90,8 +90,8 @@ MODEL_CARDS = [
         "model_id": "cardiffnlp/twitter-roberta-base-sentiment-latest",
         "name": "RoBERTa afinado en tuits (3 clases)",
         "task": "Análisis de sentimiento en 3 clases (positivo / neutral / negativo).",
-        "type": "opaco",
-        "dimension": "tono",
+        "type": "opaque",
+        "dimension": "tone",
         "limitations": [
             "Entrenado en tuits, no en titulares de noticias.",
             "Caja negra.",
@@ -101,11 +101,11 @@ MODEL_CARDS = [
     },
     {
         "signal": "detect_clickbait_incoherence",
-        "dimension": "engano",
+        "dimension": "deception",
         "model_id": "sentence-transformers/all-MiniLM-L6-v2",
         "name": "MiniLM-L6-v2 (embeddings de frase)",
         "task": "Similitud coseno titular↔contenido; una similitud baja indica posible clickbait por incoherencia.",
-        "type": "híbrido",
+        "type": "hybrid",
         "limitations": [
             "Decisión transparente (umbral sobre la similitud) pero feature opaca (embeddings).",
             "Umbral 0.3 CALIBRADO en #92 sobre 19484 pares de Webis-17, eligiéndolo en una mitad y midiéndolo en la otra: es el punto de mayor precisión de la curva (0.649 en test) a cambio de pronunciarse sólo en el 7.4% de los titulares. ROC-AUC de la señal 0.720.",
@@ -119,7 +119,7 @@ MODEL_CARDS = [
     },
     {
         "signal": "detect_clickbait_lexical",
-        "dimension": "forma",
+        "dimension": "form",
         # Sin `model_id`: no hay nada que descargar. Son regex y listas de cues.
         "model_id": None,
         "name": "Léxico por reglas (listas de cues de Chakraborty et al. 2016)",
@@ -138,7 +138,7 @@ MODEL_CARDS = [
     },
     {
         "signal": "detect_clickbait_linear",
-        "dimension": "forma",
+        "dimension": "form",
         # Sin `model_id`: los pesos son un JSON del repo, no un modelo de la Hub.
         "model_id": None,
         "name": "Regresión logística sobre features léxicas (entrenada en Chakraborty)",

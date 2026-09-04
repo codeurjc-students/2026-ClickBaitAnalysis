@@ -3,7 +3,6 @@ import { Component, computed, input, linkedSignal } from '@angular/core';
 import type { SignalResult } from '../api/models';
 import { comoEtiqueta, comoIncoherencia, comoLexico, comoLineal } from './datos';
 import {
-  claseDeTipo,
   estadoDeSenal,
   nombreDeCategoria,
   nombreDeSenal,
@@ -32,7 +31,7 @@ export class SenalCard {
    * habría que reiniciarlo a mano, y olvidarlo dejaría la tarjeta como la dejó
    * el análisis anterior.
    */
-  readonly abierta = linkedSignal(() => this.senal().type !== 'opaco');
+  readonly abierta = linkedSignal(() => this.senal().type !== 'opaque');
 
   readonly lexico = computed(() => comoLexico(this.senal().data));
   readonly lineal = computed(() => comoLineal(this.senal().data));
@@ -50,7 +49,6 @@ export class SenalCard {
 
   protected readonly nombre = nombreDeSenal;
   protected readonly estado = estadoDeSenal;
-  protected readonly tipo = claseDeTipo;
   protected readonly categoria = nombreDeCategoria;
   protected readonly numero = numero;
 
