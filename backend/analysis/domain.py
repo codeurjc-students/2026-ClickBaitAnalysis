@@ -88,6 +88,13 @@ class SignalResult(BaseModel):
     """Resultado de UNA señal, con el mismo envoltorio sea cual sea (principio 1)."""
 
     name: str = Field(description="Nombre de la herramienta MCP que la produjo.")
+    label: str = Field(
+        description=(
+            "Etiqueta para personas, tomada de la ficha del modelo (R3.9). "
+            "«Léxico por reglas (…)» frente al `name` de máquina "
+            "`detect_clickbait_lexical`."
+        )
+    )
     status: SignalStatus
     dimension: Dimension
     type: SignalType = Field(

@@ -9,15 +9,54 @@
  * usaba. Esa es la razón de mantener la lista a mano en vez de reexportar
  * `components` entero.
  */
-import type { components } from './schema';
+import type { components, paths } from './schema';
 
 type Esquemas = components['schemas'];
 
 // --- Análisis de un titular (POST /analyze) ---
-export type AnalyzeRequest = Esquemas['AnalyzeRequest'];
+//
+// Lo que entra y sale de una RUTA se toma de `paths`, no de `components`, y esa
+// diferencia es la salvaguarda de la costura menos protegida de la cadena.
+//
+// El servicio hace `http.post<T>(...)`, y ese genérico no comprueba nada: es una
+// afirmación sobre lo que va a llegar. Eligiendo `T` a mano de `components`,
+// nada ata el tipo a la ruta — y en #133 pasó exactamente eso: el backend empezó
+// a devolver el sobre y el frontend siguió compilando con el tipo viejo puesto,
+// porque `AnalyzeResponse` seguía existiendo como esquema.
+//
+// Derivándolo de `paths`, cambiar lo que devuelve `/analyze` cambia este tipo al
+// regenerar, y rompe a quien supusiera la forma anterior. La elección deja de
+// ser de quien escribe el servicio y pasa a ser del contrato.
+//
+// Sigue sin cubrir que el backend DESPLEGADO no corresponda al contrato
+// commiteado; para eso haría falta validar en ejecución.
+type Analyze = paths['/analyze']['post'];
+
+export type AnalyzeRequest = Analyze['requestBody']['content']['application/json'];
+// El sobre de la respuesta: el análisis más el id con el que quedó registrado.
+// Lo que se pinta es `AnalyzeResponse`; el id sólo sirve para volver a él.
+export type AnalyzeResult =
+  Analyze['responses'][200]['content']['application/json'];
+
+// `AnalyzeResponse` sigue viniendo de `components` a propósito: es un esquema por
+// derecho propio, no lo que devuelve una ruta. El historial lo guarda y #129 lo
+// leerá desde ahí, sin pasar por `/analyze`.
 export type AnalyzeResponse = Esquemas['AnalyzeResponse'];
 export type SignalResult = Esquemas['SignalResult'];
 export type DimensionVerdict = Esquemas['DimensionVerdict'];
+
+// --- Formas conocidas del `data` de cada señal ---
+//
+// `data` es un diccionario libre en el contrato, así que estos tipos NO se
+// aplican solos: hay que comprobar en ejecución, y de eso se encargan los
+// guardianes de `analisis/datos.ts`. Lo que aportan es que esos guardianes
+// validen contra una forma DERIVADA del backend en vez de contra una copia
+// escrita a mano, que es lo que había hasta #133.
+export type SalidaLexica = Esquemas['SalidaLexica'];
+export type SalidaLineal = Esquemas['SalidaLineal'];
+export type SalidaIncoherencia = Esquemas['SalidaIncoherencia'];
+export type Etiqueta = Esquemas['Etiqueta'];
+export type Pista = Esquemas['Pista'];
 
 // Uniones de cadenas, no `enum` de TypeScript: al ser estructurales, comparar
 // contra un valor que no existe —`'engaño'` con eñe— no compila.

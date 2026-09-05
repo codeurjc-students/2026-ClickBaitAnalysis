@@ -320,16 +320,23 @@ def _build(
     data: dict[str, Any] | None = None,
     detail: str | None = None,
 ) -> SignalResult:
-    """Envuelve el resultado de una señal leyendo dimensión y tipo de su ficha.
+    """Envuelve el resultado de una señal leyendo su ficha: etiqueta, dimensión y tipo.
 
     Único sitio donde se construye un SignalResult, así que la traducción ficha
     → respuesta está en un solo punto. El acceso a ``_CARDS`` puede dar KeyError
     si se añade una señal sin ficha: es intencionado, y el test de alineación lo
     detecta antes.
+
+    ``label`` se añadió en #133 por el mismo motivo que ya viajaban los otros dos:
+    para que la interfaz no tenga que saber cómo se llama cada señal. Antes lo
+    sabía, en un diccionario propio de ``vocabulario.ts`` que nadie vigilaba —
+    renombrar una señal aquí no rompía ningún test, sólo hacía que la pantalla
+    pintara el id crudo. Es la forma exacta del fallo de #116.
     """
     card = _CARDS[spec.name]
     return SignalResult(
         name=spec.name,
+        label=card["name"],
         status=status,
         dimension=Dimension(card["dimension"]),
         type=SignalType(card["type"]),

@@ -30,6 +30,7 @@ from backend.analysis.orchestrator import (
 )
 from backend.core.models import ToolResult
 from backend.integrations.nlp import dedicated, lexical, linear
+from backend.integrations.nlp.model_cards import cards_by_signal
 
 _SPECS = {spec.name: spec for spec in _SIGNALS}
 
@@ -415,6 +416,25 @@ async def test_la_dimension_y_el_tipo_salen_de_la_ficha(señales):
     assert signals["detect_clickbait_incoherence"].dimension == Dimension.DECEPTION
     assert signals["analyze_sentiment"].dimension == Dimension.TONE
     assert signals["detect_clickbait_lexical"].dimension == Dimension.FORM
+
+
+@pytest.mark.asyncio
+async def test_la_etiqueta_legible_sale_de_la_ficha(señales):
+    """El `label` viaja desde la ficha, y esto es lo que impide que se copie.
+
+    Antes de #133 la interfaz mantenía su propio diccionario de nombres en
+    `vocabulario.ts`. Renombrar una señal aquí no rompía nada: sólo hacía que la
+    pantalla pintara el id crudo, en silencio. Es la forma exacta de #116, y este
+    test es lo que la cierra — se compara contra la ficha, no contra una cadena
+    escrita a mano, así que cambiar el nombre en un sitio no puede desalinearlos.
+    """
+    señales()
+    fichas = cards_by_signal()
+    signals = await _run_signals("Un titular", "Un cuerpo")
+
+    assert signals, "sin señales no se está comprobando nada"
+    for signal in signals:
+        assert signal.label == fichas[signal.name]["name"]
 
 
 # ----- analyze: extremo a extremo (con dobles) -----

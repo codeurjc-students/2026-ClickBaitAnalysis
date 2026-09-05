@@ -288,6 +288,7 @@ def _respuesta_analisis(headline="Un titular"):
         signals=[
             SignalResult(
                 name="detect_clickbait_lexical",
+                label="Léxico por reglas",
                 status=SignalStatus.OK,
                 dimension=Dimension.FORM,
                 type=SignalType.INTERPRETABLE,
@@ -438,6 +439,33 @@ def test_los_topes_salen_en_el_esquema_openapi():
     assert parametros["limit"]["maximum"] == 100
     assert parametros["limit"]["minimum"] == 1
     assert parametros["offset"]["minimum"] == 0
+
+
+def test_una_entrada_se_recupera_por_su_id(analisis):
+    """La puerta que le faltaba al historial (#133).
+
+    Lo guardado desde #102 es la respuesta COMPLETA, no un resumen, así que
+    recuperar un análisis no obliga a reejecutarlo — que además de costar ~20 s
+    podría dar otro resultado, porque las señales remotas no son deterministas.
+    """
+    creado = client.post("/analyze", json={"headline": "Un titular"}).json()
+
+    entrada = client.get(f"/history/{creado['id']}").json()
+
+    assert entrada["id"] == creado["id"]
+    assert entrada["headline"] == "Un titular"
+    assert entrada["payload"] == creado["analysis"]
+
+
+def test_un_id_que_no_existe_da_404():
+    """404 y no lista vacía: preguntar por UNA entrada concreta que no está es
+    un caso distinto de filtrar y no encontrar nada."""
+    assert client.get("/history/999999").status_code == 404
+
+
+def test_un_id_que_no_es_entero_da_422():
+    """Lo para la firma, antes de tocar la base de datos."""
+    assert client.get("/history/no-soy-un-id").status_code == 422
 
 
 # ---------------------------------------------------------------- los filtros

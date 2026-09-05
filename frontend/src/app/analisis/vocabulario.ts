@@ -1,17 +1,5 @@
 import type { DimensionVerdict, SignalResult } from '../api/models';
 
-/**
- * DUPLICA el campo `name` de MODEL_CARDS, que no viaja en la respuesta de
- * /analyze. Desaparece cuando #133 añada `label` a SignalResult.
- */
-const NOMBRES: Record<string, string> = {
-  detect_clickbait_lexical: 'Léxico (reglas)',
-  detect_clickbait_linear: 'Modelo lineal',
-  detect_clickbait_incoherence: 'Incoherencia titular ↔ cuerpo',
-  detect_clickbait: 'RoBERTa dedicado',
-  analyze_sentiment: 'Tono',
-};
-
 // En caja normal a propósito: las mayúsculas las pone el CSS. Muchos lectores
 // de pantalla deletrean las palabras escritas en caja alta.
 const VEREDICTOS: Record<string, string> = {
@@ -39,10 +27,20 @@ const DIMENSIONES: Record<string, string> = {
   tone: 'Tono',
 };
 
-// El `??` es lo que hace que una señal desconocida se pinte con su id crudo en
-// vez de con `undefined`: fea, pero visible.
+/**
+ * La etiqueta legible de una señal, o su id de máquina si no la trae.
+ *
+ * Hasta #133 aquí vivía un diccionario `tool → nombre` que duplicaba el campo
+ * `name` de las fichas del backend **sin ninguna vigilancia**: renombrar una
+ * señal allí no rompía ningún test, sólo hacía que la pantalla pintara el id
+ * crudo. Ahora el nombre viaja en la respuesta y este fichero no se lo inventa.
+ *
+ * El `??` se queda, pero tapa otra cosa: ya no un diccionario incompleto sino
+ * una respuesta ANTIGUA, de antes de que `label` existiera, recuperada del
+ * historial. Fea, pero visible — que es la regla de toda esta interfaz.
+ */
 export function nombreDeSenal(senal: SignalResult): string {
-  return NOMBRES[senal.name] ?? senal.name;
+  return senal.label ?? senal.name;
 }
 
 export function nombreDeVeredicto(verdict: string): string {

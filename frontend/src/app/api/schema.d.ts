@@ -26,6 +26,14 @@ export interface paths {
          *     Cada análisis queda registrado en el historial. Si esa escritura
          *     falla, la respuesta se devuelve igual: perder un análisis correcto porque el
          *     disco esté lleno sería peor que no guardarlo.
+         *
+         *     Por eso el análisis viene **envuelto** en `AnalyzeResult`, con el `id` de la
+         *     entrada al lado (#133). El id se calculaba desde #102 y se descartaba una
+         *     línea antes de salir del proceso, así que no había forma de pedir después un
+         *     análisis concreto: `GET /history/{id}` es la otra mitad de ese hueco.
+         *
+         *     El `id` puede ser `null` —el registro falla y el análisis sigue siendo
+         *     válido—, así que quien lo consuma tiene que funcionar sin él.
          */
         post: operations["post_analyze_analyze_post"];
         delete?: never;
@@ -150,6 +158,42 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/history/{entry_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get History Entry
+         * @description Una entrada del historial por su id, con su respuesta completa.
+         *
+         *     Es la puerta de lectura que le faltaba al historial: lo guardado desde #102
+         *     no es un resumen sino la respuesta entera, pero sólo se podía pedir una
+         *     página con filtros. Con esto, un análisis concreto se puede **recuperar sin
+         *     reejecutar** — que además de costar ~20 s podría dar otro resultado, porque
+         *     las señales remotas no son deterministas.
+         *
+         *     Habilita volver a un resultado desde el historial (#129) y una futura ruta
+         *     `/analisis/:id` en la SPA, que #127 dejó preparada: su bloque de resultados
+         *     recibe el análisis como entrada, así que esa pantalla sólo tendría que
+         *     resolverlo desde aquí y alimentar al mismo componente.
+         *
+         *     **404 si no existe**, y la traducción se hace aquí y no en `history.py`: para
+         *     el almacén «no está» es una respuesta legítima y devuelve `None`, porque es
+         *     el único que puede servir también a la fachada MCP, donde no hay códigos de
+         *     estado. Un id no entero da **422** antes de llegar a la base, por la firma.
+         */
+        get: operations["get_history_entry_history__entry_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/health": {
         parameters: {
             query?: never;
@@ -202,6 +246,45 @@ export interface components {
             /** Dimensions */
             dimensions: components["schemas"]["DimensionVerdict"][];
             verdict: components["schemas"]["OverallVerdict"];
+        };
+        /**
+         * AnalyzeResult
+         * @description El análisis, más el id con el que quedó registrado en el historial.
+         *
+         *     Un **sobre de la capa REST**, y por eso vive aquí y no en ``domain.py``: el
+         *     id es de la fila de SQLite, no del clickbait. Aplicando el criterio de este
+         *     fichero —si borraras la API, ¿seguiría haciendo falta?— la respuesta es no.
+         *
+         *     Se compararon tres formas de sacar el id (#133) y ésta es la única que
+         *     cumple las cuatro condiciones a la vez: no toca el dominio, viaja **tipada**
+         *     al cliente generado, deja intacta la fachada MCP y no ensucia el payload
+         *     guardado.
+         *
+         *     **La descartada interesante es la cabecera ``Location``**, que es lo que
+         *     haría un diseño REST de manual. Su problema es de garantías, no de estilo:
+         *     una cabecera no viaja por el documento OpenAPI, así que el cliente recibiría
+         *     un ``string | null`` sin tipo detrás, tendría que parsear una URL para
+         *     recuperar un entero, y **el día que el backend dejara de mandarla no fallaría
+         *     ningún guardián del CI**. Justo lo contrario de lo que se montó en #126.
+         *
+         *     La otra descartada, un campo en ``AnalyzeResponse``, creaba además una
+         *     contradicción **permanente**, y conviene no confundirla con deuda de datos:
+         *     ``record()`` recibe el payload ANTES de que exista el id, así que TODA fila
+         *     futura guardaría ``id: null`` mientras la respuesta devolvió ``id: 42``.
+         *     Repoblar la base no lo arregla — el código nuevo vuelve a producirlo. La
+         *     salida sería escribir dos veces (insertar, leer el id, volcar de nuevo y
+         *     ``UPDATE``): dos escrituras por un campo que el sobre da gratis.
+         *
+         *     Precio: un nivel de anidamiento (``respuesta.analysis.signals``). Se paga una
+         *     vez, en el servicio de Angular.
+         */
+        AnalyzeResult: {
+            /**
+             * Id
+             * @description Id de la entrada del historial, o `null` si no se pudo registrar. Es opcional a propósito: `record()` no lanza cuando la escritura falla, porque perder un análisis correcto por un disco lleno sería peor que no guardarlo. La interfaz tiene que saber funcionar sin él.
+             */
+            id?: number | null;
+            analysis: components["schemas"]["AnalyzeResponse"];
         };
         /**
          * CatalogResponse
@@ -478,6 +561,11 @@ export interface components {
              * @description Nombre de la herramienta MCP que la produjo.
              */
             name: string;
+            /**
+             * Label
+             * @description Etiqueta para personas, tomada de la ficha del modelo (R3.9). «Léxico por reglas (…)» frente al `name` de máquina `detect_clickbait_lexical`.
+             */
+            label: string;
             status: components["schemas"]["SignalStatus"];
             dimension: components["schemas"]["Dimension"];
             /** @description Naturaleza del modelo, para el badge de la UI. */
@@ -581,6 +669,86 @@ export interface components {
             /** Context */
             ctx?: Record<string, never>;
         };
+        /**
+         * Etiqueta
+         * @description Salida de un clasificador: la etiqueta ganadora y su confianza.
+         */
+        Etiqueta: {
+            /** Label */
+            label: string;
+            /** Score */
+            score: number;
+        };
+        /**
+         * Pista
+         * @description Una marca léxica encontrada en el titular, y dónde aparece.
+         */
+        Pista: {
+            /** Category */
+            category: string;
+            /** Cue */
+            cue: string;
+            /** Span */
+            span: number[];
+        };
+        /**
+         * SalidaLexica
+         * @description Salida del detector por reglas. La evidencia ES la explicación (R3.8).
+         */
+        SalidaLexica: {
+            /** Score */
+            score: number;
+            /** Is Clickbait */
+            is_clickbait: boolean;
+            /** Matches */
+            matches: components["schemas"]["Pista"][];
+            /** Headline */
+            headline: string;
+        };
+        /**
+         * SalidaLineal
+         * @description Salida del modelo lineal interpretable.
+         *
+         *     ``top_cues`` empareja cada cue con su contribución al veredicto (peso ×
+         *     frecuencia); es la explicación intrínseca del modelo.
+         */
+        SalidaLineal: {
+            /** Is Clickbait */
+            is_clickbait: boolean;
+            /** Probability */
+            probability: number;
+            /** Top Cues */
+            top_cues: [
+                string,
+                number
+            ][];
+            /** Headline */
+            headline: string;
+        };
+        /**
+         * SalidaIncoherencia
+         * @description Salida del contraste titular↔cuerpo.
+         *
+         *     Devuelve los textos comparados además de la similitud: sin ellos, el
+         *     resultado no es verificable por quien lo lee.
+         *
+         *     Y devuelve el ``threshold`` contra el que se comparó (#133), que es lo que
+         *     hace auditable la decisión: sin él, ``incoherent`` es un veredicto que hay
+         *     que creerse. Es la única señal híbrida —decisión transparente sobre un rasgo
+         *     opaco—, así que enseñar el corte no es un adorno, es la mitad de su tesis.
+         */
+        SalidaIncoherencia: {
+            /** Similarity */
+            similarity: number;
+            /** Incoherent */
+            incoherent: boolean;
+            /** Threshold */
+            threshold: number;
+            /** Headline */
+            headline: string;
+            /** Content */
+            content: string;
+        };
     };
     responses: never;
     parameters: never;
@@ -609,7 +777,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["AnalyzeResponse"];
+                    "application/json": components["schemas"]["AnalyzeResult"];
                 };
             };
             /** @description Validation Error */
@@ -709,6 +877,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HistoryPage"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_history_entry_history__entry_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                entry_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HistoryEntry"];
                 };
             };
             /** @description Validation Error */

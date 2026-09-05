@@ -1189,6 +1189,199 @@ Añadir el registro a `/analyze` convirtió, sin avisar, todos los tests de esa 
 
 `tests/api/test_history.py` cubre los dos lados por separado —el almacén llamando a sus funciones, el endpoint por HTTP— porque responden preguntas distintas: si los datos sobreviven y salen en orden, y si la decisión de «una entrada por análisis» se sostiene de verdad.
 
+### Cuatro huecos del contrato de `/analyze` (#133)
+
+Salieron al construir la pantalla de #127, uno detrás de otro y con la misma
+forma: **un dato que el backend ya tiene calculado y no deja salir**, y que
+obliga al frontend a inventárselo o a apañárselo. Van juntos porque caben en una
+sola regeneración del contrato y una sola revisión.
+
+#### El id que se calculaba y se tiraba
+
+`history.record()` devolvía el id de la fila insertada desde #102, y `/analyze`
+lo descartaba **una línea antes** de que la respuesta saliera del proceso. Como
+lo que se guarda no es un resumen sino la respuesta completa, la mitad difícil
+estaba hecha: faltaba sólo la puerta de lectura, que ahora es
+`GET /history/{id}`.
+
+El id viaja en un **sobre de la capa REST**, `AnalyzeResult{id, analysis}`. Se
+compararon tres sitios:
+
+| | campo en el dominio | cabecera `Location` | **sobre REST** |
+|---|---|---|---|
+| Toca `domain.py` | sí | — | **—** |
+| El id viaja tipado a `schema.d.ts` | sí | **no** | **sí** |
+| Fachada MCP | devolvería `id` siempre nulo | intacta | **intacta** |
+| Payload guardado | dice `null` mientras la respuesta dice 42 | limpio | **limpio** |
+| Si el backend lo quita | falla al compilar | **falla en silencio** | **falla al compilar** |
+
+La cabecera es lo que haría un diseño REST de manual, y se descartó por la fila
+decisiva: **no viaja por el documento OpenAPI**. El cliente recibiría un
+`string | null` sin tipo detrás, tendría que parsear una URL para recuperar un
+entero, y el día que dejara de mandarse no fallaría ningún guardián del CI —
+justo lo contrario de lo que se montó en #126.
+
+El campo del dominio se descartó además por una contradicción **permanente**, que
+conviene no confundir con deuda de datos: `record()` recibe el payload **antes**
+de que exista el id, así que toda fila futura guardaría `id: null` mientras la
+respuesta devolvió `id: 42`. Repoblar la base no lo arregla, porque el código
+nuevo vuelve a producirlo — a diferencia del caso de #134, donde lo desalineado
+eran filas viejas y regenerar bastaba. La salida sería escribir dos veces
+(insertar, leer el id, volcar de nuevo y `UPDATE`): dos escrituras por un campo
+que el sobre da gratis.
+
+**El id es opcional, y eso no es prudencia decorativa.** `record()` devuelve
+`None` cuando no puede guardar, porque perder un análisis correcto por un disco
+lleno sería peor que no guardarlo. Si la respuesta exigiera el id, ese fallo
+silencioso pasaría a ser un 500. Hay un test que lo fija.
+
+#### La etiqueta que la interfaz se inventaba
+
+`SignalResult` llevaba `name` —el id de máquina, `detect_clickbait_lexical`— pero
+no el nombre para personas, que existe desde #71 en las fichas. Y no había
+ninguna otra puerta: `/tools` tampoco lo expone.
+
+Así que `vocabulario.ts` mantenía un diccionario `tool → nombre`. **Una segunda
+copia sin vigilancia:** renombrar una señal en el backend no rompía ningún test,
+sólo hacía que la pantalla pintara el id crudo. Es la forma exacta del fallo de
+#116, donde el mismo id de modelo vivía en cinco sitios.
+
+Ahora `label` viaja en la respuesta, copiado de la ficha en `_build()` — la misma
+función que ya abría la ficha para leer `dimension` y `type`. El diccionario del
+frontend desaparece; el `??` se queda, pero tapando otra cosa: ya no un
+diccionario incompleto, sino una respuesta **antigua** recuperada del historial.
+
+#### El umbral que no salía de la señal híbrida
+
+La incoherencia decide con `similarity < 0.30`, y su `data` devolvía la similitud
+y el veredicto **pero no el umbral**, que vivía sólo como prosa en las
+`limitations` de su ficha.
+
+Es la única señal híbrida del sistema, y su tesis es que la decisión es
+transparente —un corte legible— aunque el rasgo sea opaco. Una tarjeta que dice
+«similitud 0,62 · coherente» sin enseñar contra qué se comparó **pierde
+exactamente eso**.
+
+Cablear el 0,30 en el frontend habría sido peor que copiar el `label`: #93
+propone parametrizar ese número, así que se estaría duplicando un valor que ya
+está previsto que cambie.
+
+Es el más barato de los cuatro —una línea y su declaración en `outputs.py`,
+porque `data` ya es diccionario libre y el esquema no cambia— y el que menos
+trabajo dio: **#127 ya había dejado el hueco puesto** en la plantilla,
+`@if (datos.threshold !== undefined)`. El campo llegó y la tarjeta lo pintó sola.
+
+#### Las formas del `data`, declaradas dos veces
+
+`data` es diccionario libre a propósito, para no perder información y para que
+quepan señales que todavía no existen. El precio lo paga quien lo consume, y lo
+estaba pagando dos veces: tres `TypedDict` en `outputs.py` y cuatro interfaces
+escritas a mano en `datos.ts`. Las mismas formas, dos lenguajes, **ningún
+vínculo** — y ninguno de los dos guardianes del CI veía la duplicación.
+
+Lo que **no** se hizo: tipar `SignalResult.data` como unión de las cuatro. Daría
+seguridad de tipos, pero el dominio pasaría a conocer cada señal concreta y
+rompería el principio 1 de `domain.py` — hoy añadir una señal no toca el dominio,
+y ésa es la propiedad que más costaría recuperar.
+
+Lo que sí: `export_openapi.py` publica las formas conocidas en
+`components/schemas`, y `datos.ts` las importa. Los guardianes de forma se quedan
+—`data` sigue sin tipo en la frontera y hay que comprobar en ejecución— pero
+pasan a validar contra tipos **generados** en vez de contra copias.
+
+Dos detalles del montaje:
+
+**Las referencias.** `SalidaLexica` anida `Pista`, y Pydantic mete los tipos
+anidados en un `$defs` local con `$ref: "#/$defs/Pista"`, que en un documento
+OpenAPI no resuelve. Se arregla por los dos lados —`ref_template` para generar
+las referencias ya apuntando a `components/schemas`, y subir los anidados ahí—
+en vez de reescribiendo cadenas después. Hay un test nuevo que recorre el
+documento entero y comprueba que **ningún `$ref` queda colgando**, porque ese
+fallo no se vería: `openapi-typescript` no revienta con una referencia rota,
+genera `unknown`, y el tipo deja de comprobar nada.
+
+**`Pick` en vez del tipo entero.** Cada guardián verifica unos campos concretos;
+devolver el tipo completo afirmaría que existen otros que nadie ha mirado.
+`DatosLexico = Pick<SalidaLexica, 'score' | 'matches'>` dice exactamente lo
+verificado, y si el backend renombra uno de esos dos campos, deja de compilar.
+
+#### Lo que se aprendió: dónde NO llega el contrato generado
+
+Al cambiar la respuesta de `/analyze`, **el frontend siguió compilando sin un
+solo error**. Con el tipo viejo puesto.
+
+El motivo está en una línea del servicio:
+
+```ts
+return this.http.post<AnalyzeResult>(`${API}/analyze`, peticion);
+```
+
+Ese genérico **no comprueba nada**: es una afirmación sobre lo que va a llegar.
+TypeScript se la cree, porque no puede saber qué manda el servidor. La cadena de
+#126 protege todo lo que hay aguas abajo de esa línea, y en la frontera HTTP no
+puede protegerlo nada.
+
+Contrasta con #134, donde el mismo mecanismo **sí** paró un `!== 'opaco'` que la
+búsqueda no vio: allí se comparaba contra una unión generada, aquí se declara lo
+que se espera recibir. La diferencia no es de rigor, es estructural.
+
+Dónde sí saltó: **en los tests**. Los fixtures se declaran `const LEXICA:
+SignalResult = {…}`, así que añadir `label` los rompió a los siete de golpe, con
+su línea exacta. Los tipos generados protegen donde el código *afirma conformarse
+a ellos*, no donde los pide por la red.
+
+**Y no se queda en una nota.** El fichero generado no sólo publica `components`:
+publica también `paths`, que sí sabe qué devuelve cada ruta. Los tipos del
+endpoint se toman ahora de ahí:
+
+```ts
+type Analyze = paths['/analyze']['post'];
+export type AnalyzeResult =
+  Analyze['responses'][200]['content']['application/json'];
+```
+
+Elegirlos a mano de `components` era lo que dejaba la afirmación suelta:
+`AnalyzeResponse` seguía existiendo como esquema, así que nada relacionaba el
+tipo con la ruta. Derivándolo, cambiar lo que devuelve `/analyze` cambia este
+tipo al regenerar, y rompe a quien supusiera la forma anterior. La elección deja
+de ser de quien escribe el servicio y pasa a ser del contrato.
+
+Comprobado, no supuesto: apuntando la respuesta 200 de `/analyze` a
+`AnalyzeResponse` en el contrato y regenerando, el build falla con `TS2339` en
+las dos líneas que abren el sobre, `analisis-page.ts:96` y `:97`. Antes de este
+cambio, esa misma simulación compilaba sin una queja.
+
+Lo que sigue sin cubrir es que el backend **desplegado** no corresponda al
+contrato commiteado. Para eso haría falta validar en ejecución, que es una
+segunda fuente de verdad salvo que también se genere — desproporcionado aquí, y
+anotado por si algún día deja de serlo.
+
+#### Y un efecto secundario que casi se cuela
+
+`app.openapi()` **cachea** su resultado en `app.openapi_schema` y devuelve siempre
+el mismo objeto. Enriquecerlo en sitio habría metido las formas del `data` en el
+`/openapi.json` que sirve la aplicación a partir de la primera llamada al
+exportador — o sea, un documento que cambia según si el exportador ha corrido
+antes, y en la suite eso depende del orden de los tests. Se genera sobre una
+copia para que la función sea pura.
+
+#### Una corrección de nomenclatura
+
+La issue fijaba el campo como `analisis`, en castellano; se escribió el
+2026-09-03. Al día siguiente entró #134, que estableció que **las claves de
+máquina van en inglés y sin diacríticos**, y un nombre de campo lo es tanto como
+el valor de un enum: viaja en el JSON y acaba en `schema.d.ts`. Se implementó
+como `analysis`, y la corrección queda anotada en la issue y en `CLAUDE.md`, no
+aplicada en silencio.
+
+#### Verificación
+
+206 tests de Python —ocho nuevos: que el id viaja y sirve, que un id inexistente
+da 404, que uno no entero da 422, que **el análisis se devuelve igual cuando el
+registro falla**, que el `label` sale de la ficha, que ningún `$ref` cuelga y que
+las formas del `data` se publican— y los 25 del frontend, ruff limpio, y
+`openapi.json` y `schema.d.ts` reproducibles byte a byte.
+
 ### Las claves del dominio, en inglés y sin diacríticos (#134)
 
 Salió al escribir la plantilla de #127. Para pintar cada señal con el color de su

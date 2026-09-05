@@ -5,6 +5,7 @@ import { SenalCard } from './senal-card';
 
 const LEXICA: SignalResult = {
   name: 'detect_clickbait_lexical',
+  label: 'Léxico por reglas',
   status: 'ok',
   dimension: 'form',
   type: 'interpretable',
@@ -20,6 +21,7 @@ const LEXICA: SignalResult = {
 
 const OPACA: SignalResult = {
   name: 'detect_clickbait',
+  label: 'RoBERTa dedicado',
   status: 'ok',
   dimension: 'form',
   type: 'opaque',
@@ -29,6 +31,7 @@ const OPACA: SignalResult = {
 
 const CAIDA: SignalResult = {
   name: 'detect_clickbait',
+  label: 'RoBERTa dedicado',
   status: 'error',
   dimension: 'form',
   type: 'opaque',
@@ -38,6 +41,7 @@ const CAIDA: SignalResult = {
 
 const DESCONOCIDA: SignalResult = {
   name: 'una_senal_futura',
+  label: 'Una señal futura',
   status: 'ok',
   dimension: 'form',
   type: 'interpretable',

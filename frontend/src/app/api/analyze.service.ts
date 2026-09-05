@@ -11,7 +11,7 @@ import { HttpClient } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 
-import type { AnalyzeRequest, AnalyzeResponse } from './models';
+import type { AnalyzeRequest, AnalyzeResult } from './models';
 
 /**
  * Prefijo de la API. NO es la dirección del backend, y esa es la gracia.
@@ -40,8 +40,24 @@ export class AnalyzeService {
    * análisis correctos porque el cuarto dio timeout sería el error de verdad.
    * Por el canal de error sólo llegan fallos de la PETICIÓN (422 con el titular
    * en blanco), del servidor o de la red.
+   *
+   * Devuelve el **sobre** `AnalyzeResult`, no el análisis pelado: dentro vienen
+   * el análisis y el `id` con el que quedó registrado (#133), que es lo que
+   * permitirá volver a él sin reejecutarlo.
+   *
+   * El `<AnalyzeResult>` de `post` **no comprueba nada**: es una afirmación
+   * sobre lo que va a llegar, porque la respuesta viene por la red y TypeScript
+   * no tiene contra qué contrastarla. Es la costura menos protegida de la
+   * cadena, y en #133 se vio: el backend empezó a devolver el sobre y esto
+   * siguió compilando con el tipo viejo.
+   *
+   * Lo que la sostiene es de dónde sale `AnalyzeResult` — de
+   * `paths['/analyze']['post']` y no elegido a mano de `components`, así que
+   * cambiar lo que devuelve la ruta cambia el tipo al regenerar el contrato. La
+   * afirmación sigue sin verificarse aquí, pero ya no es una elección de quien
+   * escribió esta línea. Ver `models.ts`.
    */
-  analizar(peticion: AnalyzeRequest): Observable<AnalyzeResponse> {
-    return this.http.post<AnalyzeResponse>(`${API}/analyze`, peticion);
+  analizar(peticion: AnalyzeRequest): Observable<AnalyzeResult> {
+    return this.http.post<AnalyzeResult>(`${API}/analyze`, peticion);
   }
 }

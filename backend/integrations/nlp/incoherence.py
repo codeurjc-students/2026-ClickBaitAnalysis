@@ -83,6 +83,16 @@ class IncoherenceDetector:
                 {
                     "similarity": sim,
                     "incoherent": inc,
+                    # El umbral VIAJA con el resultado (#133). Ésta es la señal
+                    # híbrida del sistema, y su tesis es que la decisión es
+                    # transparente —un corte legible— aunque el rasgo sea opaco.
+                    # Una tarjeta que dijera «similitud 0,62 · coherente» sin
+                    # enseñar contra qué se comparó pierde exactamente eso.
+                    #
+                    # Y cablearlo en la interfaz sería peor que copiarlo: #93
+                    # propone parametrizar este número, así que se estaría
+                    # duplicando un valor que ya está previsto que cambie.
+                    "threshold": self.THRESHOLD,
                     "headline": headline,
                     "content": content,
                 }

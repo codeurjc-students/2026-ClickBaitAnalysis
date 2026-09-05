@@ -12,7 +12,7 @@
           "análisis"
         ],
         "summary": "Post Analyze",
-        "description": "Analiza un titular contrastando todas las señales disponibles.\n\nDevuelve **200 aunque alguna señal falle**: cada una lleva su propio\n`status`, y perder tres análisis correctos porque el cuarto dio timeout\nsería un error. Si el cuerpo de la noticia no se\nenvía, la señal de incoherencia queda en `not_applicable` y la dimensión de\nengaño no se puede evaluar.\n\nCada análisis queda registrado en el historial. Si esa escritura\nfalla, la respuesta se devuelve igual: perder un análisis correcto porque el\ndisco esté lleno sería peor que no guardarlo.",
+        "description": "Analiza un titular contrastando todas las señales disponibles.\n\nDevuelve **200 aunque alguna señal falle**: cada una lleva su propio\n`status`, y perder tres análisis correctos porque el cuarto dio timeout\nsería un error. Si el cuerpo de la noticia no se\nenvía, la señal de incoherencia queda en `not_applicable` y la dimensión de\nengaño no se puede evaluar.\n\nCada análisis queda registrado en el historial. Si esa escritura\nfalla, la respuesta se devuelve igual: perder un análisis correcto porque el\ndisco esté lleno sería peor que no guardarlo.\n\nPor eso el análisis viene **envuelto** en `AnalyzeResult`, con el `id` de la\nentrada al lado (#133). El id se calculaba desde #102 y se descartaba una\nlínea antes de salir del proceso, así que no había forma de pedir después un\nanálisis concreto: `GET /history/{id}` es la otra mitad de ese hueco.\n\nEl `id` puede ser `null` —el registro falla y el análisis sigue siendo\nválido—, así que quien lo consuma tiene que funcionar sin él.",
         "operationId": "post_analyze_analyze_post",
         "requestBody": {
           "content": {
@@ -30,7 +30,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/AnalyzeResponse"
+                  "$ref": "#/components/schemas/AnalyzeResult"
                 }
               }
             }
@@ -293,6 +293,49 @@
         }
       }
     },
+    "/history/{entry_id}": {
+      "get": {
+        "tags": [
+          "historial"
+        ],
+        "summary": "Get History Entry",
+        "description": "Una entrada del historial por su id, con su respuesta completa.\n\nEs la puerta de lectura que le faltaba al historial: lo guardado desde #102\nno es un resumen sino la respuesta entera, pero sólo se podía pedir una\npágina con filtros. Con esto, un análisis concreto se puede **recuperar sin\nreejecutar** — que además de costar ~20 s podría dar otro resultado, porque\nlas señales remotas no son deterministas.\n\nHabilita volver a un resultado desde el historial (#129) y una futura ruta\n`/analisis/:id` en la SPA, que #127 dejó preparada: su bloque de resultados\nrecibe el análisis como entrada, así que esa pantalla sólo tendría que\nresolverlo desde aquí y alimentar al mismo componente.\n\n**404 si no existe**, y la traducción se hace aquí y no en `history.py`: para\nel almacén «no está» es una respuesta legítima y devuelve `None`, porque es\nel único que puede servir también a la fachada MCP, donde no hay códigos de\nestado. Un id no entero da **422** antes de llegar a la base, por la firma.",
+        "operationId": "get_history_entry_history__entry_id__get",
+        "parameters": [
+          {
+            "name": "entry_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Entry Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HistoryEntry"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/health": {
       "get": {
         "tags": [
@@ -390,6 +433,31 @@
           "verdict"
         ],
         "title": "AnalyzeResponse"
+      },
+      "AnalyzeResult": {
+        "properties": {
+          "id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Id",
+            "description": "Id de la entrada del historial, o `null` si no se pudo registrar. Es opcional a propósito: `record()` no lanza cuando la escritura falla, porque perder un análisis correcto por un disco lleno sería peor que no guardarlo. La interfaz tiene que saber funcionar sin él."
+          },
+          "analysis": {
+            "$ref": "#/components/schemas/AnalyzeResponse"
+          }
+        },
+        "type": "object",
+        "required": [
+          "analysis"
+        ],
+        "title": "AnalyzeResult",
+        "description": "El análisis, más el id con el que quedó registrado en el historial.\n\nUn **sobre de la capa REST**, y por eso vive aquí y no en ``domain.py``: el\nid es de la fila de SQLite, no del clickbait. Aplicando el criterio de este\nfichero —si borraras la API, ¿seguiría haciendo falta?— la respuesta es no.\n\nSe compararon tres formas de sacar el id (#133) y ésta es la única que\ncumple las cuatro condiciones a la vez: no toca el dominio, viaja **tipada**\nal cliente generado, deja intacta la fachada MCP y no ensucia el payload\nguardado.\n\n**La descartada interesante es la cabecera ``Location``**, que es lo que\nharía un diseño REST de manual. Su problema es de garantías, no de estilo:\nuna cabecera no viaja por el documento OpenAPI, así que el cliente recibiría\nun ``string | null`` sin tipo detrás, tendría que parsear una URL para\nrecuperar un entero, y **el día que el backend dejara de mandarla no fallaría\nningún guardián del CI**. Justo lo contrario de lo que se montó en #126.\n\nLa otra descartada, un campo en ``AnalyzeResponse``, creaba además una\ncontradicción **permanente**, y conviene no confundirla con deuda de datos:\n``record()`` recibe el payload ANTES de que exista el id, así que TODA fila\nfutura guardaría ``id: null`` mientras la respuesta devolvió ``id: 42``.\nRepoblar la base no lo arregla — el código nuevo vuelve a producirlo. La\nsalida sería escribir dos veces (insertar, leer el id, volcar de nuevo y\n``UPDATE``): dos escrituras por un campo que el sobre da gratis.\n\nPrecio: un nivel de anidamiento (``respuesta.analysis.signals``). Se paga una\nvez, en el servicio de Angular."
       },
       "CatalogResponse": {
         "properties": {
@@ -777,6 +845,11 @@
             "title": "Name",
             "description": "Nombre de la herramienta MCP que la produjo."
           },
+          "label": {
+            "type": "string",
+            "title": "Label",
+            "description": "Etiqueta para personas, tomada de la ficha del modelo (R3.9). «Léxico por reglas (…)» frente al `name` de máquina `detect_clickbait_lexical`."
+          },
           "status": {
             "$ref": "#/components/schemas/SignalStatus"
           },
@@ -828,6 +901,7 @@
         "type": "object",
         "required": [
           "name",
+          "label",
           "status",
           "dimension",
           "type"
@@ -993,6 +1067,160 @@
           "type"
         ],
         "title": "ValidationError"
+      },
+      "Etiqueta": {
+        "description": "Salida de un clasificador: la etiqueta ganadora y su confianza.",
+        "properties": {
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "score": {
+            "title": "Score",
+            "type": "number"
+          }
+        },
+        "required": [
+          "label",
+          "score"
+        ],
+        "title": "Etiqueta",
+        "type": "object"
+      },
+      "Pista": {
+        "description": "Una marca léxica encontrada en el titular, y dónde aparece.",
+        "properties": {
+          "category": {
+            "title": "Category",
+            "type": "string"
+          },
+          "cue": {
+            "title": "Cue",
+            "type": "string"
+          },
+          "span": {
+            "items": {
+              "type": "integer"
+            },
+            "title": "Span",
+            "type": "array"
+          }
+        },
+        "required": [
+          "category",
+          "cue",
+          "span"
+        ],
+        "title": "Pista",
+        "type": "object"
+      },
+      "SalidaLexica": {
+        "description": "Salida del detector por reglas. La evidencia ES la explicación (R3.8).",
+        "properties": {
+          "score": {
+            "title": "Score",
+            "type": "integer"
+          },
+          "is_clickbait": {
+            "title": "Is Clickbait",
+            "type": "boolean"
+          },
+          "matches": {
+            "items": {
+              "$ref": "#/components/schemas/Pista"
+            },
+            "title": "Matches",
+            "type": "array"
+          },
+          "headline": {
+            "title": "Headline",
+            "type": "string"
+          }
+        },
+        "required": [
+          "score",
+          "is_clickbait",
+          "matches",
+          "headline"
+        ],
+        "title": "SalidaLexica",
+        "type": "object"
+      },
+      "SalidaLineal": {
+        "description": "Salida del modelo lineal interpretable.\n\n``top_cues`` empareja cada cue con su contribución al veredicto (peso ×\nfrecuencia); es la explicación intrínseca del modelo.",
+        "properties": {
+          "is_clickbait": {
+            "title": "Is Clickbait",
+            "type": "boolean"
+          },
+          "probability": {
+            "title": "Probability",
+            "type": "number"
+          },
+          "top_cues": {
+            "items": {
+              "maxItems": 2,
+              "minItems": 2,
+              "prefixItems": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "type": "array"
+            },
+            "title": "Top Cues",
+            "type": "array"
+          },
+          "headline": {
+            "title": "Headline",
+            "type": "string"
+          }
+        },
+        "required": [
+          "is_clickbait",
+          "probability",
+          "top_cues",
+          "headline"
+        ],
+        "title": "SalidaLineal",
+        "type": "object"
+      },
+      "SalidaIncoherencia": {
+        "description": "Salida del contraste titular↔cuerpo.\n\nDevuelve los textos comparados además de la similitud: sin ellos, el\nresultado no es verificable por quien lo lee.\n\nY devuelve el ``threshold`` contra el que se comparó (#133), que es lo que\nhace auditable la decisión: sin él, ``incoherent`` es un veredicto que hay\nque creerse. Es la única señal híbrida —decisión transparente sobre un rasgo\nopaco—, así que enseñar el corte no es un adorno, es la mitad de su tesis.",
+        "properties": {
+          "similarity": {
+            "title": "Similarity",
+            "type": "number"
+          },
+          "incoherent": {
+            "title": "Incoherent",
+            "type": "boolean"
+          },
+          "threshold": {
+            "title": "Threshold",
+            "type": "number"
+          },
+          "headline": {
+            "title": "Headline",
+            "type": "string"
+          },
+          "content": {
+            "title": "Content",
+            "type": "string"
+          }
+        },
+        "required": [
+          "similarity",
+          "incoherent",
+          "threshold",
+          "headline",
+          "content"
+        ],
+        "title": "SalidaIncoherencia",
+        "type": "object"
       }
     }
   }
