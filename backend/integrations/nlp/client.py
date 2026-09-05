@@ -21,8 +21,10 @@ class HFClient(BaseAPI, NLPBackend):
         if not result.success:
             return result
         try:
-            return ToolResult.ok(result.data[0][0])
-        except (IndexError, KeyError, TypeError):
+            return ToolResult.ok(result.unwrap()[0][0])
+        # `ValueError` lo aporta `unwrap()`: un éxito sin datos es otra forma de
+        # respuesta inesperada, y se informa igual que las demás en vez de subir.
+        except (IndexError, KeyError, TypeError, ValueError):
             return ToolResult.fail(f"Respuesta inesperada de HF: {result.data}")
 
     async def zero_shot(self, text: str, model: str, labels: list[str]) -> ToolResult:
@@ -39,6 +41,6 @@ class HFClient(BaseAPI, NLPBackend):
         if not result.success:
             return result
         try:
-            return ToolResult.ok(result.data[0])
-        except (IndexError, KeyError, TypeError):
+            return ToolResult.ok(result.unwrap()[0])
+        except (IndexError, KeyError, TypeError, ValueError):
             return ToolResult.fail(f"Respuesta inesperada de HF: {result.data}")

@@ -62,4 +62,4 @@ def register(mcp: FastMCP):
         response = await api.search_articles(topic, days)
         if not response.has_content():
             raise ToolError(response.error or "Error fetching news")
-        return response.data
+        return response.unwrap()

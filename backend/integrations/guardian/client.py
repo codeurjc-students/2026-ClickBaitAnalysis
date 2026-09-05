@@ -63,7 +63,7 @@ class GuardianAPI(BaseAPI):
         if not response.success or not response.has_content():
             return ToolResult.fail("No articles found")
 
-        results = response.data.get("response", {}).get("results")
+        results = response.unwrap().get("response", {}).get("results")
 
         if not results:
             return ToolResult.fail("No articles found")
@@ -85,9 +85,11 @@ class GuardianAPI(BaseAPI):
     # Fix: No coger tags[0] ya que suelen ser niches, para tema principal sistema X/X
     async def _find_tag(self, topic: str) -> str | None:
         result = await self.make_request("tags", "get", {"q": topic, "page-size": 10})
-        if not result.success:
+        # `has_content()` y no `success`: un éxito sin cuerpo llegaba hasta el
+        # `.get` y reventaba con un AttributeError sobre None.
+        if not result.has_content():
             return None
-        tags = result.data.get("response", {}).get("results", [])
+        tags = result.unwrap().get("response", {}).get("results", [])
         if not tags:
             return None
 

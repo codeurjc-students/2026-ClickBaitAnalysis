@@ -43,6 +43,24 @@ jobs:
           pip install ruff==0.16.1
           ruff check .
           ruff format --check .
+      # Los tipos van en un paso APARTE del estilo, y después, por lo mismo que
+      # el estilo va después de los tests: cada informe se genera aunque el
+      # siguiente falle. Son tres preguntas distintas y conviene poder leer las
+      # tres.
+      #
+      # Pyright es lo que ya corre en el editor a través de Pylance, así que el
+      # CI comprueba exactamente lo que ve quien escribe. Reglas y exclusiones,
+      # en `pyrightconfig.json`.
+      #
+      # `--pythonpath` es necesario: la configuración apunta al `.venv` para el
+      # trabajo local y el editor, y aquí no hay ninguno — las dependencias
+      # están en el intérprete del runner, instaladas por el paso de arriba. Sin
+      # esto, pyright no resuelve un solo import y produce decenas de avisos que
+      # no son errores de tipos.
+      - name: Comprobando tipos...
+        run: |
+          pip install pyright==1.1.411
+          pyright --pythonpath $(which python)
 
   # El frontend va en un job APARTE y no como pasos del de Python: son cadenas
   # de herramientas independientes y así un fallo de TypeScript no oculta el

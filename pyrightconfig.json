@@ -1,0 +1,33 @@
+{
+  // Configuración de pyright (#139). Se lee también desde el editor: Pylance ES
+  // pyright, así que lo que ve quien escribe es lo mismo que rompe el CI. Ésa
+  // es la razón de elegirlo frente a mypy — no hay dos listas que traducir.
+
+  "include": ["backend"],
+
+  "exclude": [
+    "**/__pycache__",
+
+    // Scripts de investigación de un solo uso. Acumulaban 41 de los 67 avisos
+    // iniciales y escondían los 26 del código servido, que son los que
+    // importan. Mismo criterio que en `.coveragerc`: lo que no se sirve, no
+    // distorsiona el número.
+    "backend/evaluation"
+  ],
+
+  // Sin esto pyright no encuentra las dependencias y produce 33 avisos de
+  // `reportMissingImports` que no son errores de tipos, sólo de configuración.
+  "venvPath": ".",
+  "venv": ".venv",
+
+  // `basic` y no `strict`. Con `strict` habría que anotar cada función y cada
+  // variable del proyecto entero antes de que el CI volviera a pasar, y lo que
+  // se enciende de golpe sobre código existente se acaba ignorando. `basic`
+  // encontró los 26 avisos reales, que ya era lo que se buscaba.
+  //
+  // Subir a `strict` es una decisión posterior y por módulos, con el mismo
+  // criterio que el umbral de cobertura: mirar primero, congelar después.
+  "typeCheckingMode": "basic",
+
+  "pythonVersion": "3.12"
+}

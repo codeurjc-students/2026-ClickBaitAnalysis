@@ -36,9 +36,9 @@ Ver la ficha.
 """
 
 from backend.core.models import ToolResult
-from backend.integrations.nlp.model_cards import cards_by_signal
+from backend.integrations.nlp.model_cards import model_id_de
 
-MODEL = cards_by_signal()["detect_clickbait"]["model_id"]
+MODEL = model_id_de("detect_clickbait")
 
 # El vocabulario del modelo NO sale hacia fuera. La tool MCP publica
 # `clickbait`/`factual news`, que es contrato leído por el LLM (spike #82), y

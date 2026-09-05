@@ -50,7 +50,7 @@ from backend.core.models import ToolResult
 from backend.integrations.nlp import dedicated, lexical, linear
 from backend.integrations.nlp.factory import get_nlp_backend
 from backend.integrations.nlp.incoherence import IncoherenceDetector
-from backend.integrations.nlp.model_cards import cards_by_signal
+from backend.integrations.nlp.model_cards import cards_by_signal, model_id_de
 
 log = structlog.get_logger()
 
@@ -79,7 +79,26 @@ _CARDS = cards_by_signal()
 # Sólo queda el del tono: la señal de clickbait pasó a `integrations/nlp/dedicated`
 # en #115, que es donde viven ya sus hermanas —léxico, lineal, incoherencia— y
 # donde el id y el mapeo de etiquetas tienen un único sitio.
-_SENTIMENT_MODEL = _CARDS["analyze_sentiment"]["model_id"]
+_SENTIMENT_MODEL = model_id_de("analyze_sentiment")
+
+
+def _con_cuerpo(content: str | None) -> str:
+    """El cuerpo de la noticia, exigiendo que esté.
+
+    ``needs_content`` garantiza que las señales que lo requieren no se ejecutan
+    sin él, pero esa garantía vive en ``_run_signals``, muy por debajo de esta
+    tabla: ningún tipador puede unir los dos puntos, y ningún lector de un
+    vistazo tampoco.
+
+    Si alguien pusiera ``needs_content=False`` en la entrada de la incoherencia,
+    el guardia dejaría de correr y el fallo saldría dentro del detector, como un
+    ``TypeError`` al medir la longitud de ``None`` — convertido después en una
+    señal en estado ``error`` por el aislamiento de fallos. Sin excepción que
+    suba, sin test rojo. Esto lo convierte en un mensaje que dice qué pasó.
+    """
+    if content is None:
+        raise ValueError("Esta señal requiere el cuerpo de la noticia.")
+    return content
 
 
 @dataclass(frozen=True)
@@ -157,7 +176,7 @@ _SIGNALS: tuple[_Signal, ...] = (
     ),
     _Signal(
         name="detect_clickbait_incoherence",
-        run=lambda h, c: _detector.detect(h, c),
+        run=lambda h, c: _detector.detect(h, _con_cuerpo(c)),
         verdict=lambda d: d["incoherent"],
         needs_content=True,
     ),
@@ -304,11 +323,12 @@ async def _run_one(spec: _Signal, headline: str, content: str | None) -> SignalR
             SignalStatus.ERROR,
             detail=outcome.error or "La señal no devolvió resultado.",
         )
+    datos = outcome.unwrap()
     return _build(
         spec,
         SignalStatus.OK,
-        is_clickbait=spec.verdict(outcome.data),
-        data=outcome.data,
+        is_clickbait=spec.verdict(datos),
+        data=datos,
     )
 
 

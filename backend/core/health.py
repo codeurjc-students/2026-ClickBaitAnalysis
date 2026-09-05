@@ -46,7 +46,7 @@ PROBES = {
 }
 
 
-async def _probe(url: str, params: dict | None = None) -> dict:
+async def _probe(url: str, params: dict | None = None) -> Sonda:
     """Hace una petición ligera a una API y reporta si responde correctamente."""
     try:
         async with httpx.AsyncClient(timeout=PROBE_TIMEOUT) as client:

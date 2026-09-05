@@ -52,8 +52,28 @@ no significan que el titular engañe. Sin este campo, el backend tendría que
 cablear qué señal es cuál — justo lo que se evita.
 """
 
+from backend.integrations.nlp.outputs import FichaModelo
 
-def cards_by_signal() -> dict[str, dict]:
+
+def model_id_de(signal: str) -> str:
+    """El id de HuggingFace de una señal, exigiendo que lo tenga.
+
+    ``model_id`` es ``None`` a propósito en el léxico y el lineal, que no son un
+    modelo descargable, y ese ``None`` es información. El precio lo pagaba quien
+    lo consume: las señales que sí necesitan un modelo lo leían de la ficha y se
+    lo pasaban al backend NLP sin comprobar nada.
+
+    Si una ficha perdiera su id, hoy el fallo saldría dentro de la llamada HTTP
+    —una URL con ``None`` dentro— y el mensaje no diría de qué señal viene. Aquí
+    dice cuál y por qué. Detectado por pyright en #139.
+    """
+    identificador = cards_by_signal()[signal]["model_id"]
+    if identificador is None:
+        raise ValueError(f"La señal «{signal}» no usa un modelo descargable.")
+    return identificador
+
+
+def cards_by_signal() -> dict[str, FichaModelo]:
     """Índice de fichas por nombre de tool.
 
     Vive aquí y no en quien lo usa porque lo necesitan DOS consumidores —la
@@ -64,7 +84,7 @@ def cards_by_signal() -> dict[str, dict]:
     return {card["signal"]: card for card in MODEL_CARDS}
 
 
-MODEL_CARDS = [
+MODEL_CARDS: list[FichaModelo] = [
     {
         "signal": "detect_clickbait",
         "model_id": "Stremie/roberta-base-clickbait",

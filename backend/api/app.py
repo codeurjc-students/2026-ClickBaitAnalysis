@@ -46,7 +46,7 @@ from backend.api.schemas import (
     RetentionPolicy,
 )
 from backend.config.settings import settings
-from backend.core.health import check_health
+from backend.core.health import Salud, check_health
 from backend.core.logging import configure_logging
 
 # Las tres excepciones son vocabulario del MECANISMO, no de la fachada: viven
@@ -360,7 +360,7 @@ async def get_history_entry(entry_id: int) -> HistoryEntry:
 
 
 @app.get("/health", tags=["operación"])
-async def get_health() -> dict:
+async def get_health() -> Salud:
     """Estado de las integraciones externas.
 
     Sondea cada API con una petición ligera y agrega: `ok` si todas responden,

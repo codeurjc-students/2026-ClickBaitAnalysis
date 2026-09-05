@@ -263,6 +263,12 @@ def _guardar(
         # evitaría, pero perdería el ahorro que justifica podar al escribir.
         _podar(conexion)
 
+        if identificador is None:
+            # Imposible tras un INSERT, y por eso mismo conviene que grite: si
+            # ocurriera, `record` devolvería None y la API publicaría `id: null`
+            # sin que nada explicara por qué.
+            raise RuntimeError("El INSERT no devolvió el id de la fila.")
+
         return identificador
 
 
