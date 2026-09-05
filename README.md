@@ -1189,6 +1189,126 @@ Añadir el registro a `/analyze` convirtió, sin avisar, todos los tests de esa 
 
 `tests/api/test_history.py` cubre los dos lados por separado —el almacén llamando a sus funciones, el endpoint por HTTP— porque responden preguntas distintas: si los datos sobreviven y salen en orden, y si la decisión de «una entrada por análisis» se sostiene de verdad.
 
+### El frontend crecía sin linter, y la accesibilidad dependía de la memoria (#140)
+
+`ng new` de Angular 22 no añade ESLint, y no se añadió después. Lo único que
+miraba el código sin ejecutarlo era `tsc` dentro de `ng build` — que sirve, y en
+#134 fue lo único que detectó un `!== 'opaco'` que la búsqueda por texto no vio,
+pero sólo comprueba tipos.
+
+La tercera de las tres issues que buscan fallos que hoy no se manifiestan, tras
+#138 y #139.
+
+#### La tercera vez que un artefacto generado distorsiona el número
+
+16 avisos al instalarlo. **Los 16 en `src/app/api/schema.d.ts`**, el cliente que
+escribe `openapi-typescript`. **Cero en código escrito a mano.**
+
+Arreglarlos sería trabajo perdido: la siguiente regeneración los devuelve. Se
+excluye, y con eso el proyecto queda en cero.
+
+Es el mismo patrón por tercera vez —en #138 y #139 era `backend/evaluation/`— y
+ya conviene decirlo como regla y no como coincidencia: **antes de leer el número
+de una herramienta nueva, hay que separar lo que se escribe a mano de lo que se
+genera.** Sin esa separación, los tres números habrían sido inútiles: 50 % de
+cobertura, 67 avisos de tipos, 16 de estilo, todos dominados por ficheros que
+nadie edita.
+
+#### La accesibilidad ya venía activada, y las reglas están vivas
+
+`templateAccessibility` entra en la configuración por defecto de angular-eslint,
+así que la mitad valiosa de esta issue no hubo que montarla. Y las plantillas dan
+cero avisos.
+
+Eso podría significar dos cosas, y conviene distinguirlas: que las reglas son
+flojas, o que la accesibilidad se escribió bien. **Comprobado provocándolo** — un
+`<img>` sin alternativa textual y un `(click)` en un `<div>`:
+
+```
+error  <img/> element must have a text alternative              alt-text
+error  click must be accompanied by either keyup, keydown or
+       keypress event for accessibility                         click-events-have-key-events
+error  Elements with interaction handlers must be focusable     interactive-supports-focus
+```
+
+Son exigentes, incluida la que más se olvida: un manejador de ratón sin
+equivalente de teclado. Las plantillas de #127 pasan porque se escribieron con
+cuidado. Lo que cambia hoy no es el resultado, es que **deja de depender de que
+alguien se acuerde en cada plantilla nueva** — y quedan tres por escribir.
+
+#### La pregunta abierta de la issue, respondida a medias
+
+Al crear #140 quedó anotada una duda que valía la pena resolver: si alguna regla
+puede detectar **el silencio de zoneless**, que es el fallo más peligroso de este
+frontend — guardar estado fuera de un `signal()` no repinta la pantalla y no
+lanza ningún error.
+
+**Sí, una de las dos caras.** `@angular-eslint/no-uncalled-signals` caza usar la
+señal sin llamarla, y se comprobó provocándolo:
+
+> Doing logic operations on signals will give unexpected results, you probably
+> want to invoke the signal to get its value
+
+Con dos condiciones que no son evidentes: **no viene en el conjunto recomendado**
+—hay que activarla a mano— y **exige linting con información de tipos**, sin el
+cual ni siquiera se carga: aborta con «You have used a rule which requires type
+information».
+
+La otra cara **no la cubre nadie**. Declarar `resultado: AnalyzeResponse | null =
+null` en vez de `signal(null)` es indistinguible de código correcto para
+cualquier herramienta: la intención no está escrita en ninguna parte. Ese
+invariante sigue sostenido sólo por convención, y queda dicho en la propia
+configuración para que quien la lea no crea que está cubierto.
+
+#### El linting con tipos sale barato, y trae compañía
+
+Activarlo cuesta **3,9 s** para el frontend entero, medido. A ese precio deja de
+ser una decisión: entran también las reglas que necesitan el tipo real, entre
+ellas las de promesas sin esperar, que en una SPA con `HttpClient` es un fallo
+real y silencioso.
+
+Con los tipos disponibles se midió si compensaba subir de
+`tseslint.configs.recommended` a `recommendedTypeChecked`. **Dos problemas en
+todo el frontend**, los dos en el mismo sitio y los dos ciertos:
+
+```
+src/app/analisis/errores.ts
+  16:11  error  Unsafe assignment of an `any` value
+  16:34  error  Unsafe member access .detail on an `any` value
+```
+
+`fallo.error` es `any` en `HttpErrorResponse`, y el código lo sabía —su comentario
+avisa de que un proxy puede colar una página HTML— pero lo resolvía encadenando
+`?.` sobre ese `any`. Funciona, y **apaga el tipado de ahí en adelante**: el
+resultado también es `any`, así que nada de lo que viniera después se
+comprobaba.
+
+Sustituido por un guardián que comprueba la forma, que es la regla ya establecida
+en esta interfaz para el `data` de las señales: **se estrecha comprobando, no
+casteando**. Con eso, `recommendedTypeChecked` entra sin excepciones.
+
+#### Verificación
+
+Cero avisos sobre código escrito a mano, la SPA compila y sus 25 tests pasan. El
+paso entra al final del job de frontend, por lo mismo que el estilo va después de
+los tests en el de Python: cada informe se genera aunque el siguiente falle.
+
+```bash
+npm run lint
+```
+
+#### Lo que NO arregla
+
+Un linter **no sustituye a los tests** ni comprueba tipos: eso ya lo hace `tsc` en
+cada build. Encuentra patrones que suelen ser errores, no que lo sean siempre — de
+ahí que decidir qué reglas se activan sea trabajo de verdad y no un `ng add` y
+listo. Aquí ese trabajo fueron dos decisiones: activar los tipos, y subir el
+conjunto sólo después de medir lo que costaba.
+
+Y no cubre el invariante que más importa en este frontend, como queda dicho
+arriba. Media respuesta es mejor que ninguna, pero conviene saber cuál es la
+mitad que falta.
+
 ### El comprobador de tipos ya corría, y el repositorio no se enteraba (#139)
 
 `CLAUDE.md` daba esta issue por pendiente desde hacía semanas. Al ir a escribirla

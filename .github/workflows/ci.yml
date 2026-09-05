@@ -115,3 +115,16 @@ jobs:
       # instalar Chrome en el runner.
       - name: Corriendo tests...
         run: npm test
+      # El linter va al final por lo mismo que en el job de Python: cada informe
+      # se genera aunque el siguiente falle, y son preguntas distintas.
+      #
+      # Aquí lo valioso no es el estilo: son las **reglas de accesibilidad de
+      # plantillas** de angular-eslint. `CLAUDE.md` asume ese compromiso aunque
+      # R6 no lo exija, y hasta ahora dependía de que alguien se acordara en cada
+      # plantilla.
+      #
+      # Corre con información de tipos (3,9 s medidos), que es lo que hace falta
+      # para que `no-uncalled-signals` se cargue siquiera — la regla que caza una
+      # de las dos caras del silencio de zoneless.
+      - name: Comprobando estilo y accesibilidad...
+        run: npm run lint
