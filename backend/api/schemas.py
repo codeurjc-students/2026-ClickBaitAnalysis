@@ -1,4 +1,4 @@
-"""Contrato de la API REST: catálogo, ejecución e historial.
+"""Contrato de la API REST: análisis, catálogo, ejecución e historial.
 
 Lo que hay aquí describe **el sistema que sirve el análisis** —qué servidores MCP
 están conectados, qué herramientas exponen, cómo se ejecuta una y qué quedó
@@ -26,7 +26,60 @@ from typing import Any
 
 from pydantic import BaseModel, Field, computed_field
 
-from backend.analysis.domain import Dimension, SignalType
+from backend.analysis.domain import AnalyzeResponse, Dimension, SignalType
+
+# --------------------------------------------------------------------------
+# Análisis — POST /analyze
+# --------------------------------------------------------------------------
+
+
+class AnalyzeResult(BaseModel):
+    """El análisis, más el id con el que quedó registrado en el historial.
+
+    Un **sobre de la capa REST**, y por eso vive aquí y no en ``domain.py``: el
+    id es de la fila de SQLite, no del clickbait. Aplicando el criterio de este
+    fichero —si borraras la API, ¿seguiría haciendo falta?— la respuesta es no.
+
+    Se compararon tres formas de sacar el id (#133) y ésta es la única que
+    cumple las cuatro condiciones a la vez: no toca el dominio, viaja **tipada**
+    al cliente generado, deja intacta la fachada MCP y no ensucia el payload
+    guardado.
+
+    **La descartada interesante es la cabecera ``Location``**, que es lo que
+    haría un diseño REST de manual. Su problema es de garantías, no de estilo:
+    una cabecera no viaja por el documento OpenAPI, así que el cliente recibiría
+    un ``string | null`` sin tipo detrás, tendría que parsear una URL para
+    recuperar un entero, y **el día que el backend dejara de mandarla no fallaría
+    ningún guardián del CI**. Justo lo contrario de lo que se montó en #126.
+
+    La otra descartada, un campo en ``AnalyzeResponse``, creaba además una
+    contradicción **permanente**, y conviene no confundirla con deuda de datos:
+    ``record()`` recibe el payload ANTES de que exista el id, así que TODA fila
+    futura guardaría ``id: null`` mientras la respuesta devolvió ``id: 42``.
+    Repoblar la base no lo arregla — el código nuevo vuelve a producirlo. La
+    salida sería escribir dos veces (insertar, leer el id, volcar de nuevo y
+    ``UPDATE``): dos escrituras por un campo que el sobre da gratis.
+
+    Precio: un nivel de anidamiento (``respuesta.analysis.signals``). Se paga una
+    vez, en el servicio de Angular.
+    """
+
+    id: int | None = Field(
+        default=None,
+        description=(
+            "Id de la entrada del historial, o `null` si no se pudo registrar. "
+            "Es opcional a propósito: `record()` no lanza cuando la escritura "
+            "falla, porque perder un análisis correcto por un disco lleno sería "
+            "peor que no guardarlo. La interfaz tiene que saber funcionar sin él."
+        ),
+    )
+    analysis: AnalyzeResponse
+
+    # El campo se llamó `analisis` en la issue, escrita el 2026-09-03. Pasó a
+    # inglés al implementarla porque #134 —del día siguiente— fijó que las claves
+    # de máquina van en inglés y sin diacríticos, y un nombre de campo lo es tanto
+    # como el valor de un enum: viaja en el JSON y acaba en `schema.d.ts`.
+
 
 # --------------------------------------------------------------------------
 # Catálogo de herramientas — GET /tools

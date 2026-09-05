@@ -46,9 +46,21 @@ export class AnalisisPage {
   readonly error = signal<string | null>(null);
   readonly resultado = signal<AnalyzeResponse | null>(null);
 
+  /**
+   * Id de la entrada del historial en la que quedó este análisis (#133).
+   *
+   * Va en una señal aparte y no dentro de `resultado` para que la plantilla
+   * siga viendo el análisis directamente. Puede ser `null` —el registro falla y
+   * el análisis sigue siendo válido—, así que nada puede depender de él.
+   *
+   * Hoy no se pinta: existe para que la futura ruta `/analisis/:id` sea
+   * aditiva, que es como #127 dejó preparado este componente.
+   */
+  readonly idAnalisis = signal<number | null>(null);
+
   readonly veredicto = computed(() => {
-    const r = this.resultado();
-    return r ? nombreDeVeredicto(r.verdict) : null;
+    const analisis = this.resultado();
+    return analisis ? nombreDeVeredicto(analisis.verdict) : null;
   });
 
   // La plantilla sólo ve miembros de la clase, no imports del módulo.
@@ -79,7 +91,10 @@ export class AnalisisPage {
       })
       .subscribe({
         next: (respuesta) => {
-          this.resultado.set(respuesta);
+          // El sobre se abre AQUÍ y sólo aquí: es el precio de llevar el id al
+          // lado del análisis, y se paga una vez.
+          this.resultado.set(respuesta.analysis);
+          this.idAnalisis.set(respuesta.id ?? null);
           this.enviando.set(false);
         },
         error: (fallo: HttpErrorResponse) => {
@@ -91,6 +106,7 @@ export class AnalisisPage {
 
   nuevoAnalisis(): void {
     this.resultado.set(null);
+    this.idAnalisis.set(null);
     this.error.set(null);
     this.formulario.reset();
   }

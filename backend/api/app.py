@@ -29,7 +29,7 @@ import structlog
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 
-from backend.analysis.domain import AnalyzeRequest, AnalyzeResponse
+from backend.analysis.domain import AnalyzeRequest
 from backend.analysis.orchestrator import analyze, precalentar
 from backend.api import history
 from backend.api.catalog import fetch_catalog
@@ -40,6 +40,7 @@ from backend.api.execute import (
     execute_tool,
 )
 from backend.api.schemas import (
+    AnalyzeResult,
     CatalogResponse,
     ExecuteRequest,
     ExecuteResponse,
@@ -122,8 +123,8 @@ app.add_middleware(
 )
 
 
-@app.post("/analyze", response_model=AnalyzeResponse, tags=["análisis"])
-async def post_analyze(request: AnalyzeRequest) -> AnalyzeResponse:
+@app.post("/analyze", response_model=AnalyzeResult, tags=["análisis"])
+async def post_analyze(request: AnalyzeRequest) -> AnalyzeResult:
     """Analiza un titular contrastando todas las señales disponibles.
 
     Devuelve **200 aunque alguna señal falle**: cada una lleva su propio
@@ -135,10 +136,18 @@ async def post_analyze(request: AnalyzeRequest) -> AnalyzeResponse:
     Cada análisis queda registrado en el historial. Si esa escritura
     falla, la respuesta se devuelve igual: perder un análisis correcto porque el
     disco esté lleno sería peor que no guardarlo.
+
+    Por eso el análisis viene **envuelto** en `AnalyzeResult`, con el `id` de la
+    entrada al lado (#133). El id se calculaba desde #102 y se descartaba una
+    línea antes de salir del proceso, así que no había forma de pedir después un
+    análisis concreto: `GET /history/{id}` es la otra mitad de ese hueco.
+
+    El `id` puede ser `null` —el registro falla y el análisis sigue siendo
+    válido—, así que quien lo consuma tiene que funcionar sin él.
     """
     respuesta = await analyze(request)
 
-    await history.record(
+    entry_id = await history.record(
         kind=HistoryKind.ANALYSIS,
         origin=Origin.API,
         status="ok" if respuesta.has_any_result else "error",
@@ -146,7 +155,7 @@ async def post_analyze(request: AnalyzeRequest) -> AnalyzeResponse:
         headline=respuesta.headline,
         verdict=respuesta.verdict.value,
     )
-    return respuesta
+    return AnalyzeResult(id=entry_id, analysis=respuesta)
 
 
 @app.get("/tools", response_model=CatalogResponse, tags=["catálogo"])
@@ -321,6 +330,34 @@ async def get_history(
             max_days=settings.history_max_days,
         ),
     )
+
+
+@app.get("/history/{entry_id}", response_model=HistoryEntry, tags=["historial"])
+async def get_history_entry(entry_id: int) -> HistoryEntry:
+    """Una entrada del historial por su id, con su respuesta completa.
+
+    Es la puerta de lectura que le faltaba al historial: lo guardado desde #102
+    no es un resumen sino la respuesta entera, pero sólo se podía pedir una
+    página con filtros. Con esto, un análisis concreto se puede **recuperar sin
+    reejecutar** — que además de costar ~20 s podría dar otro resultado, porque
+    las señales remotas no son deterministas.
+
+    Habilita volver a un resultado desde el historial (#129) y una futura ruta
+    `/analisis/:id` en la SPA, que #127 dejó preparada: su bloque de resultados
+    recibe el análisis como entrada, así que esa pantalla sólo tendría que
+    resolverlo desde aquí y alimentar al mismo componente.
+
+    **404 si no existe**, y la traducción se hace aquí y no en `history.py`: para
+    el almacén «no está» es una respuesta legítima y devuelve `None`, porque es
+    el único que puede servir también a la fachada MCP, donde no hay códigos de
+    estado. Un id no entero da **422** antes de llegar a la base, por la firma.
+    """
+    fila = await history.get(entry_id)
+    if fila is None:
+        raise HTTPException(
+            status_code=404, detail=f"No hay ninguna entrada con id {entry_id}."
+        )
+    return HistoryEntry(**fila)
 
 
 @app.get("/health", tags=["operación"])

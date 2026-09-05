@@ -6,19 +6,23 @@ import {
 import { TestBed } from '@angular/core/testing';
 
 import { AnalyzeService } from './analyze.service';
-import type { AnalyzeResponse } from './models';
+import type { AnalyzeResult } from './models';
 
 /**
- * Respuesta mínima que sigue validando contra el contrato: sin señales y con
- * `no_data`, que es lo que devuelve el backend cuando ninguna llegó a
- * pronunciarse. Aquí no se prueba el análisis, sólo el transporte.
+ * Respuesta mínima que sigue validando contra el contrato: el sobre con su id y
+ * un análisis sin señales con `no_data`, que es lo que devuelve el backend
+ * cuando ninguna llegó a pronunciarse. Aquí no se prueba el análisis, sólo el
+ * transporte.
  */
-const RESPUESTA: AnalyzeResponse = {
-  headline: 'Un titular',
-  content: null,
-  signals: [],
-  dimensions: [],
-  verdict: 'no_data',
+const RESPUESTA: AnalyzeResult = {
+  id: 42,
+  analysis: {
+    headline: 'Un titular',
+    content: null,
+    signals: [],
+    dimensions: [],
+    verdict: 'no_data',
+  },
 };
 
 describe('AnalyzeService', () => {
@@ -63,15 +67,17 @@ describe('AnalyzeService', () => {
     peticion.flush(RESPUESTA);
   });
 
-  it('entrega la respuesta tal cual la devuelve la API', () => {
-    let recibida: AnalyzeResponse | undefined;
-    servicio.analizar({ headline: 'Un titular' }).subscribe((r) => {
-      recibida = r;
+  it('entrega el sobre entero, con el id al lado del análisis', () => {
+    let recibida: AnalyzeResult | undefined;
+    servicio.analizar({ headline: 'Un titular' }).subscribe((respuesta) => {
+      recibida = respuesta;
     });
 
     http.expectOne('/api/analyze').flush(RESPUESTA);
 
     expect(recibida).toEqual(RESPUESTA);
+    // El id no se desenvuelve aquí: llega hasta quien decide qué hacer con él.
+    expect(recibida?.id).toBe(42);
   });
 
   // Documenta la propiedad que hace correcto suscribirse una sola vez: el

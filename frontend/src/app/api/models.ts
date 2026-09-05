@@ -15,9 +15,25 @@ type Esquemas = components['schemas'];
 
 // --- Análisis de un titular (POST /analyze) ---
 export type AnalyzeRequest = Esquemas['AnalyzeRequest'];
+// El sobre de la respuesta: el análisis más el id con el que quedó registrado.
+// Lo que se pinta es `AnalyzeResponse`; el id sólo sirve para volver a él.
+export type AnalyzeResult = Esquemas['AnalyzeResult'];
 export type AnalyzeResponse = Esquemas['AnalyzeResponse'];
 export type SignalResult = Esquemas['SignalResult'];
 export type DimensionVerdict = Esquemas['DimensionVerdict'];
+
+// --- Formas conocidas del `data` de cada señal ---
+//
+// `data` es un diccionario libre en el contrato, así que estos tipos NO se
+// aplican solos: hay que comprobar en ejecución, y de eso se encargan los
+// guardianes de `analisis/datos.ts`. Lo que aportan es que esos guardianes
+// validen contra una forma DERIVADA del backend en vez de contra una copia
+// escrita a mano, que es lo que había hasta #133.
+export type SalidaLexica = Esquemas['SalidaLexica'];
+export type SalidaLineal = Esquemas['SalidaLineal'];
+export type SalidaIncoherencia = Esquemas['SalidaIncoherencia'];
+export type Etiqueta = Esquemas['Etiqueta'];
+export type Pista = Esquemas['Pista'];
 
 // Uniones de cadenas, no `enum` de TypeScript: al ser estructurales, comparar
 // contra un valor que no existe —`'engaño'` con eñe— no compila.

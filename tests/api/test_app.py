@@ -6,6 +6,8 @@ sustituyen `analyze` y `check_health` en el namespace de `app`: las rutas los
 resuelven como globales del módulo en cada llamada.
 """
 
+import json
+
 import pytest
 from fastapi.testclient import TestClient
 
@@ -33,6 +35,7 @@ def _respuesta(headline="Un titular", content=None):
         signals=[
             SignalResult(
                 name="detect_clickbait_lexical",
+                label="Léxico por reglas",
                 status=SignalStatus.OK,
                 dimension=Dimension.FORM,
                 type=SignalType.INTERPRETABLE,
@@ -71,9 +74,14 @@ def test_analyze_devuelve_la_respuesta_completa(analisis):
     response = client.post("/analyze", json={"headline": "Un titular"})
 
     assert response.status_code == 200
-    cuerpo = response.json()
+    # El análisis viaja ENVUELTO desde #133: el sobre lleva el id del historial
+    # al lado, así que lo que antes era la raíz ahora cuelga de `analysis`.
+    cuerpo = response.json()["analysis"]
     assert cuerpo["verdict"] == "stylistic_clickbait"
     assert cuerpo["signals"][0]["name"] == "detect_clickbait_lexical"
+    # La etiqueta para personas viaja junto al nombre de máquina (#133): sin
+    # ella la interfaz mantenía su propio diccionario sin vigilancia.
+    assert cuerpo["signals"][0]["label"] == "Léxico por reglas"
     # El JSON crudo de la herramienta viaja sin aplanar: alimenta las tarjetas
     # de explicabilidad.
     assert cuerpo["signals"][0]["data"] == {"score": 2, "is_clickbait": True}
@@ -104,6 +112,41 @@ def test_falta_el_titular_es_422(analisis):
 def test_el_titular_llega_normalizado(analisis):
     client.post("/analyze", json={"headline": "  Un titular  "})
     assert analisis["request"].headline == "Un titular"
+
+
+def test_el_analisis_llega_con_el_id_de_su_entrada(analisis):
+    """El id se calculaba desde #102 y se tiraba antes de salir del proceso.
+
+    Sin él no había forma de volver a un análisis concreto, aunque estuviera
+    guardado entero: `GET /history` sólo sabe devolver páginas con filtros.
+    """
+    cuerpo = client.post("/analyze", json={"headline": "Un titular"}).json()
+
+    assert isinstance(cuerpo["id"], int)
+    # Y el id sirve de verdad: apunta a la entrada que se acaba de escribir.
+    entrada = client.get(f"/history/{cuerpo['id']}").json()
+    assert entrada["headline"] == "Un titular"
+
+
+def test_si_el_registro_falla_el_analisis_se_devuelve_igual(analisis, monkeypatch):
+    """Ésta es la razón de que `id` sea opcional, y no un detalle de estilo.
+
+    `record()` devuelve None cuando no puede guardar, porque perder un análisis
+    correcto por un disco lleno sería peor que no guardarlo. Si la respuesta
+    exigiera el id, ese fallo silencioso pasaría a ser un 500.
+    """
+
+    async def no_guarda(**kwargs):
+        return None
+
+    monkeypatch.setattr(app_mod.history, "record", no_guarda)
+
+    response = client.post("/analyze", json={"headline": "Un titular"})
+
+    assert response.status_code == 200
+    cuerpo = response.json()
+    assert cuerpo["id"] is None
+    assert cuerpo["analysis"]["verdict"] == "stylistic_clickbait"
 
 
 # ----- GET /health -----
@@ -155,6 +198,7 @@ def test_openapi_documenta_las_rutas_y_el_contrato():
         "/tools",
         "/tools/{name}/execute",
         "/history",
+        "/history/{entry_id}",
         "/health",
     }
     # Las descripciones de los Field llegan al esquema: son lo que ve quien
@@ -186,6 +230,58 @@ def test_el_contrato_commiteado_esta_al_dia():
             "`python -m backend.api.export_openapi`, luego `npm run gen:api` "
             "dentro de `frontend/`, y se commitean las dos salidas."
         )
+
+
+def test_ninguna_referencia_del_contrato_queda_colgando():
+    """Todo `$ref` del documento apunta a un esquema que existe.
+
+    Lo vigila porque #133 empezó a publicar las formas del `data` a mano, y
+    Pydantic genera los tipos anidados en un `$defs` LOCAL: copiarlos sin más
+    dejaría `SalidaLexica.matches` apuntando a `#/$defs/Pista`, que en un
+    documento OpenAPI no resuelve.
+
+    Y el fallo no se vería. `openapi-typescript` no revienta con una referencia
+    rota: genera `unknown`, el frontend compila, y el tipo simplemente deja de
+    comprobar nada — que es la forma exacta de fallo que el contrato generado
+    existe para evitar.
+    """
+    documento = json.loads(contrato())
+    esquemas = documento["components"]["schemas"]
+    prefijo = "#/components/schemas/"
+
+    def referencias(nodo):
+        if isinstance(nodo, dict):
+            for clave, valor in nodo.items():
+                if clave == "$ref":
+                    yield valor
+                else:
+                    yield from referencias(valor)
+        elif isinstance(nodo, list):
+            for elemento in nodo:
+                yield from referencias(elemento)
+
+    rotas = [
+        ref
+        for ref in referencias(documento)
+        if not ref.startswith(prefijo) or ref[len(prefijo) :] not in esquemas
+    ]
+    assert not rotas, f"Referencias que no resuelven: {sorted(set(rotas))}"
+
+
+def test_las_formas_del_data_se_publican_como_esquemas():
+    """El `data` sigue sin tipo, pero sus formas conocidas ya no se copian a mano.
+
+    Antes de #133 vivían dos veces —`outputs.py` en Python y cuatro interfaces
+    escritas a mano en `datos.ts`— sin ningún vínculo entre ellas.
+    """
+    esquemas = json.loads(contrato())["components"]["schemas"]
+
+    for nombre in ("Etiqueta", "SalidaLexica", "SalidaLineal", "SalidaIncoherencia"):
+        assert nombre in esquemas
+
+    # El umbral viaja con el resultado de la señal híbrida: sin él, `incoherent`
+    # es un veredicto que hay que creerse.
+    assert "threshold" in esquemas["SalidaIncoherencia"]["properties"]
 
 
 # ----- Precalentado (#125) -----

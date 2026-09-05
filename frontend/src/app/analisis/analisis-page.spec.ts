@@ -5,7 +5,7 @@ import {
 } from '@angular/common/http/testing';
 import { TestBed, type ComponentFixture } from '@angular/core/testing';
 
-import type { AnalyzeResponse } from '../api/models';
+import type { AnalyzeResponse, AnalyzeResult } from '../api/models';
 import { AnalisisPage } from './analisis-page';
 
 /** Un análisis con las tres naturalezas de señal y una que no pudo ejecutarse. */
@@ -15,6 +15,7 @@ const RESPUESTA: AnalyzeResponse = {
   signals: [
     {
       name: 'detect_clickbait_lexical',
+      label: 'Léxico por reglas',
       status: 'ok',
       dimension: 'form',
       type: 'interpretable',
@@ -29,6 +30,7 @@ const RESPUESTA: AnalyzeResponse = {
     },
     {
       name: 'detect_clickbait_incoherence',
+      label: 'Incoherencia titular ↔ cuerpo',
       status: 'not_applicable',
       dimension: 'deception',
       type: 'hybrid',
@@ -37,6 +39,7 @@ const RESPUESTA: AnalyzeResponse = {
     },
     {
       name: 'analyze_sentiment',
+      label: 'Tono',
       status: 'ok',
       dimension: 'tone',
       type: 'opaque',
@@ -53,6 +56,13 @@ const RESPUESTA: AnalyzeResponse = {
   ],
   verdict: 'stylistic_clickbait',
 };
+
+/**
+ * Lo que devuelve `/analyze` de verdad desde #133: el analisis envuelto, con el
+ * id de su entrada del historial al lado. La pagina lo abre y guarda las dos
+ * mitades por separado.
+ */
+const SOBRE: AnalyzeResult = { id: 7, analysis: RESPUESTA };
 
 describe('AnalisisPage', () => {
   let fixture: ComponentFixture<AnalisisPage>;
@@ -105,7 +115,7 @@ describe('AnalisisPage', () => {
     pagina.formulario.controls.headline.setValue('Un titular');
     await enviar();
 
-    http.expectOne('/api/analyze').flush(RESPUESTA);
+    http.expectOne('/api/analyze').flush(SOBRE);
     await fixture.whenStable();
 
     expect(html().querySelector('.veredicto h2')?.textContent).toContain(
@@ -121,7 +131,7 @@ describe('AnalisisPage', () => {
     pagina.formulario.controls.headline.setValue('Un titular');
     await enviar();
 
-    http.expectOne('/api/analyze').flush(RESPUESTA);
+    http.expectOne('/api/analyze').flush(SOBRE);
     await fixture.whenStable();
 
     const marcas = [...html().querySelectorAll('mark[data-categoria]')];
@@ -135,7 +145,7 @@ describe('AnalisisPage', () => {
     pagina.formulario.controls.headline.setValue('Un titular');
     await enviar();
 
-    http.expectOne('/api/analyze').flush(RESPUESTA);
+    http.expectOne('/api/analyze').flush(SOBRE);
     await fixture.whenStable();
 
     const textos = [...html().querySelectorAll('.pastilla')].map(
@@ -164,7 +174,7 @@ describe('AnalisisPage', () => {
   it('«Nuevo análisis» devuelve el formulario vacío', async () => {
     pagina.formulario.controls.headline.setValue('Un titular');
     await enviar();
-    http.expectOne('/api/analyze').flush(RESPUESTA);
+    http.expectOne('/api/analyze').flush(SOBRE);
     await fixture.whenStable();
 
     pagina.nuevoAnalisis();

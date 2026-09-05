@@ -60,10 +60,16 @@ class SalidaIncoherencia(TypedDict):
 
     Devuelve los textos comparados además de la similitud: sin ellos, el
     resultado no es verificable por quien lo lee.
+
+    Y devuelve el ``threshold`` contra el que se comparó (#133), que es lo que
+    hace auditable la decisión: sin él, ``incoherent`` es un veredicto que hay
+    que creerse. Es la única señal híbrida —decisión transparente sobre un rasgo
+    opaco—, así que enseñar el corte no es un adorno, es la mitad de su tesis.
     """
 
     similarity: float
     incoherent: bool
+    threshold: float
     headline: str
     content: str
 

@@ -6,36 +6,46 @@
  * de castear —que mentiría en silencio el día que el backend cambie— cada
  * función COMPRUEBA y devuelve `null` si la forma no encaja: la tarjeta degrada
  * a JSON crudo en lugar de pintar `undefined`.
+ *
+ * Desde #133 las formas **se derivan del contrato generado** en vez de
+ * escribirse aquí. Eran las mismas cuatro declaradas dos veces —en `outputs.py`
+ * y en este fichero— sin ningún vínculo entre ellas, así que renombrar un campo
+ * en el backend no rompía nada: el guardián empezaba a devolver `null` y la
+ * tarjeta degradaba a JSON crudo, en silencio y para siempre.
+ *
+ * Se usa `Pick` y no el tipo entero **a propósito**: cada guardián comprueba
+ * unos campos concretos, y devolver el tipo completo afirmaría que existen
+ * otros que nadie ha mirado. Así el tipo dice exactamente lo verificado — y si
+ * el backend renombra uno de esos campos, esto deja de compilar.
  */
+import type {
+  Etiqueta,
+  Pista,
+  SalidaIncoherencia,
+  SalidaLexica,
+  SalidaLineal,
+} from '../api/models';
 
 /** Una marca léxica y dónde aparece en el titular. */
-export interface Pista {
-  category: string;
-  cue: string;
-  span: [number, number];
-}
+export type { Pista };
 
-export interface DatosLexico {
-  score: number;
-  matches: Pista[];
-}
+export type DatosLexico = Pick<SalidaLexica, 'score' | 'matches'>;
 
-export interface DatosLineal {
-  probability: number;
-  top_cues: [string, number][];
-}
+export type DatosLineal = Pick<SalidaLineal, 'probability' | 'top_cues'>;
 
-export interface DatosIncoherencia {
-  similarity: number;
-  incoherent: boolean;
-  /** Llegará con #133; hoy no viaja. Opcional para que la tarjeta lo calle. */
-  threshold?: number;
-}
+export type DatosIncoherencia = Pick<
+  SalidaIncoherencia,
+  'similarity' | 'incoherent'
+> & {
+  /**
+   * Opcional aunque el contrato lo declare obligatorio, y no por las filas ya
+   * guardadas: `data` es libre para que quepan señales que todavía no existen,
+   * y una señal futura puede perfectamente no decidir por umbral.
+   */
+  threshold?: SalidaIncoherencia['threshold'];
+};
 
-export interface DatosEtiqueta {
-  label: string;
-  score: number;
-}
+export type DatosEtiqueta = Etiqueta;
 
 export function comoLexico(crudo: unknown): DatosLexico | null {
   const datos = crudo as DatosLexico | null;
