@@ -69,4 +69,24 @@ ignore = [
 
 [lint.per-file-ignores]
 # Los tests importan fixtures y módulos por su efecto de registro.
-"tests/**" = ["F401"]
+#
+# Y ASYNC109 por lo mismo que en `core/mcp/tools.py`: los dobles que sustituyen
+# a `_intentar` COPIAN su firma. Si no la copiaran, monkeypatch instalaría algo
+# que no encaja y el test fallaría por el andamiaje en vez de por el código.
+"tests/**" = ["F401", "ASYNC109"]
+
+# ASYNC109 desaconseja el parámetro `timeout` en una función async, y su
+# argumento es bueno: si lo único que hace la función es envolver su cuerpo en
+# `asyncio.timeout`, el llamante puede hacerlo igual de bien y el parámetro
+# sobra.
+#
+# Aquí la premisa no se cumple. El valor hace DOS trabajos con un solo número:
+# acota la operación entera con `asyncio.timeout` **y** se le pasa a
+# `open_session` como corte de inactividad de httpx. Ese segundo uso el llamante
+# no puede reproducirlo desde fuera, así que el parámetro no es redundante.
+#
+# Y sale por parámetro a propósito (#137): leer `settings` aquí obligaría a
+# montar un entorno para probar el mecanismo, que es la misma regla que mantiene
+# limpios a los detectores NLP. Quien conoce el caso de uso elige el corte — la
+# API tiene dos distintos, uno para descubrir y otro para ejecutar.
+"backend/core/mcp/tools.py" = ["ASYNC109"]

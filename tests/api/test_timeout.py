@@ -24,9 +24,10 @@ import pytest
 from fastapi.testclient import TestClient
 
 from backend.api import app as app_mod
-from backend.api import execute as execute_mod
 from backend.api.app import app
-from backend.api.execute import ToolTimeout, execute_tool
+from backend.api.execute import execute_tool
+from backend.core.mcp import tools as mcp_tools
+from backend.core.mcp.tools import ToolNotFound, ToolTimeout
 
 client = TestClient(app)
 
@@ -42,13 +43,13 @@ def sesion_lenta(monkeypatch):
     """
 
     def instalar(anidamiento: int = 2):
-        async def falso_intentar(url, name, arguments):
+        async def falso_intentar(url, name, arguments, timeout):
             exc: BaseException = TimeoutError()
             for _ in range(anidamiento):
                 exc = ExceptionGroup("unhandled errors in a TaskGroup", [exc])
             raise exc
 
-        monkeypatch.setattr(execute_mod, "_intentar", falso_intentar)
+        monkeypatch.setattr(mcp_tools, "_intentar", falso_intentar)
 
     return instalar
 
@@ -108,12 +109,12 @@ def test_otros_fallos_siguen_su_camino(monkeypatch):
     """El desenvuelto no puede tragarse cualquier cosa: un fallo que no sea de
     tiempo tiene que seguir subiendo tal cual."""
 
-    async def revienta(url, name, arguments):
+    async def revienta(url, name, arguments, timeout):
         raise ExceptionGroup(
             "unhandled errors in a TaskGroup", [ValueError("otra cosa")]
         )
 
-    monkeypatch.setattr(execute_mod, "_intentar", revienta)
+    monkeypatch.setattr(mcp_tools, "_intentar", revienta)
 
     with pytest.raises(BaseExceptionGroup):
         asyncio.run(execute_tool("detect_clickbait", {}))
@@ -126,7 +127,7 @@ def test_las_otras_categorias_no_cambian(monkeypatch):
     """404 y 422 seguían funcionando; el 504 se añade, no sustituye."""
 
     async def no_existe(name, arguments):
-        raise execute_mod.ToolNotFound(name)
+        raise ToolNotFound(name)
 
     monkeypatch.setattr(app_mod, "execute_tool", no_existe)
     assert (

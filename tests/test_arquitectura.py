@@ -29,8 +29,19 @@ BACKEND = Path(__file__).resolve().parents[1] / "backend"
 # Las fachadas: saben que están sirviendo a alguien. El núcleo no debe conocerlas.
 FACHADAS = ("backend.api", "backend.main")
 
-# Los paquetes que forman el núcleo.
-NUCLEO = ("analysis", "integrations", "core")
+# El núcleo se define por EXCLUSIÓN: todo `backend/` menos esto.
+#
+# Antes se enumeraban los paquetes incluidos —`analysis`, `integrations`,
+# `core`—, y eso dejaba un agujero silencioso: un paquete nuevo quedaba fuera de
+# la regla sin que nadie lo notara. `backend/agent/` llega con R13 y es
+# exactamente el caso, porque el agente orquesta herramientas y la tentación de
+# reutilizar lo que hay en `api/` es real (#137).
+#
+# Con la lista invertida, un paquete nuevo entra cubierto por defecto y sacarlo
+# exige editar esta línea a mano — que es la decisión consciente que se quiere
+# forzar. Mismo criterio que la otra prueba de este fichero, que lista
+# excepciones en vez de detectores.
+FUERA_DEL_NUCLEO = {"api", "main.py"}
 
 # Únicos módulos de la capa NLP a los que se les permite leer configuración:
 # `client.py` necesita el token y el trabajo de `factory.py` ES leer settings.
@@ -57,10 +68,12 @@ def _importes(fichero: Path) -> set[str]:
 
 
 def _modulos_del_nucleo() -> list[Path]:
-    ficheros: list[Path] = []
-    for paquete in NUCLEO:
-        ficheros.extend(sorted((BACKEND / paquete).rglob("*.py")))
-    return ficheros
+    """Todo módulo de ``backend/`` que no sea una fachada."""
+    return [
+        fichero
+        for fichero in sorted(BACKEND.rglob("*.py"))
+        if fichero.relative_to(BACKEND).parts[0] not in FUERA_DEL_NUCLEO
+    ]
 
 
 def test_el_nucleo_no_importa_de_las_fachadas():
@@ -69,9 +82,16 @@ def test_el_nucleo_no_importa_de_las_fachadas():
     Si `analysis/` importara de `api/`, servir el mismo análisis por MCP dejaría
     de ser posible sin arrastrar FastAPI detrás.
     """
+    modulos = _modulos_del_nucleo()
+
+    # Sin esto, un fallo del recorrido —una ruta mal puesta, un `parts[0]` que
+    # deja de casar— convertiría la prueba en un `assert not []` que pasa
+    # siempre. Vigila al vigilante.
+    assert modulos, "No se recorrió ningún módulo: la regla no comprueba nada."
+
     infracciones = [
         f"{fichero.relative_to(BACKEND)} importa {modulo}"
-        for fichero in _modulos_del_nucleo()
+        for fichero in modulos
         for modulo in _importes(fichero)
         if modulo.startswith(FACHADAS)
     ]

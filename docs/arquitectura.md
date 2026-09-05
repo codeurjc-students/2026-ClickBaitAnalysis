@@ -123,11 +123,13 @@ sequenceDiagram
     autonumber
     participant C as Cliente
     participant API as FastAPI
-    participant EX as execute_tool
+    participant TR as api/execute · traduce
+    participant EX as core/mcp/tools · mecanismo
     participant M as Servidor MCP
 
     C->>API: POST a la ruta de ejecución
-    API->>EX: execute_tool(nombre, argumentos)
+    API->>TR: execute_tool(nombre, argumentos)
+    TR->>EX: execute_tool(nombre, argumentos, servers, timeout)
 
     loop por cada servidor de mcp_servers
         EX->>M: handshake y list_tools
@@ -142,9 +144,21 @@ sequenceDiagram
 
     Note over EX,M: todo va dentro de un asyncio.timeout<br/>que acota la operación ENTERA, no sólo call_tool
 
-    EX-->>API: 404 no existe / 422 argumentos / 504 tardó / 200 con status ok o error
-    API-->>C: respuesta
+    EX-->>TR: Invocation, o ToolNotFound / InvalidArguments / ToolTimeout
+    TR-->>API: ExecuteResponse con status ok o error
+    API-->>C: 200, o 404 / 422 / 504 según la excepción
 ```
+
+**El mecanismo y su traducción están separados** desde la issue 137. `core/mcp/tools.py`
+localiza, valida e invoca sin saber que existe HTTP; `api/execute.py` convierte lo
+que devuelve en un código de estado. El motivo no es estética: el agente de R13
+necesita ese mecanismo y no puede importar de una fachada sin que falle
+`tests/test_arquitectura.py`.
+
+Esa frontera explica la última pareja de flechas. Lo que sube del mecanismo son
+**excepciones o un resultado**, no códigos: una excepción interrumpe, un
+resultado fallido es una respuesta. Por eso el 200 con `status: error` viaja
+dentro de `Invocation` y los otros tres no.
 
 **La validación ocurre antes de invocar** (R4.5). Si se dejara a MCP, un argumento
 mal escrito llegaría como fallo de ejecución y sería indistinguible de un análisis
@@ -257,7 +271,7 @@ flowchart TD
     FACH["Fachadas<br/>api/ · main.py<br/>saben que sirven a alguien"]
     ANA["analysis/<br/>domain · orchestrator<br/>qué es el clickbait"]
     INT["integrations/<br/>nlp · nyt · guardian · weather"]
-    CORE["core/<br/>BaseAPI · ToolResult · logging"]
+    CORE["core/<br/>BaseAPI · ToolResult · mcp · logging"]
     CONF["config/<br/>settings"]
 
     FACH --> ANA --> INT --> CORE --> CONF
@@ -266,8 +280,12 @@ flowchart TD
 Las flechas son la **dirección permitida**, no cada import concreto. La regla que
 sostiene el diseño es la inversa, y no se dibuja porque no existe:
 
-- **Ninguna capa del núcleo importa de las fachadas.** Verificado: cero
-  coincidencias de `backend.api` en `analysis/`, `integrations/` y `core/`.
+- **Ninguna capa del núcleo importa de las fachadas.** Verificado sobre **todo
+  `backend/` salvo `api/` y `main.py`**: 52 módulos, cero coincidencias de
+  `backend.api`. La lista se invirtió en la issue 137 —antes enumeraba
+  `analysis`, `integrations` y `core`—, porque enumerar deja fuera en silencio a
+  cualquier paquete nuevo, y `backend/agent/` llega con R13 siendo justo el caso
+  donde reutilizar `api/` tienta.
 - **Los detectores no conocen la configuración.** `lexical`, `linear`,
   `incoherence` y `dedicated` no importan `settings`; sólo lo hacen `client.py`,
   que necesita el token, y `factory.py`, cuyo trabajo es leer configuración. Eso
@@ -283,10 +301,15 @@ culpables.
 Se comprobó **rompiendo las dos reglas a propósito** y verificando que fallan: un
 test de arquitectura que pasa, pero que nadie ha visto fallar, no demuestra nada.
 
-La segunda regla lista **excepciones, no detectores**. Así un detector nuevo queda
-cubierto sin tocar nada, y meter `settings` en un módulo de la capa NLP obliga a
-editar esa lista a mano — que es justo la decisión consciente que se quiere
-forzar al parametrizar los umbrales (issue 93).
+**Las dos reglas listan excepciones, no incluidos**, y por el mismo motivo: lo
+nuevo queda cubierto sin tocar nada, y sacarlo obliga a editar la lista a mano —
+que es la decisión consciente que se quiere forzar. Vale para meter `settings` en
+un módulo de la capa NLP al parametrizar los umbrales (issue 93), y para añadir
+un paquete que no debería hablar con las fachadas.
+
+La primera lleva además un `assert modulos` delante del recorrido: si la
+travesía del árbol se rompiera, la prueba se convertiría en un `assert not []`
+que pasa siempre.
 
 ## Los diagramas de la Fase A
 

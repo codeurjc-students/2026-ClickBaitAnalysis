@@ -1,8 +1,14 @@
-"""Apertura de sesiones MCP desde la API.
+"""Apertura de sesiones MCP.
 
 Extraído porque lo comparten dos consumidores —el catálogo y la ejecución de
 herramientas— y duplicar el montaje de tres gestores de contexto anidados era
 pedir que se desincronizaran.
+
+Vive en ``core/`` desde #137. Estuvo en ``api/`` por el orden en que se
+construyó el sistema, no por diseño: no importa nada de la fachada REST, y el
+agente de R13 necesita exactamente esto para descubrir herramientas. Desde
+``api/`` no podía usarlo — ``tests/test_arquitectura.py`` prohíbe que el núcleo
+importe de las fachadas.
 
 **Sesión por petición, no persistente.** Ni el catálogo ni la ejecución son
 endpoints calientes: se consultan cuando alguien abre una pantalla o pulsa un

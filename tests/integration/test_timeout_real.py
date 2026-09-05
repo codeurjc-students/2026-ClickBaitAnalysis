@@ -24,8 +24,9 @@ from typing import TypedDict
 import pytest
 from mcp.server.fastmcp import FastMCP
 
-from backend.api.execute import ToolTimeout, execute_tool
+from backend.api.execute import execute_tool
 from backend.config.settings import settings
+from backend.core.mcp.tools import ToolTimeout
 
 pytestmark = pytest.mark.integration
 

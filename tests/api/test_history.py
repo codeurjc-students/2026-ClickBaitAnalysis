@@ -35,7 +35,6 @@ from backend.analysis.domain import (
 from backend.api import app as app_mod
 from backend.api import history
 from backend.api.app import app
-from backend.api.execute import ToolNotFound
 from backend.api.schemas import (
     ExecuteResponse,
     ExecuteStatus,
@@ -43,6 +42,7 @@ from backend.api.schemas import (
     Origin,
 )
 from backend.config.settings import settings
+from backend.core.mcp.tools import ToolNotFound
 
 client = TestClient(app)
 

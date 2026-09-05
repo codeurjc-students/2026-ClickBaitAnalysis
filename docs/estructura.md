@@ -71,10 +71,16 @@ de historia, no una propiedad suya.
 |---|---|
 | `app.py` | La aplicación y sus cinco rutas. Segundo punto de entrada del backend, hermano de `main.py` y no capa sobre él |
 | `schemas.py` | El contrato: lo que entra y sale por HTTP, y los enums que lo acompañan |
-| `catalog.py` | Construye el catálogo agregando el `list_tools` de cada servidor MCP — `GET /tools` |
-| `execute.py` | Valida los argumentos contra el `inputSchema` e invoca — `POST /tools/{name}/execute` |
-| `mcp_session.py` | Abre sesiones MCP. Es donde la API actúa como **cliente**, no como servidor |
+| `catalog.py` | **Traduce** el descubrimiento al contrato del catálogo — `GET /tools` |
+| `execute.py` | **Traduce** una invocación a su código de estado — `POST /tools/{name}/execute` |
 | `history.py` | Almacén del historial sobre SQLite — ⚠️ [tensión 2](#2--el-almacén-del-historial-en-api) |
+
+Desde #137 `catalog.py` y `execute.py` son **traductores**: descubrir e invocar
+viven en `core/mcp/`, porque el agente de R13 necesita ese mecanismo y no puede
+importar de una fachada. Lo que queda aquí es lo que sólo tiene sentido por HTTP
+—los cuatro finales de `/execute` y sus códigos, el `ServerStatus` del
+catálogo— más la ficha de modelo de cada señal, que es lo único de esto que
+conoce el dominio.
 
 `/analyze` ya no orquesta nada: llama a `backend/analysis/orchestrator.py` y se
 limita a servir el resultado. `schemas.py` importa de allí los tipos del dominio
@@ -99,6 +105,16 @@ mismo que genérico.
 | `logging.py` | `configure_logging()` — structlog, en consola o JSON |
 | `observability.py` | `log_tool_invocation`, el decorador que registra cada invocación con parámetros y duración |
 | `health.py` | `check_health()` y su registro como tool MCP — ⚠️ [tensión 4](#4--health-conoce-mcp-desde-core) |
+| `mcp/session.py` | Abre sesiones MCP. Es donde el sistema actúa como **cliente**, no como servidor |
+| `mcp/tools.py` | Descubre e invoca herramientas, devolviendo un resultado neutro |
+
+`mcp/` llegó aquí en #137 desde `api/`, y el criterio lo decide sin empate: no
+envuelve nada externo —los servidores MCP son nuestros— y lo usan dos capas, la
+API REST hoy y el agente de R13 mañana. Es el mismo razonamiento de la
+[tensión 3](#3--discovery-y-metadata-no-envuelven-nada), aplicado a un caso que
+sí tenía que moverse: allí `discovery` y `metadata` se quedan donde están porque
+nada rompe; aquí el agente no podía importar de una fachada sin que fallara
+`tests/test_arquitectura.py`.
 
 ## `backend/integrations/`
 
