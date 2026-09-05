@@ -135,4 +135,14 @@ class Settings(BaseSettings):
     history_max_days: int = 30
 
 
-settings = Settings()  # type: ignore #Activa la validación al importar
+# Activa la validación al importar: si falta una clave, el proceso no arranca.
+#
+# El `ignore` es necesario: pydantic-settings rellena los campos sin valor por
+# defecto desde el entorno o el `.env`, y el comprobador sólo ve un constructor
+# al que le faltan tres argumentos.
+#
+# La sintaxis importa, y se comprobó (#139): pyright **ignora el contenido del
+# corchete** en `# type: ignore[...]` —una regla inventada suprime igual— así que
+# esa forma silencia cualquier error futuro de la línea. `# pyright: ignore[...]`
+# sí acota: puesta una regla equivocada, el error vuelve.
+settings = Settings()  # pyright: ignore[reportCallIssue]

@@ -25,7 +25,7 @@ from dataclasses import dataclass
 
 import structlog
 from jsonschema import Draft7Validator
-from mcp.types import CallToolResult, Tool
+from mcp.types import CallToolResult, TextContent, Tool
 
 from backend.core.mcp.session import open_session
 from backend.core.models import ToolResult
@@ -134,6 +134,12 @@ async def execute_tool(
         problemas, resultado, servidor = intento
         if problemas:
             raise InvalidArguments(problemas)
+        if resultado is None:
+            # `_intentar` devuelve resultado siempre que no haya problemas, pero
+            # eso es un acuerdo entre las dos funciones que la tupla no expresa.
+            # Si alguien rompe el acuerdo, mejor aquí que tres marcos más abajo.
+            raise RuntimeError(f"«{name}» no devolvió resultado ni problemas.")
+
         return _leer(resultado, name, servidor)
 
     raise ToolNotFound(name)
@@ -252,7 +258,14 @@ def _leer(resultado: CallToolResult, name: str, servidor: str) -> Invocation:
     un resultado válido y aquí no habría forma de distinguirlos.
     """
     if resultado.isError:
-        motivo = resultado.content[0].text if resultado.content else "Error desconocido"
+        # El contenido de MCP es una unión —texto, imagen, audio, recurso— y
+        # sólo el de texto tiene `.text`. Leerlo a ciegas funcionaba porque
+        # nuestras tools sólo devuelven texto, pero un servidor ajeno que
+        # respondiera con otra cosa habría reventado aquí en vez de informar.
+        primero = resultado.content[0] if resultado.content else None
+        motivo = (
+            primero.text if isinstance(primero, TextContent) else "Error desconocido"
+        )
         log.warning("tool.execute.failed", tool=name, motivo=motivo)
         return Invocation(server=servidor, result=ToolResult.fail(motivo))
 

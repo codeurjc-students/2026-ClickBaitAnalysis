@@ -1,7 +1,7 @@
 import asyncio
 
 from backend.core.models import ToolResult
-from backend.integrations.nlp.model_cards import cards_by_signal
+from backend.integrations.nlp.model_cards import model_id_de
 
 
 class IncoherenceDetector:
@@ -11,7 +11,7 @@ class IncoherenceDetector:
     # los nombres desnudos en su propia organización—, así que la divergencia no
     # rompía nada y podía sobrevivir indefinidamente mientras la divulgación
     # decía una cosa y el código cargaba otra. Es el caso exacto que motiva #116.
-    MODEL = cards_by_signal()["detect_clickbait_incoherence"]["model_id"]
+    MODEL = model_id_de("detect_clickbait_incoherence")
 
     # Similitud POR DEBAJO de esto = incoherente = posible clickbait. Ojo al
     # sentido, que es el contrario del habitual y confunde a quien lo lee rápido.
@@ -44,7 +44,17 @@ class IncoherenceDetector:
 
     def _get_model(self):
         if self._model is None:
-            from sentence_transformers import SentenceTransformer
+            # `sentence-transformers` vive en `requirements-dev.txt`, no en
+            # `requirements.txt`, porque arrastra torch y wheels de CUDA. El CI
+            # instala sólo el segundo, así que ahí este import NO se puede
+            # resolver y pyright lo dice con razón — en local sí resuelve.
+            #
+            # El import es perezoso justamente por eso: la dependencia sólo hace
+            # falta cuando se usa esta señal, y el resto del sistema arranca sin
+            # ella. El `ignore` declara esa asimetría en vez de esconderla.
+            from sentence_transformers import (  # pyright: ignore[reportMissingImports]
+                SentenceTransformer,
+            )
 
             self._model = SentenceTransformer(self.MODEL)
         return self._model

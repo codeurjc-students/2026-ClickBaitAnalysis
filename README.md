@@ -1189,6 +1189,170 @@ Añadir el registro a `/analyze` convirtió, sin avisar, todos los tests de esa 
 
 `tests/api/test_history.py` cubre los dos lados por separado —el almacén llamando a sus funciones, el endpoint por HTTP— porque responden preguntas distintas: si los datos sobreviven y salen en orden, y si la decisión de «una entrada por análisis» se sostiene de verdad.
 
+### El comprobador de tipos ya corría, y el repositorio no se enteraba (#139)
+
+`CLAUDE.md` daba esta issue por pendiente desde hacía semanas. Al ir a escribirla
+se vio que la herramienta **ya estaba funcionando**: es Pylance —o sea Pyright—
+dentro del editor. Lo que faltaba no era el comprobador, era que el repositorio
+lo ejecutara.
+
+De ahí la decisión menos obvia: **Pyright y no mypy**. Adoptar en el CI lo mismo
+que ya corre en el editor significa que los avisos que aparecen al escribir son
+los que rompen la corrida, y no dos listas parecidas que hay que traducir.
+
+#### El número, otra vez distorsionado por `evaluation/`
+
+67 avisos en total. **41 estaban en `backend/evaluation/`**, y escondían los 26
+del código servido, que son los únicos accionables. Se excluye por el mismo
+criterio que en #138: lo que no se sirve, no distorsiona el número.
+
+Y `basic`, no `strict`. Con `strict` habría que anotar el proyecto entero antes
+de que el CI volviera a pasar, y lo que se enciende de golpe sobre código
+existente se acaba ignorando. `basic` encontró los 26, que era lo que se buscaba.
+
+#### Los 26 no eran ruido
+
+**Seis bugs latentes**, cada uno con su forma:
+
+| Dónde | Qué |
+|---|---|
+| `core/logging.py` | `if/elif` sin `else` sobre un `Literal`. Si algún día se añade un tercer formato, `renderer` queda **sin asignar** y la línea siguiente revienta con un `UnboundLocalError` que no dice nada del problema |
+| `core/base_api.py` | `make_request` declara `-> ToolResult` y tenía un camino que caía por el final devolviendo `None`. Quien llamara haría `.success` sobre él |
+| `api/history.py` | `cursor.lastrowid` es `int \| None` —None si la sentencia no fue un INSERT— y la firma prometía `int` |
+| `integrations/metadata.py` | `analysis/tool.py` usa la categoría `"Análisis completo"`, que **no estaba en el `Literal` `Categoria`**. El comentario de esa tool explica por qué no es «Señales de análisis»; el vocabulario declarado nunca se actualizó |
+| `model_cards.py` | `model_id` es `None` a propósito en el léxico y el lineal, y se pasaba a `classify(model: str)` sin comprobar. Una ficha sin id habría fallado dentro de una llamada HTTP, con una URL que lleva `None` dentro |
+| `core/mcp/tools.py` | el contenido de una respuesta MCP es una **unión** —texto, imagen, audio, recurso— y se leía `.text` a ciegas. Funcionaba porque nuestras tools sólo devuelven texto; un servidor ajeno que respondiera otra cosa habría reventado en vez de informar |
+
+Ninguno se manifiesta hoy. Todos se manifestarían el día que cambiara algo, y
+ninguno con un mensaje que apuntara a su causa.
+
+#### Un solo patrón explicaba diez avisos
+
+`ToolResult.data` es `Any | None`, porque un resultado fallido no trae ninguno.
+El precio lo pagaba quien lo consume: las tools hacían `return response.data`
+declarando devolver una forma concreta, y los clientes `response.data["clave"]`.
+Las dos cosas están bien **si el resultado fue bien**, y ninguna lo comprobaba en
+el mismo sitio donde leía.
+
+La respuesta es un método:
+
+```python
+def unwrap(self) -> Any:
+    if not self.success or self.data is None:
+        raise ValueError(self.error or "El resultado no trae datos.")
+    return self.data
+```
+
+Lo que cambia no es la seguridad de tipos —el dato sigue siendo `Any`— sino
+**dónde falla**. Antes un `None` inesperado daba un `TypeError` de subíndice tres
+marcos más abajo, o un modelo Pydantic quejándose de un campo que no existe.
+Ahora dice que el resultado venía vacío, y con el motivo del fallo original.
+
+Y en dos sitios había algo más que un tipo impreciso: `nlp/linear.py` leía
+`result.data["matches"]` **sin comprobar nada**, y `guardian/_find_tag`
+comprobaba `success` pero no el contenido, así que un éxito sin cuerpo llegaba al
+`.get` y reventaba sobre `None`.
+
+#### La invariante que vivía a noventa líneas de distancia
+
+El aviso que destapó todo esto —el que aparecía en el editor— era éste:
+
+> Argument of type `str | None` cannot be assigned to parameter `content` of
+> type `str` in function `detect`
+
+El código es correcto: el orquestador desvía la señal de incoherencia a
+`not_applicable` antes de llamarla, si no hay cuerpo. Pero **esa garantía vive en
+un `bool` de una tabla de constantes, comprobado noventa líneas por debajo del
+sitio que depende de él**. Ningún comprobador puede unir esos dos puntos, y
+ningún lector de un vistazo tampoco.
+
+Y el modo de fallo, si alguien pusiera `needs_content=False` en esa entrada, era
+el peor posible: el guardia dejaría de correr, el detector reventaría al medir la
+longitud de `None`, y el aislamiento de fallos lo convertiría en una señal en
+estado `error`. Sin excepción que suba, sin test rojo, sin nada.
+
+Ahora la garantía se escribe donde se usa, con un `_con_cuerpo()` que falla
+diciendo qué pasó.
+
+#### Los cuatro `# type: ignore` eran reales
+
+Había cuatro en el repositorio, puestos por alguien que veía los avisos en su
+editor. Sin comprobador instalado eran **comentarios inertes**, y nadie sabía si
+seguían haciendo falta.
+
+Comprobado quitándolos: los cuatro suprimían errores de verdad. Tres eran el
+patrón de `.data` y desaparecieron al usar `unwrap()`. El cuarto —`Settings()`
+sin argumentos, que pydantic-settings rellena desde el entorno— se queda.
+
+Y ahí apareció algo que merece constar, porque **primero lo escribí mal**. Se dio
+por bueno que `# type: ignore[call-arg]` acotaba la supresión a esa regla. No lo
+hace: **pyright ignora el contenido del corchete** en esa forma. Medido poniendo
+una regla inventada —`# type: ignore[reglaInventada]`— y comprobando que suprime
+igual.
+
+La forma que sí acota es la suya: `# pyright: ignore[reportCallIssue]`. Medido
+también al revés, que es la prueba que vale: con una regla **equivocada pero
+real** el error vuelve a salir.
+
+La diferencia importa porque un `ignore` sin regla efectiva silencia **cualquier
+error futuro de esa línea**, incluido uno que no tenga nada que ver con el que se
+quería tapar.
+
+#### Lo que se silencia, y por qué
+
+Quedan dos más, y ninguno es un fallo nuestro. En `nlp/local.py`, los *stubs* de
+`transformers` declaran una sobrecarga de `pipeline` por cada tarea concreta y
+aquí la tarea llega como `str`.
+
+En `nlp/incoherence.py`, el import de `sentence-transformers`. Y ése lo destapó
+el CI, no el trabajo local: la dependencia vive en `requirements-dev.txt` porque
+arrastra torch y wheels de CUDA, y **el CI instala sólo `requirements.txt`**. En
+mi máquina resolvía; en el runner, no. Es la asimetría que hace que el import sea
+perezoso, y el `ignore` la declara en vez de esconderla.
+
+De paso apareció uno que sí lo era: la caché de pipelines se declaraba
+`dict[..., object]`, y `object` no es invocable — así que
+`asyncio.to_thread(pipe, text)` era un error de tipos que nadie veía. Con
+`Callable[..., Any]` desaparecen cuatro avisos y el tipo dice la verdad.
+
+#### Un cambio de contrato, dicho en voz alta
+
+`GET /health` declaraba devolver `dict` y devuelve un `Salud`. Corregirlo tiene
+una consecuencia buscada: **la forma pasa a publicarse en el contrato OpenAPI**,
+así que `openapi.json` gana `Salud` y `Sonda` —59 líneas— y el frontend recibirá
+el estado del sistema tipado en vez de como objeto libre cuando llegue #128.
+
+Es un cambio de contrato dentro de una PR de análisis estático, y por eso queda
+anotado en vez de pasar desapercibido entre las correcciones de tipos.
+
+#### Verificación
+
+**0 errores de pyright** sobre el código servido, 215 tests y ruff limpio. El
+comando es el mismo en local y en el editor, porque la configuración vive en
+`pyrightconfig.json`:
+
+```bash
+pyright
+```
+
+En el CI lleva `--pythonpath $(which python)`: la configuración apunta al `.venv`
+para el trabajo local, y en el runner no hay ninguno.
+
+#### Lo que NO arregla
+
+Un comprobador de tipos **no encuentra errores de lógica**. No habría detectado
+que dos señales de forma eran la misma (#109), ni que un umbral estaba a ojo
+(#92), ni que un corpus era otro reempaquetado (#121). Encuentra desajustes entre
+lo que una función promete y lo que recibe — una franja estrecha, pero es justo
+la que los tests no cubren, porque un test sólo recorre el camino que alguien
+pensó en escribir.
+
+Emparejado con #138 por eso: **los dos buscan fallos que hoy no se manifiestan**,
+por vías distintas. La cobertura señala caminos que nunca se ejecutan; los tipos,
+desajustes que el intérprete no llega a ver.
+
+El frontend queda fuera: no tiene linter, y eso es #140.
+
 ### La cobertura, de dependencia instalada a número que se mira (#138)
 
 `pytest-cov` estaba declarado en `requirements.in` y bloqueado en

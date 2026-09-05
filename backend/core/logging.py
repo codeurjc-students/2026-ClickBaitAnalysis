@@ -16,10 +16,18 @@ def configure_logging():
     logging.getLogger("httpx").setLevel(
         logging.WARNING
     )  # Evita Filtraciones de API KEY por logs.
+    # El `else` que lanza no es defensa contra lo imposible: `log_format` es un
+    # `Literal` de dos valores, así que hoy no puede caer ahí. Existe para el día
+    # que se añada un tercero — sin él, `renderer` quedaría SIN ASIGNAR y la
+    # línea siguiente reventaría con un `UnboundLocalError` que no dice nada del
+    # problema real. Detectado por pyright en #139.
     if settings.log_format == "console":
         renderer = structlog.dev.ConsoleRenderer()
     elif settings.log_format == "json":
         renderer = structlog.processors.JSONRenderer()
+    else:
+        raise ValueError(f"Formato de log no soportado: {settings.log_format}")
+
     processors.append(renderer)
     structlog.configure(
         processors=processors,

@@ -116,6 +116,18 @@ class BaseAPI:
                 except Exception as e:
                     return ToolResult.fail(f"An error occurred: {e!s}")
 
+        # El bucle siempre devuelve: en el último intento los tres manejadores
+        # retornan en vez de hacer `continue`. Salvo que `MAX_RETRIES` fuera
+        # negativo y `range()` saliera vacío — entonces esto caía por el final
+        # devolviendo `None`, y quien llamara haría `.success` sobre él.
+        #
+        # No es defensa paranoica: la firma promete un `ToolResult` y sin esto la
+        # promesa era falsa por un camino, aunque hoy nadie lo recorra. Lo
+        # detectó pyright en #139.
+        return ToolResult.fail(
+            f"No se intentó la llamada: MAX_RETRIES es {self.MAX_RETRIES}."
+        )
+
     # Luego reescribirmos en otra clase que herede de Base API y tenemos POLIMORFISMO!
 
     def _apply_auth(self, headers: dict, params: dict) -> None:

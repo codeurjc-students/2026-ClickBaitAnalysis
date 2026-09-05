@@ -350,9 +350,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "type": "object",
-                  "title": "Response Get Health Health Get"
+                  "$ref": "#/components/schemas/Salud"
                 }
               }
             }
@@ -782,6 +780,38 @@
         "title": "RetentionPolicy",
         "description": "Política de retención vigente, para que la interfaz no la cablee.\n\nVa en la respuesta porque la pantalla la necesita para dos cosas, y las dos\nson de usabilidad, no de adorno:\n\n1. **Explicar por qué faltan análisis viejos.** La poda es invisible, y eso\n   es justo el problema: quien analizó algo hace cuarenta días y no lo\n   encuentra no piensa «se habrá podado», piensa que la aplicación ha perdido\n   sus datos. Un borrado silencioso se lee como un fallo.\n2. **Acotar el selector de fechas.** Un calendario libre que permita pedir\n   «hace seis meses» y devuelva siempre vacío es una mala experiencia.\n\nY va aquí en vez de como constantes en Angular para que esos números salgan\nde la configuración REAL: cableados, se desincronizarían el día que cambie\nel `.env` y la pantalla seguiría prometiendo 30 días."
       },
+      "Salud": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "ok",
+              "degraded",
+              "down"
+            ],
+            "title": "Status"
+          },
+          "timestamp": {
+            "type": "string",
+            "title": "Timestamp"
+          },
+          "integrations": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/Sonda"
+            },
+            "type": "object",
+            "title": "Integrations"
+          }
+        },
+        "type": "object",
+        "required": [
+          "status",
+          "timestamp",
+          "integrations"
+        ],
+        "title": "Salud",
+        "description": "Estado agregado del sistema y de cada integración por separado.\n\nSe devuelven las dos cosas a propósito: el agregado sirve para un semáforo,\npero sin el detalle por integración no se puede saber **cuál** falla."
+      },
       "ServerInfo": {
         "properties": {
           "url": {
@@ -928,6 +958,32 @@
         ],
         "title": "SignalType",
         "description": "Naturaleza del modelo. Se muestra como badge en la interfaz.\n\nNo mide cuán complejo es el modelo sino **dónde está la transparencia**:\n``hybrid`` es decisión transparente sobre un rasgo opaco — un umbral legible\naplicado a una similitud de embeddings, por ejemplo."
+      },
+      "Sonda": {
+        "properties": {
+          "reachable": {
+            "type": "boolean",
+            "title": "Reachable"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          }
+        },
+        "type": "object",
+        "required": [
+          "reachable",
+          "error"
+        ],
+        "title": "Sonda",
+        "description": "Resultado de sondear una integración."
       },
       "ToolInfo": {
         "properties": {

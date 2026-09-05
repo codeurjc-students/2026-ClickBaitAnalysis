@@ -518,6 +518,26 @@ export interface components {
             max_days: number;
         };
         /**
+         * Salud
+         * @description Estado agregado del sistema y de cada integración por separado.
+         *
+         *     Se devuelven las dos cosas a propósito: el agregado sirve para un semáforo,
+         *     pero sin el detalle por integración no se puede saber **cuál** falla.
+         */
+        Salud: {
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "ok" | "degraded" | "down";
+            /** Timestamp */
+            timestamp: string;
+            /** Integrations */
+            integrations: {
+                [key: string]: components["schemas"]["Sonda"];
+            };
+        };
+        /**
          * ServerInfo
          * @description Un servidor MCP declarado en la configuración, respondiera o no.
          *
@@ -604,6 +624,16 @@ export interface components {
          * @enum {string}
          */
         SignalType: "interpretable" | "hybrid" | "opaque";
+        /**
+         * Sonda
+         * @description Resultado de sondear una integración.
+         */
+        Sonda: {
+            /** Reachable */
+            reachable: boolean;
+            /** Error */
+            error: string | null;
+        };
         /**
          * ToolInfo
          * @description Una herramienta del catálogo, con su procedencia y sus metadatos.
@@ -936,9 +966,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["Salud"];
                 };
             };
         };

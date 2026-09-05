@@ -63,7 +63,7 @@ class NYTAPI(BaseAPI):
         if not response.success or not response.has_content():
             return ToolResult.fail("No articles found")
 
-        results = response.data.get("response", {}).get("docs")
+        results = response.unwrap().get("response", {}).get("docs")
 
         if not results:
             return ToolResult.fail("No articles found")

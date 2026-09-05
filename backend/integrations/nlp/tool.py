@@ -60,7 +60,7 @@ def register(mcp: FastMCP):
         response = await dedicated.detect(api, headline)
         if not response.has_content():
             raise ToolError(response.error or "Error al analizar el titular")
-        return response.data
+        return response.unwrap()
 
     @mcp.tool(meta=tool_meta("Señales de análisis", __name__))
     @log_tool_invocation
@@ -80,10 +80,12 @@ def register(mcp: FastMCP):
         Raises:
             Si la llamada al modelo falla (timeout o caída del proveedor).
         """
-        response = await api.classify(text, _ficha["analyze_sentiment"]["model_id"])
+        response = await api.classify(
+            text, model_cards.model_id_de("analyze_sentiment")
+        )
         if not response.has_content():
             raise ToolError(response.error or "Error al analizar el sentimiento")
-        return response.data
+        return response.unwrap()
 
     @mcp.tool(meta=tool_meta("Señales de análisis", __name__))
     @log_tool_invocation
@@ -117,7 +119,7 @@ def register(mcp: FastMCP):
             raise ToolError(
                 response.error or "Error al analizar incoherencia en el titular"
             )
-        return response.data
+        return response.unwrap()
 
     @mcp.tool(meta=tool_meta("Señales de análisis", __name__))
     @log_tool_invocation
@@ -144,7 +146,7 @@ def register(mcp: FastMCP):
         response = lexical.detect(headline)
         if not response.has_content():
             raise ToolError(response.error or "Error al analizar léxico en el titular")
-        return response.data
+        return response.unwrap()
 
     @mcp.tool(meta=tool_meta("Señales de análisis", __name__))
     @log_tool_invocation
@@ -167,7 +169,7 @@ def register(mcp: FastMCP):
         response = linear.predict(headline)
         if not response.has_content():
             raise ToolError(response.error or "Error al predecir clickbait")
-        return response.data
+        return response.unwrap()
 
     # Utilidad, no señal: describe los modelos, no analiza nada. Es el caso que
     # demuestra que la categoría no se puede derivar del paquete.
