@@ -45,12 +45,17 @@ export class AnalyzeService {
    * el análisis y el `id` con el que quedó registrado (#133), que es lo que
    * permitirá volver a él sin reejecutarlo.
    *
-   * Ojo con este genérico, que es la costura menos protegida de la cadena: el
-   * `<AnalyzeResult>` de `post` **no comprueba nada**, es una afirmación sobre
-   * lo que va a llegar. Los tipos generados protegen todo lo que hay aguas
-   * abajo, pero aquí no pueden — cuando el contrato cambió en #133, el proyecto
-   * siguió compilando con el tipo viejo puesto. Al tocar la respuesta de
-   * `/analyze` hay que venir a esta línea a mano.
+   * El `<AnalyzeResult>` de `post` **no comprueba nada**: es una afirmación
+   * sobre lo que va a llegar, porque la respuesta viene por la red y TypeScript
+   * no tiene contra qué contrastarla. Es la costura menos protegida de la
+   * cadena, y en #133 se vio: el backend empezó a devolver el sobre y esto
+   * siguió compilando con el tipo viejo.
+   *
+   * Lo que la sostiene es de dónde sale `AnalyzeResult` — de
+   * `paths['/analyze']['post']` y no elegido a mano de `components`, así que
+   * cambiar lo que devuelve la ruta cambia el tipo al regenerar el contrato. La
+   * afirmación sigue sin verificarse aquí, pero ya no es una elección de quien
+   * escribió esta línea. Ver `models.ts`.
    */
   analizar(peticion: AnalyzeRequest): Observable<AnalyzeResult> {
     return this.http.post<AnalyzeResult>(`${API}/analyze`, peticion);

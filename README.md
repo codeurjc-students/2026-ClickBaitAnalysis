@@ -1330,7 +1330,31 @@ SignalResult = {…}`, así que añadir `label` los rompió a los siete de golpe
 su línea exacta. Los tipos generados protegen donde el código *afirma conformarse
 a ellos*, no donde los pide por la red.
 
-Queda anotado en el propio servicio, que es donde alguien lo necesitará.
+**Y no se queda en una nota.** El fichero generado no sólo publica `components`:
+publica también `paths`, que sí sabe qué devuelve cada ruta. Los tipos del
+endpoint se toman ahora de ahí:
+
+```ts
+type Analyze = paths['/analyze']['post'];
+export type AnalyzeResult =
+  Analyze['responses'][200]['content']['application/json'];
+```
+
+Elegirlos a mano de `components` era lo que dejaba la afirmación suelta:
+`AnalyzeResponse` seguía existiendo como esquema, así que nada relacionaba el
+tipo con la ruta. Derivándolo, cambiar lo que devuelve `/analyze` cambia este
+tipo al regenerar, y rompe a quien supusiera la forma anterior. La elección deja
+de ser de quien escribe el servicio y pasa a ser del contrato.
+
+Comprobado, no supuesto: apuntando la respuesta 200 de `/analyze` a
+`AnalyzeResponse` en el contrato y regenerando, el build falla con `TS2339` en
+las dos líneas que abren el sobre, `analisis-page.ts:96` y `:97`. Antes de este
+cambio, esa misma simulación compilaba sin una queja.
+
+Lo que sigue sin cubrir es que el backend **desplegado** no corresponda al
+contrato commiteado. Para eso haría falta validar en ejecución, que es una
+segunda fuente de verdad salvo que también se genere — desproporcionado aquí, y
+anotado por si algún día deja de serlo.
 
 #### Y un efecto secundario que casi se cuela
 
