@@ -137,9 +137,12 @@ class Settings(BaseSettings):
 
 # Activa la validación al importar: si falta una clave, el proceso no arranca.
 #
-# El `ignore` es acotado y necesario: pydantic-settings rellena los campos sin
-# valor por defecto desde el entorno o el `.env`, y el comprobador de tipos sólo
-# ve un constructor al que le faltan tres argumentos. Era un `# type: ignore` a
-# secas —que además silencia cualquier error FUTURO de esta línea— hasta que
-# #139 encendió pyright y se pudo comprobar qué suprimía de verdad.
-settings = Settings()  # type: ignore[call-arg]
+# El `ignore` es necesario: pydantic-settings rellena los campos sin valor por
+# defecto desde el entorno o el `.env`, y el comprobador sólo ve un constructor
+# al que le faltan tres argumentos.
+#
+# La sintaxis importa, y se comprobó (#139): pyright **ignora el contenido del
+# corchete** en `# type: ignore[...]` —una regla inventada suprime igual— así que
+# esa forma silencia cualquier error futuro de la línea. `# pyright: ignore[...]`
+# sí acota: puesta una regla equivocada, el error vuelve.
+settings = Settings()  # pyright: ignore[reportCallIssue]

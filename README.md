@@ -1282,17 +1282,33 @@ seguían haciendo falta.
 
 Comprobado quitándolos: los cuatro suprimían errores de verdad. Tres eran el
 patrón de `.data` y desaparecieron al usar `unwrap()`. El cuarto —`Settings()`
-sin argumentos, que pydantic-settings rellena desde el entorno— se queda, pero
-acotado a `[call-arg]` en vez de a secas: **un `ignore` sin regla silencia
-también los errores futuros de esa línea**.
+sin argumentos, que pydantic-settings rellena desde el entorno— se queda.
 
-De cuatro ciegos a dos acotados, y los dos con su motivo escrito.
+Y ahí apareció algo que merece constar, porque **primero lo escribí mal**. Se dio
+por bueno que `# type: ignore[call-arg]` acotaba la supresión a esa regla. No lo
+hace: **pyright ignora el contenido del corchete** en esa forma. Medido poniendo
+una regla inventada —`# type: ignore[reglaInventada]`— y comprobando que suprime
+igual.
+
+La forma que sí acota es la suya: `# pyright: ignore[reportCallIssue]`. Medido
+también al revés, que es la prueba que vale: con una regla **equivocada pero
+real** el error vuelve a salir.
+
+La diferencia importa porque un `ignore` sin regla efectiva silencia **cualquier
+error futuro de esa línea**, incluido uno que no tenga nada que ver con el que se
+quería tapar.
 
 #### Lo que se silencia, y por qué
 
-Sólo queda uno más, en `nlp/local.py`: los *stubs* de `transformers` declaran una
-sobrecarga de `pipeline` por cada tarea concreta, y aquí la tarea llega como
-`str`. No es un fallo nuestro.
+Quedan dos más, y ninguno es un fallo nuestro. En `nlp/local.py`, los *stubs* de
+`transformers` declaran una sobrecarga de `pipeline` por cada tarea concreta y
+aquí la tarea llega como `str`.
+
+En `nlp/incoherence.py`, el import de `sentence-transformers`. Y ése lo destapó
+el CI, no el trabajo local: la dependencia vive en `requirements-dev.txt` porque
+arrastra torch y wheels de CUDA, y **el CI instala sólo `requirements.txt`**. En
+mi máquina resolvía; en el runner, no. Es la asimetría que hace que el import sea
+perezoso, y el `ignore` la declara en vez de esconderla.
 
 De paso apareció uno que sí lo era: la caché de pipelines se declaraba
 `dict[..., object]`, y `object` no es invocable — así que

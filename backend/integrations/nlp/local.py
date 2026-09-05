@@ -30,7 +30,7 @@ class LocalNLPClient(NLPBackend):
             # sobrecarga por cada tarea concreta, así que ninguna casa. No es un
             # fallo nuestro: el valor sale de las dos llamadas de abajo y las dos
             # pasan una tarea válida.
-            pipe = pipeline(task, model=model)  # type: ignore[call-overload]
+            pipe = pipeline(task, model=model)  # pyright: ignore[reportCallIssue, reportArgumentType]
             self._pipelines[key] = pipe
 
         return self._pipelines[key]

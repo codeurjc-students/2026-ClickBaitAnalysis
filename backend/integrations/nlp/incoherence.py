@@ -44,7 +44,17 @@ class IncoherenceDetector:
 
     def _get_model(self):
         if self._model is None:
-            from sentence_transformers import SentenceTransformer
+            # `sentence-transformers` vive en `requirements-dev.txt`, no en
+            # `requirements.txt`, porque arrastra torch y wheels de CUDA. El CI
+            # instala sólo el segundo, así que ahí este import NO se puede
+            # resolver y pyright lo dice con razón — en local sí resuelve.
+            #
+            # El import es perezoso justamente por eso: la dependencia sólo hace
+            # falta cuando se usa esta señal, y el resto del sistema arranca sin
+            # ella. El `ignore` declara esa asimetría en vez de esconderla.
+            from sentence_transformers import (  # pyright: ignore[reportMissingImports]
+                SentenceTransformer,
+            )
 
             self._model = SentenceTransformer(self.MODEL)
         return self._model
