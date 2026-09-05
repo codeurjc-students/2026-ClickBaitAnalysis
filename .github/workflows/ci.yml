@@ -24,8 +24,16 @@ jobs:
           cache: pip #Evita instalación en cada run
       - name: Instalando dependencias...
         run: pip install -r requirements.txt
+      # `--cov` sin valor: qué se mide y qué se omite está en `.coveragerc`, así
+      # que el comando es el mismo aquí y en local. Va en el paso que ya existe
+      # y no en uno nuevo, para no correr la suite dos veces.
+      #
+      # SIN `--cov-fail-under`, a propósito (#138). Un umbral el primer día
+      # convierte cualquier refactor en una pelea con el porcentaje, y lo que
+      # hace falta antes es mirar el número unas cuantas corridas. El informe
+      # sale en el log; congelarlo es una decisión posterior y con datos.
       - name: Corriendo tests...
-        run: pytest -m "not integration"
+        run: pytest -m "not integration" --cov
       # Después de los tests a propósito: si el estilo falla, el informe de tests
       # ya se ha generado. Ruff se instala aparte y pineado —no desde
       # requirements.txt— para no meter tooling de desarrollo en las
