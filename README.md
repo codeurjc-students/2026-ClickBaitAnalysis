@@ -1189,6 +1189,109 @@ Añadir el registro a `/analyze` convirtió, sin avisar, todos los tests de esa 
 
 `tests/api/test_history.py` cubre los dos lados por separado —el almacén llamando a sus funciones, el endpoint por HTTP— porque responden preguntas distintas: si los datos sobreviven y salen en orden, y si la decisión de «una entrada por análisis» se sostiene de verdad.
 
+### La cobertura, de dependencia instalada a número que se mira (#138)
+
+`pytest-cov` estaba declarado en `requirements.in` y bloqueado en
+`requirements.txt` desde hacía meses, así que el CI lo instalaba en cada corrida
+y **no ejecutaba nada con él**. No había `.coveragerc`, ni configuración en
+`pytest.ini`, ni un paso en el workflow. Coste sin contrapartida: o se usa, o
+sale del `.in`.
+
+#### El número global mentía a la baja
+
+Medido antes de tocar nada: **50 % sobre todo `backend/`**. Ese número no es
+útil, porque lo hunde `backend/evaluation/` —scripts de investigación de un solo
+uso, al 0 % a propósito— y esconde dónde están los huecos que sí importan.
+Contando sólo el código servido, el punto de partida real era **90 % de ramas**.
+
+#### Ramas, no sólo líneas
+
+`branch = True`. Un `if` cuya condición sólo se ha probado en verdadero cuenta
+como línea cubierta y como rama a medias, y lo segundo es lo que se quiere saber.
+El precio medido son **dos puntos**: 90 % de ramas frente al 92 % de líneas sobre
+el mismo código.
+
+#### Qué se excluye, y el precio de excluir
+
+`backend/evaluation/` sale porque son scripts que se ejecutan a mano para
+producir un número que acaba en este README, y no forman parte del sistema
+servido.
+
+`backend/integrations/weather/` sale por decisión explícita del autor: es la
+integración heredada del tutorial de MCP en la Épica 1, sin relación con el
+clickbait, y **está en el proyecto por tradición**. Lo honesto es sacarla de la
+cuenta en vez de fingir que se va a probar.
+
+Con el precio escrito donde se toma la decisión: **omitir no penaliza, borra**.
+Si algún día se le mete código de verdad ahí dentro, el informe no dirá nada. Y
+la pregunta de fondo —si `weather` sigue pintando algo— no la resuelve esta
+issue.
+
+#### El desglose, para no vender maquillaje como trabajo
+
+| | Cobertura de ramas |
+|---|---|
+| Punto de partida | 90 % |
+| Tras excluir `evaluation` y `weather` | **92 %** |
+| Con los tests de `health` | 93 % |
+| Con los tests de `precalentar` | **94 %** |
+
+**Dos puntos son de exclusión y dos de tests nuevos.** Sin este desglose, el
+salto de 90 a 94 parecería el doble de trabajo del que fue.
+
+#### El hueco de `health`: una prueba que existía y nunca corría
+
+`core/health.py` estaba al 76 %, y lo no cubierto era el cuerpo de `_probe` —lo
+que decide si una integración responde—. El diagnóstico no era que faltara la
+prueba: **estaba escrita, marcada `@pytest.mark.integration`**, y el CI corre
+`-m "not integration"`. Se deseleccionaba en cada corrida.
+
+Ahora hay dos capas, y responden preguntas distintas. Las nuevas usan `respx` y
+no tocan la red: comprueban que `_probe` **interpreta** bien lo que recibe —un
+200, un 4xx o 5xx que el `raise_for_status()` debe rechazar, y un fallo de
+conexión—. La de integración se conserva: comprueba que las URLs reales siguen
+existiendo.
+
+Con eso `health.py` pasa de **76 % a 98 %**.
+
+#### El hueco de `precalentar`: se probaba que se llama, no qué hace
+
+`analysis/orchestrator.py` estaba al 84 %, y lo que faltaba era `precalentar()`
+entera. Los tests de #125 comprueban que el `lifespan` lo **llama** —que era el
+riesgo de entonces— pero no lo que ocurre dentro.
+
+Ahí vive una garantía que sostiene la decisión de precalentar bloqueando el
+arranque: **una señal que no carga se registra con tiempo negativo y no
+propaga**, porque `/tools` y `/history` no necesitan ningún modelo. Si esa
+excepción subiera, un modelo corrupto dejaría la API sin levantar entera.
+
+Tres tests nuevos: que con `nlp_backend=local` se calientan las tres señales, que
+con `remote` sólo la incoherencia —las otras van por HTTP y calentarlas en local
+sería cargar lo que no se va a usar— y que un fallo devuelve `-1.0` sin tumbar
+nada. `orchestrator.py` queda al 100 %.
+
+#### Sin umbral, a propósito
+
+No hay `--cov-fail-under`. Un umbral el primer día convierte cualquier refactor
+en una pelea con el porcentaje, y lo que hace falta antes es mirar el número unas
+cuantas corridas. El informe sale en el log del CI; congelarlo es una decisión
+posterior y con datos.
+
+Por lo mismo, `skip_covered = True`: con 50 módulos, un informe completo es una
+pared que nadie lee. Sólo aparecen los ficheros con huecos — **28 quedan fuera
+por estar al 100 %**.
+
+#### Lo que NO arregla, para no venderlo de más
+
+**La cobertura mide qué líneas se ejecutan, no si la aserción comprueba algo.**
+Un test que llama a una función y no afirma nada sube el porcentaje igual que uno
+bueno. El 94 % no dice que el sistema esté bien probado: dice **dónde seguro que
+no se ha mirado**, que es una pregunta más modesta y aun así útil.
+
+Queda cubierto por declaración expreso lo que no se va a probar: la tool
+`health_check` de FastMCP, una línea que delega en `check_health` y cuya
+cobertura exigiría atravesar el registro del protocolo para no probar nada nuevo.
+
 ### El cliente MCP sale de `api/`: el agente no podía reutilizarlo (#137)
 
 Salió al dibujar la secuencia del agente para #106. El bucle del agente debería

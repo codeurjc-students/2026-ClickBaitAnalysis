@@ -15,8 +15,12 @@ repomix-output.xml
 # Base de datos SQLite donde coverage.py va anotando qué líneas se ejecutan
 # mientras corren los tests. Es del mismo tipo que var/ —estado local y
 # regenerable, que sólo significa algo en la máquina que lo produjo— y aparece en
-# cuanto alguien lanza `pytest --cov`, que es lo que hará #138.
+# cuanto alguien lanza `pytest --cov`.
 .coverage
+
+# El informe navegable de `--cov-report=html`, que se genera para mirar un
+# fichero concreto. Mismo tipo que `.coverage`: derivado y regenerable.
+htmlcov/
 
 # Frontend Angular (H3). node_modules/ sin acotar a frontend/ y a cualquier
 # profundidad: un solo npm install descuidado en otro directorio metería

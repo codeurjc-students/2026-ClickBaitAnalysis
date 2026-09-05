@@ -28,6 +28,7 @@ from backend.analysis.orchestrator import (
     _overall,
     _run_signals,
 )
+from backend.config.settings import settings
 from backend.core.models import ToolResult
 from backend.integrations.nlp import dedicated, lexical, linear
 from backend.integrations.nlp.model_cards import cards_by_signal
@@ -487,3 +488,62 @@ async def test_si_todas_las_señales_fallan_no_hay_veredicto(señales, monkeypat
     assert response.dimensions == []
     # Aun así la respuesta es informativa: cada tarjeta dice qué le pasó.
     assert all(s.detail for s in response.signals)
+
+
+# ----- precalentado (#125), medido de verdad (#138) -----
+#
+# Hasta #138 lo único probado era que el `lifespan` LLAMA a `precalentar`. Lo que
+# hace por dentro —a qué señales toca, y qué pasa si una revienta— no lo
+# recorría ningún test, y ahí vive la garantía de que un modelo que no carga no
+# impide servir `/tools` ni `/history`.
+
+
+@pytest.mark.asyncio
+async def test_con_backend_local_se_calientan_las_tres(señales, monkeypatch):
+    señales()
+    monkeypatch.setattr(settings, "nlp_backend", "local")
+
+    tiempos = await orchestrator.precalentar()
+
+    assert set(tiempos) == {
+        "detect_clickbait",
+        "analyze_sentiment",
+        "detect_clickbait_incoherence",
+    }
+    assert all(medida >= 0 for medida in tiempos.values())
+
+
+@pytest.mark.asyncio
+async def test_con_backend_remoto_solo_se_calienta_la_incoherencia(
+    señales, monkeypatch
+):
+    """Con `remote`, las señales de titular van por HTTP a HuggingFace:
+    calentar sus modelos en local sería cargar lo que no se va a usar. La
+    incoherencia corre siempre aquí, así que sí se calienta."""
+    señales()
+    monkeypatch.setattr(settings, "nlp_backend", "remote")
+
+    tiempos = await orchestrator.precalentar()
+
+    assert set(tiempos) == {"detect_clickbait_incoherence"}
+
+
+@pytest.mark.asyncio
+async def test_una_señal_que_no_carga_no_impide_arrancar(señales, monkeypatch):
+    """El fallo se registra con un tiempo NEGATIVO y no se propaga.
+
+    Es lo que sostiene la decisión de #125 de precalentar bloqueando el
+    arranque: si una excepción subiera, un modelo corrupto dejaría la API sin
+    levantar entera, cuando `/tools` y `/history` no necesitan ningún modelo.
+    """
+    señales()
+    monkeypatch.setattr(settings, "nlp_backend", "remote")
+
+    async def revienta(headline, content):
+        raise RuntimeError("el modelo no está")
+
+    monkeypatch.setattr(orchestrator._detector, "detect", revienta)
+
+    tiempos = await orchestrator.precalentar()
+
+    assert tiempos["detect_clickbait_incoherence"] == -1.0
