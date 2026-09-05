@@ -1189,6 +1189,143 @@ Añadir el registro a `/analyze` convirtió, sin avisar, todos los tests de esa 
 
 `tests/api/test_history.py` cubre los dos lados por separado —el almacén llamando a sus funciones, el endpoint por HTTP— porque responden preguntas distintas: si los datos sobreviven y salen en orden, y si la decisión de «una entrada por análisis» se sostiene de verdad.
 
+### El cliente MCP sale de `api/`: el agente no podía reutilizarlo (#137)
+
+Salió al dibujar la secuencia del agente para #106. El bucle del agente debería
+reutilizar `execute_tool` —ya existe, y ya valida los argumentos contra el
+`inputSchema` de la herramienta— pero vivía en `backend/api/execute.py`, y el
+agente no va en `api/`.
+
+Importarlo desde fuera **habría hecho fallar `tests/test_arquitectura.py`**, que
+desde #106 vigila que ninguna capa del núcleo importe de las fachadas. O sea que
+la invariante ya estaba trabajando: en vez de que alguien cruzara la frontera sin
+darse cuenta dentro de tres meses, la decisión salió al dibujar el diagrama.
+
+#### No era una función, eran tres módulos
+
+| Módulo | Qué importaba | Diagnóstico |
+|---|---|---|
+| `api/mcp_session.py` | sólo `httpx` y `mcp` | **Cero acoplamiento a `api/`.** Un cliente MCP puro en el sitio equivocado |
+| `api/execute.py` | `mcp_session`, `schemas`, `settings` | El mecanismo es neutro; sólo el envoltorio es REST |
+| `api/catalog.py` | `mcp_session`, `schemas`, `domain`, `model_cards` | **También lo necesita el agente**: R13.2 exige que descubra las herramientas por MCP |
+
+Acabaron dentro de la fachada REST por el orden en que se construyó el sistema,
+no por diseño.
+
+#### `core/`, no `integrations/`
+
+La primera propuesta fue `integrations/mcp/`, y **era incorrecta**. Lo dice
+`docs/estructura.md`, que existe justamente para no re-derivar esto:
+
+- El criterio de `integrations/` es *«¿envuelve algo **externo al proyecto**?»*, y
+  los servidores MCP son nuestros. Su cláusula de exclusión es casi literal sobre
+  este caso: «no va aquí la maquinaria que **descubre** o **describe** las
+  integraciones; ésa opera *sobre* ellas, no *es* una».
+- El criterio de `core/` es *«¿lo usa más de una capa **y** no sabe nada del
+  dominio del clickbait?»*. Lo usarán `api/` y `agent/`, y dentro no aparece un
+  titular ni una señal.
+
+Y la **tensión 3** ya había resuelto el caso idéntico para `discovery` y
+`metadata`: «cumplen el criterio de `core/` mejor que el de `integrations/`».
+Meterlo en `integrations/` habría sido añadir un tercer caso del olor que el
+documento ya tiene fichado.
+
+La corrección vino de leer `estructura.md`, que es el primer paso de la
+orientación del repositorio y no se había dado.
+
+#### El resultado neutro necesitaba casa
+
+La issue dejaba abierto si bastaba `ToolResult`, el modelo que ya viaja dentro
+del proceso. **No basta:** tiene `success`, `data` y `error`, pero
+`ExecuteResponse` publica además **qué servidor** sirvió la herramienta.
+
+Añadirle un campo `server` lo habría ensuciado para las cinco señales NLP, que no
+tienen ninguno. De ahí un envoltorio de dos campos:
+
+```python
+@dataclass(frozen=True)
+class Invocation:
+    server: str
+    result: ToolResult
+```
+
+Los otros tres finales de `/execute` —404, 422 y 504— siguen siendo excepciones,
+y ésa es la línea: **una excepción interrumpe, un resultado fallido es una
+respuesta**. Por eso el 200 con `status: error` viaja dentro de `Invocation` y
+los demás no.
+
+#### La degradación se va con el mecanismo
+
+`fetch_catalog` consultaba los servidores con `gather(return_exceptions=True)`
+para que uno caído saliera degradado y los demás se sirvieran igual. Esa política
+se mudó entera a `discover_all`, no sólo la consulta de un servidor: **el agente
+va a querer un catálogo parcial por el mismo motivo**, y dejarla en la fachada
+habría obligado a reescribirla.
+
+Lo que se queda en `api/catalog.py` es la traducción a `ServerInfo`/`ToolInfo` y
+la ficha de modelo de cada señal — lo único de todo esto que conoce el dominio, y
+por tanto lo único que no puede bajar a `core/`.
+
+#### La lista de capas se invierte
+
+`tests/test_arquitectura.py` enumeraba los paquetes del núcleo:
+`("analysis", "integrations", "core")`. Eso deja un agujero silencioso: **un
+paquete nuevo queda fuera de la regla sin que nadie lo note**, y `backend/agent/`
+llega con R13 siendo exactamente el caso donde la tentación de reutilizar `api/`
+es real.
+
+Ahora se recorre todo `backend/` salvo `api/` y `main.py`. Es el mismo criterio
+que ya usaba la otra prueba del fichero, que lista excepciones en vez de
+incluidos: lo nuevo entra cubierto por defecto, y sacarlo exige editar la línea a
+mano.
+
+Medido: la regla pasa de tres paquetes a **52 módulos y seis entradas**, porque
+añade `config/` y `evaluation/`, que tampoco estaban vigilados.
+
+Comprobado en negativo, creando el paquete que motiva el cambio:
+
+```
+AssertionError: El núcleo importa de las fachadas:
+  agent/bucle.py importa backend.api.execute
+```
+
+Con la lista vieja eso habría pasado en silencio. Y la prueba lleva ahora un
+`assert modulos` delante: si el recorrido se rompiera, sería un `assert not []`
+que pasa siempre.
+
+#### Una regla del linter que no aplicaba
+
+Sacar el timeout a parámetro —lo pedía la issue, para que el mecanismo se pruebe
+sin montar un entorno— disparó `ASYNC109`, que desaconseja un parámetro
+`timeout` en una función asíncrona. Su argumento es bueno: si la función sólo
+envuelve su cuerpo en `asyncio.timeout`, el llamante puede hacerlo igual y el
+parámetro sobra.
+
+Aquí la premisa no se cumple. El valor hace **dos trabajos con un solo número**:
+acota la operación entera con `asyncio.timeout` **y** se le pasa a
+`open_session` como corte de inactividad de httpx, que el llamante no puede
+reproducir desde fuera.
+
+Se silencia en `ruff.toml` con el motivo escrito, acotado a ese fichero y a los
+tests —cuyos dobles copian la firma de lo que sustituyen—, en vez de apagar la
+regla en todo el repositorio.
+
+#### Verificación
+
+206 tests y ruff limpio, **sin tocar una sola aserción de comportamiento**: los
+tests de catálogo y ejecución que ya existían son la red de este movimiento, y
+sólo cambiaron rutas de importación en seis ficheros.
+
+La prueba más limpia de que no cambia nada: **regenerar el contrato OpenAPI no
+produce diff**. Ni una ruta, ni un código de estado, ni un campo.
+
+#### El efecto secundario que interesa
+
+Con el cliente MCP fuera de `api/`, **`/analyze` queda a un paso de poder ir por
+el protocolo** en vez de importar el núcleo. No era el objetivo, pero abarata la
+decisión aplazada de separar las tools de clickbait en su propio contenedor, que
+espera a saber la RAM de la máquina de despliegue.
+
 ### Cuatro huecos del contrato de `/analyze` (#133)
 
 Salieron al construir la pantalla de #127, uno detrás de otro y con la misma

@@ -33,12 +33,7 @@ from backend.analysis.domain import AnalyzeRequest
 from backend.analysis.orchestrator import analyze, precalentar
 from backend.api import history
 from backend.api.catalog import fetch_catalog
-from backend.api.execute import (
-    InvalidArguments,
-    ToolNotFound,
-    ToolTimeout,
-    execute_tool,
-)
+from backend.api.execute import execute_tool
 from backend.api.schemas import (
     AnalyzeResult,
     CatalogResponse,
@@ -53,6 +48,10 @@ from backend.api.schemas import (
 from backend.config.settings import settings
 from backend.core.health import check_health
 from backend.core.logging import configure_logging
+
+# Las tres excepciones son vocabulario del MECANISMO, no de la fachada: viven
+# donde se lanzan (#137). Importarlas de `api.execute` las haría parecer suyas.
+from backend.core.mcp.tools import InvalidArguments, ToolNotFound, ToolTimeout
 
 log = structlog.get_logger()
 

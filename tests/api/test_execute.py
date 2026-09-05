@@ -10,9 +10,11 @@ from contextlib import asynccontextmanager
 import httpx
 import pytest
 
-from backend.api import execute, mcp_session
+from backend.api import execute
 from backend.api.schemas import ExecuteStatus
 from backend.config.settings import settings
+from backend.core.mcp import session as mcp_session
+from backend.core.mcp.tools import InvalidArguments, ToolNotFound
 
 _BASE = "http://127.0.0.1:8765"
 _URL = f"{_BASE}/mcp"
@@ -114,19 +116,19 @@ async def test_un_fallo_de_la_tool_no_es_un_error_http(monkeypatch, servidor_mcp
 
 @pytest.mark.asyncio
 async def test_una_herramienta_inexistente_es_404(monkeypatch, servidor_mcp):
-    with pytest.raises(execute.ToolNotFound):
+    with pytest.raises(ToolNotFound):
         await _ejecutar(monkeypatch, servidor_mcp, "no_existe", {})
 
 
 @pytest.mark.asyncio
 async def test_un_argumento_que_falta_es_422(monkeypatch, servidor_mcp):
-    with pytest.raises(execute.InvalidArguments, match="headline"):
+    with pytest.raises(InvalidArguments, match="headline"):
         await _ejecutar(monkeypatch, servidor_mcp, "detect_clickbait_lexical", {})
 
 
 @pytest.mark.asyncio
 async def test_un_argumento_del_tipo_equivocado_es_422(monkeypatch, servidor_mcp):
-    with pytest.raises(execute.InvalidArguments):
+    with pytest.raises(InvalidArguments):
         await _ejecutar(
             monkeypatch, servidor_mcp, "detect_clickbait_lexical", {"headline": 42}
         )
@@ -136,7 +138,7 @@ async def test_un_argumento_del_tipo_equivocado_es_422(monkeypatch, servidor_mcp
 async def test_se_acumulan_todos_los_problemas_de_validacion(monkeypatch, servidor_mcp):
     """Quien rellena un formulario prefiere corregirlo de una vez a descubrir
     los errores de uno en uno."""
-    with pytest.raises(execute.InvalidArguments) as error:
+    with pytest.raises(InvalidArguments) as error:
         await _ejecutar(
             monkeypatch,
             servidor_mcp,
@@ -154,7 +156,7 @@ async def test_la_validacion_ocurre_antes_de_invocar(monkeypatch, servidor_mcp):
     llegaría como fallo de ejecución y sería indistinguible de un análisis que
     salió mal — 200 con status error en vez del 422 que corresponde.
     """
-    with pytest.raises(execute.InvalidArguments):
+    with pytest.raises(InvalidArguments):
         await _ejecutar(
             monkeypatch, servidor_mcp, "detect_clickbait_lexical", {"headline": None}
         )

@@ -18,9 +18,10 @@ from contextlib import asynccontextmanager
 import httpx
 import pytest
 
-from backend.api import catalog, mcp_session
+from backend.api import catalog
 from backend.api.schemas import ServerStatus
 from backend.config.settings import settings
+from backend.core.mcp import session as mcp_session
 
 # El Host debe llevar puerto: la protección anti DNS-rebinding de FastMCP acepta
 # `127.0.0.1:*` y rechazaría con 421 un Host sin él.

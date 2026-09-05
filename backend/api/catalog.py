@@ -22,15 +22,17 @@ en el momento de la llamada.
 **Un servidor caído no rompe la respuesta.** Sale en ``servers`` con estado
 ``unreachable`` y su motivo, y las herramientas de los demás se sirven igual.
 Es el mismo patrón que las señales de ``/analyze``.
-"""
 
-import asyncio
+Desde #137 el descubrimiento en sí vive en ``core/mcp/tools.py``, junto con esa
+degradación: el agente de R13 querrá un catálogo parcial por el mismo motivo, y
+no puede importar de una fachada. Aquí queda la **traducción** al contrato —y la
+ficha de modelo de cada señal, que es lo único de esto que conoce el dominio.
+"""
 
 import structlog
 from mcp.types import Tool
 
 from backend.analysis.domain import Dimension, SignalType
-from backend.api.mcp_session import open_session
 from backend.api.schemas import (
     CatalogResponse,
     ServerInfo,
@@ -39,23 +41,29 @@ from backend.api.schemas import (
     ToolModelCard,
 )
 from backend.config.settings import settings
+from backend.core.mcp import tools as mcp_tools
 from backend.integrations.nlp.model_cards import cards_by_signal
 
 log = structlog.get_logger()
 
 
 async def fetch_catalog() -> CatalogResponse:
-    """Consulta todos los servidores configurados y funde sus catálogos."""
-    resultados = await asyncio.gather(
-        *(_consultar(url) for url in settings.mcp_servers),
-        return_exceptions=True,
+    """Consulta todos los servidores configurados y funde sus catálogos.
+
+    Es quien **lee la configuración y la pasa**: el mecanismo recibe los
+    servidores y el corte por parámetro. Aquí se usa ``mcp_timeout`` y no
+    ``mcp_execute_timeout`` porque descubrir tarda milésimas — lo que necesita
+    margen es ejecutar.
+    """
+    resultados = await mcp_tools.discover_all(
+        settings.mcp_servers, settings.mcp_timeout
     )
 
     servers: list[ServerInfo] = []
     tools: list[ToolInfo] = []
 
-    # gather conserva el orden de entrada, así que cada resultado corresponde a
-    # la URL de su misma posición.
+    # `discover_all` devuelve una lista del mismo largo y en el mismo orden que
+    # las URLs, así que cada resultado corresponde al servidor de su posición.
     for url, resultado in zip(settings.mcp_servers, resultados, strict=True):
         if isinstance(resultado, BaseException):
             log.warning(
@@ -70,47 +78,18 @@ async def fetch_catalog() -> CatalogResponse:
             )
             continue
 
-        info, del_servidor = resultado
-        servers.append(info)
-        tools.extend(del_servidor)
+        herramientas = [_envolver(tool, resultado.server) for tool in resultado.tools]
+        servers.append(
+            ServerInfo(
+                url=resultado.url,
+                name=resultado.server,
+                status=ServerStatus.OK,
+                tool_count=len(herramientas),
+            )
+        )
+        tools.extend(herramientas)
 
     return CatalogResponse(servers=servers, tools=tools)
-
-
-async def _consultar(url: str) -> tuple[ServerInfo, list[ToolInfo]]:
-    """Abre una sesión MCP, se presenta y pide el catálogo de ese servidor.
-
-    El ``asyncio.timeout`` es el que hace verdad la promesa de ``mcp_timeout``:
-    que un servidor lento salga como ``unreachable`` en vez de dejar ``/tools``
-    colgado. El ``timeout`` de httpx no basta —mide inactividad entre bytes, no
-    duración— y sin esto un servidor que acepta la conexión y tarda en responder
-    cuelga la petición para siempre.
-
-    Lo que sí cubría httpx, y sigue cubriendo, es el servidor **caído**: ahí la
-    conexión se rechaza y falla rápido.
-
-    Al agotarse, la excepción sube al ``gather(return_exceptions=True)`` de
-    ``fetch_catalog`` como cualquier otro fallo, así que este servidor sale
-    degradado y los demás se sirven igual. No hace falta tratarla aquí.
-    """
-    async with (
-        asyncio.timeout(settings.mcp_timeout),
-        open_session(url, settings.mcp_timeout) as (session, inicializacion),
-    ):
-        listado = await session.list_tools()
-
-    nombre = inicializacion.serverInfo.name
-    herramientas = [_envolver(tool, nombre) for tool in listado.tools]
-
-    return (
-        ServerInfo(
-            url=url,
-            name=nombre,
-            status=ServerStatus.OK,
-            tool_count=len(herramientas),
-        ),
-        herramientas,
-    )
 
 
 def _envolver(tool: Tool, servidor: str) -> ToolInfo:
