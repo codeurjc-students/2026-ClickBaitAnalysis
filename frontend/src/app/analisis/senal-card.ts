@@ -1,6 +1,6 @@
 import { Component, computed, input, linkedSignal } from '@angular/core';
 
-import type { SignalResult } from '../api/models';
+import type { SenalGuardada } from './formas';
 import { comoEtiqueta, comoIncoherencia, comoLexico, comoLineal } from './datos';
 import {
   estadoDeSenal,
@@ -20,7 +20,7 @@ import {
   styleUrl: './senal-card.scss',
 })
 export class SenalCard {
-  readonly senal = input.required<SignalResult>();
+  readonly senal = input.required<SenalGuardada>();
 
   /**
    * Abierta según el TIPO, no según un número: una señal opaca no tiene

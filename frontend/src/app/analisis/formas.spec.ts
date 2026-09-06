@@ -1,5 +1,5 @@
 import type { AnalyzeResponse } from '../api/models';
-import { comoAnalisis } from './payload';
+import { comoAnalisis } from './formas';
 
 /**
  * Un análisis de HOY, tipado con el contrato a propósito: si algún día
