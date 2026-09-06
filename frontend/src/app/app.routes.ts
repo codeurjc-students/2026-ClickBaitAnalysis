@@ -20,10 +20,10 @@ export const routes: Routes = [
     path: 'analizar',
     title: 'Analizar un titular · ClickBait Analysis',
     // `loadComponent` y no un import normal: la pantalla se descarga cuando se
-    // visita. Con una sola ruta da igual, pero el catálogo  y el
-    // historial entran detrás y ahí sí importa.
+    // visita. Con una sola ruta daba igual; con la de Sistema detrás ya no, y
+    // se ve en el empaquetado (21,69 kB en su propio fragmento).
     loadComponent: () =>
-      import('./analisis/analisis-page').then((m) => m.AnalisisPage),
+      import('./analisis/analisis-page').then((modulo) => modulo.AnalisisPage),
   },
   {
     path: 'sistema',
