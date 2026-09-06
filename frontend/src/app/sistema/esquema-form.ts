@@ -75,6 +75,7 @@ function inicialDe(campo: Campo): Valor {
   selector: 'app-esquema-form',
   imports: [ReactiveFormsModule],
   templateUrl: './esquema-form.html',
+  styleUrl: './esquema-form.scss',
 })
 export class EsquemaForm {
   /** Nombre de la herramienta. Sólo se usa para que los `id` sean únicos: la
