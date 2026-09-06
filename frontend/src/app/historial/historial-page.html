@@ -1,0 +1,149 @@
+<h1>Historial</h1>
+<p class="subtitulo">
+  Los análisis y las ejecuciones anteriores, del más reciente al más antiguo.
+  Cada entrada guarda la respuesta completa, así que volver a una no la
+  reejecuta.
+</p>
+
+<div class="filtros">
+  <p class="filtro">
+    <label for="filtro-kind">Tipo</label>
+    <select id="filtro-kind" (change)="filtrar('kind', $event)">
+      <option value="">Todos</option>
+      <option value="analysis">Análisis</option>
+      <option value="tool">Ejecuciones sueltas</option>
+    </select>
+  </p>
+
+  <p class="filtro">
+    <label for="filtro-verdict">Veredicto</label>
+    <select id="filtro-verdict" (change)="filtrar('verdict', $event)">
+      <option value="">Todos</option>
+      @for (valor of veredictos; track valor) {
+        <option [value]="valor">{{ veredicto(valor) }}</option>
+      }
+    </select>
+  </p>
+
+  <p class="filtro">
+    <label for="filtro-status">Ejecución</label>
+    <select id="filtro-status" (change)="filtrar('status', $event)">
+      <option value="">Todas</option>
+      @for (valor of estados; track valor) {
+        <option [value]="valor">{{ valor }}</option>
+      }
+    </select>
+  </p>
+</div>
+
+<!--
+  Los dos últimos filtros NO son el mismo eje, y por eso están separados: el
+  veredicto dice qué concluyó el análisis y la ejecución si funcionó la
+  maquinaria. Un análisis puede acabar en «factual» con una de sus señales
+  caída.
+-->
+<p class="ayuda">
+  El veredicto es lo que concluyó el análisis; la ejecución, si la maquinaria
+  funcionó. Son preguntas distintas: un análisis puede concluir con una de sus
+  señales caída.
+</p>
+
+@if (cargando()) {
+  <p class="cargando" role="status">Leyendo el historial…</p>
+}
+
+@if (error(); as fallo) {
+  <p class="error" role="alert">{{ fallo }}</p>
+  <button type="button" class="secundario" (click)="cargar()">Reintentar</button>
+}
+
+@if (pagina(); as datos) {
+  <p class="cuenta" role="status">
+    @if (total() === 0) {
+      No hay ninguna entrada que case con el filtro.
+    } @else {
+      Mostrando {{ desde() }}–{{ hasta() }} de {{ total() }}
+    }
+  </p>
+
+  @if (total() > 0) {
+    <table class="entradas">
+      <caption>
+        Entradas del historial, de la más reciente a la más antigua.
+      </caption>
+      <thead>
+        <tr>
+          <th scope="col">Fecha</th>
+          <th scope="col">Tipo</th>
+          <th scope="col">Titular o herramienta</th>
+          <th scope="col">Veredicto</th>
+          <th scope="col">Ejecución</th>
+          <th scope="col">
+            <span class="oculto">Acciones</span>
+          </th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (entrada of entradas(); track entrada.id) {
+          <tr [attr.data-estado]="entrada.status">
+            <td>{{ fecha(entrada) }}</td>
+            <td>{{ entrada.kind === 'analysis' ? 'Análisis' : 'Herramienta' }}</td>
+            <td>
+              @if (entrada.kind === 'tool') {
+                <code>{{ entrada.tool }}</code>
+              }
+              @if (entrada.headline) {
+                <!-- El contrato dice que los titulares analizados son ingleses,
+                     y la página está en castellano. -->
+                <span class="titular" lang="en">{{ entrada.headline }}</span>
+              }
+            </td>
+            <td>
+              @if (entrada.verdict) {
+                {{ veredicto(entrada.verdict) }}
+              } @else {
+                <span aria-hidden="true">—</span>
+              }
+            </td>
+            <td>{{ entrada.status }}</td>
+            <td>
+              @if (entrada.kind === 'analysis') {
+                <a [routerLink]="['/analisis', entrada.id]">Ver el análisis</a>
+              } @else {
+                <button
+                  type="button"
+                  class="secundario"
+                  (click)="alternar(entrada.id)"
+                  [attr.aria-expanded]="abierta() === entrada.id"
+                >
+                  {{ abierta() === entrada.id ? 'Ocultar salida' : 'Ver salida' }}
+                </button>
+              }
+            </td>
+          </tr>
+
+          @if (abierta() === entrada.id) {
+            <tr class="detalle">
+              <td colspan="6">
+                <pre class="crudo">{{ crudoDe(entrada) }}</pre>
+              </td>
+            </tr>
+          }
+        }
+      </tbody>
+    </table>
+  }
+
+  <!-- La poda es invisible, y ése es el problema: sin decirlo, faltar entradas
+       viejas se lee como que la aplicación perdió datos. -->
+  <p class="ayuda retencion">{{ retencion(datos.retention) }}</p>
+
+  <nav class="paginacion" aria-label="Paginación del historial">
+    <button type="button" [disabled]="!hayAnterior()" (click)="pasar(-1)">
+      ← Anteriores
+    </button>
+    <button type="button" [disabled]="!haySiguiente()" (click)="pasar(1)">
+      Siguientes →
+    </button>
+  </nav>
+}

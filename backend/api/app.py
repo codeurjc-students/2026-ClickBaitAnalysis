@@ -173,7 +173,24 @@ async def get_tools() -> CatalogResponse:
     return await fetch_catalog()
 
 
-@app.post("/tools/{name}/execute", response_model=ExecuteResponse, tags=["catálogo"])
+@app.post(
+    "/tools/{name}/execute",
+    response_model=ExecuteResponse,
+    tags=["catálogo"],
+    # Los tres finales que NO son 200 se declaran, por el mismo motivo que el
+    # 404 del historial: sin esto el contrato publica 200 y 422 y nada más, y
+    # quien escribe el cliente los saca de leer este fichero. Aquí duele más que
+    # allí porque son tres y significan cosas distintas — y el 504 sobre todo,
+    # que no dice que la herramienta fallara sino que se agotó la espera: puede
+    # haber terminado bien (medido en #113, acabó a los 151 s con la API ya
+    # desistida). La pantalla de Sistema los distingue desde #128.
+    responses={
+        404: {"description": "No hay ninguna herramienta con ese nombre."},
+        504: {
+            "description": "Se agotó la espera; la herramienta puede haber terminado."
+        },
+    },
+)
 async def post_execute(name: str, request: ExecuteRequest) -> ExecuteResponse:
     """Ejecuta una herramienta concreta con los argumentos indicados.
 
@@ -331,7 +348,19 @@ async def get_history(
     )
 
 
-@app.get("/history/{entry_id}", response_model=HistoryEntry, tags=["historial"])
+@app.get(
+    "/history/{entry_id}",
+    response_model=HistoryEntry,
+    tags=["historial"],
+    # El 404 se DECLARA, no sólo se lanza. Sin esto el contrato publica 200 y
+    # 422 y nada más, así que el cliente generado no sabe que ese código existe
+    # y quien escribe la pantalla lo descubre leyendo este fichero — que es
+    # exactamente lo que #133 quitó de en medio para las respuestas.
+    #
+    # Y aquí no es un caso de borde: la RETENCIÓN poda entradas, así que un
+    # enlace guardado a un análisis acaba dando 404 por funcionamiento normal.
+    responses={404: {"description": "No hay ninguna entrada con ese id."}},
+)
 async def get_history_entry(entry_id: int) -> HistoryEntry:
     """Una entrada del historial por su id, con su respuesta completa.
 

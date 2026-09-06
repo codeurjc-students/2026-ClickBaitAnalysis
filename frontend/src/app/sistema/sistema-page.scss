@@ -167,7 +167,18 @@ button:focus-visible {
   margin: 0.5rem 0 0;
   color: var(--texto-suave);
   font-size: 0.9rem;
-  white-space: pre-line;
+}
+
+/* El cuerpo de la docstring conserva sus saltos: es texto estructurado
+   —Args, Returns, Raises—, no un párrafo. */
+.tool__detalle {
+  margin: 0.5rem 0 0;
+  padding: 0.6rem 0.75rem;
+  overflow-x: auto;
+  border-radius: 6px;
+  background: var(--fondo-suave);
+  color: var(--texto-suave);
+  font-size: 0.8rem;
 }
 
 .resultado__meta {

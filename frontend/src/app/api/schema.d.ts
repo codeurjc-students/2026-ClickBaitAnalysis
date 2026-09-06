@@ -886,6 +886,13 @@ export interface operations {
                     "application/json": components["schemas"]["ExecuteResponse"];
                 };
             };
+            /** @description No hay ninguna herramienta con ese nombre. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
             /** @description Validation Error */
             422: {
                 headers: {
@@ -894,6 +901,13 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
+            };
+            /** @description Se agotó la espera; la herramienta puede haber terminado. */
+            504: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };
@@ -960,6 +974,13 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["HistoryEntry"];
                 };
+            };
+            /** @description No hay ninguna entrada con ese id. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {

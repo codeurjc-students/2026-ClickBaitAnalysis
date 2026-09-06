@@ -1,0 +1,168 @@
+h1 {
+  margin: 0 0 0.25rem;
+  font-size: 1.5rem;
+}
+
+.subtitulo {
+  margin: 0 0 1.5rem;
+  max-width: 60ch;
+  color: var(--texto-suave);
+}
+
+/* --- Filtros --- */
+
+.filtros {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin-bottom: 0.5rem;
+}
+
+.filtro {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  margin: 0;
+}
+
+.filtro label {
+  font-weight: 600;
+  font-size: 0.85rem;
+}
+
+.filtro select {
+  padding: 0.45rem 0.6rem;
+  border: 1px solid var(--borde);
+  border-radius: 6px;
+  font: inherit;
+}
+
+.filtro select:focus-visible,
+button:focus-visible,
+a:focus-visible {
+  outline: 2px solid var(--acento);
+  outline-offset: 2px;
+}
+
+.ayuda {
+  margin: 0 0 1rem;
+  max-width: 70ch;
+  color: var(--texto-suave);
+  font-size: 0.85rem;
+}
+
+.cuenta {
+  margin: 0 0 0.5rem;
+  color: var(--texto-suave);
+  font-size: 0.85rem;
+}
+
+/* --- Tabla --- */
+
+.entradas {
+  width: 100%;
+  border-collapse: collapse;
+  /* Datos tabulares de verdad: fecha, tipo, sujeto, veredicto y estado. Una
+     lista de tarjetas obligaría a repetir el nombre de cada campo en cada
+     fila. El comportamiento en pantallas estrechas es #130. */
+}
+
+caption {
+  margin-bottom: 0.4rem;
+  color: var(--texto-suave);
+  font-size: 0.8rem;
+  text-align: left;
+}
+
+th,
+td {
+  padding: 0.5rem 0.6rem;
+  border-bottom: 1px solid var(--borde);
+  text-align: left;
+  vertical-align: top;
+}
+
+th {
+  font-size: 0.8rem;
+  color: var(--texto-suave);
+  /* La caja alta la pone el CSS: muchos lectores de pantalla deletrean lo que
+     está escrito en mayúsculas en el DOM. */
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+tbody tr[data-estado='error'] {
+  background: var(--error-fondo);
+}
+
+.titular {
+  display: block;
+  max-width: 46ch;
+}
+
+code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.85em;
+}
+
+.detalle td {
+  padding-top: 0;
+}
+
+.crudo {
+  margin: 0;
+  padding: 0.6rem 0.75rem;
+  max-height: 20rem;
+  overflow: auto;
+  border-radius: 6px;
+  background: var(--fondo-suave);
+  font-size: 0.8rem;
+}
+
+/* Encabezado de columna que existe para los lectores de pantalla y estorba a la
+   vista: la columna de acciones se explica sola con su botón. */
+.oculto {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* --- Paginación y estados --- */
+
+.retencion {
+  margin: 0.75rem 0;
+}
+
+.paginacion {
+  display: flex;
+  gap: 0.5rem;
+}
+
+button,
+.paginacion button {
+  padding: 0.45rem 1rem;
+  border: 1px solid var(--borde);
+  border-radius: 6px;
+  background: var(--fondo-suave);
+  font: inherit;
+  cursor: pointer;
+}
+
+button:disabled {
+  color: var(--texto-suave);
+  cursor: not-allowed;
+}
+
+.cargando {
+  color: var(--texto-suave);
+}
+
+.error {
+  padding: 0.6rem 0.85rem;
+  border-radius: 6px;
+  background: var(--error-fondo);
+  color: var(--error);
+}

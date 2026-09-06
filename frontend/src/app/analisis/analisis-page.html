@@ -5,7 +5,13 @@
 
 @if (resultado(); as analisis) {
   <section class="barra">
-    <p class="barra__etiqueta">Titular analizado</p>
+    @if (fechaGuardado(); as cuando) {
+      <p class="barra__etiqueta">
+        Recuperado del historial · guardado el {{ cuando }}
+      </p>
+    } @else {
+      <p class="barra__etiqueta">Titular analizado</p>
+    }
     <p class="barra__titular" lang="en">«{{ analisis.headline }}»</p>
     <p class="barra__meta">
       @if (analisis.content) {

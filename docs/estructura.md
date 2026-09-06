@@ -203,7 +203,41 @@ lógica: si algo se le añadiera, pertenece a otro sitio.
 | `data/` | **Versionado e inmutable**: datasets y splits congelados. Si algo cambia en ejecución, no va aquí |
 | `var/` | **Gitignored y mutable**: estado que cambia en cada petición. Es el directorio que se monta como volumen |
 | `docker/` | *(vacía)* — reservada para H4 |
-| `frontend/` | *(vacía)* — reservada para la SPA Angular |
+| `frontend/` | La SPA Angular. Sus criterios, abajo |
+
+---
+
+## `frontend/src/app/`
+
+**¿Habla con el backend?** → `api/`. **¿Lo usa una sola pantalla?** → su carpeta.
+
+| Carpeta | Criterio |
+|---|---|
+| `api/` | Lo que habla el contrato: el cliente generado (`schema.d.ts`), los alias con nombre corto (`models.ts`), **un servicio por familia de rutas** y lo que se lee del cuerpo de un error HTTP. No conoce el dominio: aquí no se decide qué es clickbait |
+| `analisis/` | Analizar un titular y ver el resultado —también uno guardado—, con lo que sólo esa vista usa: los guardianes del `data`, el resaltado del titular, la tarjeta de señal y el vocabulario |
+| `historial/` | La lista de lo anterior: filtros, paginación y el aviso de retención |
+| `sistema/` | Servidores, catálogo y fichas de modelo, más el lector de esquemas que genera el formulario de cada herramienta |
+
+**Tres reglas que no se ven mirando el árbol:**
+
+- **Lo que entra y sale de una RUTA se toma de `paths`, nunca de `components`**
+  (#133). `http.post<T>()` no comprueba nada, así que elegir `T` a mano deja el
+  tipo sin atar a la ruta. Las piezas de dentro —las que se pasan a un
+  componente— sí vienen de `components`, porque son formas con nombre propio.
+- **Se comprueba, no se castea.** Todo lo que llega sin tipo —el `data` de una
+  señal, el `payload` del historial, el `input_schema` de una herramienta— pasa
+  por un guardián que devuelve `null` si no encaja, y lo que no encaja **se
+  enseña en crudo** en vez de omitirse.
+- **El estado va en `signal()`.** El proyecto es *zoneless*: guardarlo en un
+  campo normal no da error, simplemente no repinta.
+
+### La dirección de las dependencias
+
+Una pantalla puede depender de `api/`; **ninguna debería depender de otra
+pantalla**. Es lo que decidió, en #129, dónde vive `comoAnalisis`: el guardián
+que lee un análisis del `payload` guardado nació en `historial/`, y desde allí
+obligaba a `senal-card` —que sólo dibuja— a importar tipos de la pantalla del
+historial para existir. Vive en `analisis/formas.ts`, junto a quien los pinta.
 
 ---
 
@@ -269,6 +303,18 @@ son un patrón. Queda declarado así:
 Con eso, un módulo puede exponerse como herramienta sin dejar de pertenecer a su
 capa: lo que importa es **quién decide registrarlo**, y esa decisión vive en el
 punto de entrada, no repartida por el árbol.
+
+### 5 · `vocabulario.ts` sirve a tres pantallas desde `analisis/`
+
+`nombreDeVeredicto` lo usa el historial y `nombreDeDimension` la de Sistema, así
+que **dos pantallas importan de una tercera** — justo lo que el criterio de
+arriba dice que no debería pasar. Son las traducciones del dominio a castellano,
+y no pertenecen a la pantalla de análisis más que a las otras.
+
+No se mueve todavía porque el destino natural —una carpeta compartida— tendría
+hoy **un solo fichero dentro**, y una carpeta de un elemento suele ser una
+decisión tomada antes de tiempo. El momento de moverlo es cuando aparezca el
+segundo, y ya se sabe cuál: el chat de R13 va a querer los mismos nombres.
 
 ---
 

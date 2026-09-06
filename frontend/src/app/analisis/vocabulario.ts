@@ -1,4 +1,4 @@
-import type { DimensionVerdict, SignalResult } from '../api/models';
+import type { DimensionGuardada, SenalGuardada } from './formas';
 
 // En caja normal a propósito: las mayúsculas las pone el CSS. Muchos lectores
 // de pantalla deletrean las palabras escritas en caja alta.
@@ -39,7 +39,7 @@ const DIMENSIONES: Record<string, string> = {
  * una respuesta ANTIGUA, de antes de que `label` existiera, recuperada del
  * historial. Fea, pero visible — que es la regla de toda esta interfaz.
  */
-export function nombreDeSenal(senal: SignalResult): string {
+export function nombreDeSenal(senal: SenalGuardada): string {
   return senal.label ?? senal.name;
 }
 
@@ -56,7 +56,7 @@ export function nombreDeCategoria(categoria: string): string {
 }
 
 /** Qué dijo la señal, o por qué no dijo nada. */
-export function estadoDeSenal(senal: SignalResult): string {
+export function estadoDeSenal(senal: SenalGuardada): string {
   if (senal.status === 'not_applicable') return 'no aplicable';
   if (senal.status === 'error') return 'error';
   // `== null` cubre null Y undefined: el campo es opcional en el contrato, y
@@ -74,7 +74,7 @@ export function numero(valor: number, decimales = 2): string {
 }
 
 /** Tres casos, no dos: el `null` ES el resultado, no un hueco. */
-export function resumenDimension(veredicto: DimensionVerdict): string {
+export function resumenDimension(veredicto: DimensionGuardada): string {
   if (veredicto.is_clickbait == null) return 'las señales discrepan';
   return veredicto.is_clickbait ? 'sí' : 'no';
 }

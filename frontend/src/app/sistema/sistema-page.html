@@ -97,10 +97,16 @@
         </button>
 
         @if (herramienta.description) {
-          <p class="tool__descripcion">{{ herramienta.description }}</p>
+          <!-- Sólo el resumen: la docstring entera está escrita para el LLM y
+               repite, campo por campo, lo que el formulario ya dice. -->
+          <p class="tool__descripcion">{{ resumenDe(herramienta) }}</p>
         }
 
         @if (abierta() === herramienta.name) {
+          @if (detalleDe(herramienta); as detalle) {
+            <pre class="tool__detalle">{{ detalle }}</pre>
+          }
+
           <app-esquema-form
             [herramienta]="herramienta.name"
             [esquema]="herramienta.input_schema"
@@ -159,10 +165,30 @@
 
           <h4>Límites</h4>
           <ul class="ficha__limites">
-            @for (limite of ficha.limitations; track $index) {
+            @for (
+              limite of limitesDe(herramienta.name, ficha.limitations);
+              track $index
+            ) {
               <li>{{ limite }}</li>
             }
           </ul>
+
+          <!-- No se recortan: son los límites medidos, que es el motivo de que
+               la ficha exista. Se pliegan, como las señales opacas. -->
+          @if (ficha.limitations.length > 2) {
+            <button
+              type="button"
+              class="secundario"
+              (click)="alternarFicha(herramienta.name)"
+              [attr.aria-expanded]="fichaAbierta() === herramienta.name"
+            >
+              @if (fichaAbierta() === herramienta.name) {
+                Plegar los límites
+              } @else {
+                Ver los {{ ficha.limitations.length }} límites
+              }
+            </button>
+          }
         </article>
       }
     }
