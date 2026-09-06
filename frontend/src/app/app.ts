@@ -5,8 +5,8 @@ import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
  * Cáscara de la aplicación: cabecera y hueco donde el router pinta la pantalla.
  *
  * La navegación del prototipo tiene cuatro pestañas (Chat · Analizar ·
- * Historial · Sistema) y aquí sólo hay una: las otras tres son #128, #129 y el
- * agente de R13. Enlaces a rutas que no existen serían deuda visible, así que
+ * Historial · Sistema) y aquí hay dos: faltan Historial (#129) y el Chat del
+ * agente (R13). Enlaces a rutas que no existen serían deuda visible, así que
  * cada pestaña aparece cuando aparece su pantalla.
  */
 @Component({

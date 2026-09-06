@@ -25,6 +25,14 @@ export const routes: Routes = [
     loadComponent: () =>
       import('./analisis/analisis-page').then((m) => m.AnalisisPage),
   },
+  {
+    path: 'sistema',
+    title: 'Sistema · ClickBait Analysis',
+    // Aquí sí se nota la carga diferida que #126 dejó preparada: esta pantalla
+    // arrastra el formulario generado y no la necesita quien sólo analiza.
+    loadComponent: () =>
+      import('./sistema/sistema-page').then((modulo) => modulo.SistemaPage),
+  },
   // Cualquier otra cosa a la pantalla que existe. Cuando haya más rutas esto
   // debería ser un 404 de verdad, que es información; hoy sería una pantalla
   // vacía para decir lo mismo.

@@ -46,11 +46,19 @@ function mensajeDeEjecucion(fallo: HttpErrorResponse): string {
  * Deja un texto listo para comparar en el buscador.
  *
  * Se aplica igual a lo escrito y a lo buscado, así que lo que decida esta
- * función ES lo que la búsqueda considera «igual».
- *
+ * función ES lo que la búsqueda considera «igual». Por eso quitar diacríticos
+ * sólo puede SUMAR coincidencias: lo que encajaba antes sigue encajando.
  */
 function normalizar(texto: string): string {
-  return texto.normalize('NFD').toLowerCase().replace(/\p{Diacritic}/gu, ''); // quita acentos y diéresis, y pasa a minúsculas
+  // Caen todos los diacríticos, la ñ INCLUIDA, y es a propósito: medido sobre
+  // las docstrings del catálogo, ninguna palabra colisiona con otra al
+  // perderlos (`señal`, `engaño`, `añadir`, `pestañas`). No es un descuido que
+  // haya que arreglar.
+  return texto
+    .trim()
+    .normalize('NFD')
+    .toLowerCase()
+    .replace(/\p{Diacritic}/gu, '');
 }
 
 /**
