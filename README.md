@@ -1189,6 +1189,159 @@ Añadir el registro a `/analyze` convirtió, sin avisar, todos los tests de esa 
 
 `tests/api/test_history.py` cubre los dos lados por separado —el almacén llamando a sus funciones, el endpoint por HTTP— porque responden preguntas distintas: si los datos sobreviven y salen en orden, y si la decisión de «una entrada por análisis» se sostiene de verdad.
 
+### El historial se puede leer, y un análisis guardado se vuelve a ver (#129)
+
+`GET /history` existía con paginación, filtros y retención desde #102 y #103, y
+`GET /history/{id}` desde #133. Lo que faltaba, otra vez, era el consumidor —y
+con él la pregunta que este issue tenía delante: **cómo se pinta una respuesta
+que se guardó cuando el contrato era otro**.
+
+#### El `payload` no se castea, y ahí está el trabajo
+
+Cada entrada guarda **la respuesta completa de cuando se ejecutó**. Eso es lo
+que permite volver a un análisis sin reejecutarlo, que además de tardar podría
+dar otro resultado porque las señales remotas no son deterministas. Y es también
+lo que hace que `as AnalyzeResponse` sobre ese campo sea una afirmación falsa
+con fecha: los datos son de antes.
+
+`analisis/formas.ts` comprueba en vez de castear, como `datos.ts` con el `data`
+de cada señal, y devuelve tipos **deliberadamente más anchos que los del
+contrato**. La razón, dicha corta: `required` en el contrato significa «lo que el
+backend produce HOY», y el historial guarda lo de ayer. Dos casos, los dos ya
+ocurridos en este repositorio y medidos contra la base local:
+
+- **`label` es obligatorio en `SignalResult` desde #133.** Lo guardado antes no
+  lo trae. Exigirlo habría mandado a JSON crudo todo lo anterior al 5 de
+  septiembre — y `nombreDeSenal` ya caía a `name` para este caso exacto, con el
+  comentario puesto desde #133.
+- **#134 cambió los VALORES de los enums.** En la base hay entradas con
+  `verdict: "ambiguo"`, `"enganoso"` y `"clickbait_de_forma"`. Pedir miembros del
+  enum habría escondido el análisis entero por una etiqueta.
+
+Así que `verdict`, `status`, `type` y `dimension` se piden como cadenas. La
+asimetría que lo hace correcto: **`AnalyzeResponse` es asignable a
+`AnalisisGuardado`, y al revés no**, así que lo estrecho pasa por donde se espera
+lo ancho y una sola vista sirve a los dos orígenes. Lo fija un test que no lo
+parece —el fixture está tipado con el contrato—: si algún día deja de encajar,
+ese fichero no compila.
+
+**No se añadió un diccionario de claves antiguas**, y es una decisión, no un
+olvido. Un análisis de antes de #134 se pinta con `ambiguo` en el veredicto,
+`opaco` en la insignia —perdiendo el color, porque el CSS busca `opaque`— y los
+ids de máquina en vez de los nombres de señal. Se lee, y se ve que es viejo. La
+alternativa era arrastrar una tabla de traducción para siempre; la decisión
+escrita es que estos datos son de prueba y un cambio incompatible **se resuelve
+repoblando**.
+
+#### La dirección de las dependencias decidió dónde vive el guardián
+
+`comoAnalisis` nació en `historial/payload.ts`, que es donde parecía natural: lee
+el payload del historial. Pero al conectar la pantalla apareció la consecuencia:
+si el guardián vive allí, `senal-card` —que sólo dibuja— tiene que importar tipos
+de la pantalla del historial para existir, y `analisis/` pasa a depender de una
+pantalla que no usa.
+
+Vive en `analisis/formas.ts`, junto a quien pinta. Es la misma pregunta que
+resolvió `core/mcp/` en #137, a otra escala, y ahora está escrita como criterio
+en `docs/estructura.md`: **una pantalla puede depender de `api/`; ninguna debería
+depender de otra pantalla.**
+
+#### `/analisis/:id` no es una pantalla nueva
+
+Es la misma, con el análisis resuelto desde el historial en vez de recién
+ejecutado — que es exactamente lo que #127 dejó preparado al hacer que su bloque
+de resultados recibiera el análisis como estado.
+
+Dos detalles que no son evidentes:
+
+- **El id llega por `withComponentInputBinding()`**, no leyendo `ActivatedRoute`.
+  El motivo es concreto: ir de `/analisis/28` a `/analisis/29` **reutiliza el
+  componente**, así que un `snapshot` leído en el constructor no se enteraría. Por
+  eso la carga va en un `effect` sobre el `input`.
+- **Volver al formulario desde un análisis guardado es cambiar de ruta**, no
+  limpiar señales: si no, la URL seguiría diciendo `/analisis/29` sobre una
+  pantalla vacía, y recargar traería de vuelta el análisis viejo.
+
+#### El 404 que el contrato no contaba
+
+`GET /history/{id}` lanzaba 404 desde #133 y publicaba sólo 200 y 422. Aquí no es
+un caso de borde: **la retención poda entradas**, así que un enlace guardado a un
+análisis termina dando 404 por funcionamiento normal. Se declara, aparece en el
+cliente generado, y la pantalla puede decir «la retención borra las entradas más
+viejas» en vez de «no se pudo cargar», que sonaría a avería.
+
+De paso se declararon los tres finales de `POST /tools/{name}/execute` —**404,
+422 y 504**—, que estaban en la misma situación: el servicio escrito en #128 los
+documentaba habiéndolos leído del código. El 504 es el que más importa separar,
+porque no dice que la herramienta fallara: dice que se agotó la espera, y en #113
+quedó medido que puede haber terminado bien.
+
+#### La pantalla
+
+Tabla y no tarjetas: fecha, tipo, sujeto, veredicto y estado son datos tabulares
+de verdad, y una lista obligaría a repetir el nombre de cada campo en cada fila.
+
+- **Los dos filtros que parecen uno.** Veredicto y ejecución van separados, y la
+  pantalla lo explica en una frase: uno dice qué concluyó el análisis, el otro si
+  funcionó la maquinaria. Un análisis puede concluir «factual» con una señal
+  caída.
+- **Cambiar un filtro vuelve a la página 1.** Sin eso, filtrar desde la página 3
+  deja la pantalla vacía sobre un resultado que sí tiene entradas, y parece que
+  el filtro no encontró nada.
+- **La retención se enseña siempre**, con los números de la respuesta y no
+  cableados. La poda es invisible, y ése es justo el problema: faltar análisis
+  viejos se lee como que la aplicación perdió datos.
+- Las filas se comportan según lo que son: un análisis enlaza a su ruta; una
+  ejecución suelta despliega su `payload` en crudo, que es todo lo que hay que
+  enseñar de ella.
+
+#### Dos arreglos de la pantalla de Sistema, que sólo se vieron mirándola
+
+Entraron aquí por decisión explícita, y no son del historial. Los 60 tests de
+#128 no podían verlos: comprueban que el texto **está**, no que se pueda leer.
+
+**La descripción de cada herramienta era la docstring entera**, con sus secciones
+`Args:`, `Returns:` y `Raises:` — escritas para el LLM. Volcada en la tarjeta
+daba una página de **7.191 px** y repetía, campo por campo, lo que el formulario
+generado ya dice; el `Raises:` del léxico avisaba de un titular vacío que el
+validador impide. Ahora se corta por la **primera línea en blanco** —la
+convención de las docstrings de Python, no una búsqueda de `Args:`— y el cuerpo
+aparece al desplegar la herramienta. Una tool que no siga la convención se enseña
+entera, que es el fallo benigno.
+
+**Los diez límites de la ficha de `detect_clickbait` tapaban las otras cuatro
+señales.** No se recortan —son los límites medidos, que es el motivo de que la
+ficha exista—, se pliegan a dos con el número real en el botón: el mismo patrón
+que `senal-card` con las señales opacas.
+
+Medido con las mismas doce herramientas y cinco fichas: **7.191 px → 3.435 px**.
+
+#### Medido
+
+- **93 tests de frontend** (33 nuevos) y **218 de backend**, lint limpio.
+- **`HttpParams` codifica el `+` como `%2B`.** El contrato avisa de que en una
+  cadena de consulta un `+` significa espacio, y una fecha con desfase escrita a
+  mano llega partida; por esta vía no pasa. Hay un test que lo fija, porque el
+  día que alguien cambie el codificador el síntoma sería un 422 intermitente
+  sufrido sólo por quien esté en un huso con desfase.
+- **En es-ES la agrupación de millares no empieza hasta cinco dígitos**: `1000`
+  se escribe «1000» y `10000`, «10.000». Lo dijo un test que esperaba el punto
+  por costumbre del inglés.
+- **`created_at` llega en UTC con sufijo `Z`**, comprobado contra la base local:
+  sin la `Z`, JavaScript lo leería como hora local y las fechas saldrían
+  corridas.
+- Comprobado en vivo con los tres procesos arriba: la entrada 28, guardada el 3
+  de septiembre con el contrato anterior, se recupera y se pinta entera —cinco
+  señales— sin reejecutar nada.
+
+#### Lo que no entra
+
+- **El filtro por fechas.** El backend acepta `since` y `until`; el alcance del
+  issue pedía tipo, veredicto y estado, y la retención acota el rango útil a
+  treinta días.
+- **El comportamiento en pantallas estrechas**, que es #130 — y la tabla del
+  historial es justo lo que ese issue tendrá que resolver.
+
 ### El catálogo se pinta solo: el formulario sale del esquema (#128)
 
 La pantalla de Sistema responde tres preguntas —qué servidores hay conectados
