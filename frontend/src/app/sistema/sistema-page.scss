@@ -1,0 +1,260 @@
+h1 {
+  margin: 0 0 0.25rem;
+  font-size: 1.5rem;
+}
+
+h2 {
+  margin: 0 0 0.75rem;
+  font-size: 1.15rem;
+}
+
+h3 {
+  margin: 0 0 0.25rem;
+  font-size: 1rem;
+}
+
+h4 {
+  margin: 0.75rem 0 0.25rem;
+  font-size: 0.85rem;
+  color: var(--texto-suave);
+}
+
+.subtitulo {
+  margin: 0 0 1.5rem;
+  color: var(--texto-suave);
+}
+
+section {
+  margin-bottom: 2.5rem;
+}
+
+code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.85em;
+}
+
+/* --- Servidores --- */
+
+.servidores {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 0.75rem;
+  margin: 0 0 1rem;
+  padding: 0;
+  list-style: none;
+}
+
+.servidor {
+  padding: 0.75rem 0.9rem;
+  border: 1px solid var(--borde);
+  border-left: 4px solid var(--interpretable);
+  border-radius: 8px;
+}
+
+/* Un servidor caído sigue en la lista: por eso hace falta distinguirlo. */
+.servidor[data-estado='unreachable'] {
+  border-left-color: var(--error);
+  background: var(--error-fondo);
+}
+
+.servidor__nombre {
+  margin: 0;
+  font-weight: 600;
+}
+
+.servidor__estado,
+.servidor__url {
+  margin: 0.15rem 0 0;
+  color: var(--texto-suave);
+  font-size: 0.85rem;
+}
+
+.motivo {
+  margin: 0.4rem 0 0;
+  color: var(--error);
+  font-size: 0.85rem;
+}
+
+/* --- Filtros --- */
+
+.filtros {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin-bottom: 0.75rem;
+}
+
+.filtro {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  margin: 0;
+}
+
+.filtro label {
+  font-weight: 600;
+  font-size: 0.85rem;
+}
+
+.filtro input,
+.filtro select {
+  padding: 0.45rem 0.6rem;
+  border: 1px solid var(--borde);
+  border-radius: 6px;
+  font: inherit;
+}
+
+.filtro input:focus-visible,
+.filtro select:focus-visible,
+button:focus-visible {
+  outline: 2px solid var(--acento);
+  outline-offset: 2px;
+}
+
+.cuenta {
+  margin: 0 0 0.75rem;
+  color: var(--texto-suave);
+  font-size: 0.85rem;
+}
+
+/* --- Herramientas --- */
+
+.tool {
+  margin-bottom: 0.6rem;
+  padding: 0.75rem 0.9rem;
+  border: 1px solid var(--borde);
+  border-radius: 8px;
+}
+
+.tool__cabecera {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.6rem;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.tool__nombre {
+  font-weight: 600;
+}
+
+.badge,
+.origen {
+  padding: 0.1rem 0.6rem;
+  border-radius: 999px;
+  background: var(--fondo-suave);
+  color: var(--texto-suave);
+  font-size: 0.75rem;
+  /* El texto va en caja normal y las mayúsculas las pone el CSS: muchos
+     lectores de pantalla deletrean lo que está escrito en caja alta. */
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.chevron {
+  margin-left: auto;
+  color: var(--texto-suave);
+}
+
+.tool__descripcion {
+  margin: 0.5rem 0 0;
+  color: var(--texto-suave);
+  font-size: 0.9rem;
+  white-space: pre-line;
+}
+
+.resultado__meta {
+  margin: 0.75rem 0 0.25rem;
+  color: var(--texto-suave);
+  font-size: 0.85rem;
+}
+
+.crudo {
+  margin: 0;
+  padding: 0.6rem 0.75rem;
+  max-height: 22rem;
+  overflow: auto;
+  border-radius: 6px;
+  background: var(--fondo-suave);
+  font-size: 0.8rem;
+}
+
+/* --- Fichas de modelo --- */
+
+.ficha {
+  margin-bottom: 0.75rem;
+  padding: 0.9rem 1rem;
+  border: 1px solid var(--borde);
+  border-left: 4px solid var(--borde);
+  border-radius: 8px;
+}
+
+/* El color dice dónde está la transparencia, no cuán bueno es el modelo. */
+.ficha[data-tipo='interpretable'] {
+  border-left-color: var(--interpretable);
+}
+
+.ficha[data-tipo='hybrid'] {
+  border-left-color: var(--hybrid);
+}
+
+.ficha[data-tipo='opaque'] {
+  border-left-color: var(--opaque);
+}
+
+.ficha__tarea {
+  margin: 0;
+  color: var(--texto-suave);
+}
+
+.ficha__meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.6rem;
+  margin: 0.5rem 0 0;
+  color: var(--texto-suave);
+  font-size: 0.85rem;
+}
+
+.ficha__limites {
+  margin: 0;
+  padding-left: 1.1rem;
+  font-size: 0.9rem;
+}
+
+/* --- Estados de la pantalla --- */
+
+.cargando {
+  color: var(--texto-suave);
+}
+
+.aviso {
+  padding: 0.6rem 0.85rem;
+  border-radius: 6px;
+  background: var(--aviso-fondo);
+  color: var(--aviso);
+}
+
+.error {
+  padding: 0.6rem 0.85rem;
+  border-radius: 6px;
+  background: var(--error-fondo);
+  color: var(--error);
+}
+
+.secundario {
+  padding: 0.45rem 1rem;
+  border: 1px solid var(--borde);
+  border-radius: 6px;
+  background: var(--fondo-suave);
+  font: inherit;
+  cursor: pointer;
+}

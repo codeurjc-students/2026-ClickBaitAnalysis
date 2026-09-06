@@ -1189,6 +1189,195 @@ Añadir el registro a `/analyze` convirtió, sin avisar, todos los tests de esa 
 
 `tests/api/test_history.py` cubre los dos lados por separado —el almacén llamando a sus funciones, el endpoint por HTTP— porque responden preguntas distintas: si los datos sobreviven y salen en orden, y si la decisión de «una entrada por análisis» se sostiene de verdad.
 
+### El catálogo se pinta solo: el formulario sale del esquema (#128)
+
+La pantalla de Sistema responde tres preguntas —qué servidores hay conectados
+(R6.11), qué herramientas ofrecen (R6.2, R6.9) y qué modelo hay detrás de cada
+señal (R3.8)— y el backend las servía enteras desde #97 y #137. Lo que faltaba
+era el consumidor.
+
+El riesgo de la issue nunca fue construir la pantalla. Era construirla
+**cableando las doce herramientas**: un formulario escrito a mano por tool, que
+funciona el primer día y convierte cada herramienta nueva en trabajo de
+frontend. Eso incumple R1.9, y de paso vacía de sentido que el catálogo se
+construya por *handshake* — daría igual descubrir lo que hay conectado si la
+interfaz sólo sabe pintar lo que alguien ya había previsto.
+
+#### `camposDe`: el fichero donde está la decisión
+
+`frontend/src/app/sistema/campos.ts` lee el `input_schema` que publica el
+catálogo y devuelve una lista de descriptores. No depende de Angular, así que se
+prueba con datos y sin montar nada; y no conoce ninguna herramienta, así que
+añadir una al backend no lo toca.
+
+Antes de escribir una línea se midieron los esquemas reales contra
+`mcp.list_tools()`: **ocho `string`, tres opcionales, dos `integer` con
+`minimum`/`maximum`/`default` y dos `number`**. Ni enums, ni arrays, ni objetos
+anidados. `describe_models` y `health_check` no tienen parámetros: son sólo un
+botón.
+
+La trampa estaba en esos tres opcionales. Un parámetro de Python como
+`topic: str | None = None` **no se publica como `{"type": "string"}`**, sino
+como `{"anyOf": [{"type": "string"}, {"type": "null"}], "default": null}`. Un
+lector que sólo mirara `type` los habría marcado como desconocidos y la pantalla
+los habría pintado en crudo sin ningún motivo. El `anyOf` se resuelve
+descartando el `null` y exigiendo que quede **exactamente un** tipo: una unión
+de verdad —`str | int`— no se sabe pintar con un solo control, y sigue siendo
+desconocida a propósito.
+
+El catálogo publica el esquema **crudo, sin aplanar**, y ésta es la razón: los
+topes y los valores por defecto son justo lo que la interfaz necesita para
+validar antes de enviar. `days` llega con su 1, su 30 y su 7, y los tres viajan
+al control y al validador.
+
+#### Lo que no se sabe pintar se enseña, no se omite
+
+Omitir un campo desconocido es lo cómodo y produce el peor fallo posible: el
+formulario mandaría un cuerpo incompleto, el backend respondería **422** —valida
+contra el `input_schema` desde #100— y quien mirara leería «la petición no es
+válida» sin ninguna forma de saber qué campo falta, porque ese campo nunca se
+dibujó. Se enseña con su esquema delante. Es la misma regla que el `@default` de
+`senal-card` con las señales que no conoce: feo, pero visible.
+
+Al implementarlo apareció un matiz que la planificación no tenía. Bloquear el
+botón cuando hay un campo desconocido es aplicar R6.14 —la interfaz no debe
+dejar controles que no funcionen—, pero **sólo vale si ese campo es
+obligatorio**. Uno opcional no impide una petición válida: la herramienta tira
+con sus valores por defecto y lo único que se pierde es poder tocar ese
+parámetro. Desactivar ahí sería quitar una función que sí sirve. Los dos casos
+tienen test.
+
+Y una distinción que ya costó una decisión en `/analyze`: **lo vacío se omite,
+no se manda como `""`**. Omitir es «usa tu valor por defecto»; la cadena vacía
+es una búsqueda de la cadena vacía. Un booleano nunca está vacío, así que
+siempre viaja.
+
+#### La ficha de modelo publicaba tres de sus siete campos
+
+`ToolModelCard` llevaba `type`, `dimension` y `limitations`. `name`, `task` y
+`model_id` se quedaban en el backend, en `model_cards.py`.
+
+O sea: el catálogo podía decir que `detect_clickbait_linear` es interpretable y
+mide forma, pero no **qué es** ni **qué hace**. La pantalla habría enseñado el
+identificador de máquina como si fuera el nombre — exactamente lo que #133 quitó
+de la pantalla de análisis al hacer viajar `label`. Se añaden los tres, y con
+ellos el `model_id: null` del léxico y el lineal, que **es información y no un
+hueco**: dice que esa señal es código propio y auditable, no un modelo
+descargable.
+
+Los tests nuevos de `test_catalog.py` comparan contra `cards_by_signal()` y no
+contra cadenas escritas a mano, más un `assert "detect_clickbait_lexical" not in
+ficha.name` que fija lo único que importaba: que el nombre de la ficha no es el
+de la tool.
+
+#### Tres canales, y fundirlos sería mentir
+
+| Qué ha pasado | Por dónde llega | Qué se enseña |
+|---|---|---|
+| Un servidor MCP no responde | 200, `status: unreachable` | Sale en la lista con su motivo |
+| La herramienta se ejecutó y falló | 200, `status: error` | Su `detail`, que es lo accionable |
+| 404 · 422 · 504 | canal de error | Mensaje propio por código |
+
+Los dos primeros son 200 porque **la petición era válida y el servidor la
+atendió**: lo que falló es otra cosa. Es la misma decisión que deja a `/analyze`
+responder 200 con una señal caída, y tiene una consecuencia para quien consume:
+dar por bueno todo lo que llega por `next` enseñaría un resultado vacío como si
+fuera correcto.
+
+Del tercer grupo, el **504** es el que más importa separar. No dice que la
+herramienta fallara: dice que se agotó la espera, y en #113 quedó medido que
+puede haber terminado bien —a los 151 s, con la API ya desistida—. El mensaje lo
+dice, y avisa de que repetir la llamada la ejecutaría otra vez.
+
+#### Las categorías del filtro salen del catálogo
+
+El desplegable se construye con un `Set` sobre lo que trae la respuesta, no con
+las cuatro categorías de `integrations/metadata.py` copiadas aquí. Es la misma
+razón que el formulario generado: si aparece una quinta, el filtro la ofrece sin
+tocar el frontend. El test lo comprueba comparando el desplegable contra el
+catálogo del fixture.
+
+El filtrado se resuelve en cliente porque son doce herramientas y ya están
+todas en memoria; volver a pedir sería una petición por tecla para reordenar una
+lista que cabe en la pantalla.
+
+#### Los tipos de las dos rutas nuevas, otra vez de `paths`
+
+`CatalogResult`, `ExecuteBody` y `ExecuteResult` se derivan de
+`paths['/tools']` y `paths['/tools/{name}/execute']`, no de `components`. Es la
+convención que salió de #133 aplicada al primer servicio escrito después de
+ella. La clave es la **plantilla literal** con `{name}` dentro: lo que está en
+el contrato es la ruta, no cada invocación.
+
+Las piezas de dentro —`ServerInfo`, `ToolInfo`, `ToolModelCard`— siguen viniendo
+de `components`, porque son formas con nombre propio que se pasan sueltas a los
+componentes que las pintan. La regla, dicha corta: **si el tipo cruza la red, lo
+elige la ruta; si el valor ya está dentro, lo elige el esquema**. De paso
+desaparecen tres alias que ya no usaba nadie (`CatalogResponse`,
+`ExecuteRequest`, `ExecuteResponse`): dos nombres para la misma forma son la
+condición que hace que alguien elija el que no ata.
+
+#### Dos cosas que ya no eran de ninguna pantalla
+
+`api/base.ts` guarda el prefijo `/api`. Estaba dentro de `analyze.service.ts`, y
+con dos servicios repetirlo significa que cambiar el prefijo tiene que acertar
+en los dos — y el que se olvidara seguiría compilando.
+
+`api/errores.ts` guarda la lectura del cuerpo de un 422 de FastAPI y el mensaje
+de «no contesta nadie». Los mensajes siguen siendo de cada pantalla, porque el
+análisis y el catálogo dicen cosas distintas del mismo código; lo que no es de
+ninguna es **leer el cuerpo**.
+
+#### El buscador, y qué significa «igual»
+
+La búsqueda normaliza los dos lados de la comparación, y por eso quitar
+diacríticos sólo puede **sumar** coincidencias: lo que encajaba antes sigue
+encajando. El riesgo no es dejar de encontrar algo, es que dos palabras
+distintas colapsen en la misma.
+
+Caen todos los diacríticos, **la ñ incluida**. No es un descuido: `ñ` se
+descompone en `n` + tilde combinante igual que `á` en `a` + acento, y
+conservarla exigiría protegerla aparte. Medido sobre las docstrings del catálogo
+—las únicas palabras con ñ son `señal`, `señales`, `engaño`, `añade`, `añadir` y
+`pestañas`— ninguna colisiona con otra al perder la tilde. La alternativa
+lingüísticamente correcta —la ñ es una letra, no una n con adorno— dejaría una
+asimetría difícil de explicar en pantalla: `analisis` encontraría `Análisis`,
+pero `senal` no encontraría `Señal`.
+
+#### `Validators.required` da por bueno un campo con espacios
+
+ESLint con información de tipos avisó de `unbound-method` al pasar
+`Validators.required` suelto a un array de validadores. Mirarlo en vez de
+silenciarlo dio dos razones para no usarlo, y la primera no tiene que ver con el
+aviso: **acepta un campo lleno de espacios**, cuando el proyecto ya decidió lo
+contrario para el titular de `/analyze`. El validador propio son cinco líneas y
+cubre `null`, `''` y sólo-espacios. Sin `ignore`.
+
+#### Lo que no está aquí
+
+- **La salud de las APIs externas.** `GET /health` sondea Weather, Guardian y
+  NYT, y no lo consume ninguna pantalla. Es otra pregunta que la de R6.11 —lo
+  que el sistema *es* frente a lo que ahora mismo *funciona*—, y mezclarlas en
+  esta pantalla habría sido cómodo y confuso. Queda como **#147**, con la
+  decisión de dónde vive sin tomar.
+- **El transporte de R6.11.** El contrato no publica un campo `transport`, y
+  añadirlo por una etiqueta no compensa: la URL lo dice, y hoy todos los
+  servidores son HTTP *streamable*. Se enseña la URL.
+- **El comportamiento en pantallas estrechas**, que es #130.
+
+#### Medido
+
+- **60 tests de frontend** (35 nuevos: 7 del lector de esquemas, 7 del servicio,
+  9 del formulario, 11 de la pantalla y 1 de la cáscara), lint limpio con reglas
+  de tipos y de accesibilidad.
+- La pantalla sale como **fragmento aparte de 21,69 kB** en el empaquetado, que
+  es la primera vez que la carga diferida preparada en #126 se nota en la salida
+  del *bundler* en vez de sólo en el código.
+- `tool_count` es **obligatorio incluso en un servidor `unreachable`**: tiene
+  `default: 0` en el backend y el contrato generado lo publica siempre presente.
+  Lo destapó un fixture que no compilaba, y dice lo correcto —cero herramientas,
+  no dato ausente—, pero no se habría escrito así a mano.
+
 ### El frontend crecía sin linter, y la accesibilidad dependía de la memoria (#140)
 
 `ng new` de Angular 22 no añade ESLint, y no se añadió después. Lo único que

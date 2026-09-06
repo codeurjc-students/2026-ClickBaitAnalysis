@@ -20,10 +20,18 @@ export const routes: Routes = [
     path: 'analizar',
     title: 'Analizar un titular · ClickBait Analysis',
     // `loadComponent` y no un import normal: la pantalla se descarga cuando se
-    // visita. Con una sola ruta da igual, pero el catálogo  y el
-    // historial entran detrás y ahí sí importa.
+    // visita. Con una sola ruta daba igual; con la de Sistema detrás ya no, y
+    // se ve en el empaquetado (21,69 kB en su propio fragmento).
     loadComponent: () =>
-      import('./analisis/analisis-page').then((m) => m.AnalisisPage),
+      import('./analisis/analisis-page').then((modulo) => modulo.AnalisisPage),
+  },
+  {
+    path: 'sistema',
+    title: 'Sistema · ClickBait Analysis',
+    // Aquí sí se nota la carga diferida que #126 dejó preparada: esta pantalla
+    // arrastra el formulario generado y no la necesita quien sólo analiza.
+    loadComponent: () =>
+      import('./sistema/sistema-page').then((modulo) => modulo.SistemaPage),
   },
   // Cualquier otra cosa a la pantalla que existe. Cuando haya más rutas esto
   // debería ser un 404 de verdad, que es información; hoy sería una pantalla

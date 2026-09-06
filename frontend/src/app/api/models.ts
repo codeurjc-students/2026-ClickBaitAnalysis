@@ -66,22 +66,42 @@ export type SignalStatus = Esquemas['SignalStatus'];
 export type SignalType = Esquemas['SignalType'];
 
 // --- Catálogo de herramientas (GET /tools) ---
-export type CatalogResponse = Esquemas['CatalogResponse'];
+//
+// Lo que devuelve la RUTA sale de `paths`, igual que en `/analyze`.
+// `CatalogResponse` existe como esquema y hoy coincide, pero nombrarlo a mano
+// volvería a dejar la respuesta sin atar a la ruta.
+type Tools = paths['/tools']['get'];
+export type CatalogResult = Tools['responses'][200]['content']['application/json'];
+
+// Las piezas de dentro sí vienen de `components`: son esquemas por derecho
+// propio, y llegan sueltas a los componentes que las pintan.
 export type ServerInfo = Esquemas['ServerInfo'];
 export type ServerStatus = Esquemas['ServerStatus'];
 export type ToolInfo = Esquemas['ToolInfo'];
 export type ToolModelCard = Esquemas['ToolModelCard'];
-export type Origin = Esquemas['Origin'];
 
-// --- Ejecución directa de una herramienta (POST /execute) ---
-export type ExecuteRequest = Esquemas['ExecuteRequest'];
-export type ExecuteResponse = Esquemas['ExecuteResponse'];
+// --- Ejecución de una herramienta (POST /tools/{name}/execute) ---
+//
+// La clave de `paths` es la PLANTILLA literal, con `{name}` dentro, y no la URL
+// ya sustituida: lo que está en el contrato es la ruta, no cada invocación.
+type Execute = paths['/tools/{name}/execute']['post'];
+export type ExecuteBody = Execute['requestBody']['content']['application/json'];
+export type ExecuteResult = Execute['responses'][200]['content']['application/json'];
+
+// Los argumentos son un diccionario libre —cada herramienta tiene los suyos, y
+// la forma buena la publica su `input_schema`—, así que se comprueban en
+// ejecución como el `data` de una señal. Se deriva en vez de escribirlo a mano
+// para que un cambio del contrato llegue hasta aquí, y `NonNullable` porque la
+// clave es opcional en el contrato pero el servicio siempre la manda.
+export type Argumentos = NonNullable<ExecuteBody['arguments']>;
+
 export type ExecuteStatus = Esquemas['ExecuteStatus'];
 
 // --- Historial (GET /history) ---
 export type HistoryPage = Esquemas['HistoryPage'];
 export type HistoryEntry = Esquemas['HistoryEntry'];
 export type HistoryKind = Esquemas['HistoryKind'];
+export type Origin = Esquemas['Origin'];
 export type RetentionPolicy = Esquemas['RetentionPolicy'];
 
 // --- Errores de validación de FastAPI (422) ---

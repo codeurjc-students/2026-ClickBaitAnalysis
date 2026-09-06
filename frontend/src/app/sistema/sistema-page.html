@@ -1,0 +1,170 @@
+<h1>Sistema</h1>
+<p class="subtitulo">
+  Qué servidores hay conectados, qué herramientas ofrecen y qué modelos hay
+  detrás de cada señal.
+</p>
+
+@if (cargando()) {
+  <p class="cargando" role="status">Consultando los servidores MCP…</p>
+}
+
+@if (error(); as fallo) {
+  <p class="error" role="alert">{{ fallo }}</p>
+  <button type="button" class="secundario" (click)="cargar()">Reintentar</button>
+}
+
+@if (catalogo(); as datos) {
+  <section aria-labelledby="titulo-servidores">
+    <h2 id="titulo-servidores">Servidores MCP</h2>
+
+    @if (datos.degraded) {
+      <!-- El catálogo se sirve igual: se dice que está incompleto en vez de
+           enseñar una lista más corta sin explicación. -->
+      <p class="aviso" role="status">
+        Algún servidor no respondió, así que el catálogo está incompleto.
+      </p>
+    }
+
+    <ul class="servidores">
+      @for (servidor of datos.servers; track servidor.url) {
+        <li class="servidor" [attr.data-estado]="servidor.status">
+          <p class="servidor__nombre">{{ servidor.name ?? 'sin nombre' }}</p>
+          <p class="servidor__estado">
+            {{ servidor.status === 'ok' ? 'conectado' : 'no responde' }} ·
+            {{ servidor.tool_count }} herramientas
+          </p>
+          <!-- El transporte se lee en la URL: hoy todos son HTTP streamable. -->
+          <p class="servidor__url"><code>{{ servidor.url }}</code></p>
+          @if (servidor.detail) {
+            <p class="motivo">{{ servidor.detail }}</p>
+          }
+        </li>
+      }
+    </ul>
+
+    <button type="button" class="secundario" [disabled]="cargando()" (click)="cargar()">
+      Recargar el catálogo
+    </button>
+  </section>
+
+  <section aria-labelledby="titulo-catalogo">
+    <h2 id="titulo-catalogo">Herramientas</h2>
+
+    <div class="filtros">
+      <p class="filtro">
+        <label for="busqueda">Buscar</label>
+        <input
+          id="busqueda"
+          type="search"
+          placeholder="nombre o descripción"
+          (input)="buscar($event)"
+        />
+      </p>
+
+      <p class="filtro">
+        <label for="categoria">Categoría</label>
+        <select id="categoria" (change)="filtrarPorCategoria($event)">
+          <option value="">Todas</option>
+          @for (nombre of categorias(); track nombre) {
+            <option [value]="nombre">{{ nombre }}</option>
+          }
+        </select>
+      </p>
+    </div>
+
+    <p class="cuenta" role="status">
+      {{ filtradas().length }} de {{ herramientas().length }} herramientas
+    </p>
+
+    @for (herramienta of filtradas(); track herramienta.name) {
+      <article class="tool">
+        <button
+          type="button"
+          class="tool__cabecera"
+          (click)="alternar(herramienta.name)"
+          [attr.aria-expanded]="abierta() === herramienta.name"
+        >
+          <code class="tool__nombre">{{ herramienta.name }}</code>
+          @if (herramienta.category) {
+            <span class="badge">{{ herramienta.category }}</span>
+          }
+          @if (herramienta.integration) {
+            <span class="origen">{{ herramienta.integration }}</span>
+          }
+          <span class="chevron" aria-hidden="true">
+            {{ abierta() === herramienta.name ? '▾' : '▸' }}
+          </span>
+        </button>
+
+        @if (herramienta.description) {
+          <p class="tool__descripcion">{{ herramienta.description }}</p>
+        }
+
+        @if (abierta() === herramienta.name) {
+          <app-esquema-form
+            [herramienta]="herramienta.name"
+            [esquema]="herramienta.input_schema"
+            [ejecutando]="ejecutando() === herramienta.name"
+            (ejecutar)="ejecutarHerramienta(herramienta.name, $event)"
+          />
+
+          @if (falloDe(herramienta.name); as fallo) {
+            <p class="error" role="alert">{{ fallo }}</p>
+          }
+
+          @if (resultadoDe(herramienta.name); as resultado) {
+            <!-- Un `status` en error NO es un fallo de la petición: la
+                 herramienta se ejecutó y falló, y su motivo es lo único que lo
+                 explica. -->
+            @if (resultado.status === 'error') {
+              <p class="motivo" role="status">
+                La herramienta falló: {{ resultado.detail }}
+              </p>
+            } @else {
+              <p class="resultado__meta" role="status">
+                Ejecutada en <code>{{ resultado.server }}</code>
+              </p>
+              <pre class="crudo">{{ crudoDe(resultado) }}</pre>
+            }
+          }
+        }
+      </article>
+    }
+  </section>
+
+  <section aria-labelledby="titulo-fichas">
+    <h2 id="titulo-fichas">Fichas de modelo</h2>
+    <p class="subtitulo">
+      Cada señal de análisis declara qué hay detrás y qué límites tiene medidos.
+      Es lo que evita leer un veredicto sin saber de dónde sale.
+    </p>
+
+    @for (herramienta of fichas(); track herramienta.name) {
+      @if (herramienta.model_card; as ficha) {
+        <article class="ficha" [attr.data-tipo]="ficha.type">
+          <h3>{{ ficha.name }}</h3>
+          <p class="ficha__tarea">{{ ficha.task }}</p>
+
+          <p class="ficha__meta">
+            <span class="badge">{{ ficha.type }}</span>
+            <span>Dimensión: {{ dimension(ficha.dimension) }}</span>
+            @if (ficha.model_id) {
+              <code>{{ ficha.model_id }}</code>
+            } @else {
+              <!-- El `null` ES información: la señal es código propio y
+                   auditable, no un modelo descargable. -->
+              <span>código propio, sin modelo descargable</span>
+            }
+          </p>
+
+          <h4>Límites</h4>
+          <ul class="ficha__limites">
+            @for (limite of ficha.limitations; track $index) {
+              <li>{{ limite }}</li>
+            }
+          </ul>
+        </article>
+      }
+    }
+  </section>
+}
