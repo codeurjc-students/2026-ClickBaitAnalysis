@@ -119,6 +119,9 @@ def _ficha_de(nombre: str) -> ToolModelCard | None:
         return None
 
     return ToolModelCard(
+        name=card["name"],
+        task=card["task"],
+        model_id=card["model_id"],
         type=SignalType(card["type"]),
         dimension=Dimension(card["dimension"]),
         limitations=card["limitations"],

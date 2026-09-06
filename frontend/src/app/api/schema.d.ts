@@ -679,8 +679,29 @@ export interface components {
          *     análisis» y esconda que es interpretable, que mide forma y que su F1 cae
          *     fuera de dominio. Reutiliza los enums de las señales en vez de duplicar
          *     cadenas sueltas.
+         *
+         *     Publicaba tres de los siete campos de la ficha hasta #128, y con eso la
+         *     pantalla no podía enseñar ni cómo se llama el modelo ni qué hace: seguía
+         *     diciendo «detect_clickbait_linear», que es justo lo que este tipo existe para
+         *     evitar. El dato estaba en ``MODEL_CARDS`` y no salía — la misma forma que los
+         *     cuatro huecos de #133.
          */
         ToolModelCard: {
+            /**
+             * Name
+             * @description Etiqueta para personas: «Modelo lineal interpretable (…)».
+             */
+            name: string;
+            /**
+             * Task
+             * @description Qué hace, en una frase.
+             */
+            task: string;
+            /**
+             * Model Id
+             * @description Identificador en HuggingFace del modelo que hay detrás. `null` en el léxico y el lineal, que no son un modelo descargable — y ese `null` es información, no un hueco: dice que la señal es código propio y auditable.
+             */
+            model_id?: string | null;
             type: components["schemas"]["SignalType"];
             dimension: components["schemas"]["Dimension"];
             /** Limitations */

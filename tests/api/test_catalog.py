@@ -22,6 +22,7 @@ from backend.api import catalog
 from backend.api.schemas import ServerStatus
 from backend.config.settings import settings
 from backend.core.mcp import session as mcp_session
+from backend.integrations.nlp.model_cards import cards_by_signal
 
 # El Host debe llevar puerto: la protección anti DNS-rebinding de FastMCP acepta
 # `127.0.0.1:*` y rechazaría con 421 un Host sin él.
@@ -124,12 +125,41 @@ async def test_una_tool_del_nucleo_no_tiene_integracion(monkeypatch, servidor_mc
 async def test_las_senales_traen_su_ficha_de_modelo(monkeypatch, servidor_mcp):
     tools = await _tools(monkeypatch, servidor_mcp)
 
+    fichas = cards_by_signal()
+
     ficha = tools["detect_clickbait_lexical"].model_card
     assert ficha is not None
     assert ficha.type.value == "interpretable"
     assert ficha.dimension.value == "form"
     # Los límites medidos son lo que evita que el catálogo prometa de más.
     assert any("0.498" in limite for limite in ficha.limitations)
+
+    # El nombre y la tarea viajan desde #128, y se comparan contra la ficha en
+    # vez de contra una cadena escrita aquí: así renombrar una señal en
+    # `model_cards.py` no puede desalinear el test de lo que se publica.
+    assert ficha.name == fichas["detect_clickbait_lexical"]["name"]
+    assert ficha.task == fichas["detect_clickbait_lexical"]["task"]
+    # Sin ellos la pantalla sólo podía titular «detect_clickbait_lexical», que es
+    # justo lo que `ToolModelCard` dice en su docstring que quiere evitar.
+    assert "detect_clickbait_lexical" not in ficha.name
+
+
+@pytest.mark.asyncio
+async def test_un_model_id_nulo_es_informacion_y_viaja(monkeypatch, servidor_mcp):
+    """`model_id` es `None` en el léxico y el lineal, y ese None se publica.
+
+    Dice que la señal NO es un modelo descargable sino código propio y
+    auditable, que bajo R3.9 es más divulgador que esconderlo. El dedicado sí
+    trae su identificador de HuggingFace.
+    """
+    tools = await _tools(monkeypatch, servidor_mcp)
+
+    lexico = tools["detect_clickbait_lexical"].model_card
+    dedicado = tools["detect_clickbait"].model_card
+    assert lexico is not None and dedicado is not None
+
+    assert lexico.model_id is None
+    assert dedicado.model_id == cards_by_signal()["detect_clickbait"]["model_id"]
 
 
 @pytest.mark.asyncio
