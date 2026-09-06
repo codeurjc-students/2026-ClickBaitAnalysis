@@ -134,3 +134,24 @@ def test_las_otras_categorias_no_cambian(monkeypatch):
         client.post("/tools/inventada/execute", json={"arguments": {}}).status_code
         == 404
     )
+
+
+def test_el_contrato_declara_los_tres_finales(monkeypatch):
+    """Que ocurran no basta: tienen que estar PUBLICADOS (#129).
+
+    El cliente de Angular se genera del contrato, así que un código que sólo
+    vive en el `raise` obliga a leer `app.py`. Aquí son tres y significan cosas
+    distintas: el 404 es que la herramienta no existe, el 422 que los argumentos
+    no encajan en su esquema, y el 504 que se agotó la espera — que **no** es
+    que la herramienta fallara: en #113 terminó bien a los 151 s con la API ya
+    desistida.
+
+    (El 200 con `status: error` no aparece aquí porque no es un final aparte:
+    la petición fue correcta y la respuesta es un `ExecuteResponse` normal.)
+    """
+    respuestas = client.get("/openapi.json").json()["paths"][
+        "/tools/{name}/execute"
+    ]["post"]["responses"]
+
+    assert {"404", "422", "504"} <= set(respuestas)
+    assert "espera" in respuestas["504"]["description"]

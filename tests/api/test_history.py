@@ -463,6 +463,22 @@ def test_un_id_que_no_existe_da_404():
     assert client.get("/history/999999").status_code == 404
 
 
+def test_el_contrato_declara_ese_404():
+    """Que lo lance no basta: tiene que estar PUBLICADO (#129).
+
+    El cliente de Angular se genera del contrato, así que un código que sólo
+    vive en el `raise` obliga a leer `app.py` para saber que existe. Y este en
+    concreto no es raro: la retención poda entradas, de modo que un enlace
+    guardado a un análisis termina dando 404 por funcionamiento normal.
+    """
+    respuestas = client.get("/openapi.json").json()["paths"]["/history/{entry_id}"][
+        "get"
+    ]["responses"]
+
+    assert "404" in respuestas
+    assert "entrada" in respuestas["404"]["description"]
+
+
 def test_un_id_que_no_es_entero_da_422():
     """Lo para la firma, antes de tocar la base de datos."""
     assert client.get("/history/no-soy-un-id").status_code == 422

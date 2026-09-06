@@ -110,6 +110,12 @@
               }
             }
           },
+          "404": {
+            "description": "No hay ninguna herramienta con ese nombre."
+          },
+          "504": {
+            "description": "Se agotó la espera; la herramienta puede haber terminado."
+          },
           "422": {
             "description": "Validation Error",
             "content": {
@@ -322,6 +328,9 @@
                 }
               }
             }
+          },
+          "404": {
+            "description": "No hay ninguna entrada con ese id."
           },
           "422": {
             "description": "Validation Error",

@@ -97,8 +97,26 @@ export type Argumentos = NonNullable<ExecuteBody['arguments']>;
 
 export type ExecuteStatus = Esquemas['ExecuteStatus'];
 
-// --- Historial (GET /history) ---
-export type HistoryPage = Esquemas['HistoryPage'];
+// --- Historial (GET /history y GET /history/{entry_id}) ---
+//
+// De `paths`, como todo lo que cruza la red. Aquí además viajan los PARÁMETROS
+// DE CONSULTA, y en ellos el contrato aporta algo que no se ve en las otras
+// rutas: `limit` y `offset` llevan sus topes declarados en la firma del
+// endpoint (1-100 y >= 0), así que el tipo del filtro sale del mismo sitio que
+// la validación que responde 422. Escrito a mano, esos topes estarían dos veces.
+type History = paths['/history']['get'];
+export type HistoryResult = History['responses'][200]['content']['application/json'];
+export type HistoryQuery = NonNullable<History['parameters']['query']>;
+
+// El 404 de esta ruta se declaró en #129. No es un caso de borde: la retención
+// poda entradas, así que un enlace guardado a un análisis termina dando 404 por
+// funcionamiento normal, y el cliente generado tiene que saberlo.
+type HistoryDetail = paths['/history/{entry_id}']['get'];
+export type HistoryEntryResult =
+  HistoryDetail['responses'][200]['content']['application/json'];
+
+// Piezas de dentro: la fila que se le pasa a quien la pinte, y tres valores
+// contra los que comparar.
 export type HistoryEntry = Esquemas['HistoryEntry'];
 export type HistoryKind = Esquemas['HistoryKind'];
 export type Origin = Esquemas['Origin'];
