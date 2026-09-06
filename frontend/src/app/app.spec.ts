@@ -42,6 +42,7 @@ describe('App', () => {
 
     expect(pestanas).toEqual([
       { texto: 'Analizar', destino: '/analizar' },
+      { texto: 'Historial', destino: '/historial' },
       { texto: 'Sistema', destino: '/sistema' },
     ]);
   });

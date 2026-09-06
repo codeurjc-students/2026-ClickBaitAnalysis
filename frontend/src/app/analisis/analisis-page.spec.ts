@@ -184,4 +184,97 @@ describe('AnalisisPage', () => {
     expect(html().querySelector('form')).not.toBeNull();
     expect(pagina.formulario.controls.headline.value).toBe('');
   });
+
+  // ----- Recuperar un análisis guardado (/analisis/:id) -----
+
+  /**
+   * La entrada tal como la sirve `GET /history/{id}`: el payload es la
+   * respuesta ENTERA de entonces, que es lo que permite no reejecutar.
+   */
+  const entradaGuardada = (payload: unknown) => ({
+    id: 29,
+    created_at: '2026-09-03T09:10:53.904600Z',
+    kind: 'analysis',
+    origin: 'form',
+    headline: RESPUESTA.headline,
+    verdict: RESPUESTA.verdict,
+    status: 'ok',
+    payload,
+  });
+
+  const abrirGuardado = async (payload: unknown, id = '29') => {
+    fixture.componentRef.setInput('id', id);
+    await fixture.whenStable();
+    http.expectOne(`/api/history/${id}`).flush(entradaGuardada(payload));
+    await fixture.whenStable();
+  };
+
+  it('con un id en la ruta recupera el análisis en vez de reejecutarlo', async () => {
+    await abrirGuardado(RESPUESTA);
+
+    // Lo importante es lo que NO pasa: nadie ha llamado a /analyze.
+    http.expectNone('/api/analyze');
+    expect(html().querySelector('.veredicto')?.textContent).toContain(
+      'Clickbait de forma',
+    );
+    expect(html().querySelectorAll('app-senal-card').length).toBe(3);
+  });
+
+  it('dice que lo que se ve viene del historial, y cuándo se guardó', async () => {
+    await abrirGuardado(RESPUESTA);
+
+    expect(html().querySelector('.barra__etiqueta')?.textContent).toContain(
+      'Recuperado del historial',
+    );
+    expect(html().querySelector('.barra__etiqueta')?.textContent).toContain(
+      '2026',
+    );
+  });
+
+  // Una entrada de antes de #133 no trae `label`, y una de antes de #134 trae
+  // el veredicto en castellano. Se pinta igual: esconder el análisis entero por
+  // una etiqueta sería peor que enseñar la palabra vieja.
+  it('pinta un análisis guardado con el contrato anterior', async () => {
+    await abrirGuardado({
+      headline: 'Un titular de antes',
+      signals: [
+        {
+          name: 'detect_clickbait_lexical',
+          status: 'ok',
+          dimension: 'forma',
+          type: 'interpretable',
+          is_clickbait: true,
+        },
+      ],
+      dimensions: [{ dimension: 'forma', is_clickbait: true }],
+      verdict: 'ambiguo',
+    });
+
+    // Sin `label`, el nombre cae al identificador de la herramienta.
+    expect(html().textContent).toContain('detect_clickbait_lexical');
+    expect(html().querySelector('.veredicto')?.textContent).toContain('ambiguo');
+  });
+
+  // El 404 aquí no es una avería: la retención borra las entradas viejas, así
+  // que un enlace guardado deja de existir por funcionamiento normal.
+  it('explica el 404 por la retención, no como fallo', async () => {
+    fixture.componentRef.setInput('id', '999999');
+    await fixture.whenStable();
+    http
+      .expectOne('/api/history/999999')
+      .flush({ detail: 'no existe' }, { status: 404, statusText: 'Not Found' });
+    await fixture.whenStable();
+
+    expect(html().querySelector('.error')?.textContent).toContain('retenci');
+    expect(html().querySelector('.veredicto')).toBeNull();
+  });
+
+  it('una entrada que no es un análisis se dice, no se pinta a medias', async () => {
+    await abrirGuardado({ tool: 'get_nyt_news', status: 'ok', data: {} });
+
+    expect(html().querySelector('.error')?.textContent).toContain(
+      'no tiene forma de an',
+    );
+    expect(html().querySelector('.veredicto')).toBeNull();
+  });
 });

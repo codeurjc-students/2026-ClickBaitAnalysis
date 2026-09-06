@@ -10,9 +10,10 @@ import { Routes } from '@angular/router';
  * la navegación. El formulario se pliega en su sitio y el «Nuevo análisis» pasa
  * de navegar a restablecer.
  *
- * Cuando #133 esté hecha, `/analisis/:id` se AÑADE aquí sin tocar nada de lo
- * demás: resolvería la respuesta desde el historial y alimentaría al mismo
- * bloque de resultados, que la recibe como entrada.
+ * Con #133 hecha, `/analisis/:id` se AÑADIÓ sin tocar nada de lo demás, como
+ * estaba previsto: resuelve la entrada del historial y alimenta al mismo
+ * componente, que ya recibía el análisis como estado. Las dos rutas comparten
+ * pantalla a propósito — lo único distinto es de dónde sale el resultado.
  */
 export const routes: Routes = [
   { path: '', pathMatch: 'full', redirectTo: 'analizar' },
@@ -24,6 +25,24 @@ export const routes: Routes = [
     // se ve en el empaquetado (21,69 kB en su propio fragmento).
     loadComponent: () =>
       import('./analisis/analisis-page').then((modulo) => modulo.AnalisisPage),
+  },
+  {
+    // El id llega como `input()` de `AnalisisPage`, no como parámetro leído
+    // a mano. La pantalla es la MISMA: sólo cambia de dónde sale el
+    // análisis, y por eso #127 la dejó recibiendo el resultado como estado
+    // en vez de calcularlo en el sitio.
+    path: 'analisis/:id',
+    title: 'Análisis guardado · ClickBait Analysis',
+    loadComponent: () =>
+      import('./analisis/analisis-page').then((modulo) => modulo.AnalisisPage),
+  },
+  {
+    path: 'historial',
+    title: 'Historial · ClickBait Analysis',
+    loadComponent: () =>
+      import('./historial/historial-page').then(
+        (modulo) => modulo.HistorialPage,
+      ),
   },
   {
     path: 'sistema',
