@@ -25,7 +25,12 @@ const CATALOGO: CatalogResult = {
   tools: [
     {
       name: 'detect_clickbait_lexical',
-      description: 'Detecta clickbait por vocabulario, con reglas visibles.',
+      // Una docstring REAL, con sus secciones para el LLM: es lo que
+      // publica el catálogo y lo que hacía ilegible la tarjeta.
+      description:
+        'Detecta clickbait por vocabulario, con reglas visibles.' +
+        '\n\nArgs:\n  headline (str): titular a evaluar (en inglés).' +
+        '\n\nRaises:\n  Si el titular está vacío.',
       input_schema: {
         type: 'object',
         properties: { headline: { type: 'string' } },
@@ -55,6 +60,31 @@ const CATALOGO: CatalogResult = {
       category: 'Fuentes de contenido',
       integration: 'nyt',
       server: 'tfg',
+    },
+    {
+      name: 'detect_clickbait',
+      description: 'Clasifica el titular con un modelo afinado para la tarea.',
+      input_schema: {
+        type: 'object',
+        properties: { headline: { type: 'string' } },
+        required: ['headline'],
+      },
+      category: 'Señales de análisis',
+      integration: 'nlp',
+      server: 'tfg',
+      model_card: {
+        name: 'RoBERTa dedicado',
+        task: 'Clickbait vs factual, con supervisión humana.',
+        model_id: 'Stremie/roberta-base-clickbait',
+        type: 'opaque',
+        dimension: 'form',
+        limitations: [
+          'Caja negra: sin explicación intrínseca.',
+          'Sólo inglés, y entrenado sobre tuits.',
+          'Independencia desconocida respecto del léxico.',
+          'Split de entrenamiento desconocido.',
+        ],
+      },
     },
     {
       name: 'describe_models',
@@ -251,5 +281,53 @@ describe('SistemaPage', () => {
 
     const raiz = fixture.nativeElement as HTMLElement;
     expect(raiz.textContent).toContain('La API falló al construir el catálogo');
+  });
+
+  // ----- Lo que se ve de cada herramienta -----
+
+  // La `description` es la docstring entera, escrita para el LLM. Volcada en la
+  // tarjeta daba una página de 7.191 px y repetía, campo por campo, lo que el
+  // formulario generado ya dice.
+  it('en la lista se lee sólo el resumen de la docstring', async () => {
+    const raiz = await montar();
+
+    expect(raiz.querySelector('.tool__descripcion')?.textContent).toContain(
+      'Detecta clickbait por vocabulario',
+    );
+    expect(raiz.textContent).not.toContain('Args:');
+  });
+
+  // No se tira: se ve al desplegar, que es cuando alguien quiere el detalle.
+  it('el resto de la docstring aparece al desplegar la herramienta', async () => {
+    const raiz = await montar();
+
+    await desplegar(raiz, 0);
+
+    expect(raiz.querySelector('.tool__detalle')?.textContent).toContain('Args:');
+    expect(raiz.textContent).toContain('Raises:');
+  });
+
+  // Los diez límites de la ficha opaca tapaban las otras cuatro señales. Se
+  // pliegan y no se recortan: son los límites MEDIDOS, que es el motivo de que
+  // la ficha exista.
+  it('una ficha con muchos límites se pliega, y dice cuántos hay', async () => {
+    const raiz = await montar();
+
+    const larga = raiz.querySelectorAll('.ficha')[1];
+    expect(larga.querySelectorAll('li').length).toBe(2);
+    expect(larga.textContent).toContain('Ver los 4 límites');
+  });
+
+  it('y se despliega entera al pedirlo', async () => {
+    const raiz = await montar();
+
+    raiz
+      .querySelectorAll('.ficha')[1]
+      .querySelector<HTMLButtonElement>('button')
+      ?.click();
+    await fixture.whenStable();
+
+    expect(raiz.querySelectorAll('.ficha')[1].querySelectorAll('li').length).toBe(4);
+    expect(raiz.textContent).toContain('Split de entrenamiento');
   });
 });

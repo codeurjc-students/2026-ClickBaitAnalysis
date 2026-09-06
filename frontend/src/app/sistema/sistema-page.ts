@@ -2,10 +2,43 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { Component, computed, inject, signal } from '@angular/core';
 
 import { detalleDeValidacion, SIN_RESPUESTA } from '../api/errores';
-import type { Argumentos, CatalogResult, ExecuteResult } from '../api/models';
+import type {
+  Argumentos,
+  CatalogResult,
+  ExecuteResult,
+  ToolInfo,
+} from '../api/models';
 import { ToolsService } from '../api/tools.service';
 import { nombreDeDimension } from '../analisis/vocabulario';
 import { EsquemaForm } from './esquema-form';
+
+/**
+ * El resumen de una docstring: lo que hay hasta la primera línea en blanco.
+ *
+ * La `description` del catálogo es la docstring ENTERA, escrita para el LLM:
+ * lleva sus secciones `Args:`, `Returns:` y `Raises:`. Volcada en la tarjeta,
+ * las doce herramientas daban una página de 7.191 px, y además repetía lo que
+ * el formulario generado ya dice campo por campo — hasta el punto de que el
+ * `Raises:` del léxico avisa de un titular vacío que el validador impide.
+ *
+ * Se corta por la línea en blanco y no buscando `Args:` porque la convención de
+ * Python es justo esa: primera frase de resumen, cuerpo después. Una tool que
+ * no la siga se enseña entera, que es el fallo benigno.
+ *
+ * El resto NO se tira: se ve al desplegar la herramienta.
+ */
+function resumen(descripcion: string): string {
+  return descripcion.trim().split(/\n\s*\n/)[0];
+}
+
+/** El cuerpo de la docstring: todo lo que sigue al resumen. */
+function cuerpo(descripcion: string): string {
+  const partes = descripcion.trim().split(/\n\s*\n/);
+  return partes.slice(1).join('\n\n');
+}
+
+/** Límites que se enseñan de una ficha antes de desplegarla. */
+const LIMITES_VISIBLES = 2;
 
 /** El catálogo no se pudo construir. */
 function mensajeDeCatalogo(fallo: HttpErrorResponse): string {
@@ -102,6 +135,9 @@ export class SistemaPage {
    */
   readonly ejecutando = signal<string | null>(null);
 
+  /** Qué ficha de modelo tiene sus límites desplegados. */
+  readonly fichaAbierta = signal<string | null>(null);
+
   // Por nombre de herramienta, para que el resultado se quede donde se pidió al
   // desplegar otra.
   readonly resultados = signal<Record<string, ExecuteResult>>({});
@@ -171,6 +207,30 @@ export class SistemaPage {
         this.cargando.set(false);
       },
     });
+  }
+
+  resumenDe(herramienta: ToolInfo): string {
+    return herramienta.description ? resumen(herramienta.description) : '';
+  }
+
+  detalleDe(herramienta: ToolInfo): string {
+    return herramienta.description ? cuerpo(herramienta.description) : '';
+  }
+
+  /**
+   * Los límites que se pintan de una ficha.
+   *
+   * Los diez de `detect_clickbait` tapaban las otras cuatro señales. No se
+   * recortan —son los límites MEDIDOS, que es el motivo de que la ficha
+   * exista—, se pliegan: el mismo patrón que `senal-card` con las opacas.
+   */
+  limitesDe(nombre: string, limites: string[]): string[] {
+    if (this.fichaAbierta() === nombre) return limites;
+    return limites.slice(0, LIMITES_VISIBLES);
+  }
+
+  alternarFicha(nombre: string): void {
+    this.fichaAbierta.update((actual) => (actual === nombre ? null : nombre));
   }
 
   alternar(nombre: string): void {
