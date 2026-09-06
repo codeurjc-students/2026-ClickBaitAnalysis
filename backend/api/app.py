@@ -186,7 +186,9 @@ async def get_tools() -> CatalogResponse:
     # desistida). La pantalla de Sistema los distingue desde #128.
     responses={
         404: {"description": "No hay ninguna herramienta con ese nombre."},
-        504: {"description": "Se agotó la espera; la herramienta puede haber terminado."},
+        504: {
+            "description": "Se agotó la espera; la herramienta puede haber terminado."
+        },
     },
 )
 async def post_execute(name: str, request: ExecuteRequest) -> ExecuteResponse:

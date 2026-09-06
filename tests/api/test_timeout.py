@@ -149,9 +149,9 @@ def test_el_contrato_declara_los_tres_finales(monkeypatch):
     (El 200 con `status: error` no aparece aquí porque no es un final aparte:
     la petición fue correcta y la respuesta es un `ExecuteResponse` normal.)
     """
-    respuestas = client.get("/openapi.json").json()["paths"][
-        "/tools/{name}/execute"
-    ]["post"]["responses"]
+    respuestas = client.get("/openapi.json").json()["paths"]["/tools/{name}/execute"][
+        "post"
+    ]["responses"]
 
     assert {"404", "422", "504"} <= set(respuestas)
     assert "espera" in respuestas["504"]["description"]
