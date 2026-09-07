@@ -1228,6 +1228,122 @@ Añadir el registro a `/analyze` convirtió, sin avisar, todos los tests de esa 
 
 `tests/api/test_history.py` cubre los dos lados por separado —el almacén llamando a sus funciones, el endpoint por HTTP— porque responden preguntas distintas: si los datos sobreviven y salen en orden, y si la decisión de «una entrada por análisis» se sostiene de verdad.
 
+### El semáforo que faltaba: qué APIs responden, desde cualquier pantalla (#147)
+
+`GET /health` existía desde #86: sondea Weather, Guardian y NYT, agrega en
+`ok`/`degraded`/`down` y devuelve además el detalle por integración. Estaba
+probado, y desde #139 publicaba su forma en el contrato. **No lo consumía
+nadie** — un endpoint sin destino, y R6.6 sin cumplir. La issue nació dentro de
+#128, al separar qué estado enseña cada pantalla: R6.11 pide el de los
+servidores MCP y eso sale del catálogo; la salud de las APIs de terceros es otra
+pregunta, y no la respondía ninguna vista.
+
+#### Dónde va, y por qué no en la pantalla de Sistema
+
+Las dos opciones eran defendibles y el trabajo cambiaba con la elección. Sistema
+responde **qué está conectado**, que es lo que el sistema *es*; esto responde
+**qué funciona ahora mismo**, que cambia solo y sin avisar. Mezclarlas en una
+pantalla junta dos ejes distintos.
+
+Pesó más el momento en que surge la pregunta: quien ve fallar `get_nyt_news` la
+formula **mientras mira el fallo**, en `/analizar` o en el historial. Una
+respuesta a dos clics y en otra pantalla llega tarde. Va en la cabecera, visible
+desde cualquier ruta, desplegable al pulsarla.
+
+El precio está pagado a conciencia y conviene dejarlo escrito: **la cáscara gana
+estado y una dependencia que antes no tenía**. `app.spec.ts` ya necesita
+proveedores de HTTP para montar la cabecera, así que probar la navegación arrastra
+algo que no es de la navegación. Es el coste de que el indicador sea global; a
+cambio, el componente tiene su propio spec y la cáscara sigue sin lógica propia.
+
+Vive en `salud/`, carpeta nueva, y **no es una pantalla**: no tiene ruta. Ponerlo
+dentro de `analisis/` o de `sistema/` habría obligado a las otras dos a importar
+de una pantalla ajena, que es la dependencia que #129 prohibió.
+
+#### Lo que el indicador NO cubre, y por qué se dice en voz alta
+
+`PROBES` tiene tres entradas: `weather`, `guardian` y `nyt`. **Ninguna señal
+NLP.** Así que un verde aquí no dice absolutamente nada sobre si
+`detect_clickbait` responde: el 3 de septiembre habría estado en verde toda la
+mañana mientras esa señal devolvía `400` en cada análisis.
+
+Y la trampa se repite un nivel más abajo, que es lo que la hace interesante:
+**añadir `huggingface` a la lista tampoco lo arreglaría**. El proveedor responde
+`live` —medido el 7-09, ver `v0.4.1`— y aun así ese modelo no se sirve. La sonda
+que haría falta es **por modelo**, no por proveedor, y es trabajo de backend:
+queda en #156.
+
+De ahí dos decisiones de redacción, que no son cosmética:
+
+- La pastilla dice **«APIs externas ok»**, no «sistema ok». Un semáforo que
+  promete más de lo que mira es peor que no tener semáforo, porque quien lo cree
+  deja de buscar donde está el fallo.
+- El panel lo dice con todas las letras: *«Sólo las APIs de noticias. Las
+  señales de análisis no se sondean aquí»*. Está en un test, no sólo en la
+  plantilla.
+
+Esto corrigió, de paso, una afirmación escrita el día anterior en las notas del
+proyecto, que daba por hecho que esta pantalla habría hecho visible la caída de
+HuggingFace. No la habría hecho visible. Lo mismo que pasó con `v0.4.1`: el
+error estaba en la explicación, no en el sistema.
+
+#### El hallazgo medido: con la API apagada no llega `status 0`, llega 502
+
+Al probar el estado de fallo —parando uvicorn con la interfaz delante— apareció
+lo que ningún test unitario podía enseñar: **el error no llega como `status 0`,
+llega como 502**.
+
+La causa es la topología, y **es la misma en desarrollo y en despliegue**: entre
+el navegador y la API hay siempre un proxy —`proxy.conf.json` hoy, nginx en H4—
+y quien contesta cuando el destino no está es el proxy. El `status 0` que
+`api/errores.ts` traduce como «no hay API al otro lado» sólo aparecería si no
+contestara ni él.
+
+Con el mapeo original, apagar la API pintaba *«La API no pudo informar de su
+estado (502)»*, que sugiere que la API contestó algo estando muerta — y manda a
+mirar donde no es. Ahora 502, 503 y 504 se leen como **no hay API al otro lado**,
+con la medición escrita en el código y un test que fija el caso.
+
+**Por qué los tests no lo cazaron:** `HttpTestingController` sustituye el
+transporte, así que en las pruebas no hay proxy y el escenario no existe. Habrían
+pasado igual con el mapeo malo. Es la misma lección que dejó #86 al exigir un
+primer análisis real por HTTP: hay fallos que sólo aparecen ejecutando.
+
+#### Sondear no es gratis, así que no se sondea en bucle
+
+Cada consulta son **tres peticiones HTTP reales**, con corte de 5 s por sonda,
+contra APIs de terceros que además tienen cuota. Y es información que cambia
+despacio. Así que: **al cargar y a petición**, nunca periódico. Hay un test que
+lo sostiene —comprueba que no queda ninguna petición pendiente tras montar—, de
+modo que añadir un refresco automático rompe la suite en vez de pasar
+inadvertido.
+
+Al fallar, el estado anterior **se descarta** en vez de conservarse: dejar la
+hora de un sondeo antiguo junto a un mensaje de error es peor que no saber,
+porque parece información fresca.
+
+#### El detalle, no sólo el agregado
+
+Un ámbar dice que algo falla y no dice cuál, así que no es accionable. El panel
+lista cada integración con su estado, **las caídas primero** —lo accionable no
+puede quedar el último de una lista ordenada por nombre— y con el texto de la
+excepción marcado como técnico: no se esconde, porque es lo único que permite
+diagnosticar, pero no se confunde con la frase que se entiende. Es el mismo
+criterio que #130 aplicó al `detail` de una señal caída.
+
+Una integración que el frontend no sepa nombrar **se enseña con su clave en
+crudo**: `integrations` es un diccionario abierto en el contrato, así que el
+backend puede sondear una más sin que esta interfaz se entere. Enumerar aquí las
+tres de hoy la habría escondido sin que nada fallara al compilar.
+
+#### Medido
+
+- **117 tests** en el frontend, desde los 101 con los que empezó la issue.
+- **A 768 px no desborda nada**, con cero `@media`: el panel ocupa de 360 a 744
+  en un viewport de 768. Sale flotando por encima del contenido en vez de
+  empujarlo, porque mover la pantalla que estás mirando es justo lo que no
+  quieres al abrir algo para entender un fallo que tienes delante.
+
 ### R6.14 se escribe, y el frontend entra en los diagramas
 
 Sin issue, y conviene decir por qué: **salió de revisar los cuatro criterios de
