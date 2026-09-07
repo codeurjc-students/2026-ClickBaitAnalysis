@@ -1189,6 +1189,163 @@ Añadir el registro a `/analyze` convirtió, sin avisar, todos los tests de esa 
 
 `tests/api/test_history.py` cubre los dos lados por separado —el almacén llamando a sus funciones, el endpoint por HTTP— porque responden preguntas distintas: si los datos sobreviven y salen en orden, y si la decisión de «una entrada por análisis» se sostiene de verdad.
 
+### Lo que la interfaz no contaba de sí misma (#130)
+
+Último de H3, y transversal por naturaleza: sólo se puede hacer cuando las
+pantallas existen. Pide dos cosas —R6.8, que funcione en escritorio y tabletas;
+R6.7, que los errores lleguen entendibles— y las dos empezaron por medir, porque
+el plan escrito antes de mirar decía algo que resultó ser falso.
+
+#### La predicción era mala, y por eso se mide
+
+El plan afirmaba, dos veces, que **la tabla del historial era lo que peor se
+llevaba con el ancho**. Medido a 768 y 1024 en las cuatro rutas, comprobando qué
+elemento sobresale del viewport:
+
+| Ruta | 768 px | 1024 px |
+|---|---|---|
+| `/analizar` | no desborda | no desborda |
+| `/historial` | no desborda · tabla **1.662 px** de alto | tabla **1.099 px** |
+| `/sistema` | no desborda | no desborda |
+| `/analisis/:id` | no desborda | pastillas en 3 filas |
+
+**Cero elementos desbordan, con cero `@media` en el proyecto.** Lo sostienen
+`flex-wrap` y un `grid` con `auto-fill`. El coste de estrecharse no es
+horizontal sino vertical: la tabla crece un 51 % porque todo envuelve.
+
+De haber empezado por el CSS se habría añadido un `overflow-x` que nadie
+necesita, y R6.8 se habría dado por resuelto sin haberlo comprobado.
+
+#### La señal caída no se veía caída
+
+El borde de color de una tarjeta lleva el **tipo** de señal —dónde está la
+transparencia: interpretable, híbrida, opaca—, y eso significaba que una opaca
+que había fallado se pintaba exactamente igual que una opaca que había
+funcionado. Medido sobre un análisis con `detect_clickbait` en `error`:
+
+| Señal | Estado | Borde |
+|---|---|---|
+| RoBERTa dedicado | **error** | `rgb(184,84,80)` |
+| RoBERTa afinado en tuits | no vota | `rgb(184,84,80)` |
+
+Lo único que las distinguía era leer la palabra «error». Es justo lo que el
+issue señala: `_run_signals` aísla los fallos con `return_exceptions=True` para
+que una señal caída no se lleve el análisis por delante, y **si la interfaz no
+lo refleja, ese trabajo no se ve**.
+
+Ahora una señal que no produjo resultado se **apaga**: borde y fondo grises. Dos
+decisiones dentro:
+
+- **El tipo no se pierde.** La insignia sigue diciendo `opaque`. La información
+  sigue ahí; deja de competir por la atención.
+- **La comparación es contra `ok`, no contra la lista de fallos.**
+  `not_applicable` se llamaba `no_aplicable` antes de #134, así que enumerar los
+  estados malos habría dejado sin apagar justo las filas viejas del historial.
+  `ok` es el valor que no ha cambiado nunca. Hay un test con la clave antigua.
+
+Y una distinción que el diseño conserva: `analyze_sentiment` dice «no vota» y
+**no** se apaga, porque funcionó — mide tono, no clickbait. *No funcionó* y
+*funcionó y no opina* son cosas distintas, y antes se veían igual de bien.
+
+#### Las pastillas habían dejado de ser un índice
+
+La plantilla decía literalmente «*Índice compacto: todas las señales caben sobre
+la línea de flotación*», y desde #133 la pastilla muestra el `label` en vez del
+id de la herramienta: «Regresión logística sobre features léxicas (entrenada en
+Chakraborty)». Medido: **531 px una sola pastilla de 1024**, en tres filas.
+
+Se corta por el paréntesis, y eso es lo que lo hace mantenible: es una **regla,
+no un diccionario**. Una señal nueva no hay que añadirla a ninguna lista —la
+misma decisión que hace que las categorías del filtro de Sistema salgan de un
+`Set` sobre la respuesta y no de una constante—. La precisión entre paréntesis
+es de la ficha; el índice enseña el nombre.
+
+**531 px → 349 px, y de tres filas a dos.** El nombre completo sigue entero en
+la tarjeta, dos dedos más abajo.
+
+El comentario de la plantilla ahora dice por qué vuelve a ser cierto, con el
+número delante.
+
+#### R6.7: el inventario, y dónde estaba el hueco
+
+Un repaso por pantalla de qué códigos puede recibir y cuáles traduce:
+
+| Pantalla | Ruta | Declara el contrato | Traduce |
+|---|---|---|---|
+| Analizar | `POST /analyze` | 200 · 422 | 0 · 422 · ≥500 · resto |
+| Análisis guardado | `GET /history/{id}` | 200 · 404 · 422 | 404 propio + los de arriba |
+| Historial | `GET /history` | 200 · 422 | 0 · 422 · ≥500 · resto |
+| Sistema · catálogo | `GET /tools` | 200 | 0 · ≥500 · resto |
+| Sistema · ejecutar | `POST /tools/{name}/execute` | 200 · 404 · 422 · 504 | los cuatro + 0 · ≥500 · resto |
+
+Ningún código declarado llega sin mensaje, y los dos que el issue nombra —el 504
+de #113 y el 422 de validación— tienen frase propia desde #128. El `status: 0`
+está en las cuatro pantallas: no es un código HTTP, es que no contestó nadie, y
+el remedio que le das a quien mira es otro.
+
+**El hueco no estaba en el canal de errores, sino dentro de una respuesta 200**,
+y visto de cerca tiene sentido: `/analyze` responde 200 aunque una señal falle
+—decisión de #85—, así que el fallo más visible del sistema **nunca pasa por el
+traductor de errores de la pantalla**. El `detail` de la señal caída se volcaba
+tal cual como único mensaje:
+
+```
+HTTP error: 400 - {"error":"Model not supported by provider hf-inference"}
+```
+
+Ahora va la frase que se entiende primero, y el volcado debajo marcado como
+técnico. **No se esconde**: es lo único que permite diagnosticar, y esconderlo
+habría cambiado un problema por otro. En `not_applicable` no se antepone nada,
+porque su detalle ya es la frase que hay que leer —«Requiere el cuerpo o teaser
+de la noticia»— y precederla de «no llegó a ejecutarse» sería falso.
+
+Un caso revisado y **no** tocado: en Sistema, un servidor caído enseña
+`ConnectError: All connection attempts failed`. También es técnico, pero la
+frase que se entiende ya está en la fila —«no responde · 0 herramientas»— y el
+motivo va debajo como precisión. La estructura ya era la correcta, repartida en
+dos líneas.
+
+#### Dos incoherencias que aparecieron al mirar las capturas
+
+Ninguna la habrían encontrado los tests, que comprueban que el texto **está**, no
+que se vea coherente:
+
+- **En el historial convivían un enlace subrayado y un botón con caja** en la
+  misma columna, para dos acciones que hacen lo mismo: enseñar esa entrada. Se
+  igualó el aspecto **sin igualar el elemento**: la que navega sigue siendo un
+  `<a>` —se abre en otra pestaña, y el lector de pantalla la anuncia como
+  enlace— y la que despliega sigue siendo un `<button>`. Medido después: mismo
+  borde, mismo fondo, misma altura, distinta etiqueta. El `nowrap` que lleva ese
+  estilo quita además una línea por fila a 768 px.
+- **La insignia de tipo estaba tintada en la tarjeta de señal y gris en la ficha
+  de modelo.** Dos pantallas diciendo lo mismo de dos maneras. Ahora la ficha usa
+  los mismos tres colores que su borde.
+
+#### Medido
+
+- **101 tests de frontend** (12 nuevos), lint limpio con reglas de tipos y de
+  accesibilidad.
+- Los números de arriba salen de `getComputedStyle` y `getBoundingClientRect`
+  sobre la aplicación corriendo con sus tres procesos —servidor MCP, API y
+  `ng serve`—, no de mirar capturas.
+- El caso de prueba se creó a propósito: un análisis nuevo con el proveedor
+  `hf-inference` caído, que dejó una entrada con una señal en `error` y otra en
+  `not_applicable` — los dos casos que el issue pide comprobar, reales y no
+  simulados.
+
+#### Límites
+
+- **Por debajo de ~700 px la tabla del historial sí desborda**, con barra
+  horizontal. Queda fuera de R6.8, que pide escritorio y tabletas y no móvil;
+  se anota porque es dónde está el límite y dónde iría el contenedor con
+  `overflow-x` el día que se quiera bajar de ahí.
+- **Sigue sin haber ninguna `@media`.** No es un olvido: nada de lo medido a 768
+  la pedía, y añadir un punto de ruptura «por si acaso» habría sido escribir CSS
+  contra un problema que no existe.
+- Un análisis guardado antes de #134 se sigue viendo degradado —ids de máquina
+  por nombre, insignia `opaco` sin color—, que es la degradación diseñada en
+  #129 y no cambia aquí.
+
 ### El historial se puede leer, y un análisis guardado se vuelve a ver (#129)
 
 `GET /history` existía con paginación, filtros y retención desde #102 y #103, y

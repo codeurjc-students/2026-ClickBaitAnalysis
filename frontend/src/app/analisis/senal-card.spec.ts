@@ -40,6 +40,20 @@ const CAIDA: SignalResult = {
   detail: 'HTTP error: 400 - Model not supported by provider hf-inference',
 };
 
+/**
+ * La incoherencia sin cuerpo de noticia. Su `detail` no es un volcado: ya es la
+ * frase que hay que leer, y por eso se trata distinto que un error.
+ */
+const NO_APLICABLE: SignalResult = {
+  name: 'detect_clickbait_incoherence',
+  label: 'MiniLM-L6-v2 (embeddings de frase)',
+  status: 'not_applicable',
+  dimension: 'deception',
+  type: 'hybrid',
+  is_clickbait: null,
+  detail: 'Requiere el cuerpo o teaser de la noticia.',
+};
+
 const DESCONOCIDA: SignalResult = {
   name: 'una_senal_futura',
   label: 'Una señal futura',
@@ -151,5 +165,32 @@ describe('SenalCard', () => {
     const raiz = await montar(vieja);
 
     expect(raiz.querySelector('.tarjeta')?.classList).toContain('atenuada');
+  });
+
+  // R6.7 pide que el error del backend llegue entendible y no como un volcado.
+  // El `detail` de esta señal es literalmente
+  // «HTTP error: 400 - {"error":"Model not supported by provider hf-inference"}»,
+  // así que se antepone la frase que se entiende y el volcado se queda marcado
+  // como técnico: esconderlo dejaría sin nada a quien tenga que diagnosticar.
+  it('una señal caída explica primero, y vuelca después', async () => {
+    const raiz = await montar(CAIDA);
+
+    expect(raiz.querySelector('.motivo__resumen')?.textContent).toContain(
+      'no llegó a ejecutarse',
+    );
+    expect(raiz.querySelector('.motivo__tecnico')?.textContent).toContain(
+      'hf-inference',
+    );
+  });
+
+  // En `not_applicable` el detalle YA es la frase que se entiende, así que no
+  // se le antepone nada: sería ruido sobre algo que no ha fallado.
+  it('una no aplicable usa su detalle tal cual', async () => {
+    const raiz = await montar(NO_APLICABLE);
+
+    expect(raiz.querySelector('.motivo__resumen')).toBeNull();
+    expect(raiz.querySelector('.motivo')?.textContent).toContain(
+      'Requiere el cuerpo',
+    );
   });
 });
