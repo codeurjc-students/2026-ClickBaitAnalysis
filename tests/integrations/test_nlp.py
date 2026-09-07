@@ -464,6 +464,7 @@ def test_linear_detector_no_headline():
 def test_model_cards_wellformed():
     required = {
         "signal",
+        "model_id",
         "name",
         "task",
         "type",
@@ -471,14 +472,99 @@ def test_model_cards_wellformed():
         "limitations",
         "backend",
     }
-    valid_types = {"interpretable", "híbrido", "opaco"}
-    valid_dimensions = {"forma", "engano", "tono"}
+    valid_types = {"interpretable", "hybrid", "opaque"}
+    valid_dimensions = {"form", "deception", "tone"}
     assert isinstance(model_cards.MODEL_CARDS, list) and model_cards.MODEL_CARDS
     for card in model_cards.MODEL_CARDS:
         assert required <= card.keys()
         assert card["type"] in valid_types
         assert card["dimension"] in valid_dimensions
         assert isinstance(card["limitations"], list) and card["limitations"]
+
+
+def test_model_id_es_id_de_maquina_o_None():
+    # `model_id` es lo que se le pasa al backend, así que o es un identificador
+    # de la Hub («org/modelo») o es None. Una etiqueta legible colada aquí
+    # rompería la carga del modelo, no la divulgación.
+    for card in model_cards.MODEL_CARDS:
+        model_id = card["model_id"]
+        if model_id is None:
+            continue  # léxico y lineal: no hay nada que descargar
+        assert isinstance(model_id, str) and model_id.strip()
+        assert "/" in model_id, f"{card['signal']}: «{model_id}» no parece un id"
+        assert model_id == model_id.strip()
+
+
+@pytest.mark.asyncio
+async def test_las_dos_fachadas_usan_el_id_de_la_ficha(monkeypatch):
+    """El test que justifica #116: unificar los ids no impide que vuelvan a separarse.
+
+    El id vivía cableado en la tool MCP, en el orquestador REST y en el detector
+    de incoherencia, además de en la ficha. Cambiarlo en un sitio dejaba las dos
+    fachadas respondiendo con modelos distintos al mismo titular **sin que nada
+    fallara**: los dos caminos seguían devolviendo una etiqueta válida.
+
+    Por eso no basta con comprobar que las constantes existen: hay que capturar
+    con qué modelo se llama DE VERDAD por cada camino.
+    """
+    from backend.analysis import orchestrator
+    from backend.core.models import ToolResult
+
+    fichas = model_cards.cards_by_signal()
+
+    class _Espia:
+        """Registra CADA llamada, no la última por método.
+
+        La primera versión guardaba en un dict con clave `zero_shot`/`classify`.
+        Cuando #115 pasó la señal de clickbait de `zero_shot` a `classify`, las
+        dos señales que usan `classify` empezaron a pisarse: el test seguía en
+        verde comprobando la mitad de lo que decía comprobar.
+        """
+
+        def __init__(self):
+            self.llamadas = []
+
+        async def zero_shot(self, text, model, labels):
+            self.llamadas.append(model)
+            return ToolResult.ok({"label": "clickbait", "score": 0.9})
+
+        async def classify(self, text, model):
+            self.llamadas.append(model)
+            # `Clickbait` es lo que devuelve el modelo dedicado; `dedicated`
+            # lo traduce. El doble tiene que hablar como el modelo real, no
+            # como el contrato, o no se estaría probando la traducción.
+            return ToolResult.ok({"label": "Clickbait", "score": 0.8})
+
+    # --- fachada MCP ---
+    espia_mcp = _Espia()
+    monkeypatch.setattr(nlp_tool, "get_nlp_backend", lambda: espia_mcp)
+    mcp = FastMCP("test")
+    nlp_tool.register(mcp)
+    await mcp.call_tool("detect_clickbait", {"headline": "Un titular"})
+    await mcp.call_tool("analyze_sentiment", {"text": "Un texto"})
+
+    # --- fachada REST ---
+    espia_rest = _Espia()
+    monkeypatch.setattr(orchestrator, "_api", espia_rest)
+    await orchestrator._run_signals("Un titular", None)
+
+    esperado = {
+        fichas["detect_clickbait"]["model_id"],
+        fichas["analyze_sentiment"]["model_id"],
+    }
+    assert set(espia_mcp.llamadas) == esperado, "la tool MCP no usa el id de la ficha"
+    assert len(espia_mcp.llamadas) == 2, "alguna señal no llamó al backend"
+    assert set(espia_rest.llamadas) == esperado, (
+        "el orquestador no usa el id de la ficha"
+    )
+
+    # El tercero no pasa por el backend NLP: carga su modelo él mismo. Antes
+    # decía "all-MiniLM-L6-v2" mientras la ficha decía la ruta completa — dos
+    # cadenas distintas que resolvían al mismo sitio, así que la divergencia no
+    # rompía nada y podía durar para siempre.
+    assert (
+        IncoherenceDetector.MODEL == fichas["detect_clickbait_incoherence"]["model_id"]
+    )
 
 
 def test_model_cards_serializable_and_cover_signals():

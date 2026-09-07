@@ -32,7 +32,7 @@ def register(mcp: FastMCP):
         if not response.has_content():
             raise ToolError(response.error or "Error fetching alerts")
 
-        return response.data  # type: ignore
+        return response.unwrap()
 
     @mcp.tool(meta=tool_meta("Fuentes de contenido", __name__))
     @log_tool_invocation
@@ -56,11 +56,11 @@ def register(mcp: FastMCP):
             raise ToolError(zone_url.error or "Unknown error while fetching zone")
 
         # Get the forecast URL from the points response
-        response = await api.get_forecast_API(zone_url.data)  # type: ignore
+        response = await api.get_forecast_API(zone_url.unwrap())
         if not response.has_content():
             raise ToolError(response.error or "Unknown error while retrieving forecast")
 
-        periods = response.data.get("properties", {}).get("periods")  # type: ignore
+        periods = response.unwrap().get("properties", {}).get("periods")
         if not periods:
             raise ToolError("No forecast periods available")
 

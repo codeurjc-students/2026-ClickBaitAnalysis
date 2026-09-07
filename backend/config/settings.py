@@ -20,6 +20,23 @@ class Settings(BaseSettings):
         "remote"  # Añadimos dos opciones de backend NLP, así mantenemos remoto sin cambiar mucho.
     )
 
+    # Cargar los modelos NLP al arrancar en vez de en la primera petición.
+    #
+    # POR DEFECTO APAGADO, y el defecto importa más que el flag. Precalentar
+    # cuesta ~102 s medidos (#125) y hay dos casos habituales donde eso es PEOR
+    # que la carga perezosa: desarrollar con `--reload`, donde se pagarían en
+    # cada reinicio, y los tests, que no deben cargar un modelo jamás.
+    #
+    # Encendido tiene sentido en despliegue, donde el contenedor arranca antes
+    # de recibir tráfico: traslada la espera del primer usuario a uvicorn. Ojo
+    # en H4 — un arranque de ~102 s obliga a un `start_period` generoso en el
+    # `healthcheck`, o el orquestador matará el contenedor por no responder.
+    #
+    # Respeta `nlp_backend`: con `remote` sólo la incoherencia corre en local,
+    # así que precalentar los otros dos sería cargar modelos que las peticiones
+    # no van a usar.
+    preheat_models: bool = False
+
     # Orígenes permitidos por CORS. Configurable porque el frontend vive
     # en localhost:4200 en desarrollo pero no en despliegue. Desde el
     # entorno se pasa como JSON: CORS_ORIGINS='["https://ejemplo.org"]'
@@ -63,14 +80,29 @@ class Settings(BaseSettings):
     # `detect_clickbait` (BART-large-MNLI) contra un servidor MCP en frío tardó
     # 51,6 s — ocho segundos por debajo del corte, y con el modelo YA descargado
     # en la caché de HuggingFace. En una máquina limpia hay que sumarle ~1,6 GB
-    # de descarga y se pasa.
+    # de descarga y se pasa. `analyze_headline`, que carga los tres modelos,
+    # tardó 151 s.
     #
     # Subir el número no lo arregla: con caché fría el tiempo depende del ancho
     # de banda, así que no está acotado y no existe un valor «correcto». La
     # solución real es que cargar el modelo NO ocurra dentro de una petición —
     # un calentamiento explícito al arrancar, que es inherentemente una tarea de
-    # contenedores (H4). Hasta entonces, el primer uso en frío de una señal
-    # pesada por `/tools/{name}/execute` puede fallar por timeout.
+    # contenedores (H4).
+    #
+    # Y ojo con QUIÉN corta, porque este número solo no lo hacía: hasta #113, al
+    # superarse el corte la petición **no fallaba, se colgaba** — la tool terminó
+    # en el servidor a los 151 s con `success=True` y la API nunca devolvió nada,
+    # seis minutos con la conexión abierta y 0 % de CPU.
+    #
+    # El motivo: el `timeout` de httpx mide **inactividad entre bytes**, no
+    # duración. Quien de verdad acota la llamada es el `asyncio.timeout` de
+    # `execute.py`, que usa este mismo valor. Los dos se conservan porque cubren
+    # fallos distintos —duración excesiva frente a un servidor que enmudece— y
+    # hacen falta los dos cortes.
+    #
+    # Al agotarse, la respuesta es un **504**, no un `status: error`: el trabajo
+    # puede haber salido bien al otro lado, así que decir «el análisis falló»
+    # sería falso. Lo que falló es la espera.
     mcp_execute_timeout: float = 60.0
 
     # Fichero SQLite del historial.
@@ -103,4 +135,14 @@ class Settings(BaseSettings):
     history_max_days: int = 30
 
 
-settings = Settings()  # type: ignore #Activa la validación al importar
+# Activa la validación al importar: si falta una clave, el proceso no arranca.
+#
+# El `ignore` es necesario: pydantic-settings rellena los campos sin valor por
+# defecto desde el entorno o el `.env`, y el comprobador sólo ve un constructor
+# al que le faltan tres argumentos.
+#
+# La sintaxis importa, y se comprobó (#139): pyright **ignora el contenido del
+# corchete** en `# type: ignore[...]` —una regla inventada suprime igual— así que
+# esa forma silencia cualquier error futuro de la línea. `# pyright: ignore[...]`
+# sí acota: puesta una regla equivocada, el error vuelve.
+settings = Settings()  # pyright: ignore[reportCallIssue]

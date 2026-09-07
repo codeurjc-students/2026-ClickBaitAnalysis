@@ -27,7 +27,12 @@ from typing import Any, Literal
 #
 # Efecto secundario útil: «Señales de análisis» son exactamente las que llevan
 # ficha de modelo, así que la categoría predice si `model_card` viene o no.
-Categoria = Literal["Fuentes de contenido", "Señales de análisis", "Utilidades"]
+Categoria = Literal[
+    "Fuentes de contenido",
+    "Señales de análisis",
+    "Análisis completo",
+    "Utilidades",
+]
 
 # Prefijo de los paquetes de integración, para recortarlo al derivar el origen.
 _PREFIJO = "backend.integrations."

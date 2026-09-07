@@ -1,0 +1,24 @@
+<p class="titular" lang="en">
+  @for (segmento of segmentos(); track $index) {
+    @if (segmento.categoria) {
+      <mark
+        [attr.data-categoria]="segmento.categoria"
+        [title]="nombre(segmento.categoria)"
+        >{{ segmento.texto }}</mark
+      >
+    } @else {
+      <span>{{ segmento.texto }}</span>
+    }
+  }
+</p>
+
+@if (categorias().length) {
+  <ul class="leyenda">
+    @for (categoria of categorias(); track categoria) {
+      <li>
+        <mark [attr.data-categoria]="categoria" aria-hidden="true"></mark>
+        {{ nombre(categoria) }}
+      </li>
+    }
+  </ul>
+}

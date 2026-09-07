@@ -1,5 +1,5 @@
 import asyncio
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Literal, TypedDict
 
 import httpx
@@ -46,7 +46,7 @@ PROBES = {
 }
 
 
-async def _probe(url: str, params: dict | None = None) -> dict:
+async def _probe(url: str, params: dict | None = None) -> Sonda:
     """Hace una petición ligera a una API y reporta si responde correctamente."""
     try:
         async with httpx.AsyncClient(timeout=PROBE_TIMEOUT) as client:
@@ -78,7 +78,7 @@ async def check_health() -> Salud:
     integrations = dict(zip(PROBES, results, strict=True))
     return {
         "status": _aggregate_status(integrations),
-        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "timestamp": datetime.now(UTC).isoformat(),
         "integrations": integrations,
     }
 

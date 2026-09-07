@@ -11,3 +11,28 @@ CLAUDE.md
 # data/, que guarda datasets y splits versionados, esto NO debe commitearse.
 var/
 repomix-output.xml
+
+# Base de datos SQLite donde coverage.py va anotando qué líneas se ejecutan
+# mientras corren los tests. Es del mismo tipo que var/ —estado local y
+# regenerable, que sólo significa algo en la máquina que lo produjo— y aparece en
+# cuanto alguien lanza `pytest --cov`.
+.coverage
+
+# El informe navegable de `--cov-report=html`, que se genera para mirar un
+# fichero concreto. Mismo tipo que `.coverage`: derivado y regenerable.
+htmlcov/
+
+# Frontend Angular (H3). node_modules/ sin acotar a frontend/ y a cualquier
+# profundidad: un solo npm install descuidado en otro directorio metería
+# decenas de miles de ficheros en el primer git status, y a esas alturas ya
+# cuesta distinguir qué se coló.
+node_modules/
+npm-debug.log*
+
+# Salida de compilacion y cache local de Angular: derivados regenerables, del
+# mismo tipo que var/. Se acotan a frontend/ porque dist/ suelto es un nombre
+# demasiado comun para ignorarlo en todo el repositorio.
+frontend/dist/
+frontend/.angular/
+*:Zone.Identifier
+*Zone.Identifier

@@ -1,8 +1,14 @@
-"""Apertura de sesiones MCP desde la API.
+"""Apertura de sesiones MCP.
 
 Extraído porque lo comparten dos consumidores —el catálogo y la ejecución de
 herramientas— y duplicar el montaje de tres gestores de contexto anidados era
 pedir que se desincronizaran.
+
+Vive en ``core/`` desde #137. Estuvo en ``api/`` por el orden en que se
+construyó el sistema, no por diseño: no importa nada de la fachada REST, y el
+agente de R13 necesita exactamente esto para descubrir herramientas. Desde
+``api/`` no podía usarlo — ``tests/test_arquitectura.py`` prohíbe que el núcleo
+importe de las fachadas.
 
 **Sesión por petición, no persistente.** Ni el catálogo ni la ejecución son
 endpoints calientes: se consultan cuando alguien abre una pantalla o pulsa un
@@ -35,9 +41,19 @@ def _http_client(timeout: float) -> httpx.AsyncClient:
 
 @asynccontextmanager
 async def open_session(
-    url: str, timeout: float
+    url: str,
+    timeout: float,  # noqa: ASYNC109
 ) -> AsyncGenerator[tuple[ClientSession, InitializeResult]]:
     """Abre una sesión MCP ya inicializada contra ``url``.
+
+    Sobre el ``noqa``: ruff señala el parámetro ``timeout`` y recomienda
+    ``asyncio.timeout``, y **tenía razón** — así se descubrió #113, donde una
+    herramienta lenta colgaba la petición para siempre porque este timeout no
+    cortaba. Pero la solución no fue quitarlo sino **sumarle** el otro: quien
+    llama envuelve la operación en ``asyncio.timeout`` para acotar la DURACIÓN, y
+    éste se conserva porque cubre algo distinto que aquél no ve — un servidor que
+    acepta la conexión y deja de enviar bytes. Son dos fallos diferentes y hacen
+    falta los dos cortes.
 
     Devuelve también el resultado del *handshake*, porque de ahí sale el nombre
     que **declara el propio servidor** (``serverInfo.name``) — no el que figure

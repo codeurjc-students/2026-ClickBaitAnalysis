@@ -1,0 +1,92 @@
+<form [formGroup]="formulario()" (ngSubmit)="enviar()">
+  @if (campos().length === 0) {
+    <p class="ayuda">Esta herramienta no necesita parámetros.</p>
+  }
+
+  @for (campo of campos(); track campo.nombre) {
+    @if (campo.tipo === 'desconocido') {
+      <!--
+        Se enseña el esquema tal cual en vez de omitir el campo: omitirlo
+        mandaría un cuerpo incompleto y el 422 hablaría de algo que nunca se
+        dibujó.
+      -->
+      <div class="campo campo--desconocido">
+        <p class="campo__nombre">{{ campo.nombre }}</p>
+        <p class="ayuda">
+          Este parámetro no se sabe pintar, así que se enseña su esquema.
+          @if (campo.requerido) {
+            Es obligatorio, y por eso la herramienta no se puede ejecutar desde
+            aquí.
+          } @else {
+            Es opcional: la herramienta usará su valor por defecto.
+          }
+        </p>
+        <pre class="crudo">{{ crudoDe(campo) }}</pre>
+      </div>
+    } @else {
+      <div class="campo">
+        <label [for]="'campo-' + idDe(campo)">
+          {{ campo.nombre }}
+          @if (campo.requerido) {
+            <span aria-hidden="true">*</span>
+          }
+        </label>
+
+        @if (campo.descripcion) {
+          <p class="ayuda" [id]="'ayuda-' + idDe(campo)">{{ campo.descripcion }}</p>
+        }
+
+        @switch (campo.tipo) {
+          @case ('numero') {
+            <input
+              type="number"
+              [id]="'campo-' + idDe(campo)"
+              [formControlName]="campo.nombre"
+              [required]="campo.requerido"
+              [attr.min]="campo.minimo"
+              [attr.max]="campo.maximo"
+              [attr.aria-invalid]="hayError(campo) ? 'true' : null"
+              [attr.aria-describedby]="descritoPor(campo)"
+            />
+          }
+          @case ('booleano') {
+            <input
+              type="checkbox"
+              [id]="'campo-' + idDe(campo)"
+              [formControlName]="campo.nombre"
+              [attr.aria-invalid]="hayError(campo) ? 'true' : null"
+              [attr.aria-describedby]="descritoPor(campo)"
+            />
+          }
+          @default {
+            <input
+              type="text"
+              [id]="'campo-' + idDe(campo)"
+              [formControlName]="campo.nombre"
+              [required]="campo.requerido"
+              [attr.aria-invalid]="hayError(campo) ? 'true' : null"
+              [attr.aria-describedby]="descritoPor(campo)"
+            />
+          }
+        }
+
+        @if (hayError(campo)) {
+          <p class="error-campo" [id]="'error-' + idDe(campo)">
+            {{ mensajeDeError(campo) }}
+          </p>
+        }
+      </div>
+    }
+  }
+
+  @if (bloqueado()) {
+    <p class="aviso" role="status">
+      No se puede ejecutar desde aquí: falta un parámetro obligatorio que esta
+      pantalla no sabe pintar.
+    </p>
+  }
+
+  <button type="submit" [disabled]="ejecutando() || bloqueado()">
+    {{ ejecutando() ? 'Ejecutando…' : 'Ejecutar' }}
+  </button>
+</form>

@@ -60,18 +60,35 @@ class SalidaIncoherencia(TypedDict):
 
     Devuelve los textos comparados además de la similitud: sin ellos, el
     resultado no es verificable por quien lo lee.
+
+    Y devuelve el ``threshold`` contra el que se comparó (#133), que es lo que
+    hace auditable la decisión: sin él, ``incoherent`` es un veredicto que hay
+    que creerse. Es la única señal híbrida —decisión transparente sobre un rasgo
+    opaco—, así que enseñar el corte no es un adorno, es la mitad de su tesis.
     """
 
     similarity: float
     incoherent: bool
+    threshold: float
     headline: str
     content: str
 
 
 class FichaModelo(TypedDict):
-    """Una entrada de la divulgación de modelos."""
+    """Una entrada de la divulgación de modelos.
+
+    Tres campos parecen lo mismo y no lo son, así que conviene fijarlos aquí:
+    ``signal`` es el nombre de la tool MCP, ``model_id`` el identificador en
+    HuggingFace y ``name`` la etiqueta que lee una persona. Cada uno lo consume
+    alguien distinto —el orquestador, la llamada al backend y la interfaz—, y
+    cuando eran un solo campo había que elegir a quién servir mal (#116).
+
+    ``model_id`` es ``None`` en las señales que no son un modelo descargable —el
+    léxico y el lineal—, y ese ``None`` es información, no un hueco.
+    """
 
     signal: str
+    model_id: str | None
     name: str
     task: str
     type: str

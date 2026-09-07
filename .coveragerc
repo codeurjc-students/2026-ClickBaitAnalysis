@@ -1,0 +1,51 @@
+# Configuración de coverage.py (#138).
+#
+# Vive aquí y no en `pyproject.toml` porque el proyecto no tiene ninguno — la
+# misma razón por la que ruff se configura en `ruff.toml`.
+#
+# `pytest-cov` estaba declarado en `requirements.in` y bloqueado en
+# `requirements.txt` desde hacía meses, así que el CI lo instalaba en cada
+# corrida y no ejecutaba nada con él. Esto es lo que faltaba para que sirviera.
+
+[run]
+source = backend
+
+# Cobertura de RAMAS, no sólo de líneas. Un `if` cuya condición sólo se ha
+# probado en verdadero cuenta como línea cubierta y como rama a medias, que es
+# lo que de verdad se quiere saber. Medido al activarla: 90 % frente al 92 % de
+# líneas — dos puntos de precio por dejar de sobrevalorar la red.
+branch = True
+
+omit =
+    # Scripts de investigación de un solo uso: se ejecutan a mano para producir
+    # un número que acaba en el README, y no forman parte del sistema servido.
+    # Probarlos no diría nada útil, y dejarlos dentro hunde el total al 50 %
+    # escondiendo dónde están los huecos que sí importan.
+    backend/evaluation/*
+
+    # Integración heredada del tutorial de MCP en la Épica 1, sin relación con
+    # el clickbait. Se excluye a propósito y con su motivo: está en el proyecto
+    # por tradición, y lo honesto es sacarla de la cuenta en vez de fingir que
+    # se va a probar.
+    #
+    # OJO AL PRECIO: omitir no la penaliza, la BORRA del informe. Si algún día
+    # se le mete código de verdad, nadie se enterará por aquí. La pregunta de
+    # fondo —si `weather` sigue pintando algo en el proyecto— es otra issue.
+    backend/integrations/weather/*
+
+[report]
+show_missing = True
+
+# Sólo se listan los ficheros con huecos. Con 50 módulos, un informe completo en
+# el CI es una pared que nadie lee; lo accionable es lo que falta.
+skip_covered = True
+
+exclude_lines =
+    # Los defaults de coverage.py se pierden al declarar esta clave, así que hay
+    # que repetir el que trae de fábrica.
+    pragma: no cover
+
+    # El guardián de ejecución directa: ningún test lo atraviesa, por
+    # definición. Contarlo como hueco sería penalizar por no hacer algo que no
+    # se debe hacer.
+    if __name__ == .__main__.:

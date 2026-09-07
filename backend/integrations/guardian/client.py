@@ -1,5 +1,5 @@
 # Constants
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from backend.config.settings import settings
 from backend.core.base_api import BaseAPI
@@ -47,7 +47,7 @@ class GuardianAPI(BaseAPI):
         # UTC explícito, no la zona de la máquina: en Docker el contenedor va en
         # UTC y el equipo de desarrollo no, así que `date.today()` desplazaría la
         # ventana de búsqueda un día cerca de medianoche según dónde se ejecute.
-        today = datetime.now(timezone.utc).date()
+        today = datetime.now(UTC).date()
         new_date = today - timedelta(days=days)
         params = {"from-date": new_date, "show-fields": "trailText"}
         if topic:  # Usa buscador de tags
@@ -63,7 +63,7 @@ class GuardianAPI(BaseAPI):
         if not response.success or not response.has_content():
             return ToolResult.fail("No articles found")
 
-        results = response.data.get("response", {}).get("results")
+        results = response.unwrap().get("response", {}).get("results")
 
         if not results:
             return ToolResult.fail("No articles found")
@@ -85,9 +85,11 @@ class GuardianAPI(BaseAPI):
     # Fix: No coger tags[0] ya que suelen ser niches, para tema principal sistema X/X
     async def _find_tag(self, topic: str) -> str | None:
         result = await self.make_request("tags", "get", {"q": topic, "page-size": 10})
-        if not result.success:
+        # `has_content()` y no `success`: un éxito sin cuerpo llegaba hasta el
+        # `.get` y reventaba con un AttributeError sobre None.
+        if not result.has_content():
             return None
-        tags = result.data.get("response", {}).get("results", [])
+        tags = result.unwrap().get("response", {}).get("results", [])
         if not tags:
             return None
 

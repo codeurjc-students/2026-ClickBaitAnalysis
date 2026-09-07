@@ -23,7 +23,7 @@ import json
 import sqlite3
 from collections.abc import Generator
 from contextlib import contextmanager
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -166,13 +166,13 @@ def _marca(momento: datetime) -> str:
     resultado no dependa de la máquina donde corra el servidor.
     """
     if momento.tzinfo is None:
-        momento = momento.replace(tzinfo=timezone.utc)
-    return momento.astimezone(timezone.utc).isoformat()
+        momento = momento.replace(tzinfo=UTC)
+    return momento.astimezone(UTC).isoformat()
 
 
 def _ahora() -> str:
     """El instante actual, en el formato en que se guarda."""
-    return _marca(datetime.now(timezone.utc))
+    return _marca(datetime.now(UTC))
 
 
 # Poda por cantidad. Parece la fórmula ingenua —«resta N al mayor id»— y hay que
@@ -225,7 +225,7 @@ def _podar(conexion: sqlite3.Connection) -> None:
         conexion.execute(_PODA_CANTIDAD, (settings.history_max_entries,))
 
     if settings.history_max_days > 0:
-        corte = datetime.now(timezone.utc) - timedelta(days=settings.history_max_days)
+        corte = datetime.now(UTC) - timedelta(days=settings.history_max_days)
         conexion.execute(_PODA_ANTIGUEDAD, (_marca(corte),))
 
 
@@ -262,6 +262,12 @@ def _guardar(
         # historial dejó de guardar» sin ruido. Separarlas en dos transacciones lo
         # evitaría, pero perdería el ahorro que justifica podar al escribir.
         _podar(conexion)
+
+        if identificador is None:
+            # Imposible tras un INSERT, y por eso mismo conviene que grite: si
+            # ocurriera, `record` devolvería None y la API publicaría `id: null`
+            # sin que nada explicara por qué.
+            raise RuntimeError("El INSERT no devolvió el id de la fila.")
 
         return identificador
 
@@ -408,6 +414,26 @@ def _leer(
     return [_desempaquetar(fila) for fila in filas], total
 
 
+def _leer_una(entry_id: int) -> dict[str, Any] | None:
+    """Una entrada por su id, o ``None`` si no está.
+
+    Sin `COUNT` ni `WHERE` construido: la clave primaria devuelve una fila o
+    ninguna, así que no hay nada que paginar ni que totalizar.
+
+    Las columnas se nombran por cuarta vez en este fichero, y por la razón que ya
+    documenta `_leer`: `SELECT *` no elimina el conocimiento del esquema, lo
+    delega a quien consuma el resultado — que está al otro lado de la frontera.
+    """
+    with _conectar() as conexion:
+        fila = conexion.execute(
+            "SELECT id, created_at, kind, origin, headline, tool, verdict, status, payload "
+            "FROM history WHERE id = ?",
+            (entry_id,),
+        ).fetchone()
+
+    return _desempaquetar(fila) if fila is not None else None
+
+
 def _desempaquetar(fila: sqlite3.Row) -> dict[str, Any]:
     """Convierte una fila en un diccionario corriente, con el payload ya parseado.
 
@@ -458,7 +484,7 @@ async def query(
     el total de lo filtrado, no el de la tabla.
 
     `verdict` y `status` responden preguntas distintas y por eso son dos y no
-    uno: el veredicto es **qué concluyó el análisis** (`enganoso`, `factual`…) y
+    uno: el veredicto es **qué concluyó el análisis** (`deceptive`, `factual`…) y
     es el que le interesa a quien mira sus análisis; el estado es **si funcionó
     la maquinaria**, y es operativo. Meterlos en un solo parámetro «estado» era
     lo que hacía que el criterio no encajara.
@@ -466,3 +492,21 @@ async def query(
     return await asyncio.to_thread(
         _leer, limit, offset, kind, tool, verdict, status, since, until
     )
+
+
+async def get(entry_id: int) -> dict[str, Any] | None:
+    """Devuelve UNA entrada por su id, o ``None`` si no existe.
+
+    Es la puerta que le faltaba al historial. La mitad difícil estaba hecha desde
+    #102 —lo que se guarda es la respuesta COMPLETA, no un resumen— pero sólo se
+    podía pedir una página con filtros, así que un análisis concreto no había
+    forma de recuperarlo aunque estuviera entero en disco.
+
+    **Devuelve ``None`` en vez de lanzar** porque «no existe» no es un error de
+    este módulo: es una respuesta legítima a una pregunta legítima, y quien
+    pregunta puede tener razones para esperarla. Convertirlo en 404 es trabajo de
+    la capa HTTP, que es la única que sabe qué es un 404 — el mismo reparto que
+    mantiene a este fichero utilizable desde la fachada MCP, que no tiene códigos
+    de estado.
+    """
+    return await asyncio.to_thread(_leer_una, entry_id)

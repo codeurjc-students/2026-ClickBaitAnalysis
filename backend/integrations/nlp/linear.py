@@ -20,7 +20,7 @@ def featurize_cues(headline) -> list[int]:  # -> vector
 
     categories_list = []
     cue_list = []
-    for match in result.data["matches"]:
+    for match in result.unwrap()["matches"]:
         if match["category"] in lexical.PATTERNS:
             categories_list.append(match["category"])
         else:

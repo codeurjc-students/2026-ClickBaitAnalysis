@@ -1,52 +1,442 @@
-# Arquitectura (estado actual — MVP)
+# Arquitectura
 
-> Documento vivo. Refleja el estado del sistema al **cerrar el MVP** (Fase A del plan). Diagramas en Mermaid (se renderizan en GitHub). Para los requisitos ver [`requisitos.md`](requisitos.md).
+> **Documento vivo.** Refleja el estado tras cerrar **H2** (API REST completa) y
+> la primera pantalla de H3. Para los requisitos, ver [`requisitos.md`](requisitos.md);
+> para dónde vive cada cosa y con qué criterio, [`estructura.md`](estructura.md).
+>
+> **Formato.** Los diagramas de flujo van en **Mermaid**: GitHub los renderiza,
+> viven junto al texto y se revisan en el diff de una pull request. Los dos SVG
+> de **draw.io** son el UML de la Fase A y se conservan como material de la
+> memoria. El criterio para elegir: si un diagrama necesita control fino de la
+> disposición, o va en draw.io, o está diciendo dos cosas y hay que partirlo.
+>
+> Dos trampas al escribir Mermaid, encontradas al hacer estos diagramas:
+> **`#` inicia un código de entidad** y se traga lo que venga detrás (escribir
+> «issue 133», no «#133»), y **`;` termina la sentencia**, así que parte una
+> etiqueta en dos y deja el diagrama sin renderizar.
 
 ## Visión general
 
-El sistema es un **servidor MCP** (FastMCP, transporte *stdio*) que expone *tools* a un cliente MCP (un LLM, p.ej. Claude Desktop). Las tools consumen APIs públicas (meteorología, noticias) y aplican análisis NLP (clickbait, sentimiento) vía HuggingFace.
+El sistema es **un núcleo servido por dos fachadas**.
 
-Capas (de fuera hacia dentro):
+El **núcleo** —`analysis/`, `integrations/`, `core/`— sabe qué es el clickbait y
+cómo se analiza un titular, y no sabe quién lo llama. Encima hay dos formas de
+consumirlo:
 
-- **`main.py`** — arranca `FastMCP`, configura logging y **registra** todas las tools.
-- **Tools** (`integrations/*/tool.py`, `core/health.py`) — capa fina que declara la herramienta MCP (`@mcp.tool()` + `@log_tool_invocation`) y delega en el cliente.
-- **Clients** (`integrations/*/client.py`) — la lógica de cada API; todos heredan de `BaseAPI`.
-- **`BaseAPI`** (`core/base_api.py`) — el corazón compartido: *rate-limit*, reintentos, cuota, autenticación y el log `api.call`.
-- **Transversal** — `config/settings` (configuración con `pydantic-settings`), `core/models` (`ToolResult`), `core/logging` (`structlog`), `core/observability` (decorador `log_tool_invocation`).
+- **El servidor MCP** (`backend/main.py`, FastMCP), que expone las herramientas a
+  un cliente MCP: hoy Claude Desktop, mañana el agente de R13. El transporte es
+  configurable (`stdio` o `streamable-http`).
+- **La API REST** (`backend/api/`, FastAPI), que sirve a la SPA de Angular.
 
-## Diagrama de componentes
+No es una encima de la otra: son **dos fachadas sobre el mismo núcleo**. Esa
+decisión explica la asimetría del primer diagrama, que es lo que más se malinterpreta.
+
+## 1 · Las dos fachadas: qué cruza la frontera MCP
+
+```mermaid
+flowchart LR
+    subgraph directo["Importan el núcleo"]
+        AN["POST /analyze"]
+        HE["GET /health"]
+    end
+    subgraph protocolo["Pasan por el protocolo MCP"]
+        TO["GET /tools"]
+        EX["POST /tools/.../execute"]
+    end
+
+    MCP["Servidor MCP<br/>backend/main.py"]
+    NUC["Núcleo<br/>analysis · integrations · core"]
+    EXT["APIs externas<br/>NYT · Guardian · HuggingFace"]
+
+    directo --> NUC
+    protocolo --> MCP
+    MCP --> NUC
+    NUC --> EXT
+```
+
+**`/analyze` y `/health` importan el núcleo.** Dar el rodeo por el protocolo
+significaría serializar a JSON, volver a parsear y acabar **en la misma
+función**. `/health` reutiliza el mismo `check_health` que la tool MCP, así que
+las dos no pueden divergir.
+
+**`/tools` y `/execute` sí necesitan el protocolo**, y no por elegancia: enumerar
+las herramientas conectadas en tiempo de ejecución no se puede hacer importando
+módulos. Es lo que exige R5.8.
+
+La consecuencia a tener presente en H4: si algún día el NLP se separa en su
+propio contenedor, `/analyze` deja de poder importar y hay que reescribirlo sobre
+MCP. Es el único cambio de lógica base que ya sabemos que existe.
+
+## 2 · Quién toca el historial
+
+```mermaid
+flowchart LR
+    AN["POST /analyze"] -->|"escribe: un análisis"| DB[("SQLite<br/>var/history.db")]
+    EX["POST /tools/.../execute"] -->|"escribe: una herramienta"| DB
+    HI["GET /history"] -->|"lee, filtra y pagina"| DB
+```
+
+Se guardan **análisis, no invocaciones**: un `POST /analyze` es UNA entrada, no
+cinco. La traza de invocaciones ya vive en los logs.
+
+## 3 · Secuencia de `POST /analyze`
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant SPA as SPA
+    participant API as FastAPI
+    participant ORQ as orchestrator.analyze
+    participant S as Señales
+    participant H as Historial
+
+    SPA->>API: POST /analyze (headline, content?)
+    API->>ORQ: analyze(request)
+    ORQ->>ORQ: aparta las que necesitan cuerpo si no hay
+    ORQ->>S: gather(..., return_exceptions=True)
+    S-->>ORQ: resultados Y excepciones, en orden de entrada
+    ORQ->>ORQ: agrupa por dimensión · el engaño manda sobre la forma
+    ORQ-->>API: AnalyzeResponse
+    API->>H: record(payload completo)
+    H-->>API: id — que hoy se descarta (issue 133)
+    API-->>SPA: 200 aunque alguna señal falle
+```
+
+**`return_exceptions=True` es lo que aísla los fallos.** En vez de propagar la
+primera excepción, `gather` la devuelve dentro de la lista, en la posición que le
+toca; ahí se traduce a una señal en estado `error` y la respuesta sigue siendo un
+200 con lo que sí se pudo calcular. Perder tres análisis correctos porque el
+cuarto dio timeout sería el error de verdad.
+
+**El orden se conserva.** `gather` devuelve en orden de entrada, no de
+finalización, así que la interfaz pinta las tarjetas siempre igual.
+
+**El veredicto no sale de contar señales**, sino de agrupar por dimensión y
+aplicar una jerarquía explícita donde el engaño pesa más que la forma. Un titular
+sobrio cuyo cuerpo no cumple lo prometido tiene tres señales diciendo «no» y una
+diciendo «sí», y la correcta es la cuarta.
+
+## 4 · Secuencia de `POST /tools/.../execute`
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant C as Cliente
+    participant API as FastAPI
+    participant TR as api/execute · traduce
+    participant EX as core/mcp/tools · mecanismo
+    participant M as Servidor MCP
+
+    C->>API: POST a la ruta de ejecución
+    API->>TR: execute_tool(nombre, argumentos)
+    TR->>EX: execute_tool(nombre, argumentos, servers, timeout)
+
+    loop por cada servidor de mcp_servers
+        EX->>M: handshake y list_tools
+        alt no tiene la herramienta
+            M-->>EX: no está, pasa al siguiente
+        else la tiene
+            EX->>EX: valida los argumentos contra su inputSchema
+            EX->>M: call_tool(nombre, argumentos)
+            M-->>EX: CallToolResult
+        end
+    end
+
+    Note over EX,M: todo va dentro de un asyncio.timeout<br/>que acota la operación ENTERA, no sólo call_tool
+
+    EX-->>TR: Invocation, o ToolNotFound / InvalidArguments / ToolTimeout
+    TR-->>API: ExecuteResponse con status ok o error
+    API-->>C: 200, o 404 / 422 / 504 según la excepción
+```
+
+**El mecanismo y su traducción están separados** desde la issue 137. `core/mcp/tools.py`
+localiza, valida e invoca sin saber que existe HTTP; `api/execute.py` convierte lo
+que devuelve en un código de estado. El motivo no es estética: el agente de R13
+necesita ese mecanismo y no puede importar de una fachada sin que falle
+`tests/test_arquitectura.py`.
+
+Esa frontera explica la última pareja de flechas. Lo que sube del mecanismo son
+**excepciones o un resultado**, no códigos: una excepción interrumpe, un
+resultado fallido es una respuesta. Por eso el 200 con `status: error` viaja
+dentro de `Invocation` y los otros tres no.
+
+**La validación ocurre antes de invocar** (R4.5). Si se dejara a MCP, un argumento
+mal escrito llegaría como fallo de ejecución y sería indistinguible de un análisis
+que salió mal; validando aquí, la API responde 422 diciendo qué campo falla.
+
+**Cuatro salidas, cuatro significados distintos.** El 200 con `status: error`
+dice «la herramienta se ejecutó y falló»: la petición era correcta. El 504 es su
+propia categoría porque **la herramienta pudo terminar bien al otro lado** — lo
+que falló es la espera, y decir «el análisis falló» sería mentir.
+
+**Hay dos timeouts y hacen falta los dos.** El de `httpx` mide inactividad entre
+bytes; el `asyncio.timeout` acota la duración. Hasta el arreglo de la issue 113,
+sólo estaba el primero y una herramienta lenta **no fallaba, se colgaba**.
+
+## 5 · El historial: escritura y lectura
+
+```mermaid
+flowchart TD
+    subgraph W["Escritura — record()"]
+        W1["INSERT en history"] --> W2["poda por cantidad"] --> W3["poda por antigüedad"] --> W4["un solo commit, un solo fsync"]
+    end
+
+    subgraph R["Lectura — query()"]
+        R1["arma el WHERE con los filtros"] --> R2["COUNT con el MISMO WHERE"] --> R3["SELECT columnas nombradas<br/>ORDER BY id DESC, LIMIT y OFFSET"] --> R4["deserializa el payload"]
+    end
+```
+
+**La poda va dentro de la transacción del `INSERT`**, y eso es lo que la hace
+prácticamente gratis: una escritura ya paga un `fsync`, y las dos sentencias de
+poda viajan en ese mismo commit. Se descartaron las alternativas: podar de forma
+programada exige un proceso vivo, y podar al leer convierte una consulta en una
+operación destructiva.
+
+**El `COUNT` lleva el mismo `WHERE` que la consulta.** Con filtros aplicados, el
+total tiene que ser el de lo filtrado, o la interfaz pintaría «1-3 de 500» sobre
+una lista de tres.
+
+**Las columnas se nombran en vez de usar `SELECT *`.** No es repetición inútil:
+como la capa de arriba construye el modelo con `HistoryEntry(**fila)`, con el
+asterisco sería la forma de la tabla la que decidiría la del contrato — y
+renombrar una columna dejaría su campo a `None` sin un solo error.
+
+## 6 · El dominio del análisis
+
+```mermaid
+classDiagram
+    direction LR
+
+    class AnalyzeResponse {
+        +headline: str
+        +content: str
+        +signals: SignalResult
+        +dimensions: DimensionVerdict
+        +verdict: OverallVerdict
+    }
+
+    class SignalResult {
+        +name: str
+        +status: SignalStatus
+        +dimension: Dimension
+        +type: SignalType
+        +is_clickbait: bool
+        +data: dict
+        +detail: str
+    }
+
+    class DimensionVerdict {
+        +dimension: Dimension
+        +is_clickbait: bool
+        +contributing: str
+    }
+
+    class FichaModelo {
+        +signal: str
+        +model_id: str
+        +name: str
+        +type: str
+        +dimension: str
+        +limitations: str
+    }
+
+    AnalyzeResponse "1" *-- "5" SignalResult
+    AnalyzeResponse "1" *-- "0..3" DimensionVerdict
+    SignalResult ..> FichaModelo : dimension y type se leen de la ficha
+
+    note for SignalResult "data es un diccionario LIBRE. Ningun tipo lo vigila, y de ahi salen los tres huecos de la issue 133."
+    note for DimensionVerdict "is_clickbait nulo significa DISCREPANCIA entre senales. Es el resultado, no un hueco."
+```
+
+**Las señales son una lista de objetos con la misma forma**, no un objeto con un
+campo por señal. Así la interfaz itera y pinta tarjetas sin conocerlas de
+antemano: añadir una quinta señal no obliga a tocar Angular.
+
+**El estado va por señal, no global.** Un único `status` cubre dos situaciones que
+desde la respuesta son la misma —esa señal no tiene resultado pero las demás sí—:
+que falten datos de entrada (`no_aplicable`) y que la ejecución falle (`error`).
+
+**`is_clickbait` nulo en una dimensión es el resultado**, no un hueco: significa
+que dos señales fiables no coincidieron. No se promedia ni se resuelve por mayoría.
+
+**`data` no tiene tipo, y es deliberado**: es el JSON crudo de la herramienta, sin
+aplanar, porque es lo que alimenta las tarjetas de explicabilidad. El precio lo
+paga quien lo consume, que tiene que declarar por su cuenta qué espera — y de ahí
+salieron los tres huecos de contrato de la issue 133.
+
+## 7 · Capas y dirección de dependencias
+
+```mermaid
+flowchart TD
+    FACH["Fachadas<br/>api/ · main.py<br/>saben que sirven a alguien"]
+    ANA["analysis/<br/>domain · orchestrator<br/>qué es el clickbait"]
+    INT["integrations/<br/>nlp · nyt · guardian · weather"]
+    CORE["core/<br/>BaseAPI · ToolResult · mcp · logging"]
+    CONF["config/<br/>settings"]
+
+    FACH --> ANA --> INT --> CORE --> CONF
+```
+
+Las flechas son la **dirección permitida**, no cada import concreto. La regla que
+sostiene el diseño es la inversa, y no se dibuja porque no existe:
+
+- **Ninguna capa del núcleo importa de las fachadas.** Verificado sobre **todo
+  `backend/` salvo `api/` y `main.py`**: 52 módulos, cero coincidencias de
+  `backend.api`. La lista se invirtió en la issue 137 —antes enumeraba
+  `analysis`, `integrations` y `core`—, porque enumerar deja fuera en silencio a
+  cualquier paquete nuevo, y `backend/agent/` llega con R13 siendo justo el caso
+  donde reutilizar `api/` tienta.
+- **Los detectores no conocen la configuración.** `lexical`, `linear`,
+  `incoherence` y `dedicated` no importan `settings`; sólo lo hacen `client.py`,
+  que necesita el token, y `factory.py`, cuyo trabajo es leer configuración. Eso
+  es lo que permite probarlos sin montar nada, y lo que hay que preservar al
+  parametrizar sus umbrales.
+
+**Las dos las sostiene [`tests/test_arquitectura.py`](../tests/test_arquitectura.py).**
+Parsea el árbol de cada módulo —no hace `grep`, así que un import comentado no lo
+hace fallar— y recorre también los imports dentro de funciones, que es por donde
+se esquivaría la regla sin querer. Al fallar nombra el fichero y el import
+culpables.
+
+Se comprobó **rompiendo las dos reglas a propósito** y verificando que fallan: un
+test de arquitectura que pasa, pero que nadie ha visto fallar, no demuestra nada.
+
+**Las dos reglas listan excepciones, no incluidos**, y por el mismo motivo: lo
+nuevo queda cubierto sin tocar nada, y sacarlo obliga a editar la lista a mano —
+que es la decisión consciente que se quiere forzar. Vale para meter `settings` en
+un módulo de la capa NLP al parametrizar los umbrales (issue 93), y para añadir
+un paquete que no debería hablar con las fachadas.
+
+La primera lleva además un `assert modulos` delante del recorrido: si la
+travesía del árbol se rompiera, la prueba se convertiría en un `assert not []`
+que pasa siempre.
+
+## 8 · El frontend: de dónde salen sus tipos
+
+Es la única cadena del sistema que **cruza dos lenguajes y un paso de
+compilación**, así que no se ve entera en ningún fichero.
+
+```mermaid
+flowchart LR
+    subgraph py["Backend · Python"]
+        SCH["schemas.py<br/>(Pydantic)"] --> OA["/openapi.json"]
+    end
+
+    OA -->|"npm run gen:api"| SD["schema.d.ts<br/>generado y COMMITEADO"]
+
+    subgraph ts["Frontend · TypeScript"]
+        SD --> MOD["models.ts"]
+        MOD -->|"de paths: lo que cruza la red"| SRV["servicios<br/>analyze · tools · history"]
+        MOD -->|"de components: las piezas"| PZ["piezas<br/>SignalResult · ToolInfo"]
+        SRV --> PAN["pantallas"]
+        PZ --> PAN
+        PAN --> GU["guardianes<br/>datos · formas · campos"]
+    end
+```
+
+Cuatro cosas que el dibujo hace visibles:
+
+- **`schema.d.ts` se genera y se commitea.** Podría regenerarse al construir,
+  pero entonces un cambio de contrato no aparecería en ningún diff. Commiteado,
+  la PR que cambia el backend enseña qué tipos cambian en el frontend.
+- **El CI lo regenera y falla si difiere.** Es lo único que impide que el
+  frontend compile contra un contrato viejo, y saltó de verdad al cambiar
+  `ToolModelCard` en #128.
+- **La bifurcación de `models.ts` no es de estilo.** Lo que cruza la red se toma
+  de `paths`, porque `http.post<T>()` no comprueba nada: es una afirmación, y
+  eligiendo `T` a mano de `components` la afirmación deja de estar atada a la
+  ruta. Pasó en #133 —el backend empezó a devolver un sobre y el frontend siguió
+  compilando— y por eso la regla es dura. Las piezas de dentro sí vienen de
+  `components`: son formas con nombre propio que se pasan a un componente.
+- **Los guardianes son la frontera de lo no tipado.** El `data` de una señal, el
+  `payload` del historial y el `input_schema` de una herramienta son
+  diccionarios libres en el contrato **a propósito**, para que quepa lo que aún
+  no existe. Cada uno pasa por una función que comprueba y devuelve `null` si no
+  encaja, y lo que no encaja **se enseña en crudo** en vez de desaparecer.
+
+## 9 · Volver a un análisis guardado
+
+`/analizar` y `/analisis/:id` son **la misma pantalla**. Lo único distinto es de
+dónde sale el resultado, y eso lo dejó preparado #127 al hacer que el bloque de
+resultados recibiera el análisis como estado en vez de calcularlo.
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant HI as Historial
+    participant RO as Router
+    participant PA as AnalisisPage
+    participant API as Backend_API
+    participant GU as comoAnalisis
+
+    HI->>RO: /analisis/29
+    RO->>PA: id como input()
+    PA->>API: GET /history/29
+    API-->>PA: HistoryEntry con su payload
+    PA->>GU: comoAnalisis(payload)
+
+    alt tiene forma de analisis
+        GU-->>PA: AnalisisGuardado
+        PA->>PA: pinta la MISMA vista
+    else no la tiene
+        GU-->>PA: null
+        PA->>PA: lo dice, y el crudo queda en el historial
+    end
+```
+
+Tres decisiones que el diagrama no puede enseñar solo:
+
+- **El id llega como `input()`**, enlazado por `withComponentInputBinding()`. La
+  carga va en un `effect` y no en el constructor porque ir de `/analisis/28` a
+  `/analisis/29` **reutiliza el componente**: un `snapshot` leído al construir no
+  se enteraría del cambio.
+- **`comoAnalisis` devuelve tipos más anchos que el contrato**, y es deliberado.
+  `required` describe lo que el backend produce HOY; el historial guarda lo de
+  ayer. Hay filas sin `label` —anterior a #133— y con el veredicto en castellano
+  —anterior a #134—. `AnalyzeResponse` es asignable a `AnalisisGuardado` y al
+  revés no: esa asimetría es la que permite una sola vista para los dos orígenes.
+- **El 404 de `GET /history/{id}` es normal, no excepcional.** La retención poda
+  entradas, así que un enlace guardado deja de existir por funcionamiento
+  corriente; por eso el código está declarado en el contrato desde #129 y la
+  pantalla lo explica con esas palabras en vez de decir «no se pudo cargar».
+
+## Los diagramas de la Fase A
+
+Se conservan como estaban. Describen **el servidor MCP**, que sigue siendo cierto
+como componente aunque ya no sea el sistema entero.
 
 ![Diagrama de componentes del MCP Server](img/componentes.svg)
 
-- **Capas:** `Cliente MCP → MCP Server (stdio) → Tools → Clients`. Cada `tool` delega en su `client`; todos los clients **heredan `BaseAPI`** (donde viven rate-limit, retry, cuota, auth y el log `api.call`).
-- **`health_check`** es un caso aparte: no pasa por `BaseAPI` — hace *probes* directos con su propio `httpx` a weather/guardian/nyt y agrega `ok` / `degraded` / `down`.
-- **Transversal:** `pydantic-settings` (config), `ToolResult` (modelo de retorno) y `structlog` (logging) sostienen a `BaseAPI` y a las capas.
-- Solo **APIS EXTERNAS** queda fuera de la frontera del server.
-- El patrón **`tool.py` (registro) + `client.py` (lógica)** se repite idéntico en las 4 integraciones → estructura predecible.
-
-## Diagrama de secuencia — flujo estrella
-
-"Dame titulares del NYT sobre `<tema>`" (el primer paso del caso de uso clickbait). Los demás flujos de noticias/NLP siguen la misma forma `Tool → Client → BaseAPI → API`.
+- **Capas:** `Cliente MCP → MCP Server → Tools → Clients`. Cada `tool` delega en
+  su `client`; todos heredan de `BaseAPI`, donde viven rate-limit, reintentos,
+  cuota, autenticación y el log `api.call`.
+- **`health_check`** es un caso aparte: no pasa por `BaseAPI`, hace sondeos
+  directos con su propio `httpx` y agrega `ok` / `degraded` / `down`.
+- El patrón **`tool.py` (registro) + `client.py` (lógica)** se repite idéntico en
+  las integraciones, así que la estructura es predecible.
+- **El rótulo «MCP Server (STDIO)» ya no describe el despliegue**: el transporte es configurable desde #90 y hoy se sirve por `streamable-http`. El diagrama se conserva porque lo demás sigue siendo cierto, y mover un dibujo congelado por una etiqueta costaría más de lo que aclara — pero conviene leerlo con esta nota delante.
 
 ![Diagrama de secuencia del flujo get_nyt_news](img/secuencia.svg)
 
-- **Dentro de `BaseAPI.make_request`** (el diagrama lo resume en la nota): además de `_apply_auth`, aplica **rate-limit** (`async with limiter`, R2.4) y, tras la respuesta, calcula la **cuota** (`_read_quota`, R2.7) y emite el log `api.call` con `call_count` / `remaining_quota` (R2.6).
+- Dentro de `BaseAPI.make_request`: rate-limit (R2.4), cálculo de cuota (R2.7) y
+  el log `api.call` con `call_count` y `remaining_quota` (R2.6).
+- El bucle reintenta sólo ante `TimeoutException` o `503`, y sólo si el cliente
+  declara reintentos (HuggingFace 3; NYT y Guardian 0).
 
-- **Reintento (E4-02):** el bucle de `make_request` reintenta solo ante `TimeoutException`/`503` y solo si `MAX_RETRIES > 0` (HF = 3; NYT/Guardian = 0, no reintentan).
-- **Encadenado:** para "¿cuáles son clickbait?", el LLM toma esos titulares y llama a `detect_clickbait`, que sigue el mismo camino contra el `HFClient` (zero-shot `facebook/bart-large-mnli`).
+## Estado de los requisitos
 
-## Cierre del MVP
-
-El MVP cubre el **núcleo del detector de clickbait sobre titulares** vía MCP, con dos fuentes de noticias reputadas + NLP. Estado de los requisitos ([`requisitos.md`](requisitos.md)):
-
-| Requisito | Estado en el MVP |
+| Requisito | Estado |
 | :--- | :--- |
-| **R1** Infraestructura MCP | ✅ completo |
-| **R2** Tools de APIs públicas | ✅ para weather/guardian/nyt, con validación (R2.5), rate-limit (R2.4), tracking (R2.6) y cuota (R2.7, observabilidad) |
-| **R3** NLP (clickbait + sentimiento) | ◑ parcial: sentimiento ✅, clickbait *zero-shot* ✅, **solo inglés** (R3.4 relajado); clickbait por **incoherencia** (R3.7) pendiente |
-| **R10** Errores y logging | ✅ logging estructurado + invocaciones + health check |
+| **R1** Infraestructura MCP | ✅ transporte configurable y registro automático de integraciones |
+| **R2** Tools de APIs públicas | ✅ con validación, rate-limit, tracking y cuota |
+| **R3** NLP y explicabilidad | ◑ cinco señales contrastadas, incoherencia (R3.7) y fichas de modelo (R3.9) ✅; **sólo inglés**, y R3.9 a medias — los modelos no son intercambiables por configuración (issue 119) |
+| **R4** API REST | ✅ análisis, catálogo, ejecución, historial, CORS y OpenAPI |
+| **R5** Catálogo y transparencia | ✅ catálogo por handshake MCP, con procedencia y ficha de modelo |
+| **R6** Interfaz web | ◑ las tres pantallas del camino determinista ✅ (127–130): análisis, catálogo e historial, con errores entendibles (R6.7), escritorio y tabletas (R6.8) y sin controles que no funcionen (R6.14). Pendiente lo que depende del asistente: R6.10, R6.12 y R6.13 llegan con R13 |
+| **R7** Docker | ⬜ H4 |
+| **R8** CI/CD | ◑ integración continua ✅ (Python y frontend); despliegue continuo ⬜ |
+| **R9** Persistencia e historial | ✅ SQLite con filtros y retención configurable |
+| **R10** Errores y logging | ✅ logging estructurado, invocaciones y health check |
 | **R11** Configuración | ✅ `pydantic-settings`, *fail-fast*, sin secretos en logs |
-| **R12** Seguridad/validación | ◑ parcial: validación de entrada (pydantic `Field`), validación de API keys al arranque |
-| **R4–R9** REST/catálogo/web/Docker/CI-CD/persistencia | ⬜ Fase B |
-
-**Frontera del MVP:** servidor MCP funcional consumible por un LLM. Lo que queda (API REST con FastAPI, catálogo de tools, web Angular, Docker, persistencia de historial) constituye la **Fase B** del plan.
+| **R12** Seguridad y validación | ◑ validación de entrada y de API keys al arranque; falta sanear el texto de excepción que se expone (issue 89) |
+| **R13** Agente conversacional | ⬜ *tool calling* validado en el spike 82; sin construir |

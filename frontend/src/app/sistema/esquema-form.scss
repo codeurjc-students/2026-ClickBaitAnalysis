@@ -1,0 +1,108 @@
+/* Estilos propios y no heredados de la pantalla: con encapsulación de vistas,
+   lo que se escribe en `sistema-page.scss` NO entra en la plantilla de este
+   componente. */
+
+form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  margin-top: 0.75rem;
+}
+
+.campo {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+label {
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+input[type='text'],
+input[type='number'] {
+  padding: 0.5rem 0.6rem;
+  border: 1px solid var(--borde);
+  border-radius: 6px;
+  font: inherit;
+}
+
+input[type='checkbox'] {
+  align-self: flex-start;
+  width: 1.1rem;
+  height: 1.1rem;
+}
+
+input:focus-visible,
+button:focus-visible {
+  outline: 2px solid var(--acento);
+  outline-offset: 2px;
+}
+
+input[aria-invalid='true'] {
+  border-color: var(--error);
+}
+
+.ayuda {
+  margin: 0;
+  color: var(--texto-suave);
+  font-size: 0.85rem;
+}
+
+.error-campo {
+  margin: 0;
+  color: var(--error);
+  font-size: 0.85rem;
+}
+
+/* Lo que no se sabe pintar se marca, no se disimula. */
+.campo--desconocido {
+  padding: 0.6rem 0.75rem;
+  border: 1px dashed var(--aviso);
+  border-radius: 6px;
+  background: var(--aviso-fondo);
+}
+
+.campo__nombre {
+  margin: 0;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-weight: 600;
+}
+
+.crudo {
+  margin: 0.5rem 0 0;
+  padding: 0.5rem;
+  overflow-x: auto;
+  border-radius: 6px;
+  background: var(--fondo-suave);
+  font-size: 0.8rem;
+}
+
+.aviso {
+  margin: 0;
+  padding: 0.5rem 0.75rem;
+  border-radius: 6px;
+  background: var(--aviso-fondo);
+  color: var(--aviso);
+  font-size: 0.85rem;
+}
+
+button[type='submit'] {
+  align-self: flex-start;
+  margin-top: 0.5rem;
+  padding: 0.5rem 1.1rem;
+  border: 1px solid var(--acento);
+  border-radius: 6px;
+  background: var(--acento);
+  color: #fff;
+  font: inherit;
+  cursor: pointer;
+}
+
+button[type='submit']:disabled {
+  border-color: var(--borde);
+  background: var(--borde);
+  color: var(--texto-suave);
+  cursor: not-allowed;
+}

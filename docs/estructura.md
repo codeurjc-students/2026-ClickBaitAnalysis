@@ -23,6 +23,38 @@ declara tres cosas:
 
 ---
 
+## `backend/analysis/`
+
+**Contiene** — la lógica del dominio del clickbait: el vocabulario del análisis y
+la orquestación que contrasta las señales.
+
+**Criterio** — *si borraras la API REST y el servidor MCP y dejaras sólo una
+función de Python que analiza titulares, ¿esto seguiría haciendo falta?* Si la
+respuesta es **sí**, va aquí.
+
+**No va aquí aunque lo parezca** — nada que describa **cómo se sirve** el
+análisis: servidores, herramientas del catálogo, peticiones o historial. Eso es
+sistema y vive en `api/schemas.py`.
+
+**La regla que lo mantiene honesto**: `api/` puede importar de aquí, **nunca al
+revés**. El dominio no sabe que lo están sirviendo, y por eso puede servirse
+también por MCP. El día que este paquete necesite importar de `api/`, algo está
+mal colocado — es una alarma, no una opinión.
+
+| Fichero | Qué hace |
+|---|---|
+| `domain.py` | El vocabulario: `Dimension`, `SignalType`, `SignalStatus`, `SignalResult`, `DimensionVerdict`, `OverallVerdict`, `AnalyzeRequest/Response` |
+| `orchestrator.py` | Lanza las señales en paralelo, las agrupa por dimensión y deriva el veredicto con jerarquía explícita |
+| `tool.py` | Registra `analyze_headline` como herramienta MCP. Vive aquí y no en `integrations/nlp/tool.py` porque allí sería un ciclo |
+
+Nació al comprobar que la orquestación estaba en `backend/api/analyze.py`, donde
+no le correspondía —estaba ahí porque era donde hizo falta primero—. La
+consecuencia no era estética: el servidor MCP no exponía nada que contrastara
+señales, así que **el agente conversacional no podía reproducir el veredicto del
+formulario**. Ninguna carpeta existente lo admitía, y sus propios criterios lo
+decían: `api/` sí existiría sin HTTP, `core/` no puede saber de clickbait,
+`integrations/` no envuelve nada. Los criterios pidieron un paquete nuevo.
+
 ## `backend/api/`
 
 **Contiene** — la aplicación FastAPI: rutas, contrato y las piezas que sólo
@@ -39,11 +71,21 @@ de historia, no una propiedad suya.
 |---|---|
 | `app.py` | La aplicación y sus cinco rutas. Segundo punto de entrada del backend, hermano de `main.py` y no capa sobre él |
 | `schemas.py` | El contrato: lo que entra y sale por HTTP, y los enums que lo acompañan |
-| `catalog.py` | Construye el catálogo agregando el `list_tools` de cada servidor MCP — `GET /tools` |
-| `execute.py` | Valida los argumentos contra el `inputSchema` e invoca — `POST /tools/{name}/execute` |
-| `mcp_session.py` | Abre sesiones MCP. Es donde la API actúa como **cliente**, no como servidor |
-| `analyze.py` | Orquestación de `POST /analyze` — ⚠️ [tensión 1](#1--la-orquestación-del-análisis-en-api) |
+| `catalog.py` | **Traduce** el descubrimiento al contrato del catálogo — `GET /tools` |
+| `execute.py` | **Traduce** una invocación a su código de estado — `POST /tools/{name}/execute` |
 | `history.py` | Almacén del historial sobre SQLite — ⚠️ [tensión 2](#2--el-almacén-del-historial-en-api) |
+
+Desde #137 `catalog.py` y `execute.py` son **traductores**: descubrir e invocar
+viven en `core/mcp/`, porque el agente de R13 necesita ese mecanismo y no puede
+importar de una fachada. Lo que queda aquí es lo que sólo tiene sentido por HTTP
+—los cuatro finales de `/execute` y sus códigos, el `ServerStatus` del
+catálogo— más la ficha de modelo de cada señal, que es lo único de esto que
+conoce el dominio.
+
+`/analyze` ya no orquesta nada: llama a `backend/analysis/orchestrator.py` y se
+limita a servir el resultado. `schemas.py` importa de allí los tipos del dominio
+que necesita —`Dimension` y `SignalType`, para `ToolModelCard`— en la única
+dirección permitida.
 
 ## `backend/core/`
 
@@ -63,6 +105,16 @@ mismo que genérico.
 | `logging.py` | `configure_logging()` — structlog, en consola o JSON |
 | `observability.py` | `log_tool_invocation`, el decorador que registra cada invocación con parámetros y duración |
 | `health.py` | `check_health()` y su registro como tool MCP — ⚠️ [tensión 4](#4--health-conoce-mcp-desde-core) |
+| `mcp/session.py` | Abre sesiones MCP. Es donde el sistema actúa como **cliente**, no como servidor |
+| `mcp/tools.py` | Descubre e invoca herramientas, devolviendo un resultado neutro |
+
+`mcp/` llegó aquí en #137 desde `api/`, y el criterio lo decide sin empate: no
+envuelve nada externo —los servidores MCP son nuestros— y lo usan dos capas, la
+API REST hoy y el agente de R13 mañana. Es el mismo razonamiento de la
+[tensión 3](#3--discovery-y-metadata-no-envuelven-nada), aplicado a un caso que
+sí tenía que moverse: allí `discovery` y `metadata` se quedan donde están porque
+nada rompe; aquí el agente no podía importar de una fachada sin que fallara
+`tests/test_arquitectura.py`.
 
 ## `backend/integrations/`
 
@@ -151,7 +203,41 @@ lógica: si algo se le añadiera, pertenece a otro sitio.
 | `data/` | **Versionado e inmutable**: datasets y splits congelados. Si algo cambia en ejecución, no va aquí |
 | `var/` | **Gitignored y mutable**: estado que cambia en cada petición. Es el directorio que se monta como volumen |
 | `docker/` | *(vacía)* — reservada para H4 |
-| `frontend/` | *(vacía)* — reservada para la SPA Angular |
+| `frontend/` | La SPA Angular. Sus criterios, abajo |
+
+---
+
+## `frontend/src/app/`
+
+**¿Habla con el backend?** → `api/`. **¿Lo usa una sola pantalla?** → su carpeta.
+
+| Carpeta | Criterio |
+|---|---|
+| `api/` | Lo que habla el contrato: el cliente generado (`schema.d.ts`), los alias con nombre corto (`models.ts`), **un servicio por familia de rutas** y lo que se lee del cuerpo de un error HTTP. No conoce el dominio: aquí no se decide qué es clickbait |
+| `analisis/` | Analizar un titular y ver el resultado —también uno guardado—, con lo que sólo esa vista usa: los guardianes del `data`, el resaltado del titular, la tarjeta de señal y el vocabulario |
+| `historial/` | La lista de lo anterior: filtros, paginación y el aviso de retención |
+| `sistema/` | Servidores, catálogo y fichas de modelo, más el lector de esquemas que genera el formulario de cada herramienta |
+
+**Tres reglas que no se ven mirando el árbol:**
+
+- **Lo que entra y sale de una RUTA se toma de `paths`, nunca de `components`**
+  (#133). `http.post<T>()` no comprueba nada, así que elegir `T` a mano deja el
+  tipo sin atar a la ruta. Las piezas de dentro —las que se pasan a un
+  componente— sí vienen de `components`, porque son formas con nombre propio.
+- **Se comprueba, no se castea.** Todo lo que llega sin tipo —el `data` de una
+  señal, el `payload` del historial, el `input_schema` de una herramienta— pasa
+  por un guardián que devuelve `null` si no encaja, y lo que no encaja **se
+  enseña en crudo** en vez de omitirse.
+- **El estado va en `signal()`.** El proyecto es *zoneless*: guardarlo en un
+  campo normal no da error, simplemente no repinta.
+
+### La dirección de las dependencias
+
+Una pantalla puede depender de `api/`; **ninguna debería depender de otra
+pantalla**. Es lo que decidió, en #129, dónde vive `comoAnalisis`: el guardián
+que lee un análisis del `payload` guardado nació en `historial/`, y desde allí
+obligaba a `senal-card` —que sólo dibuja— a importar tipos de la pantalla del
+historial para existir. Vive en `analisis/formas.ts`, junto a quien los pinta.
 
 ---
 
@@ -161,15 +247,25 @@ Piezas que **no cumplen el criterio de la carpeta donde están**. Se documentan,
 no se resuelven aquí: convertir este fichero en un refactor encubierto es cómo se
 queda a medias.
 
-### 1 · La orquestación del análisis, en `api/`
+### 1 · La orquestación del análisis, en `api/` — ✅ RESUELTA (#107)
 
-`backend/api/analyze.py` contrasta las señales, las agrupa por dimensión y deriva
-el veredicto. Eso **seguiría teniendo sentido en un sistema sólo-MCP**, así que
-incumple el criterio de `api/`.
+`backend/api/analyze.py` contrastaba las señales desde la capa REST, lo que
+**seguiría teniendo sentido en un sistema sólo-MCP** e incumplía el criterio de
+`api/`. La consecuencia no era estética: el servidor MCP no exponía ninguna
+herramienta que contrastara señales, así que el agente conversacional de R13 no
+podía reproducir el veredicto del formulario.
 
-No es un problema estético: la consecuencia es que el servidor MCP **no expone
-ninguna herramienta que contraste señales**, y por tanto el agente conversacional
-de R13 no puede reproducir el veredicto del formulario. Analizado en **#107**.
+Resuelta moviéndola a [`backend/analysis/`](#backendanalysis) y exponiéndola como
+la tool MCP `analyze_headline`. **Las dos fachadas comparten ahora la misma
+implementación**, y hay un test que lo fija:
+
+```python
+assert analysis_tool.analyze is orchestrator.analyze
+```
+
+Fue además la primera vez que los criterios de este documento se usaron para
+decidir en vez de para describir: las tres carpetas existentes rechazaron la
+pieza por su propio criterio, y eso es lo que pidió el paquete nuevo.
 
 ### 2 · El almacén del historial, en `api/`
 
@@ -189,15 +285,36 @@ que **descubre** y **describe** las integraciones. Cumplen el criterio de `core/
 A favor de dejarlos donde están: operan sobre ese paquete y viven a su lado. En
 contra: por esa regla, cualquier cosa que opere sobre algo debería vivir dentro.
 
-### 4 · `health` conoce MCP desde `core/`
+### 4 · `health` conoce MCP desde `core/` — ✅ con regla (#107)
 
 `backend/core/health.py` es infraestructura —sondea APIs externas, no sabe nada
 de clickbait— pero además **se registra como herramienta MCP**, así que conoce
-FastMCP desde el núcleo.
+FastMCP desde el núcleo. Parecía una excepción incómoda.
 
-O el criterio de `core/` admite explícitamente «puede exponerse como
-herramienta», o esto es una excepción que hay que declarar. Conviene decidirlo
-porque marca si `core/` puede o no depender de la capa de protocolo.
+Al resolver la tensión 1 apareció el mismo caso por segunda vez —
+`analysis/tool.py` también se registra desde fuera de `integrations/`, porque
+hacerlo desde `nlp/tool.py` sería un ciclo— y dos casos ya no son una excepción,
+son un patrón. Queda declarado así:
+
+> **`discover_and_register` encuentra las INTEGRACIONES. Lo que no es una
+> integración —la salud, el análisis— se registra explícitamente desde
+> `main.py`.**
+
+Con eso, un módulo puede exponerse como herramienta sin dejar de pertenecer a su
+capa: lo que importa es **quién decide registrarlo**, y esa decisión vive en el
+punto de entrada, no repartida por el árbol.
+
+### 5 · `vocabulario.ts` sirve a tres pantallas desde `analisis/`
+
+`nombreDeVeredicto` lo usa el historial y `nombreDeDimension` la de Sistema, así
+que **dos pantallas importan de una tercera** — justo lo que el criterio de
+arriba dice que no debería pasar. Son las traducciones del dominio a castellano,
+y no pertenecen a la pantalla de análisis más que a las otras.
+
+No se mueve todavía porque el destino natural —una carpeta compartida— tendría
+hoy **un solo fichero dentro**, y una carpeta de un elemento suele ser una
+decisión tomada antes de tiempo. El momento de moverlo es cuando aparezca el
+segundo, y ya se sabe cuál: el chat de R13 va a querer los mismos nombres.
 
 ---
 

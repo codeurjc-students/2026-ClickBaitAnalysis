@@ -1023,7 +1023,9 @@ uvicorn backend.api.app:app --reload
 | Arranque de proceso en frío | ~20 s |
 | Primerísima ejecución | ~60 s (descarga de `all-MiniLM-L6-v2`) |
 
-Los 20 s **no son una limitación, son una consecuencia**: `IncoherenceDetector` carga el modelo de forma perezosa, en la primera petición, en vez de al arrancar. Precalentarlo en el `lifespan` los trasladaría del primer usuario a uvicorn — decisión de H4, con el `healthcheck` del contenedor delante, porque un arranque de 20 s cambia el `start_period`.
+Los 20 s **no son una limitación, son una consecuencia**: `IncoherenceDetector` carga el modelo de forma perezosa, en la primera petición, en vez de al arrancar. Precalentarlo en el `lifespan` los traslada del primer usuario a uvicorn.
+
+> **Resuelto en #125**, adelantado desde H4 al arrancar H3: con la SPA por delante dejó de ser una optimización de despliegue. Y los 20 s medidos aquí se quedaron cortos — eran sólo el detector de incoherencia; con los tres modelos son ~102 s. Sigue en pie la nota sobre el `start_period` del `healthcheck`, que ahora tiene que cubrir ~75 s de arranque.
 
 **Y el sistema discrimina:**
 
@@ -1186,6 +1188,2947 @@ El mínimo de 1 no es cosmético: **en SQLite un `LIMIT` negativo significa «si
 Añadir el registro a `/analyze` convirtió, sin avisar, todos los tests de esa ruta en escritores del historial real: una corrida de la suite dejaba cuatro entradas «Un titular» en `var/history.db`. El aislamiento va en un fixture `autouse` de `tests/conftest.py` y no en el fichero que prueba el historial, porque **quien contamina no es quien lo prueba**: lo hace cualquier test que llame a un endpoint que registre, incluidos los que aún no existen.
 
 `tests/api/test_history.py` cubre los dos lados por separado —el almacén llamando a sus funciones, el endpoint por HTTP— porque responden preguntas distintas: si los datos sobreviven y salen en orden, y si la decisión de «una entrada por análisis» se sostiene de verdad.
+
+### R6.14 se escribe, y el frontend entra en los diagramas
+
+Sin issue, y conviene decir por qué: **salió de revisar los cuatro criterios de
+tageo** antes de la release `v0.4`, y son dos huecos de documentación que un
+issue propio sólo habría retrasado. El primero es además un fallo de coherencia
+que un tribunal ve antes que nadie.
+
+#### El README citaba un requisito que no existía
+
+`CLAUDE.md` recogía desde el 3 de septiembre una decisión: **R6.10 gana un matiz
+y aparece R6.14** —la interfaz no debe dejar controles que no funcionen—. Se
+aplicó en #128, donde el botón de ejecutar se bloquea si un parámetro
+obligatorio tiene un esquema que la pantalla no sabe representar, y se justificó
+**citando R6.14** en el README y en el cuerpo de la PR #148.
+
+Pero `docs/requisitos.md` tenía trece criterios en el Requisito 6. **R6.14 no
+existía.** La documentación afirmaba cumplir algo que el documento no contenía,
+y llevaba así desde el 6 de septiembre.
+
+Ahora está escrito:
+
+> **R6.14** · SI una capacidad no está disponible —el Agent_Orchestrator sin
+> configurar, o un parámetro de herramienta cuyo esquema LA Web_Interface no sabe
+> representar—, ENTONCES LA Web_Interface NO DEBERÁ ofrecer controles que no
+> puedan funcionar: DEBERÁ explicar por qué no está disponible en lugar de dejar
+> un botón cuyo único resultado posible es un error.
+
+Complementa a R6.7 y no lo repite: **aquel pide que el error se entienda; éste,
+no provocarlo.** Y R6.10 recibe su matiz —el formulario está siempre, el
+asistente cuando el orquestador esté configurado—, que no es una preferencia de
+diseño sino una consecuencia de la infraestructura: la máquina que corre el
+modelo se apaga cuando no se usa, así que el despliegue tiene que funcionar sin
+el agente.
+
+#### Los diagramas se paraban en el backend
+
+`docs/arquitectura.md` tenía siete secciones y las siete eran de servidor. De la
+SPA, nada — y H3 acababa de cerrarse. Se añaden dos.
+
+**La cadena del contrato** (sección 8) es la única del sistema que **cruza dos
+lenguajes y un paso de compilación**, así que no se ve entera en ningún fichero:
+`schemas.py` → `/openapi.json` → `openapi-typescript` → `schema.d.ts` →
+`models.ts` → servicios → pantallas → guardianes. Con ella se explican de un
+vistazo tres decisiones que hasta ahora sólo vivían en comentarios: por qué
+`schema.d.ts` se commitea aunque sea generado (para que un cambio de contrato
+aparezca en un diff), por qué el CI lo regenera y falla si difiere, y por qué
+`models.ts` se bifurca entre `paths` y `components`.
+
+**El camino de un análisis guardado** (sección 9) dibuja la decisión de #129:
+`/analizar` y `/analisis/:id` son la misma pantalla, y lo único distinto es de
+dónde sale el resultado. La secuencia enseña las dos salidas del guardián —encaja
+o no encaja— que en prosa se explican mal.
+
+Se escriben en **mermaid**, como los cuatro de #106: viven en el repositorio
+como texto, se difean y no exigen abrir una aplicación para corregir una flecha.
+Los dos SVG de draw.io son de Fase A y siguen congelados a propósito.
+
+#### Una etiqueta caducada, anotada y no corregida
+
+El diagrama de componentes de Fase A rotula **«MCP Server (STDIO)»**, y el
+transporte es configurable desde #90 — hoy se sirve por `streamable-http`. El
+dibujo se conserva porque todo lo demás sigue siendo cierto; lo que se añade es
+la nota que impide leerlo como vigente. Rehacer un diagrama congelado por una
+etiqueta costaría más de lo que aclara, y perderlo de vista costaría más aún.
+
+#### De paso, la tabla de estado de requisitos
+
+La fila de R6 decía «catálogo, historial y responsive pendientes (128, 129,
+130)». Las tres estaban cerradas. Ahora distingue lo que está hecho —las tres
+pantallas del camino determinista, con R6.7, R6.8 y R6.14— de lo que **no puede
+estarlo todavía**: R6.10, R6.12 y R6.13 dependen del asistente, y el asistente es
+R13.
+
+### Lo que la interfaz no contaba de sí misma (#130)
+
+Último de H3, y transversal por naturaleza: sólo se puede hacer cuando las
+pantallas existen. Pide dos cosas —R6.8, que funcione en escritorio y tabletas;
+R6.7, que los errores lleguen entendibles— y las dos empezaron por medir, porque
+el plan escrito antes de mirar decía algo que resultó ser falso.
+
+#### La predicción era mala, y por eso se mide
+
+El plan afirmaba, dos veces, que **la tabla del historial era lo que peor se
+llevaba con el ancho**. Medido a 768 y 1024 en las cuatro rutas, comprobando qué
+elemento sobresale del viewport:
+
+| Ruta | 768 px | 1024 px |
+|---|---|---|
+| `/analizar` | no desborda | no desborda |
+| `/historial` | no desborda · tabla **1.662 px** de alto | tabla **1.099 px** |
+| `/sistema` | no desborda | no desborda |
+| `/analisis/:id` | no desborda | pastillas en 3 filas |
+
+**Cero elementos desbordan, con cero `@media` en el proyecto.** Lo sostienen
+`flex-wrap` y un `grid` con `auto-fill`. El coste de estrecharse no es
+horizontal sino vertical: la tabla crece un 51 % porque todo envuelve.
+
+De haber empezado por el CSS se habría añadido un `overflow-x` que nadie
+necesita, y R6.8 se habría dado por resuelto sin haberlo comprobado.
+
+#### La señal caída no se veía caída
+
+El borde de color de una tarjeta lleva el **tipo** de señal —dónde está la
+transparencia: interpretable, híbrida, opaca—, y eso significaba que una opaca
+que había fallado se pintaba exactamente igual que una opaca que había
+funcionado. Medido sobre un análisis con `detect_clickbait` en `error`:
+
+| Señal | Estado | Borde |
+|---|---|---|
+| RoBERTa dedicado | **error** | `rgb(184,84,80)` |
+| RoBERTa afinado en tuits | no vota | `rgb(184,84,80)` |
+
+Lo único que las distinguía era leer la palabra «error». Es justo lo que el
+issue señala: `_run_signals` aísla los fallos con `return_exceptions=True` para
+que una señal caída no se lleve el análisis por delante, y **si la interfaz no
+lo refleja, ese trabajo no se ve**.
+
+Ahora una señal que no produjo resultado se **apaga**: borde y fondo grises. Dos
+decisiones dentro:
+
+- **El tipo no se pierde.** La insignia sigue diciendo `opaque`. La información
+  sigue ahí; deja de competir por la atención.
+- **La comparación es contra `ok`, no contra la lista de fallos.**
+  `not_applicable` se llamaba `no_aplicable` antes de #134, así que enumerar los
+  estados malos habría dejado sin apagar justo las filas viejas del historial.
+  `ok` es el valor que no ha cambiado nunca. Hay un test con la clave antigua.
+
+Y una distinción que el diseño conserva: `analyze_sentiment` dice «no vota» y
+**no** se apaga, porque funcionó — mide tono, no clickbait. *No funcionó* y
+*funcionó y no opina* son cosas distintas, y antes se veían igual de bien.
+
+#### Las pastillas habían dejado de ser un índice
+
+La plantilla decía literalmente «*Índice compacto: todas las señales caben sobre
+la línea de flotación*», y desde #133 la pastilla muestra el `label` en vez del
+id de la herramienta: «Regresión logística sobre features léxicas (entrenada en
+Chakraborty)». Medido: **531 px una sola pastilla de 1024**, en tres filas.
+
+Se corta por el paréntesis, y eso es lo que lo hace mantenible: es una **regla,
+no un diccionario**. Una señal nueva no hay que añadirla a ninguna lista —la
+misma decisión que hace que las categorías del filtro de Sistema salgan de un
+`Set` sobre la respuesta y no de una constante—. La precisión entre paréntesis
+es de la ficha; el índice enseña el nombre.
+
+**531 px → 349 px, y de tres filas a dos.** El nombre completo sigue entero en
+la tarjeta, dos dedos más abajo.
+
+El comentario de la plantilla ahora dice por qué vuelve a ser cierto, con el
+número delante.
+
+#### R6.7: el inventario, y dónde estaba el hueco
+
+Un repaso por pantalla de qué códigos puede recibir y cuáles traduce:
+
+| Pantalla | Ruta | Declara el contrato | Traduce |
+|---|---|---|---|
+| Analizar | `POST /analyze` | 200 · 422 | 0 · 422 · ≥500 · resto |
+| Análisis guardado | `GET /history/{id}` | 200 · 404 · 422 | 404 propio + los de arriba |
+| Historial | `GET /history` | 200 · 422 | 0 · 422 · ≥500 · resto |
+| Sistema · catálogo | `GET /tools` | 200 | 0 · ≥500 · resto |
+| Sistema · ejecutar | `POST /tools/{name}/execute` | 200 · 404 · 422 · 504 | los cuatro + 0 · ≥500 · resto |
+
+Ningún código declarado llega sin mensaje, y los dos que el issue nombra —el 504
+de #113 y el 422 de validación— tienen frase propia desde #128. El `status: 0`
+está en las cuatro pantallas: no es un código HTTP, es que no contestó nadie, y
+el remedio que le das a quien mira es otro.
+
+**El hueco no estaba en el canal de errores, sino dentro de una respuesta 200**,
+y visto de cerca tiene sentido: `/analyze` responde 200 aunque una señal falle
+—decisión de #85—, así que el fallo más visible del sistema **nunca pasa por el
+traductor de errores de la pantalla**. El `detail` de la señal caída se volcaba
+tal cual como único mensaje:
+
+```
+HTTP error: 400 - {"error":"Model not supported by provider hf-inference"}
+```
+
+Ahora va la frase que se entiende primero, y el volcado debajo marcado como
+técnico. **No se esconde**: es lo único que permite diagnosticar, y esconderlo
+habría cambiado un problema por otro. En `not_applicable` no se antepone nada,
+porque su detalle ya es la frase que hay que leer —«Requiere el cuerpo o teaser
+de la noticia»— y precederla de «no llegó a ejecutarse» sería falso.
+
+Un caso revisado y **no** tocado: en Sistema, un servidor caído enseña
+`ConnectError: All connection attempts failed`. También es técnico, pero la
+frase que se entiende ya está en la fila —«no responde · 0 herramientas»— y el
+motivo va debajo como precisión. La estructura ya era la correcta, repartida en
+dos líneas.
+
+#### Dos incoherencias que aparecieron al mirar las capturas
+
+Ninguna la habrían encontrado los tests, que comprueban que el texto **está**, no
+que se vea coherente:
+
+- **En el historial convivían un enlace subrayado y un botón con caja** en la
+  misma columna, para dos acciones que hacen lo mismo: enseñar esa entrada. Se
+  igualó el aspecto **sin igualar el elemento**: la que navega sigue siendo un
+  `<a>` —se abre en otra pestaña, y el lector de pantalla la anuncia como
+  enlace— y la que despliega sigue siendo un `<button>`. Medido después: mismo
+  borde, mismo fondo, misma altura, distinta etiqueta. El `nowrap` que lleva ese
+  estilo quita además una línea por fila a 768 px.
+- **La insignia de tipo estaba tintada en la tarjeta de señal y gris en la ficha
+  de modelo.** Dos pantallas diciendo lo mismo de dos maneras. Ahora la ficha usa
+  los mismos tres colores que su borde.
+
+#### Medido
+
+- **101 tests de frontend** (12 nuevos), lint limpio con reglas de tipos y de
+  accesibilidad.
+- Los números de arriba salen de `getComputedStyle` y `getBoundingClientRect`
+  sobre la aplicación corriendo con sus tres procesos —servidor MCP, API y
+  `ng serve`—, no de mirar capturas.
+- El caso de prueba se creó a propósito: un análisis nuevo con el proveedor
+  `hf-inference` caído, que dejó una entrada con una señal en `error` y otra en
+  `not_applicable` — los dos casos que el issue pide comprobar, reales y no
+  simulados.
+
+#### Límites
+
+- **Por debajo de ~700 px la tabla del historial sí desborda**, con barra
+  horizontal. Queda fuera de R6.8, que pide escritorio y tabletas y no móvil;
+  se anota porque es dónde está el límite y dónde iría el contenedor con
+  `overflow-x` el día que se quiera bajar de ahí.
+- **Sigue sin haber ninguna `@media`.** No es un olvido: nada de lo medido a 768
+  la pedía, y añadir un punto de ruptura «por si acaso» habría sido escribir CSS
+  contra un problema que no existe.
+- Un análisis guardado antes de #134 se sigue viendo degradado —ids de máquina
+  por nombre, insignia `opaco` sin color—, que es la degradación diseñada en
+  #129 y no cambia aquí.
+
+### El historial se puede leer, y un análisis guardado se vuelve a ver (#129)
+
+`GET /history` existía con paginación, filtros y retención desde #102 y #103, y
+`GET /history/{id}` desde #133. Lo que faltaba, otra vez, era el consumidor —y
+con él la pregunta que este issue tenía delante: **cómo se pinta una respuesta
+que se guardó cuando el contrato era otro**.
+
+#### El `payload` no se castea, y ahí está el trabajo
+
+Cada entrada guarda **la respuesta completa de cuando se ejecutó**. Eso es lo
+que permite volver a un análisis sin reejecutarlo, que además de tardar podría
+dar otro resultado porque las señales remotas no son deterministas. Y es también
+lo que hace que `as AnalyzeResponse` sobre ese campo sea una afirmación falsa
+con fecha: los datos son de antes.
+
+`analisis/formas.ts` comprueba en vez de castear, como `datos.ts` con el `data`
+de cada señal, y devuelve tipos **deliberadamente más anchos que los del
+contrato**. La razón, dicha corta: `required` en el contrato significa «lo que el
+backend produce HOY», y el historial guarda lo de ayer. Dos casos, los dos ya
+ocurridos en este repositorio y medidos contra la base local:
+
+- **`label` es obligatorio en `SignalResult` desde #133.** Lo guardado antes no
+  lo trae. Exigirlo habría mandado a JSON crudo todo lo anterior al 5 de
+  septiembre — y `nombreDeSenal` ya caía a `name` para este caso exacto, con el
+  comentario puesto desde #133.
+- **#134 cambió los VALORES de los enums.** En la base hay entradas con
+  `verdict: "ambiguo"`, `"enganoso"` y `"clickbait_de_forma"`. Pedir miembros del
+  enum habría escondido el análisis entero por una etiqueta.
+
+Así que `verdict`, `status`, `type` y `dimension` se piden como cadenas. La
+asimetría que lo hace correcto: **`AnalyzeResponse` es asignable a
+`AnalisisGuardado`, y al revés no**, así que lo estrecho pasa por donde se espera
+lo ancho y una sola vista sirve a los dos orígenes. Lo fija un test que no lo
+parece —el fixture está tipado con el contrato—: si algún día deja de encajar,
+ese fichero no compila.
+
+**No se añadió un diccionario de claves antiguas**, y es una decisión, no un
+olvido. Un análisis de antes de #134 se pinta con `ambiguo` en el veredicto,
+`opaco` en la insignia —perdiendo el color, porque el CSS busca `opaque`— y los
+ids de máquina en vez de los nombres de señal. Se lee, y se ve que es viejo. La
+alternativa era arrastrar una tabla de traducción para siempre; la decisión
+escrita es que estos datos son de prueba y un cambio incompatible **se resuelve
+repoblando**.
+
+#### La dirección de las dependencias decidió dónde vive el guardián
+
+`comoAnalisis` nació en `historial/payload.ts`, que es donde parecía natural: lee
+el payload del historial. Pero al conectar la pantalla apareció la consecuencia:
+si el guardián vive allí, `senal-card` —que sólo dibuja— tiene que importar tipos
+de la pantalla del historial para existir, y `analisis/` pasa a depender de una
+pantalla que no usa.
+
+Vive en `analisis/formas.ts`, junto a quien pinta. Es la misma pregunta que
+resolvió `core/mcp/` en #137, a otra escala, y ahora está escrita como criterio
+en `docs/estructura.md`: **una pantalla puede depender de `api/`; ninguna debería
+depender de otra pantalla.**
+
+#### `/analisis/:id` no es una pantalla nueva
+
+Es la misma, con el análisis resuelto desde el historial en vez de recién
+ejecutado — que es exactamente lo que #127 dejó preparado al hacer que su bloque
+de resultados recibiera el análisis como estado.
+
+Dos detalles que no son evidentes:
+
+- **El id llega por `withComponentInputBinding()`**, no leyendo `ActivatedRoute`.
+  El motivo es concreto: ir de `/analisis/28` a `/analisis/29` **reutiliza el
+  componente**, así que un `snapshot` leído en el constructor no se enteraría. Por
+  eso la carga va en un `effect` sobre el `input`.
+- **Volver al formulario desde un análisis guardado es cambiar de ruta**, no
+  limpiar señales: si no, la URL seguiría diciendo `/analisis/29` sobre una
+  pantalla vacía, y recargar traería de vuelta el análisis viejo.
+
+#### El 404 que el contrato no contaba
+
+`GET /history/{id}` lanzaba 404 desde #133 y publicaba sólo 200 y 422. Aquí no es
+un caso de borde: **la retención poda entradas**, así que un enlace guardado a un
+análisis termina dando 404 por funcionamiento normal. Se declara, aparece en el
+cliente generado, y la pantalla puede decir «la retención borra las entradas más
+viejas» en vez de «no se pudo cargar», que sonaría a avería.
+
+De paso se declararon los tres finales de `POST /tools/{name}/execute` —**404,
+422 y 504**—, que estaban en la misma situación: el servicio escrito en #128 los
+documentaba habiéndolos leído del código. El 504 es el que más importa separar,
+porque no dice que la herramienta fallara: dice que se agotó la espera, y en #113
+quedó medido que puede haber terminado bien.
+
+#### La pantalla
+
+Tabla y no tarjetas: fecha, tipo, sujeto, veredicto y estado son datos tabulares
+de verdad, y una lista obligaría a repetir el nombre de cada campo en cada fila.
+
+- **Los dos filtros que parecen uno.** Veredicto y ejecución van separados, y la
+  pantalla lo explica en una frase: uno dice qué concluyó el análisis, el otro si
+  funcionó la maquinaria. Un análisis puede concluir «factual» con una señal
+  caída.
+- **Cambiar un filtro vuelve a la página 1.** Sin eso, filtrar desde la página 3
+  deja la pantalla vacía sobre un resultado que sí tiene entradas, y parece que
+  el filtro no encontró nada.
+- **La retención se enseña siempre**, con los números de la respuesta y no
+  cableados. La poda es invisible, y ése es justo el problema: faltar análisis
+  viejos se lee como que la aplicación perdió datos.
+- Las filas se comportan según lo que son: un análisis enlaza a su ruta; una
+  ejecución suelta despliega su `payload` en crudo, que es todo lo que hay que
+  enseñar de ella.
+
+#### Dos arreglos de la pantalla de Sistema, que sólo se vieron mirándola
+
+Entraron aquí por decisión explícita, y no son del historial. Los 60 tests de
+#128 no podían verlos: comprueban que el texto **está**, no que se pueda leer.
+
+**La descripción de cada herramienta era la docstring entera**, con sus secciones
+`Args:`, `Returns:` y `Raises:` — escritas para el LLM. Volcada en la tarjeta
+daba una página de **7.191 px** y repetía, campo por campo, lo que el formulario
+generado ya dice; el `Raises:` del léxico avisaba de un titular vacío que el
+validador impide. Ahora se corta por la **primera línea en blanco** —la
+convención de las docstrings de Python, no una búsqueda de `Args:`— y el cuerpo
+aparece al desplegar la herramienta. Una tool que no siga la convención se enseña
+entera, que es el fallo benigno.
+
+**Los diez límites de la ficha de `detect_clickbait` tapaban las otras cuatro
+señales.** No se recortan —son los límites medidos, que es el motivo de que la
+ficha exista—, se pliegan a dos con el número real en el botón: el mismo patrón
+que `senal-card` con las señales opacas.
+
+Medido con las mismas doce herramientas y cinco fichas: **7.191 px → 3.435 px**.
+
+#### Medido
+
+- **93 tests de frontend** (33 nuevos) y **218 de backend**, lint limpio.
+- **`HttpParams` codifica el `+` como `%2B`.** El contrato avisa de que en una
+  cadena de consulta un `+` significa espacio, y una fecha con desfase escrita a
+  mano llega partida; por esta vía no pasa. Hay un test que lo fija, porque el
+  día que alguien cambie el codificador el síntoma sería un 422 intermitente
+  sufrido sólo por quien esté en un huso con desfase.
+- **En es-ES la agrupación de millares no empieza hasta cinco dígitos**: `1000`
+  se escribe «1000» y `10000`, «10.000». Lo dijo un test que esperaba el punto
+  por costumbre del inglés.
+- **`created_at` llega en UTC con sufijo `Z`**, comprobado contra la base local:
+  sin la `Z`, JavaScript lo leería como hora local y las fechas saldrían
+  corridas.
+- Comprobado en vivo con los tres procesos arriba: la entrada 28, guardada el 3
+  de septiembre con el contrato anterior, se recupera y se pinta entera —cinco
+  señales— sin reejecutar nada.
+
+#### Lo que no entra
+
+- **El filtro por fechas.** El backend acepta `since` y `until`; el alcance del
+  issue pedía tipo, veredicto y estado, y la retención acota el rango útil a
+  treinta días.
+- **El comportamiento en pantallas estrechas**, que es #130 — y la tabla del
+  historial es justo lo que ese issue tendrá que resolver.
+
+### El catálogo se pinta solo: el formulario sale del esquema (#128)
+
+La pantalla de Sistema responde tres preguntas —qué servidores hay conectados
+(R6.11), qué herramientas ofrecen (R6.2, R6.9) y qué modelo hay detrás de cada
+señal (R3.8)— y el backend las servía enteras desde #97 y #137. Lo que faltaba
+era el consumidor.
+
+El riesgo de la issue nunca fue construir la pantalla. Era construirla
+**cableando las doce herramientas**: un formulario escrito a mano por tool, que
+funciona el primer día y convierte cada herramienta nueva en trabajo de
+frontend. Eso incumple R1.9, y de paso vacía de sentido que el catálogo se
+construya por *handshake* — daría igual descubrir lo que hay conectado si la
+interfaz sólo sabe pintar lo que alguien ya había previsto.
+
+#### `camposDe`: el fichero donde está la decisión
+
+`frontend/src/app/sistema/campos.ts` lee el `input_schema` que publica el
+catálogo y devuelve una lista de descriptores. No depende de Angular, así que se
+prueba con datos y sin montar nada; y no conoce ninguna herramienta, así que
+añadir una al backend no lo toca.
+
+Antes de escribir una línea se midieron los esquemas reales contra
+`mcp.list_tools()`: **ocho `string`, tres opcionales, dos `integer` con
+`minimum`/`maximum`/`default` y dos `number`**. Ni enums, ni arrays, ni objetos
+anidados. `describe_models` y `health_check` no tienen parámetros: son sólo un
+botón.
+
+La trampa estaba en esos tres opcionales. Un parámetro de Python como
+`topic: str | None = None` **no se publica como `{"type": "string"}`**, sino
+como `{"anyOf": [{"type": "string"}, {"type": "null"}], "default": null}`. Un
+lector que sólo mirara `type` los habría marcado como desconocidos y la pantalla
+los habría pintado en crudo sin ningún motivo. El `anyOf` se resuelve
+descartando el `null` y exigiendo que quede **exactamente un** tipo: una unión
+de verdad —`str | int`— no se sabe pintar con un solo control, y sigue siendo
+desconocida a propósito.
+
+El catálogo publica el esquema **crudo, sin aplanar**, y ésta es la razón: los
+topes y los valores por defecto son justo lo que la interfaz necesita para
+validar antes de enviar. `days` llega con su 1, su 30 y su 7, y los tres viajan
+al control y al validador.
+
+#### Lo que no se sabe pintar se enseña, no se omite
+
+Omitir un campo desconocido es lo cómodo y produce el peor fallo posible: el
+formulario mandaría un cuerpo incompleto, el backend respondería **422** —valida
+contra el `input_schema` desde #100— y quien mirara leería «la petición no es
+válida» sin ninguna forma de saber qué campo falta, porque ese campo nunca se
+dibujó. Se enseña con su esquema delante. Es la misma regla que el `@default` de
+`senal-card` con las señales que no conoce: feo, pero visible.
+
+Al implementarlo apareció un matiz que la planificación no tenía. Bloquear el
+botón cuando hay un campo desconocido es aplicar R6.14 —la interfaz no debe
+dejar controles que no funcionen—, pero **sólo vale si ese campo es
+obligatorio**. Uno opcional no impide una petición válida: la herramienta tira
+con sus valores por defecto y lo único que se pierde es poder tocar ese
+parámetro. Desactivar ahí sería quitar una función que sí sirve. Los dos casos
+tienen test.
+
+Y una distinción que ya costó una decisión en `/analyze`: **lo vacío se omite,
+no se manda como `""`**. Omitir es «usa tu valor por defecto»; la cadena vacía
+es una búsqueda de la cadena vacía. Un booleano nunca está vacío, así que
+siempre viaja.
+
+#### La ficha de modelo publicaba tres de sus siete campos
+
+`ToolModelCard` llevaba `type`, `dimension` y `limitations`. `name`, `task` y
+`model_id` se quedaban en el backend, en `model_cards.py`.
+
+O sea: el catálogo podía decir que `detect_clickbait_linear` es interpretable y
+mide forma, pero no **qué es** ni **qué hace**. La pantalla habría enseñado el
+identificador de máquina como si fuera el nombre — exactamente lo que #133 quitó
+de la pantalla de análisis al hacer viajar `label`. Se añaden los tres, y con
+ellos el `model_id: null` del léxico y el lineal, que **es información y no un
+hueco**: dice que esa señal es código propio y auditable, no un modelo
+descargable.
+
+Los tests nuevos de `test_catalog.py` comparan contra `cards_by_signal()` y no
+contra cadenas escritas a mano, más un `assert "detect_clickbait_lexical" not in
+ficha.name` que fija lo único que importaba: que el nombre de la ficha no es el
+de la tool.
+
+#### Tres canales, y fundirlos sería mentir
+
+| Qué ha pasado | Por dónde llega | Qué se enseña |
+|---|---|---|
+| Un servidor MCP no responde | 200, `status: unreachable` | Sale en la lista con su motivo |
+| La herramienta se ejecutó y falló | 200, `status: error` | Su `detail`, que es lo accionable |
+| 404 · 422 · 504 | canal de error | Mensaje propio por código |
+
+Los dos primeros son 200 porque **la petición era válida y el servidor la
+atendió**: lo que falló es otra cosa. Es la misma decisión que deja a `/analyze`
+responder 200 con una señal caída, y tiene una consecuencia para quien consume:
+dar por bueno todo lo que llega por `next` enseñaría un resultado vacío como si
+fuera correcto.
+
+Del tercer grupo, el **504** es el que más importa separar. No dice que la
+herramienta fallara: dice que se agotó la espera, y en #113 quedó medido que
+puede haber terminado bien —a los 151 s, con la API ya desistida—. El mensaje lo
+dice, y avisa de que repetir la llamada la ejecutaría otra vez.
+
+#### Las categorías del filtro salen del catálogo
+
+El desplegable se construye con un `Set` sobre lo que trae la respuesta, no con
+las cuatro categorías de `integrations/metadata.py` copiadas aquí. Es la misma
+razón que el formulario generado: si aparece una quinta, el filtro la ofrece sin
+tocar el frontend. El test lo comprueba comparando el desplegable contra el
+catálogo del fixture.
+
+El filtrado se resuelve en cliente porque son doce herramientas y ya están
+todas en memoria; volver a pedir sería una petición por tecla para reordenar una
+lista que cabe en la pantalla.
+
+#### Los tipos de las dos rutas nuevas, otra vez de `paths`
+
+`CatalogResult`, `ExecuteBody` y `ExecuteResult` se derivan de
+`paths['/tools']` y `paths['/tools/{name}/execute']`, no de `components`. Es la
+convención que salió de #133 aplicada al primer servicio escrito después de
+ella. La clave es la **plantilla literal** con `{name}` dentro: lo que está en
+el contrato es la ruta, no cada invocación.
+
+Las piezas de dentro —`ServerInfo`, `ToolInfo`, `ToolModelCard`— siguen viniendo
+de `components`, porque son formas con nombre propio que se pasan sueltas a los
+componentes que las pintan. La regla, dicha corta: **si el tipo cruza la red, lo
+elige la ruta; si el valor ya está dentro, lo elige el esquema**. De paso
+desaparecen tres alias que ya no usaba nadie (`CatalogResponse`,
+`ExecuteRequest`, `ExecuteResponse`): dos nombres para la misma forma son la
+condición que hace que alguien elija el que no ata.
+
+#### Dos cosas que ya no eran de ninguna pantalla
+
+`api/base.ts` guarda el prefijo `/api`. Estaba dentro de `analyze.service.ts`, y
+con dos servicios repetirlo significa que cambiar el prefijo tiene que acertar
+en los dos — y el que se olvidara seguiría compilando.
+
+`api/errores.ts` guarda la lectura del cuerpo de un 422 de FastAPI y el mensaje
+de «no contesta nadie». Los mensajes siguen siendo de cada pantalla, porque el
+análisis y el catálogo dicen cosas distintas del mismo código; lo que no es de
+ninguna es **leer el cuerpo**.
+
+#### El buscador, y qué significa «igual»
+
+La búsqueda normaliza los dos lados de la comparación, y por eso quitar
+diacríticos sólo puede **sumar** coincidencias: lo que encajaba antes sigue
+encajando. El riesgo no es dejar de encontrar algo, es que dos palabras
+distintas colapsen en la misma.
+
+Caen todos los diacríticos, **la ñ incluida**. No es un descuido: `ñ` se
+descompone en `n` + tilde combinante igual que `á` en `a` + acento, y
+conservarla exigiría protegerla aparte. Medido sobre las docstrings del catálogo
+—las únicas palabras con ñ son `señal`, `señales`, `engaño`, `añade`, `añadir` y
+`pestañas`— ninguna colisiona con otra al perder la tilde. La alternativa
+lingüísticamente correcta —la ñ es una letra, no una n con adorno— dejaría una
+asimetría difícil de explicar en pantalla: `analisis` encontraría `Análisis`,
+pero `senal` no encontraría `Señal`.
+
+#### `Validators.required` da por bueno un campo con espacios
+
+ESLint con información de tipos avisó de `unbound-method` al pasar
+`Validators.required` suelto a un array de validadores. Mirarlo en vez de
+silenciarlo dio dos razones para no usarlo, y la primera no tiene que ver con el
+aviso: **acepta un campo lleno de espacios**, cuando el proyecto ya decidió lo
+contrario para el titular de `/analyze`. El validador propio son cinco líneas y
+cubre `null`, `''` y sólo-espacios. Sin `ignore`.
+
+#### Lo que no está aquí
+
+- **La salud de las APIs externas.** `GET /health` sondea Weather, Guardian y
+  NYT, y no lo consume ninguna pantalla. Es otra pregunta que la de R6.11 —lo
+  que el sistema *es* frente a lo que ahora mismo *funciona*—, y mezclarlas en
+  esta pantalla habría sido cómodo y confuso. Queda como **#147**, con la
+  decisión de dónde vive sin tomar.
+- **El transporte de R6.11.** El contrato no publica un campo `transport`, y
+  añadirlo por una etiqueta no compensa: la URL lo dice, y hoy todos los
+  servidores son HTTP *streamable*. Se enseña la URL.
+- **El comportamiento en pantallas estrechas**, que es #130.
+
+#### Medido
+
+- **60 tests de frontend** (35 nuevos: 7 del lector de esquemas, 7 del servicio,
+  9 del formulario, 11 de la pantalla y 1 de la cáscara), lint limpio con reglas
+  de tipos y de accesibilidad.
+- La pantalla sale como **fragmento aparte de 21,69 kB** en el empaquetado, que
+  es la primera vez que la carga diferida preparada en #126 se nota en la salida
+  del *bundler* en vez de sólo en el código.
+- `tool_count` es **obligatorio incluso en un servidor `unreachable`**: tiene
+  `default: 0` en el backend y el contrato generado lo publica siempre presente.
+  Lo destapó un fixture que no compilaba, y dice lo correcto —cero herramientas,
+  no dato ausente—, pero no se habría escrito así a mano.
+
+### El frontend crecía sin linter, y la accesibilidad dependía de la memoria (#140)
+
+`ng new` de Angular 22 no añade ESLint, y no se añadió después. Lo único que
+miraba el código sin ejecutarlo era `tsc` dentro de `ng build` — que sirve, y en
+#134 fue lo único que detectó un `!== 'opaco'` que la búsqueda por texto no vio,
+pero sólo comprueba tipos.
+
+La tercera de las tres issues que buscan fallos que hoy no se manifiestan, tras
+#138 y #139.
+
+#### La tercera vez que un artefacto generado distorsiona el número
+
+16 avisos al instalarlo. **Los 16 en `src/app/api/schema.d.ts`**, el cliente que
+escribe `openapi-typescript`. **Cero en código escrito a mano.**
+
+Arreglarlos sería trabajo perdido: la siguiente regeneración los devuelve. Se
+excluye, y con eso el proyecto queda en cero.
+
+Es el mismo patrón por tercera vez —en #138 y #139 era `backend/evaluation/`— y
+ya conviene decirlo como regla y no como coincidencia: **antes de leer el número
+de una herramienta nueva, hay que separar lo que se escribe a mano de lo que se
+genera.** Sin esa separación, los tres números habrían sido inútiles: 50 % de
+cobertura, 67 avisos de tipos, 16 de estilo, todos dominados por ficheros que
+nadie edita.
+
+#### La accesibilidad ya venía activada, y las reglas están vivas
+
+`templateAccessibility` entra en la configuración por defecto de angular-eslint,
+así que la mitad valiosa de esta issue no hubo que montarla. Y las plantillas dan
+cero avisos.
+
+Eso podría significar dos cosas, y conviene distinguirlas: que las reglas son
+flojas, o que la accesibilidad se escribió bien. **Comprobado provocándolo** — un
+`<img>` sin alternativa textual y un `(click)` en un `<div>`:
+
+```
+error  <img/> element must have a text alternative              alt-text
+error  click must be accompanied by either keyup, keydown or
+       keypress event for accessibility                         click-events-have-key-events
+error  Elements with interaction handlers must be focusable     interactive-supports-focus
+```
+
+Son exigentes, incluida la que más se olvida: un manejador de ratón sin
+equivalente de teclado. Las plantillas de #127 pasan porque se escribieron con
+cuidado. Lo que cambia hoy no es el resultado, es que **deja de depender de que
+alguien se acuerde en cada plantilla nueva** — y quedan tres por escribir.
+
+#### La pregunta abierta de la issue, respondida a medias
+
+Al crear #140 quedó anotada una duda que valía la pena resolver: si alguna regla
+puede detectar **el silencio de zoneless**, que es el fallo más peligroso de este
+frontend — guardar estado fuera de un `signal()` no repinta la pantalla y no
+lanza ningún error.
+
+**Sí, una de las dos caras.** `@angular-eslint/no-uncalled-signals` caza usar la
+señal sin llamarla, y se comprobó provocándolo:
+
+> Doing logic operations on signals will give unexpected results, you probably
+> want to invoke the signal to get its value
+
+Con dos condiciones que no son evidentes: **no viene en el conjunto recomendado**
+—hay que activarla a mano— y **exige linting con información de tipos**, sin el
+cual ni siquiera se carga: aborta con «You have used a rule which requires type
+information».
+
+La otra cara **no la cubre nadie**. Declarar `resultado: AnalyzeResponse | null =
+null` en vez de `signal(null)` es indistinguible de código correcto para
+cualquier herramienta: la intención no está escrita en ninguna parte. Ese
+invariante sigue sostenido sólo por convención, y queda dicho en la propia
+configuración para que quien la lea no crea que está cubierto.
+
+#### El linting con tipos sale barato, y trae compañía
+
+Activarlo cuesta **3,9 s** para el frontend entero, medido. A ese precio deja de
+ser una decisión: entran también las reglas que necesitan el tipo real, entre
+ellas las de promesas sin esperar, que en una SPA con `HttpClient` es un fallo
+real y silencioso.
+
+Con los tipos disponibles se midió si compensaba subir de
+`tseslint.configs.recommended` a `recommendedTypeChecked`. **Dos problemas en
+todo el frontend**, los dos en el mismo sitio y los dos ciertos:
+
+```
+src/app/analisis/errores.ts
+  16:11  error  Unsafe assignment of an `any` value
+  16:34  error  Unsafe member access .detail on an `any` value
+```
+
+`fallo.error` es `any` en `HttpErrorResponse`, y el código lo sabía —su comentario
+avisa de que un proxy puede colar una página HTML— pero lo resolvía encadenando
+`?.` sobre ese `any`. Funciona, y **apaga el tipado de ahí en adelante**: el
+resultado también es `any`, así que nada de lo que viniera después se
+comprobaba.
+
+Sustituido por un guardián que comprueba la forma, que es la regla ya establecida
+en esta interfaz para el `data` de las señales: **se estrecha comprobando, no
+casteando**. Con eso, `recommendedTypeChecked` entra sin excepciones.
+
+#### Verificación
+
+Cero avisos sobre código escrito a mano, la SPA compila y sus 25 tests pasan. El
+paso entra al final del job de frontend, por lo mismo que el estilo va después de
+los tests en el de Python: cada informe se genera aunque el siguiente falle.
+
+```bash
+npm run lint
+```
+
+#### Lo que NO arregla
+
+Un linter **no sustituye a los tests** ni comprueba tipos: eso ya lo hace `tsc` en
+cada build. Encuentra patrones que suelen ser errores, no que lo sean siempre — de
+ahí que decidir qué reglas se activan sea trabajo de verdad y no un `ng add` y
+listo. Aquí ese trabajo fueron dos decisiones: activar los tipos, y subir el
+conjunto sólo después de medir lo que costaba.
+
+Y no cubre el invariante que más importa en este frontend, como queda dicho
+arriba. Media respuesta es mejor que ninguna, pero conviene saber cuál es la
+mitad que falta.
+
+### El comprobador de tipos ya corría, y el repositorio no se enteraba (#139)
+
+`CLAUDE.md` daba esta issue por pendiente desde hacía semanas. Al ir a escribirla
+se vio que la herramienta **ya estaba funcionando**: es Pylance —o sea Pyright—
+dentro del editor. Lo que faltaba no era el comprobador, era que el repositorio
+lo ejecutara.
+
+De ahí la decisión menos obvia: **Pyright y no mypy**. Adoptar en el CI lo mismo
+que ya corre en el editor significa que los avisos que aparecen al escribir son
+los que rompen la corrida, y no dos listas parecidas que hay que traducir.
+
+#### El número, otra vez distorsionado por `evaluation/`
+
+67 avisos en total. **41 estaban en `backend/evaluation/`**, y escondían los 26
+del código servido, que son los únicos accionables. Se excluye por el mismo
+criterio que en #138: lo que no se sirve, no distorsiona el número.
+
+Y `basic`, no `strict`. Con `strict` habría que anotar el proyecto entero antes
+de que el CI volviera a pasar, y lo que se enciende de golpe sobre código
+existente se acaba ignorando. `basic` encontró los 26, que era lo que se buscaba.
+
+#### Los 26 no eran ruido
+
+**Seis bugs latentes**, cada uno con su forma:
+
+| Dónde | Qué |
+|---|---|
+| `core/logging.py` | `if/elif` sin `else` sobre un `Literal`. Si algún día se añade un tercer formato, `renderer` queda **sin asignar** y la línea siguiente revienta con un `UnboundLocalError` que no dice nada del problema |
+| `core/base_api.py` | `make_request` declara `-> ToolResult` y tenía un camino que caía por el final devolviendo `None`. Quien llamara haría `.success` sobre él |
+| `api/history.py` | `cursor.lastrowid` es `int \| None` —None si la sentencia no fue un INSERT— y la firma prometía `int` |
+| `integrations/metadata.py` | `analysis/tool.py` usa la categoría `"Análisis completo"`, que **no estaba en el `Literal` `Categoria`**. El comentario de esa tool explica por qué no es «Señales de análisis»; el vocabulario declarado nunca se actualizó |
+| `model_cards.py` | `model_id` es `None` a propósito en el léxico y el lineal, y se pasaba a `classify(model: str)` sin comprobar. Una ficha sin id habría fallado dentro de una llamada HTTP, con una URL que lleva `None` dentro |
+| `core/mcp/tools.py` | el contenido de una respuesta MCP es una **unión** —texto, imagen, audio, recurso— y se leía `.text` a ciegas. Funcionaba porque nuestras tools sólo devuelven texto; un servidor ajeno que respondiera otra cosa habría reventado en vez de informar |
+
+Ninguno se manifiesta hoy. Todos se manifestarían el día que cambiara algo, y
+ninguno con un mensaje que apuntara a su causa.
+
+#### Un solo patrón explicaba diez avisos
+
+`ToolResult.data` es `Any | None`, porque un resultado fallido no trae ninguno.
+El precio lo pagaba quien lo consume: las tools hacían `return response.data`
+declarando devolver una forma concreta, y los clientes `response.data["clave"]`.
+Las dos cosas están bien **si el resultado fue bien**, y ninguna lo comprobaba en
+el mismo sitio donde leía.
+
+La respuesta es un método:
+
+```python
+def unwrap(self) -> Any:
+    if not self.success or self.data is None:
+        raise ValueError(self.error or "El resultado no trae datos.")
+    return self.data
+```
+
+Lo que cambia no es la seguridad de tipos —el dato sigue siendo `Any`— sino
+**dónde falla**. Antes un `None` inesperado daba un `TypeError` de subíndice tres
+marcos más abajo, o un modelo Pydantic quejándose de un campo que no existe.
+Ahora dice que el resultado venía vacío, y con el motivo del fallo original.
+
+Y en dos sitios había algo más que un tipo impreciso: `nlp/linear.py` leía
+`result.data["matches"]` **sin comprobar nada**, y `guardian/_find_tag`
+comprobaba `success` pero no el contenido, así que un éxito sin cuerpo llegaba al
+`.get` y reventaba sobre `None`.
+
+#### La invariante que vivía a noventa líneas de distancia
+
+El aviso que destapó todo esto —el que aparecía en el editor— era éste:
+
+> Argument of type `str | None` cannot be assigned to parameter `content` of
+> type `str` in function `detect`
+
+El código es correcto: el orquestador desvía la señal de incoherencia a
+`not_applicable` antes de llamarla, si no hay cuerpo. Pero **esa garantía vive en
+un `bool` de una tabla de constantes, comprobado noventa líneas por debajo del
+sitio que depende de él**. Ningún comprobador puede unir esos dos puntos, y
+ningún lector de un vistazo tampoco.
+
+Y el modo de fallo, si alguien pusiera `needs_content=False` en esa entrada, era
+el peor posible: el guardia dejaría de correr, el detector reventaría al medir la
+longitud de `None`, y el aislamiento de fallos lo convertiría en una señal en
+estado `error`. Sin excepción que suba, sin test rojo, sin nada.
+
+Ahora la garantía se escribe donde se usa, con un `_con_cuerpo()` que falla
+diciendo qué pasó.
+
+#### Los cuatro `# type: ignore` eran reales
+
+Había cuatro en el repositorio, puestos por alguien que veía los avisos en su
+editor. Sin comprobador instalado eran **comentarios inertes**, y nadie sabía si
+seguían haciendo falta.
+
+Comprobado quitándolos: los cuatro suprimían errores de verdad. Tres eran el
+patrón de `.data` y desaparecieron al usar `unwrap()`. El cuarto —`Settings()`
+sin argumentos, que pydantic-settings rellena desde el entorno— se queda.
+
+Y ahí apareció algo que merece constar, porque **primero lo escribí mal**. Se dio
+por bueno que `# type: ignore[call-arg]` acotaba la supresión a esa regla. No lo
+hace: **pyright ignora el contenido del corchete** en esa forma. Medido poniendo
+una regla inventada —`# type: ignore[reglaInventada]`— y comprobando que suprime
+igual.
+
+La forma que sí acota es la suya: `# pyright: ignore[reportCallIssue]`. Medido
+también al revés, que es la prueba que vale: con una regla **equivocada pero
+real** el error vuelve a salir.
+
+La diferencia importa porque un `ignore` sin regla efectiva silencia **cualquier
+error futuro de esa línea**, incluido uno que no tenga nada que ver con el que se
+quería tapar.
+
+#### Lo que se silencia, y por qué
+
+Quedan dos más, y ninguno es un fallo nuestro. En `nlp/local.py`, los *stubs* de
+`transformers` declaran una sobrecarga de `pipeline` por cada tarea concreta y
+aquí la tarea llega como `str`.
+
+En `nlp/incoherence.py`, el import de `sentence-transformers`. Y ése lo destapó
+el CI, no el trabajo local: la dependencia vive en `requirements-dev.txt` porque
+arrastra torch y wheels de CUDA, y **el CI instala sólo `requirements.txt`**. En
+mi máquina resolvía; en el runner, no. Es la asimetría que hace que el import sea
+perezoso, y el `ignore` la declara en vez de esconderla.
+
+De paso apareció uno que sí lo era: la caché de pipelines se declaraba
+`dict[..., object]`, y `object` no es invocable — así que
+`asyncio.to_thread(pipe, text)` era un error de tipos que nadie veía. Con
+`Callable[..., Any]` desaparecen cuatro avisos y el tipo dice la verdad.
+
+#### Un cambio de contrato, dicho en voz alta
+
+`GET /health` declaraba devolver `dict` y devuelve un `Salud`. Corregirlo tiene
+una consecuencia buscada: **la forma pasa a publicarse en el contrato OpenAPI**,
+así que `openapi.json` gana `Salud` y `Sonda` —59 líneas— y el frontend recibirá
+el estado del sistema tipado en vez de como objeto libre cuando llegue #128.
+
+Es un cambio de contrato dentro de una PR de análisis estático, y por eso queda
+anotado en vez de pasar desapercibido entre las correcciones de tipos.
+
+#### Verificación
+
+**0 errores de pyright** sobre el código servido, 215 tests y ruff limpio. El
+comando es el mismo en local y en el editor, porque la configuración vive en
+`pyrightconfig.json`:
+
+```bash
+pyright
+```
+
+En el CI lleva `--pythonpath $(which python)`: la configuración apunta al `.venv`
+para el trabajo local, y en el runner no hay ninguno.
+
+#### Lo que NO arregla
+
+Un comprobador de tipos **no encuentra errores de lógica**. No habría detectado
+que dos señales de forma eran la misma (#109), ni que un umbral estaba a ojo
+(#92), ni que un corpus era otro reempaquetado (#121). Encuentra desajustes entre
+lo que una función promete y lo que recibe — una franja estrecha, pero es justo
+la que los tests no cubren, porque un test sólo recorre el camino que alguien
+pensó en escribir.
+
+Emparejado con #138 por eso: **los dos buscan fallos que hoy no se manifiestan**,
+por vías distintas. La cobertura señala caminos que nunca se ejecutan; los tipos,
+desajustes que el intérprete no llega a ver.
+
+El frontend queda fuera: no tiene linter, y eso es #140.
+
+### La cobertura, de dependencia instalada a número que se mira (#138)
+
+`pytest-cov` estaba declarado en `requirements.in` y bloqueado en
+`requirements.txt` desde hacía meses, así que el CI lo instalaba en cada corrida
+y **no ejecutaba nada con él**. No había `.coveragerc`, ni configuración en
+`pytest.ini`, ni un paso en el workflow. Coste sin contrapartida: o se usa, o
+sale del `.in`.
+
+#### El número global mentía a la baja
+
+Medido antes de tocar nada: **50 % sobre todo `backend/`**. Ese número no es
+útil, porque lo hunde `backend/evaluation/` —scripts de investigación de un solo
+uso, al 0 % a propósito— y esconde dónde están los huecos que sí importan.
+Contando sólo el código servido, el punto de partida real era **90 % de ramas**.
+
+#### Ramas, no sólo líneas
+
+`branch = True`. Un `if` cuya condición sólo se ha probado en verdadero cuenta
+como línea cubierta y como rama a medias, y lo segundo es lo que se quiere saber.
+El precio medido son **dos puntos**: 90 % de ramas frente al 92 % de líneas sobre
+el mismo código.
+
+#### Qué se excluye, y el precio de excluir
+
+`backend/evaluation/` sale porque son scripts que se ejecutan a mano para
+producir un número que acaba en este README, y no forman parte del sistema
+servido.
+
+`backend/integrations/weather/` sale por decisión explícita del autor: es la
+integración heredada del tutorial de MCP en la Épica 1, sin relación con el
+clickbait, y **está en el proyecto por tradición**. Lo honesto es sacarla de la
+cuenta en vez de fingir que se va a probar.
+
+Con el precio escrito donde se toma la decisión: **omitir no penaliza, borra**.
+Si algún día se le mete código de verdad ahí dentro, el informe no dirá nada. Y
+la pregunta de fondo —si `weather` sigue pintando algo— no la resuelve esta
+issue.
+
+#### El desglose, para no vender maquillaje como trabajo
+
+| | Cobertura de ramas |
+|---|---|
+| Punto de partida | 90 % |
+| Tras excluir `evaluation` y `weather` | **92 %** |
+| Con los tests de `health` | 93 % |
+| Con los tests de `precalentar` | **94 %** |
+
+**Dos puntos son de exclusión y dos de tests nuevos.** Sin este desglose, el
+salto de 90 a 94 parecería el doble de trabajo del que fue.
+
+#### El hueco de `health`: una prueba que existía y nunca corría
+
+`core/health.py` estaba al 76 %, y lo no cubierto era el cuerpo de `_probe` —lo
+que decide si una integración responde—. El diagnóstico no era que faltara la
+prueba: **estaba escrita, marcada `@pytest.mark.integration`**, y el CI corre
+`-m "not integration"`. Se deseleccionaba en cada corrida.
+
+Ahora hay dos capas, y responden preguntas distintas. Las nuevas usan `respx` y
+no tocan la red: comprueban que `_probe` **interpreta** bien lo que recibe —un
+200, un 4xx o 5xx que el `raise_for_status()` debe rechazar, y un fallo de
+conexión—. La de integración se conserva: comprueba que las URLs reales siguen
+existiendo.
+
+Con eso `health.py` pasa de **76 % a 98 %**.
+
+#### El hueco de `precalentar`: se probaba que se llama, no qué hace
+
+`analysis/orchestrator.py` estaba al 84 %, y lo que faltaba era `precalentar()`
+entera. Los tests de #125 comprueban que el `lifespan` lo **llama** —que era el
+riesgo de entonces— pero no lo que ocurre dentro.
+
+Ahí vive una garantía que sostiene la decisión de precalentar bloqueando el
+arranque: **una señal que no carga se registra con tiempo negativo y no
+propaga**, porque `/tools` y `/history` no necesitan ningún modelo. Si esa
+excepción subiera, un modelo corrupto dejaría la API sin levantar entera.
+
+Tres tests nuevos: que con `nlp_backend=local` se calientan las tres señales, que
+con `remote` sólo la incoherencia —las otras van por HTTP y calentarlas en local
+sería cargar lo que no se va a usar— y que un fallo devuelve `-1.0` sin tumbar
+nada. `orchestrator.py` queda al 100 %.
+
+#### Sin umbral, a propósito
+
+No hay `--cov-fail-under`. Un umbral el primer día convierte cualquier refactor
+en una pelea con el porcentaje, y lo que hace falta antes es mirar el número unas
+cuantas corridas. El informe sale en el log del CI; congelarlo es una decisión
+posterior y con datos.
+
+Por lo mismo, `skip_covered = True`: con 50 módulos, un informe completo es una
+pared que nadie lee. Sólo aparecen los ficheros con huecos — **28 quedan fuera
+por estar al 100 %**.
+
+#### Lo que NO arregla, para no venderlo de más
+
+**La cobertura mide qué líneas se ejecutan, no si la aserción comprueba algo.**
+Un test que llama a una función y no afirma nada sube el porcentaje igual que uno
+bueno. El 94 % no dice que el sistema esté bien probado: dice **dónde seguro que
+no se ha mirado**, que es una pregunta más modesta y aun así útil.
+
+Queda cubierto por declaración expreso lo que no se va a probar: la tool
+`health_check` de FastMCP, una línea que delega en `check_health` y cuya
+cobertura exigiría atravesar el registro del protocolo para no probar nada nuevo.
+
+### El cliente MCP sale de `api/`: el agente no podía reutilizarlo (#137)
+
+Salió al dibujar la secuencia del agente para #106. El bucle del agente debería
+reutilizar `execute_tool` —ya existe, y ya valida los argumentos contra el
+`inputSchema` de la herramienta— pero vivía en `backend/api/execute.py`, y el
+agente no va en `api/`.
+
+Importarlo desde fuera **habría hecho fallar `tests/test_arquitectura.py`**, que
+desde #106 vigila que ninguna capa del núcleo importe de las fachadas. O sea que
+la invariante ya estaba trabajando: en vez de que alguien cruzara la frontera sin
+darse cuenta dentro de tres meses, la decisión salió al dibujar el diagrama.
+
+#### No era una función, eran tres módulos
+
+| Módulo | Qué importaba | Diagnóstico |
+|---|---|---|
+| `api/mcp_session.py` | sólo `httpx` y `mcp` | **Cero acoplamiento a `api/`.** Un cliente MCP puro en el sitio equivocado |
+| `api/execute.py` | `mcp_session`, `schemas`, `settings` | El mecanismo es neutro; sólo el envoltorio es REST |
+| `api/catalog.py` | `mcp_session`, `schemas`, `domain`, `model_cards` | **También lo necesita el agente**: R13.2 exige que descubra las herramientas por MCP |
+
+Acabaron dentro de la fachada REST por el orden en que se construyó el sistema,
+no por diseño.
+
+#### `core/`, no `integrations/`
+
+La primera propuesta fue `integrations/mcp/`, y **era incorrecta**. Lo dice
+`docs/estructura.md`, que existe justamente para no re-derivar esto:
+
+- El criterio de `integrations/` es *«¿envuelve algo **externo al proyecto**?»*, y
+  los servidores MCP son nuestros. Su cláusula de exclusión es casi literal sobre
+  este caso: «no va aquí la maquinaria que **descubre** o **describe** las
+  integraciones; ésa opera *sobre* ellas, no *es* una».
+- El criterio de `core/` es *«¿lo usa más de una capa **y** no sabe nada del
+  dominio del clickbait?»*. Lo usarán `api/` y `agent/`, y dentro no aparece un
+  titular ni una señal.
+
+Y la **tensión 3** ya había resuelto el caso idéntico para `discovery` y
+`metadata`: «cumplen el criterio de `core/` mejor que el de `integrations/`».
+Meterlo en `integrations/` habría sido añadir un tercer caso del olor que el
+documento ya tiene fichado.
+
+La corrección vino de leer `estructura.md`, que es el primer paso de la
+orientación del repositorio y no se había dado.
+
+#### El resultado neutro necesitaba casa
+
+La issue dejaba abierto si bastaba `ToolResult`, el modelo que ya viaja dentro
+del proceso. **No basta:** tiene `success`, `data` y `error`, pero
+`ExecuteResponse` publica además **qué servidor** sirvió la herramienta.
+
+Añadirle un campo `server` lo habría ensuciado para las cinco señales NLP, que no
+tienen ninguno. De ahí un envoltorio de dos campos:
+
+```python
+@dataclass(frozen=True)
+class Invocation:
+    server: str
+    result: ToolResult
+```
+
+Los otros tres finales de `/execute` —404, 422 y 504— siguen siendo excepciones,
+y ésa es la línea: **una excepción interrumpe, un resultado fallido es una
+respuesta**. Por eso el 200 con `status: error` viaja dentro de `Invocation` y
+los demás no.
+
+#### La degradación se va con el mecanismo
+
+`fetch_catalog` consultaba los servidores con `gather(return_exceptions=True)`
+para que uno caído saliera degradado y los demás se sirvieran igual. Esa política
+se mudó entera a `discover_all`, no sólo la consulta de un servidor: **el agente
+va a querer un catálogo parcial por el mismo motivo**, y dejarla en la fachada
+habría obligado a reescribirla.
+
+Lo que se queda en `api/catalog.py` es la traducción a `ServerInfo`/`ToolInfo` y
+la ficha de modelo de cada señal — lo único de todo esto que conoce el dominio, y
+por tanto lo único que no puede bajar a `core/`.
+
+#### La lista de capas se invierte
+
+`tests/test_arquitectura.py` enumeraba los paquetes del núcleo:
+`("analysis", "integrations", "core")`. Eso deja un agujero silencioso: **un
+paquete nuevo queda fuera de la regla sin que nadie lo note**, y `backend/agent/`
+llega con R13 siendo exactamente el caso donde la tentación de reutilizar `api/`
+es real.
+
+Ahora se recorre todo `backend/` salvo `api/` y `main.py`. Es el mismo criterio
+que ya usaba la otra prueba del fichero, que lista excepciones en vez de
+incluidos: lo nuevo entra cubierto por defecto, y sacarlo exige editar la línea a
+mano.
+
+Medido: la regla pasa de tres paquetes a **52 módulos y seis entradas**, porque
+añade `config/` y `evaluation/`, que tampoco estaban vigilados.
+
+Comprobado en negativo, creando el paquete que motiva el cambio:
+
+```
+AssertionError: El núcleo importa de las fachadas:
+  agent/bucle.py importa backend.api.execute
+```
+
+Con la lista vieja eso habría pasado en silencio. Y la prueba lleva ahora un
+`assert modulos` delante: si el recorrido se rompiera, sería un `assert not []`
+que pasa siempre.
+
+#### Una regla del linter que no aplicaba
+
+Sacar el timeout a parámetro —lo pedía la issue, para que el mecanismo se pruebe
+sin montar un entorno— disparó `ASYNC109`, que desaconseja un parámetro
+`timeout` en una función asíncrona. Su argumento es bueno: si la función sólo
+envuelve su cuerpo en `asyncio.timeout`, el llamante puede hacerlo igual y el
+parámetro sobra.
+
+Aquí la premisa no se cumple. El valor hace **dos trabajos con un solo número**:
+acota la operación entera con `asyncio.timeout` **y** se le pasa a
+`open_session` como corte de inactividad de httpx, que el llamante no puede
+reproducir desde fuera.
+
+Se silencia en `ruff.toml` con el motivo escrito, acotado a ese fichero y a los
+tests —cuyos dobles copian la firma de lo que sustituyen—, en vez de apagar la
+regla en todo el repositorio.
+
+#### Verificación
+
+206 tests y ruff limpio, **sin tocar una sola aserción de comportamiento**: los
+tests de catálogo y ejecución que ya existían son la red de este movimiento, y
+sólo cambiaron rutas de importación en seis ficheros.
+
+La prueba más limpia de que no cambia nada: **regenerar el contrato OpenAPI no
+produce diff**. Ni una ruta, ni un código de estado, ni un campo.
+
+#### El efecto secundario que interesa
+
+Con el cliente MCP fuera de `api/`, **`/analyze` queda a un paso de poder ir por
+el protocolo** en vez de importar el núcleo. No era el objetivo, pero abarata la
+decisión aplazada de separar las tools de clickbait en su propio contenedor, que
+espera a saber la RAM de la máquina de despliegue.
+
+### Cuatro huecos del contrato de `/analyze` (#133)
+
+Salieron al construir la pantalla de #127, uno detrás de otro y con la misma
+forma: **un dato que el backend ya tiene calculado y no deja salir**, y que
+obliga al frontend a inventárselo o a apañárselo. Van juntos porque caben en una
+sola regeneración del contrato y una sola revisión.
+
+#### El id que se calculaba y se tiraba
+
+`history.record()` devolvía el id de la fila insertada desde #102, y `/analyze`
+lo descartaba **una línea antes** de que la respuesta saliera del proceso. Como
+lo que se guarda no es un resumen sino la respuesta completa, la mitad difícil
+estaba hecha: faltaba sólo la puerta de lectura, que ahora es
+`GET /history/{id}`.
+
+El id viaja en un **sobre de la capa REST**, `AnalyzeResult{id, analysis}`. Se
+compararon tres sitios:
+
+| | campo en el dominio | cabecera `Location` | **sobre REST** |
+|---|---|---|---|
+| Toca `domain.py` | sí | — | **—** |
+| El id viaja tipado a `schema.d.ts` | sí | **no** | **sí** |
+| Fachada MCP | devolvería `id` siempre nulo | intacta | **intacta** |
+| Payload guardado | dice `null` mientras la respuesta dice 42 | limpio | **limpio** |
+| Si el backend lo quita | falla al compilar | **falla en silencio** | **falla al compilar** |
+
+La cabecera es lo que haría un diseño REST de manual, y se descartó por la fila
+decisiva: **no viaja por el documento OpenAPI**. El cliente recibiría un
+`string | null` sin tipo detrás, tendría que parsear una URL para recuperar un
+entero, y el día que dejara de mandarse no fallaría ningún guardián del CI —
+justo lo contrario de lo que se montó en #126.
+
+El campo del dominio se descartó además por una contradicción **permanente**, que
+conviene no confundir con deuda de datos: `record()` recibe el payload **antes**
+de que exista el id, así que toda fila futura guardaría `id: null` mientras la
+respuesta devolvió `id: 42`. Repoblar la base no lo arregla, porque el código
+nuevo vuelve a producirlo — a diferencia del caso de #134, donde lo desalineado
+eran filas viejas y regenerar bastaba. La salida sería escribir dos veces
+(insertar, leer el id, volcar de nuevo y `UPDATE`): dos escrituras por un campo
+que el sobre da gratis.
+
+**El id es opcional, y eso no es prudencia decorativa.** `record()` devuelve
+`None` cuando no puede guardar, porque perder un análisis correcto por un disco
+lleno sería peor que no guardarlo. Si la respuesta exigiera el id, ese fallo
+silencioso pasaría a ser un 500. Hay un test que lo fija.
+
+#### La etiqueta que la interfaz se inventaba
+
+`SignalResult` llevaba `name` —el id de máquina, `detect_clickbait_lexical`— pero
+no el nombre para personas, que existe desde #71 en las fichas. Y no había
+ninguna otra puerta: `/tools` tampoco lo expone.
+
+Así que `vocabulario.ts` mantenía un diccionario `tool → nombre`. **Una segunda
+copia sin vigilancia:** renombrar una señal en el backend no rompía ningún test,
+sólo hacía que la pantalla pintara el id crudo. Es la forma exacta del fallo de
+#116, donde el mismo id de modelo vivía en cinco sitios.
+
+Ahora `label` viaja en la respuesta, copiado de la ficha en `_build()` — la misma
+función que ya abría la ficha para leer `dimension` y `type`. El diccionario del
+frontend desaparece; el `??` se queda, pero tapando otra cosa: ya no un
+diccionario incompleto, sino una respuesta **antigua** recuperada del historial.
+
+#### El umbral que no salía de la señal híbrida
+
+La incoherencia decide con `similarity < 0.30`, y su `data` devolvía la similitud
+y el veredicto **pero no el umbral**, que vivía sólo como prosa en las
+`limitations` de su ficha.
+
+Es la única señal híbrida del sistema, y su tesis es que la decisión es
+transparente —un corte legible— aunque el rasgo sea opaco. Una tarjeta que dice
+«similitud 0,62 · coherente» sin enseñar contra qué se comparó **pierde
+exactamente eso**.
+
+Cablear el 0,30 en el frontend habría sido peor que copiar el `label`: #93
+propone parametrizar ese número, así que se estaría duplicando un valor que ya
+está previsto que cambie.
+
+Es el más barato de los cuatro —una línea y su declaración en `outputs.py`,
+porque `data` ya es diccionario libre y el esquema no cambia— y el que menos
+trabajo dio: **#127 ya había dejado el hueco puesto** en la plantilla,
+`@if (datos.threshold !== undefined)`. El campo llegó y la tarjeta lo pintó sola.
+
+#### Las formas del `data`, declaradas dos veces
+
+`data` es diccionario libre a propósito, para no perder información y para que
+quepan señales que todavía no existen. El precio lo paga quien lo consume, y lo
+estaba pagando dos veces: tres `TypedDict` en `outputs.py` y cuatro interfaces
+escritas a mano en `datos.ts`. Las mismas formas, dos lenguajes, **ningún
+vínculo** — y ninguno de los dos guardianes del CI veía la duplicación.
+
+Lo que **no** se hizo: tipar `SignalResult.data` como unión de las cuatro. Daría
+seguridad de tipos, pero el dominio pasaría a conocer cada señal concreta y
+rompería el principio 1 de `domain.py` — hoy añadir una señal no toca el dominio,
+y ésa es la propiedad que más costaría recuperar.
+
+Lo que sí: `export_openapi.py` publica las formas conocidas en
+`components/schemas`, y `datos.ts` las importa. Los guardianes de forma se quedan
+—`data` sigue sin tipo en la frontera y hay que comprobar en ejecución— pero
+pasan a validar contra tipos **generados** en vez de contra copias.
+
+Dos detalles del montaje:
+
+**Las referencias.** `SalidaLexica` anida `Pista`, y Pydantic mete los tipos
+anidados en un `$defs` local con `$ref: "#/$defs/Pista"`, que en un documento
+OpenAPI no resuelve. Se arregla por los dos lados —`ref_template` para generar
+las referencias ya apuntando a `components/schemas`, y subir los anidados ahí—
+en vez de reescribiendo cadenas después. Hay un test nuevo que recorre el
+documento entero y comprueba que **ningún `$ref` queda colgando**, porque ese
+fallo no se vería: `openapi-typescript` no revienta con una referencia rota,
+genera `unknown`, y el tipo deja de comprobar nada.
+
+**`Pick` en vez del tipo entero.** Cada guardián verifica unos campos concretos;
+devolver el tipo completo afirmaría que existen otros que nadie ha mirado.
+`DatosLexico = Pick<SalidaLexica, 'score' | 'matches'>` dice exactamente lo
+verificado, y si el backend renombra uno de esos dos campos, deja de compilar.
+
+#### Lo que se aprendió: dónde NO llega el contrato generado
+
+Al cambiar la respuesta de `/analyze`, **el frontend siguió compilando sin un
+solo error**. Con el tipo viejo puesto.
+
+El motivo está en una línea del servicio:
+
+```ts
+return this.http.post<AnalyzeResult>(`${API}/analyze`, peticion);
+```
+
+Ese genérico **no comprueba nada**: es una afirmación sobre lo que va a llegar.
+TypeScript se la cree, porque no puede saber qué manda el servidor. La cadena de
+#126 protege todo lo que hay aguas abajo de esa línea, y en la frontera HTTP no
+puede protegerlo nada.
+
+Contrasta con #134, donde el mismo mecanismo **sí** paró un `!== 'opaco'` que la
+búsqueda no vio: allí se comparaba contra una unión generada, aquí se declara lo
+que se espera recibir. La diferencia no es de rigor, es estructural.
+
+Dónde sí saltó: **en los tests**. Los fixtures se declaran `const LEXICA:
+SignalResult = {…}`, así que añadir `label` los rompió a los siete de golpe, con
+su línea exacta. Los tipos generados protegen donde el código *afirma conformarse
+a ellos*, no donde los pide por la red.
+
+**Y no se queda en una nota.** El fichero generado no sólo publica `components`:
+publica también `paths`, que sí sabe qué devuelve cada ruta. Los tipos del
+endpoint se toman ahora de ahí:
+
+```ts
+type Analyze = paths['/analyze']['post'];
+export type AnalyzeResult =
+  Analyze['responses'][200]['content']['application/json'];
+```
+
+Elegirlos a mano de `components` era lo que dejaba la afirmación suelta:
+`AnalyzeResponse` seguía existiendo como esquema, así que nada relacionaba el
+tipo con la ruta. Derivándolo, cambiar lo que devuelve `/analyze` cambia este
+tipo al regenerar, y rompe a quien supusiera la forma anterior. La elección deja
+de ser de quien escribe el servicio y pasa a ser del contrato.
+
+Comprobado, no supuesto: apuntando la respuesta 200 de `/analyze` a
+`AnalyzeResponse` en el contrato y regenerando, el build falla con `TS2339` en
+las dos líneas que abren el sobre, `analisis-page.ts:96` y `:97`. Antes de este
+cambio, esa misma simulación compilaba sin una queja.
+
+Lo que sigue sin cubrir es que el backend **desplegado** no corresponda al
+contrato commiteado. Para eso haría falta validar en ejecución, que es una
+segunda fuente de verdad salvo que también se genere — desproporcionado aquí, y
+anotado por si algún día deja de serlo.
+
+#### Y un efecto secundario que casi se cuela
+
+`app.openapi()` **cachea** su resultado en `app.openapi_schema` y devuelve siempre
+el mismo objeto. Enriquecerlo en sitio habría metido las formas del `data` en el
+`/openapi.json` que sirve la aplicación a partir de la primera llamada al
+exportador — o sea, un documento que cambia según si el exportador ha corrido
+antes, y en la suite eso depende del orden de los tests. Se genera sobre una
+copia para que la función sea pura.
+
+#### Una corrección de nomenclatura
+
+La issue fijaba el campo como `analisis`, en castellano; se escribió el
+2026-09-03. Al día siguiente entró #134, que estableció que **las claves de
+máquina van en inglés y sin diacríticos**, y un nombre de campo lo es tanto como
+el valor de un enum: viaja en el JSON y acaba en `schema.d.ts`. Se implementó
+como `analysis`, y la corrección queda anotada en la issue y en `CLAUDE.md`, no
+aplicada en silencio.
+
+#### Verificación
+
+206 tests de Python —ocho nuevos: que el id viaja y sirve, que un id inexistente
+da 404, que uno no entero da 422, que **el análisis se devuelve igual cuando el
+registro falla**, que el `label` sale de la ficha, que ningún `$ref` cuelga y que
+las formas del `data` se publican— y los 25 del frontend, ruff limpio, y
+`openapi.json` y `schema.d.ts` reproducibles byte a byte.
+
+### Las claves del dominio, en inglés y sin diacríticos (#134)
+
+Salió al escribir la plantilla de #127. Para pintar cada señal con el color de su
+naturaleza hay que llevar `type` a un atributo del HTML, y ahí se vio que el
+dominio **no seguía su propia regla**:
+
+```python
+class Dimension(str, Enum):
+    ENGANO = "engano"  # sin ñ
+
+
+class SignalType(str, Enum):
+    HIBRIDO = "híbrido"  # con tilde
+```
+
+Dos enums, el mismo fichero, reglas opuestas. Que `engano` renunciara a la ñ dice
+que en algún momento se decidió que las claves fueran ASCII; `híbrido` se saltó
+esa decisión, o nunca llegó a ser explícita. El resultado es que no se podía
+responder «¿las claves llevan diacríticos?» mirando el código.
+
+#### Se eligió el inglés, no sólo quitar la tilde
+
+La opción barata era `HIBRIDO = "hibrido"`: un valor, y la regla ASCII pasa a
+cumplirse. Se descartó por ser **media medida** — arregla el síntoma y deja la
+mezcla de idiomas en claves que son de máquina.
+
+Lo que entra es el vocabulario completo en inglés: `form` / `deception` / `tone`,
+`interpretable` / `hybrid` / `opaque`, `deceptive` / `stylistic_clickbait` /
+`factual` / `ambiguous` / `no_data`. Es coherente con todo lo que ya lo estaba
+—los nombres de las tools (`detect_clickbait_lexical`), las etiquetas que
+publican (`clickbait` / `factual news`), los corpus y la literatura—, sale ASCII
+de regalo y no deja ninguna decisión de diacríticos pendiente para el futuro.
+
+La regla queda **escrita en el docstring de `domain.py`**, que es lo que faltaba:
+antes había dos reglas conviviendo y ninguna declarada.
+
+#### El enum que la issue se dejaba
+
+La issue enumeraba tres enums. Hay cuatro:
+
+```python
+class SignalStatus(str, Enum):
+    OK = "ok"
+    NO_APLICABLE = "no_aplicable"  # ← castellano
+    ERROR = "error"
+```
+
+Dejarlo fuera habría hecho que la regla **naciera ya incumplida**, que es
+exactamente el reproche que la issue le hace a la media medida. Y no era un valor
+escondido: el frontend lo compara literalmente en `estadoDeSenal()`. Entra como
+`not_applicable`.
+
+Los **nombres de miembro siguen a los valores** (`Dimension.DECEPTION`,
+`SignalType.HYBRID`, `OverallVerdict.STYLISTIC_CLICKBAIT`). `ENGANO = "deception"`
+habría sido cambiar una incoherencia por otra.
+
+#### Qué se tocó de la prosa, y qué no
+
+La regla aplicada: **se actualiza toda cita del valor entre comillas invertidas,
+salvo en `evaluation/` y `spikes/`**, que son registro de experimentos ya
+ejecutados y describen lo que se hizo entonces.
+
+Lo que NO cambia es la prosa en castellano que nombra el concepto —los nombres de
+los tests, los comentarios de diseño, `docs/requisitos.md`, este README— porque
+ahí «engaño» y «forma» no son claves: son las palabras del dominio, y son las que
+la interfaz sigue enseñando al usuario.
+
+Hay una excepción a la vista y es deliberada: el docstring de `domain.py`
+conserva `engano` e `híbrido` escritos tal cual, porque está contando **qué se
+arregló**. Y `R5.9` en `docs/requisitos.md` sigue enumerando «interpretable /
+híbrido / opaco» en castellano; tocarlo obligaría a justificar un cambio de
+requisito por algo puramente cosmético.
+
+#### Lo que NO arregla, para no venderlo de más
+
+**La capa de traducción a texto legible se queda entera.** `nombreDeDimension()`
+hace falta igual, porque la pantalla dice «Engaño» tanto si la clave es `engano`
+como si es `deception`. Lo único que desaparece de verdad es `claseDeTipo()`, una
+función cuyo trabajo completo era convertir `híbrido` en `hibrido` para poder
+casarlo en un selector CSS.
+
+O sea: esto es **coherencia y robustez, no ahorro de código**. Vendido como lo
+segundo, no compensaría.
+
+#### El historial viejo no se rompe, y eso estaba previsto
+
+Las filas ya escritas en SQLite guardan la respuesta completa, así que dicen
+`clickbait_de_forma`. No falla nada, y no por suerte: `HistoryEntry.verdict` es
+`str | None` y **no un enum**, decisión tomada en #102 con este motivo exacto
+anotado —«son datos leídos de disco, que pudo escribir otra versión del código»—.
+El frontend las pinta con su valor crudo gracias al `??` de `nombreDeVeredicto`:
+fea, pero visible, que es la misma regla que gobierna las señales desconocidas.
+
+Repoblar la base es opcional, y se puede porque los datos guardados son de prueba.
+
+#### El cliente tipado cazó lo que el grep no vio
+
+El primer barrido buscó `engano` e `híbrido` —los dos casos que nombra el título
+de la issue— y **se dejó `opaco`, `forma` y `tono` como valores sueltos**. Quedó
+vivo un `this.senal().type !== 'opaco'` en `senal-card.ts`, que decide si una
+tarjeta nace abierta.
+
+No lo encontró una búsqueda: lo paró `ng build`. Con `SignalType` generado desde
+el contrato como `"interpretable" | "hybrid" | "opaque"`, comparar contra
+`'opaco'` deja de compilar porque los tipos no se solapan. Es la cadena de #126
+haciendo el trabajo para el que se montó, en el primer refactor que la ejercita:
+sin ella el fallo habría sido silencioso —una comparación siempre falsa, tarjetas
+abriéndose cuando no toca— y sin ninguna línea roja en ningún sitio.
+
+#### Verificación
+
+198 tests de Python y 25 del frontend en verde, ruff limpio, y el contrato
+regenerado en el mismo commit — los dos guardianes de #126 lo comprueban.
+
+### Diagramas del flujo de peticiones, y dos reglas que pasan a tener test (#106)
+
+`docs/arquitectura.md` se declaraba «documento vivo» y reflejaba el estado al
+cerrar el MVP, en junio. Desde entonces se había construido la capa REST entera y
+el documento no la mencionaba: su tabla marcaba `R4–R9 ⬜ Fase B` con R4, R5 y R9
+completos. Y el camino que sigue una petición no estaba dibujado en ninguna parte.
+
+#### Un documento que se equivocaba sobre sí mismo
+
+La cabecera decía, desde junio, *«Diagramas en Mermaid (se renderizan en
+GitHub)»*. **Sus dos diagramas eran SVG exportados de draw.io.** Llevaba meses
+afirmando algo falso sobre su propio contenido, y nadie lo notó porque una
+cabecera no se relee.
+
+Es el argumento entero de esta issue en pequeño: **una afirmación que nada
+sostiene se desincroniza en silencio**. Vale para la cabecera de un fichero y
+vale para una regla de arquitectura, y por eso el trabajo acabó incluyendo tests.
+
+#### El formato: los dos, con un criterio
+
+Mermaid para los diagramas de flujo, draw.io para el UML que va a la memoria. La
+diferencia no es estética:
+
+- Un diagrama de secuencia en XML de draw.io **se escribe una vez y no se
+  actualiza nunca**. Vive fuera del texto, no aparece en el diff de una PR y
+  nadie sabe si sigue siendo cierto.
+- En Mermaid vive dentro del Markdown, se corrige en una línea y **se revisa en
+  la pull request** como cualquier otro cambio.
+
+De ahí sale el criterio que queda escrito en el propio documento:
+
+> Si un diagrama necesita control fino de la disposición, o va en draw.io, o está
+> diciendo dos cosas y hay que partirlo.
+
+Los dos SVG de la Fase A se conservan, reencuadrados: describen **el servidor
+MCP**, que sigue siendo cierto como componente aunque ya no sea el sistema entero.
+
+#### Un diagrama, un mensaje
+
+El primer borrador del diagrama de fachadas salió con las líneas cruzándose, y la
+tentación era culpar al motor de disposición. No era suya:
+
+- **Llevaba dos mensajes a la vez** —quién cruza la frontera MCP y quién escribe
+  en el historial—. Partido en dos, los dos quedan limpios.
+- **El de capas cruzaba por una flecha «prohibido»** que iba hacia atrás.
+  Cualquier arista que remonte el flujo obliga a rodear el grafo entero. Y lo
+  importante: esa flecha **dibujaba una ausencia**. La regla dice que ese import
+  no existe, así que representarlo era representar lo que no hay. Fuera del
+  dibujo y escrita debajo.
+
+#### Dos trampas de Mermaid, y lo que costaron
+
+Encontradas al renderizar, no leyendo documentación:
+
+- **`#` inicia un código de entidad** (`#quot;` y compañía) y se traga lo que
+  venga detrás. Escribir `(#133)` produjo `(`. En este repositorio, donde las
+  issues se citan por número constantemente, es una trampa esperando.
+- **`;` termina la sentencia.** Una etiqueta con punto y coma se parte en dos y
+  **el diagrama entero deja de renderizarse**, sin error visible en el Markdown.
+
+Las dos quedan anotadas en la cabecera del documento.
+
+#### Verificar el documento, no una copia
+
+Los diagramas se validaron primero en un HTML aparte, y ahí apareció un tercer
+problema que era del método y no del contenido: metiendo la fuente en un
+`<pre class="mermaid">`, **el navegador interpreta las etiquetas HTML antes que
+Mermaid**, así que un `<b>` dentro de una etiqueta llegaba ya convertido y rompía
+el análisis sintáctico. En GitHub eso no pasa —una valla ```` ```mermaid ````
+entrega el texto crudo—, así que el banco de pruebas estaba inventando un fallo.
+
+La comprobación final se hace al revés: un script **extrae las siete vallas del
+propio `arquitectura.md` ya escrito** y las renderiza. Las siete devuelven SVG.
+Lo verificado es exactamente lo que se commitea, no una versión paralela que
+podría haber divergido.
+
+#### Dos diagramas fuera del alcance original
+
+La issue pedía cuatro. Se añaden dos más porque son los que sirven para decidir,
+no sólo para explicar:
+
+- **El dominio del análisis.** Ahí se ve de un vistazo que `data` es un
+  diccionario sin tipo que nadie vigila, y que un `is_clickbait` nulo en una
+  dimensión **es el resultado** —dos señales fiables que no coinciden— y no un
+  hueco. Las dos cosas están en el centro de las decisiones abiertas.
+- **Las capas y su dirección permitida.** Hace visual dónde puede entrar la
+  configuración sin romper nada, que es la pregunta que trae la parametrización
+  de umbrales (#93).
+
+#### El alcance creció: dos reglas pasan a tener test
+
+Al escribir el diagrama de capas hubo que verificar sus dos afirmaciones, y las
+dos resultaron ciertas… y sostenidas por nada:
+
+1. Ninguna capa del núcleo importa de las fachadas.
+2. Los detectores —`lexical`, `linear`, `incoherence`, `dedicated`— no importan
+   `settings`; sólo lo hacen `client.py`, que necesita el token, y `factory.py`,
+   cuyo trabajo es leer configuración.
+
+Publicar un diagrama que dibuja una regla que nada defiende es repetir el error
+de la cabecera. Así que `tests/test_arquitectura.py` entra en una issue de
+documentación, a propósito.
+
+**Parsea el árbol con `ast`, no hace `grep`:** un import comentado no debe hacer
+fallar nada. Y recorre el árbol entero, así que **también ve los imports dentro
+de funciones** — hay uno legítimo en `precalentar()`, y es por ahí por donde se
+esquivaría la regla sin querer.
+
+**Se comprobó rompiéndolas.** Se añadió `from backend.api import schemas` a
+`core/models.py` y `from backend.config.settings import settings` a `lexical.py`,
+y los dos tests fallaron nombrando fichero e import culpables. Un test de
+arquitectura que pasa, pero que nadie ha visto fallar, no demuestra nada: podría
+estar recorriendo un directorio vacío.
+
+**La segunda regla lista excepciones, no detectores.** Recorre *todos* los
+módulos de `integrations/nlp/` y sólo perdona a dos. Así un detector nuevo queda
+cubierto sin tocar nada, y meter `settings` en un módulo de esa capa obliga a
+**editar la lista a mano** — que es justo la decisión consciente que se quiere
+forzar cuando llegue #93. La regla no sólo describe el pasado: defiende una
+decisión futura.
+
+**Se descartó `import-linter`**, que es la herramienta hecha para esto y expresa
+el apilado completo de forma declarativa. Para dos reglas traería una dependencia
+más y un paso de CI más —el job de Python instala sólo `requirements.txt` y añade
+`ruff` aparte y pineado— mientras que esto usa la biblioteca estándar y corre en
+el `pytest` que ya existe. Con cinco contratos de capas, se reconsidera.
+
+#### Lo que estaba desfasado, corregido
+
+| Decía | Dice |
+| :--- | :--- |
+| «Diagramas en Mermaid» siendo SVG | el criterio real, con sus dos trampas |
+| «un servidor MCP, transporte stdio» | dos fachadas, y el transporte configurable (#90) |
+| `detect_clickbait` = zero-shot BART | el dominio se describe por su forma, no por el modelo de turno (#115) |
+| R3.7 (incoherencia) pendiente | ✅ (#56) |
+| `R4–R9 ⬜ Fase B` | R4, R5 y R9 ✅; R6 parcial; R7 y el CD pendientes |
+| Sin rastro de `analysis/` | es la capa central del diagrama de capas |
+
+La tabla de requisitos dice ahora también **lo que falta y con qué issue**: R3.9 a
+medias (#119), el texto de excepción sin sanear (#89) y las tres pantallas que
+quedan de R6.
+
+#### Lo que sigue sin vigilancia, dicho para que no se olvide
+
+- **Las formas del `data` están declaradas dos veces**: tres `TypedDict` en
+  `outputs.py` para MCP y cuatro guardianes escritos a mano en `datos.ts`. Ningún
+  guardián del CI ve esa duplicación, porque el contrato REST declara `data` como
+  diccionario libre.
+- **Los diccionarios de `vocabulario.ts` no están atados a los enums.**
+  `VEREDICTOS` y `DIMENSIONES` son `Record<string, string>` cuando podrían ser
+  `Record<OverallVerdict, string>` y `Record<Dimension, string>`, que ya son
+  uniones generadas: entonces añadir un veredicto en el backend rompería el build
+  en vez de pintar la clave cruda. `NOMBRES` y `CATEGORIAS` **no** se pueden
+  tipar así, porque no viajan en el contrato — y eso separa solo lo que el
+  contrato puede defender de lo que no.
+- **`tests/api/test_analyze.py` prueba `analysis/orchestrator`.** El código se
+  movió en #107 y sus tests se quedaron, rompiendo el espejo `tests/` ↔
+  `backend/` del PR #52.
+- **No se mide cobertura.** `pytest-cov` está en `requirements.in` y el CI no lo
+  invoca, así que «qué más no tiene test» hoy sólo se responde leyendo.
+
+#### Una nota sobre la versión
+
+La issue pedía que esto entrara **antes del tag `v0.3.0`**, para que la release no
+quedara sin la documentación de su propia arquitectura. No llegó a tiempo, y los
+tags son cortes en el tiempo que no se reabren: entra en **`v0.4.0`**, con H3.
+
+### La pantalla de análisis: el lienzo de explicabilidad (#127)
+
+La primera pantalla que pinta algo propio, y la que sostiene la tesis del
+trabajo: contrastar señales de distinta naturaleza en vez de dar un veredicto
+único. Casi todo lo que se decidió aquí salió de una tensión entre lo que el
+prototipo dibujó en julio y lo que el backend devuelve hoy.
+
+#### Una ruta y no dos, porque `/analyze` no devuelve ningún id
+
+El prototipo dibuja «Analizar» y «Resultados» como pantallas separadas, con una
+flecha de navegación entre ellas. Como **rutas** no se sostienen: `POST /analyze`
+no devuelve identificador, así que `/resultados` no sería enlazable, no
+sobreviviría a una recarga, y obligaría a un servicio de estado cuyo único
+cometido sería cruzar la navegación.
+
+Se hace en **una sola ruta** con el formulario que se pliega al llegar el
+resultado. El «← Nuevo análisis» pasa de navegar a **restablecer**: mismo gesto y
+misma etiqueta, sin ruta que pueda quedarse huérfana.
+
+No es un compromiso a la baja. `/analisis/:id` **se añadirá** cuando el id exista
+(#133), y no compite con ésta: `/analizar` es donde se escribe, `/analisis/42`
+donde se lee uno guardado. Para que ese día sea aditivo, el bloque de resultados
+recibe el `AnalyzeResponse` **como entrada** y no lo busca él.
+
+El prototipo no se reescribió. Se añadió un diagrama **`3b - Análisis (una
+ruta)`** a `docs/prototipo-ui.drawio`, dejando intacta la pantalla 3: es lo que
+se validó con el tutor en #73 y borrarlo perdería el registro de qué se acordó
+entonces.
+
+#### El número de señales es variable, así que el layout no puede fijarlo
+
+La primera versión del dibujo era una rejilla de cinco tarjetas. Eso contradice
+el principio 1 de `analysis/domain.py` —las señales son una lista uniforme
+justamente para que «añadir una quinta no obligue a tocar Angular»— sólo que una
+capa más arriba.
+
+La solución no es **limitar a cuatro**, que vuelve a cablear un número: es un
+criterio del que el número salga solo.
+
+- Una **fila de pastillas**, una por señal, con su veredicto y su estado. Crece
+  con la lista y cabe entera sobre la línea de flotación: se ve cuántas señales
+  hay y qué dijo cada una sin bajar.
+- Las **tarjetas se despliegan por tipo**: `interpretable` e `híbrido` abiertas,
+  `opaco` plegadas.
+
+El argumento no es el espacio, es que **una tarjeta opaca no tiene explicación
+que desplegar**. El léxico despliega sus pistas con su posición; el lineal, sus
+pesos; la incoherencia, su similitud. El RoBERTa dedicado sólo tiene etiqueta y
+confianza, dos datos que ya caben en la cabecera. Y R3.8 pide priorizar lo
+interpretable. Añadir mañana una señal interpretable la abre sola; una opaca, la
+pliega sola.
+
+Se descartó el panel «Plegadas» agrupado del dibujo: agrupar era un recurso de
+maquetación estática, y una lista uniforme comunica la misma regla sin romper la
+uniformidad del componente.
+
+#### El `data` llega sin tipar, y eso obliga a elegir entre castear o comprobar
+
+El contrato declara `data` como diccionario libre (`dict[str, Any]`) **a
+propósito**, para no perder información. El precio lo paga la interfaz, que tiene
+que decir qué espera de cada señal.
+
+Castear (`data as DatosLexico`) miente en silencio el día que el backend cambie.
+Se hace lo otro: cada forma tiene una función que **comprueba y devuelve `null`**
+si no encaja, y la tarjeta degrada a JSON crudo en lugar de pintar `undefined`.
+Con el `@default` del `switch`, una señal que nadie ha previsto **nunca
+desaparece de la pantalla**: sale fea, con su JSON, pero sale.
+
+El criterio de qué se comprueba no es «¿valida contra el esquema?» sino **«¿qué
+rompería el pintado?»**. Ejemplo real: `span` se comprueba que tenga longitud 2
+porque con un elemento el destructurado deja `fin` en `undefined`, y
+`slice(inicio, undefined)` **no falla** — se lleva el resto de la cadena y
+resalta medio titular sin un solo error en consola.
+
+Validarlo todo convertiría esto en un validador de esquemas, y entonces lo
+sensato sería generar uno del contrato. Pero **no hay contrato que validar**:
+`data` es un diccionario libre. El arreglo de fondo es que el backend declare la
+forma de salida, no un guardián más gordo aquí.
+
+#### Los spans del léxico se solapan, y eso hay que resolverlo
+
+Un mismo trozo del titular puede disparar más de una categoría. Sin resolverlo
+salen tramos duplicados y el titular se lee dos veces. La regla —arbitraria pero
+determinista— es **gana la que empieza antes, y a igualdad la más larga**.
+
+La invariante que sostiene la función es que `cursor` cuenta cuánto del titular
+va emitido, y de ahí sale la propiedad que sí merece un test: **juntar todos los
+tramos devuelve el titular exacto**, sin texto perdido ni repetido. La leyenda se
+construye con las categorías que aparecieron, no con una lista fija.
+
+#### Zoneless: un riesgo que se midió en vez de suponerlo
+
+El mensaje de validación depende de `touched` e `invalid` del formulario
+reactivo, que **no son señales**. En zoneless la vista se repinta cuando cambia
+una señal o cuando salta un manejador de eventos; el `blur` del input y el
+`ngSubmit` lo son, así que *debería* funcionar.
+
+Eso es un razonamiento, no una medida, y es exactamente la clase de fallo mudo
+que motivó la decisión de #126. Hay un test que pulsa Analizar con el campo vacío
+y comprueba que **el mensaje aparece en el DOM**. Funciona; si algún día deja de
+hacerlo, lo dirá.
+
+Para el plegado de las tarjetas se usa **`linkedSignal`**: estado escribible —el
+usuario pliega y despliega— pero que se **resiembra** cuando llega otra señal.
+Con un `signal` normal habría que reiniciarlo a mano, y olvidarlo dejaría la
+tarjeta abierta arrastrando el estado del análisis anterior.
+
+#### Lo que enseñó ejecutarla contra la API de verdad
+
+**El modelo dedicado no se puede servir en remoto.** Con `NLP_BACKEND=remote`,
+`detect_clickbait` devuelve `400 — Model not supported by provider hf-inference`.
+No es un timeout ocasional como los medidos en la Épica 4: es **permanente**.
+`Stremie/roberta-base-clickbait`, el modelo que #115 eligió por medida, sólo es
+usable en local. Es un límite a tener presente en H4.
+
+**Una tarjeta que decía «error» y se callaba el motivo.** Al verlo en pantalla se
+destapó que `detail` —que sí viaja: «Model not supported…», «Requiere el cuerpo o
+teaser de la noticia»— no se pintaba en ningún sitio. Se corrigió: el motivo se
+enseña **siempre**, incluso con la tarjeta plegada. Un fallo que no explica por
+qué es peor que un hueco.
+
+**El camino de error, comprobado sin buscarlo.** Reiniciar el preview se llevó
+por delante el proceso de la API y el proxy devolvió un 502. La pantalla mostró
+«La API falló al analizar (502). Vuelve a intentarlo.» con el formulario intacto
+debajo. R6.7 verificado contra un fallo real y no contra un doble.
+
+**Y un caso en el filo que ilustra la jerarquía.** El titular
+`10 Amazing Things You Won't Believe` con un cuerpo genérico dio similitud
+**0,29** — una centésima por debajo del umbral de 0,30. La incoherencia votó
+«sí», y como `engano` manda sobre `forma`, el veredicto global salió **ENGAÑOSO**
+en vez de `CLICKBAIT DE FORMA`, con las otras cuatro señales diciendo lo mismo
+que antes. Una centésima cambió la etiqueta.
+
+#### Tres huecos del contrato, encontrados por el camino
+
+Los tres tienen la misma forma: **un dato que el backend ya tiene calculado y no
+deja salir**, y que obliga a la interfaz a inventárselo. Van juntos en #133
+porque caben en una sola regeneración del contrato y una sola revisión.
+
+1. **El id del análisis.** `history.record()` lo devuelve y `post_analyze` lo
+   descarta una línea antes de responder. Sin él no hay ruta enlazable.
+2. **La etiqueta legible de cada señal.** Existe desde #71 en `MODEL_CARDS`, pero
+   no viaja: ni en `/analyze` ni en `/tools`. La interfaz mantiene mientras tanto
+   un diccionario `tool → nombre`, que es una segunda copia sin vigilancia — la
+   forma exacta del fallo de #116.
+3. **El umbral de la incoherencia.** El más elocuente: la tarjeta dice «similitud
+   0,29» y **no dice contra qué**. La señal híbrida acaba enseñando su número
+   opaco y escondiendo justo la parte transparente, que es su umbral. Cablear el
+   0,30 sería peor que copiar el nombre, porque #93 propone parametrizarlo.
+
+De paso salió #134: `Dimension.ENGANO` vale `"engano"` sin eñe mientras
+`SignalType.HIBRIDO` vale `"híbrido"` con tilde. **El dominio no sigue su propia
+regla**, y el frontend necesita una función que sólo existe para traducir esa
+tilde a algo que no sea frágil como valor de atributo.
+
+#### Accesibilidad, que no la pide ningún requisito
+
+Ninguno de los trece criterios de R6 la exige. Se hace igualmente, porque cuesta
+un atributo y porque un análisis posterior sobre plantillas que no la tuvieron en
+cuenta es un rediseño, no una comprobación.
+
+- **El veredicto va en caja normal en el DOM** y son las mayúsculas las que pone
+  el CSS: muchos lectores de pantalla deletrean las palabras escritas en caja
+  alta porque las toman por siglas.
+- **`lang="en"` en los titulares.** El contrato dice que van en inglés y la
+  página está en castellano; sin eso se pronuncian con fonética española.
+- **El mensaje de error está atado a su campo** con `aria-describedby` y
+  `aria-invalid`, en vez de suelto en la página.
+- **La cabecera de cada tarjeta es un `<button>`** con `aria-expanded`, no un
+  `div` con un `click`: se llega con el tabulador y se activa con Enter.
+- `role="status"` para lo que informa y `role="alert"` sólo para lo que
+  interrumpe. Comprobado en el árbol de accesibilidad del navegador.
+
+#### Estado
+
+Los cinco puntos del alcance de #127 cubiertos: formulario con contenido
+opcional, las cinco señales con su dimensión y su tipo, resaltado de cues sobre
+el titular, estados de carga (R6.6) y errores entendibles (R6.7). **25 tests** en
+el frontend, y la pantalla validada contra la API real con los cinco detectores
+en local.
+
+### Andamiaje de la SPA: proyecto Angular, proxy y cliente tipado (#126)
+
+Primera pieza de código del frontend. Y no es sólo correr `ng new`: casi todo lo
+que se decide aquí condiciona el resto de H3, porque el primer componente que se
+escriba mal se copia en los siguientes. Dos decisiones salieron al revés de lo
+previsto.
+
+#### El generador ya no trae `zone.js`, y eso asciende una convención a requisito
+
+El plan era arrancar con `zone.js` —que parchea las APIs asíncronas y, ante
+cualquier evento, revisa el árbol de componentes entero— y escribir *signals*
+igualmente, para que migrar más tarde costara una línea. Pero `ng new` de
+Angular 22 genera **zoneless por defecto**: `zone.js` ni siquiera aparece en
+`package.json`, y el componente que produce ya viene con `signal()`. Se decidió
+quedarse ahí, porque volver atrás sería instalar lo que el CLI quita a propósito
+y remar contra un generador que a partir de ahora escribe con signals.
+
+Lo que cambia no es una dependencia, es el estatus de una convención. Guardar el
+estado en un campo normal en vez de en un `signal()` pasa de ser mal estilo a ser
+**un fallo de corrección**:
+
+```ts
+resultado = signal<AnalyzeResponse | null>(null);   // sí
+resultado: AnalyzeResponse | null = null;           // no — no se repinta
+```
+
+Y un fallo mudo: esa parte de la pantalla deja de actualizarse **sin lanzar
+ningún error**, a veces sólo en un caso concreto. Los tests unitarios no lo
+cubren, porque comprueban lógica y no repintado.
+
+**SSR descartado** (`--ssr=false`). Obligaría a un servidor Node en producción
+—complicando el Docker de H4— y a que el código funcione tanto en navegador como
+en Node, donde no existen `window` ni `document`. A cambio no se gana nada aquí:
+no hay contenido público que indexar y la primera carga es local.
+
+#### Node vive en WSL, y el proxy se pone el primer día
+
+Node se instaló **dentro de WSL** con nvm (v22.23.2; el CLI 22.1.6 exige
+`^22.22.3`). Usar el Node de Windows contra la ruta de WSL cruzaría el puente 9p
+en cada operación de fichero: `npm install` lentísimo y —lo que de verdad duele—
+el *watch* de `ng serve` poco fiable, porque las notificaciones de cambio no se
+propagan bien y la recarga automática falla de forma intermitente.
+
+`proxy.conf.json` entra ahora y no al final, cuando haga falta. H4 ya tiene
+decidido `nginx` como proxy inverso en producción, y esto es su equivalente en
+desarrollo: así los dos entornos se comportan igual desde el principio, en vez de
+descubrir en diciembre que algo dependía del CORS.
+
+El CI monta un **job aparte** para el frontend en lugar de añadir pasos al de
+Python. Son cadenas de herramientas independientes: así un fallo de TypeScript no
+oculta el informe de `pytest` ni al revés, y además corren en paralelo. Los tests
+usan **vitest sobre jsdom**, no Karma, así que el runner no necesita navegador.
+
+#### El cliente TypeScript se genera del contrato, no se escribe
+
+FastAPI publica en `/openapi.json` la descripción completa de la API —rutas y
+forma de cada cuerpo— deduciéndola de las anotaciones de tipo. Son **23 esquemas
+sobre 5 rutas**: `AnalyzeResponse` sola arrastra tres modelos anidados y cuatro
+enums.
+
+Escribir eso a mano en el frontend crearía una segunda definición de la misma
+verdad, y esa copia **no falla al desincronizarse**: TypeScript compila igual y el
+dato llega `undefined` al navegador. Es el mismo patrón que costó #116, donde el
+mismo id de modelo vivía en cinco sitios.
+
+```
+backend/analysis/domain.py            la verdad, en Python
+        v   python -m backend.api.export_openapi
+frontend/openapi.json                 el contrato
+        v   npm run gen:api
+frontend/src/app/api/schema.d.ts      la misma verdad, en TypeScript
+        v
+frontend/src/app/api/models.ts        nombres cortos
+```
+
+El volcado **importa la app** en vez de pedirle el JSON a un servidor corriendo,
+que es lo que documenta FastAPI: no hay que arrancar uvicorn, ni elegir un puerto
+libre, ni esperar a que levante, ni matarlo. Cuesta 3,4 s y no carga ningún
+modelo NLP —eso ocurre en el `lifespan`, que aquí no llega a correr—, así que
+también vale en el CI, que instala sólo `requirements.txt`.
+
+Un detalle que sale gratis: los enums llegan como **uniones de cadenas**, no como
+`enum` de TypeScript.
+
+```ts
+Dimension: "forma" | "engano" | "tono";
+SignalType: "interpretable" | "híbrido" | "opaco";
+```
+
+Al ser estructurales, comparar contra `"engaño"` con eñe no compila. Y las
+descripciones de los `Field` viajan como JSDoc, así que el frontend hereda la
+documentación del backend al pasar el ratón.
+
+**Sólo los tipos.** Se descartó generar un cliente HTTP entero (`ng-openapi-gen`
+produce servicios Angular ya montados): mete una capa que hay que regenerar y
+revisar en cada cambio, y aquí son cinco rutas escritas con `HttpClient`. Lo que
+se desincroniza son los tipos, no el `post`.
+
+#### Un `peer` desactualizado, y por qué no se apagó la comprobación entera
+
+`openapi-typescript@7.13.0` declara `peer typescript@"^5.x"` y Angular 22 trae el
+**6.0.3**, así que `npm install` lo rechaza con `ERESOLVE`. Antes de rendirse se
+midió: corriendo el generador contra nuestro contrato real produce las 747 líneas
+sin un solo aviso. El rango está desactualizado; no describe una incompatibilidad.
+
+Se descartó `--legacy-peer-deps`, que era lo cómodo: apaga la comprobación de
+*peers* **para todo el proyecto y para siempre**, así que taparía también una
+incompatibilidad real de un paquete de Angular el día que la haya. En su lugar va
+un `overrides` que afecta sólo a ese paquete, y se verificó que `npm ci` —que es
+lo que corre el CI, no `npm install`— instala desde el lock sin protestar.
+
+`package.json` es JSON estricto y no admite comentarios, así que **este párrafo es
+el único sitio donde consta el porqué de ese bloque**. La alternativa examinada,
+`@hey-api/openapi-ts`, sí declara compatibilidad con TypeScript 6; quedó apuntada
+por si el `overrides` diera problemas, pero genera más de lo que hace falta.
+
+#### Dos eslabones, dos guardianes
+
+Que lo generado esté commiteado tiene una razón —así el `git diff` de una pull
+request enseña qué cambió del contrato, cosa que generándolo en el build sería
+invisible en la revisión— y un riesgo: que la copia se quede rancia. Cada eslabón
+tiene su vigilante, cada uno donde está su herramienta.
+
+| Eslabón | Quién lo vigila |
+|---|---|
+| el JSON refleja los modelos Pydantic | `test_el_contrato_commiteado_esta_al_dia`, en `pytest` |
+| el `.d.ts` sale de ese JSON | un paso del job de frontend, que es el que tiene Node |
+
+El primero es un **test y no un paso de CI** a propósito: corriendo dentro de
+`pytest` salta antes de empujar, no veinte minutos después en el runner.
+
+Los dos fallan con la instrucción de cómo arreglarlo, no con el diff. De ahí que
+use `pytest.fail` en vez de `assert a == b`: comparar dos JSON de 36 kB imprime
+cientos de líneas que no sirven de nada, porque esto no se arregla editando el
+fichero sino regenerándolo. Lo útil es la orden, no la diferencia.
+
+Los dos se probaron **en negativo**, ensuciando el contrato a mano y rompiendo un
+alias de `models.ts`. Lo segundo no era evidente: nadie importa `models.ts`
+todavía, y sólo se comprueba porque `tsconfig.app.json` incluye `src/**/*.ts` en
+vez de partir del punto de entrada. Sin esa línea los alias serían decorativos
+hasta que alguien los usara. Rota, `ng build` falla con `TS2339` y la línea
+exacta.
+
+#### Un `.gitattributes`, que no existía
+
+El git de WSL tiene `core.autocrlf` sin poner; el de Windows lo trae en `true`.
+Un checkout desde ese lado dejaría `openapi.json` y `schema.d.ts` con CRLF en
+disco mientras las herramientas que los producen los escriben con LF. Y como esos
+dos ficheros se comparan justamente contra su versión regenerada, el desajuste no
+saldría como un detalle de formato: saldría como **un diff permanente que no se
+arregla regenerando**, que es justo lo que ordena el mensaje de error. El fallo
+diría una cosa y la solución sería otra.
+
+`* text=auto eol=lf` lo cierra sin efectos colaterales: `git ls-files --eol` no
+encontró un solo CRLF en el índice, y los binarios —los `.gz` de `data/`, el
+favicon— ya se detectan solos.
+
+El mismo fichero lleva una segunda marca, `linguist-generated=true` sobre
+`schema.d.ts`, para que GitHub lo colapse en el diff de las pull requests. Son
+747 líneas que cambian enteras cada vez que se toca un modelo y que nadie va a
+leer, porque son la traducción mecánica del JSON. `openapi.json` **no** la lleva,
+a propósito: ése es el que cuenta qué cambió de la API, y es la mitad de la
+pareja que sí hay que revisar.
+
+#### Estado
+
+Bundle inicial de **217 kB** (59,6 kB transferidos), 196 tests de Python (uno
+nuevo) y los 2 del frontend en verde, ruff limpio. La SPA todavía no pinta nada
+propio: eso empieza en #127.
+
+### Precalentar los modelos, adelantado desde H4 (#125)
+
+`/analyze` en frío tardaba **~105 s**. Estaba anotado como decisión de H4 —donde
+el argumento era el arranque del contenedor— pero al empezar H3 dejó de ser una
+optimización de despliegue: con ese tiempo no se puede desarrollar una pantalla
+de resultados, porque **cada reinicio del backend cuesta lo mismo**.
+
+#### Primero, dónde se iban los 105 s
+
+Antes de decidir qué precalentar había que saber en qué se gastaban. El desglose
+reparte el tiempo de forma muy distinta a lo que parecía:
+
+| | |
+|---|---|
+| `import torch` | 22,83 s |
+| `import transformers` | 11,99 s |
+| `import sentence_transformers` | 18,69 s |
+| **coste único de imports** | **53,5 s** |
+| carga del modelo dedicado | 10,11 s |
+| carga del de sentimiento | 14,70 s |
+| carga del de embeddings | 8,16 s |
+| **carga de los tres modelos** | **33,0 s** |
+| primera inferencia (ver abajo) | 15,5 s |
+
+**El 52 % es importar librerías**, que es coste único compartido por los tres
+modelos. Cargar los modelos son sólo 33 s.
+
+#### Y un detalle que decide el diseño
+
+```
+dedicada, primera inferencia      9,78 s   ·  segunda  0,01 s
+sentimiento, primera inferencia   0,01 s   ·  segunda  0,01 s
+incoherencia, primera inferencia  5,75 s   ·  segunda  0,01 s
+```
+
+La primera inferencia del sentimiento tarda 0,01 s. No es que el modelo sea
+rápido: es que **para cuando le toca, torch ya hizo su primer forward** con el
+dedicado y pagó la inicialización. El coste de «primera inferencia» también es
+**global**, no por modelo.
+
+De ahí sale que basta con **ejercitar**, no sólo cargar — esos 15,5 s no los paga
+`SentenceTransformer(...)`, los paga hacerle pasar una entrada— y que calentar
+una señal ya abarata las demás.
+
+#### Cuatro decisiones
+
+**Apagado por defecto.** El defecto importa más que el flag: si fuera `True`,
+cada `TestClient(app)` de la suite cargaría tres modelos. Eso no se manifiesta
+como un fallo sino como que «los tests van lentos», que es mucho peor de
+diagnosticar. Hay un test que lo vigila. Y en desarrollo con `--reload` pasaría
+lo mismo en cada reinicio.
+
+**Respeta `nlp_backend`.** Con el defecto `remote`, las señales de titular van
+por HTTP a HuggingFace: precalentar sus modelos en local sería cargar cosas que
+las peticiones no van a usar. Sólo la incoherencia corre siempre en local.
+
+**Bloquea el arranque.** Hacerlo en segundo plano dejaría a uvicorn aceptando
+conexiones mientras los modelos cargan: las primeras peticiones seguirían siendo
+lentas y no habría forma limpia de saber cuándo está listo. Bloquear es lo que
+quiere un orquestador de contenedores — el servicio no está *ready* hasta que lo
+está. **Consecuencia para H4:** un arranque de ~75 s obliga a un `start_period`
+generoso en el `healthcheck`, o el orquestador matará el contenedor por no
+responder a tiempo.
+
+**Vive en `orchestrator.py`, no en la app REST.** Y no es cuestión de capas:
+`LocalNLPClient` cachea sus pipelines **por instancia**, así que hay que calentar
+los objetos `_api` y `_detector` concretos que usará la petición. Calentar otros
+equivalentes pagaría el coste dos veces y dejaría la primera petición igual de
+lenta.
+
+#### El resultado
+
+```
+PRECALENTADO                     74,7 s
+  detect_clickbait                 57,1 s   ← paga los imports por todos
+  analyze_sentiment                 9,6 s   ← sólo carga: torch ya está caliente
+  detect_clickbait_incoherence      8,0 s
+
+primer análisis                   0,05 s
+segundo análisis                  0,06 s
+```
+
+**De ~102 s a 0,05 s.** Y se ve el efecto predicho: la primera señal se come 57 s
+pagando los imports, y las otras dos bajan a 9,6 y 8,0 porque ya están pagados.
+
+Un fallo al precalentar **no impide arrancar**: se registra y se sigue. Un modelo
+que no carga no debería dejar sin servir `/tools` ni `/history`, que no lo
+necesitan.
+
+### El umbral que estaba a ojo, y lo que se vio al mirarlo (#92)
+
+`IncoherenceDetector.THRESHOLD = 0.3` se puso a estima. Y no es un umbral
+cualquiera: la incoherencia es la única señal que mide *engaño*, la dimensión que
+**manda sobre `forma`** en la jerarquía de `_overall`, así que ese número decide
+el veredicto justo en los casos que más pesan.
+
+#### El problema del 0,3 no era el valor: era que mezclaba dos preguntas
+
+Un umbral confunde dos cosas que hay que medir por separado:
+
+1. **¿Cuánta información tiene la señal?** Es una propiedad del detector,
+   independiente de dónde se corte.
+2. **¿Dónde conviene cortar?** Depende de qué cueste cada tipo de error, y eso es
+   una decisión de producto, no de datos.
+
+La primera se responde con el **AUC**, que es exactamente la probabilidad de que,
+cogiendo un clickbait y un factual al azar, el detector le dé menos similitud al
+clickbait. Sin cortar por ningún lado. Si sale 0,5 es una moneda al aire y ningún
+umbral lo arregla.
+
+```
+ROC-AUC   0,720      (0,5 = azar)
+PR-AUC    0,486      (línea base 0,242, la tasa de positivos)
+```
+
+Hay señal. Duplica la línea base, así que tiene sentido preguntar dónde cortar.
+
+#### El método, para que el número se pueda defender
+
+**Elegir en unos datos y reportar en otros.** Coger el corte que maximiza el F1 y
+presentar ese F1 es inflarlo: el umbral se ajustó a esos mismos datos. Se calibra
+en una mitad de los 19.484 pares y se mide en la otra — la disciplina de #72
+aplicada a un escalar.
+
+**Criterio declarado antes de ver la curva.** Como `engano` pisa a `forma`, un
+falso positivo suyo declara «engañoso» anulando a las otras tres señales: su
+precisión pesa más que su recall. El criterio se fija en `MIN_PRECISION = 0.50`
+arriba del módulo, antes de mirar nada. Si el criterio se elige después de ver
+los resultados no es un criterio, es una excusa.
+
+#### Y resultó que la estimación era buena
+
+En test, sobre datos que no eligieron el umbral:
+
+| Umbral | Precisión | Recall | F1 | Marca |
+|---|---|---|---|---|
+| **0,30** — la estimación | **0,649** | 0,197 | 0,302 | 7,4 % |
+| 0,46 — criterio declarado | 0,516 | 0,380 | 0,438 | 17,9 % |
+| 0,56 — argmax de F1 | 0,412 | 0,599 | 0,488 | 35,4 % |
+
+El 0,3 no era un mal valor: es **el punto de mayor precisión de toda la curva**, y
+supera con holgura el suelo que habíamos exigido. Lo que le falta no es acierto,
+es cobertura — sólo se pronuncia en el 7 % de los titulares.
+
+La curva no tiene codo: la precisión se degrada suave y continuamente, así que no
+hay ningún valor «correcto» escondido en los datos. Hay un intercambio, y elegir
+dónde pararse es una decisión de producto. Que es exactamente lo que el método
+servía para dejar a la vista en vez de resolverlo por su cuenta.
+
+**El umbral se queda en 0,3**, ahora con una curva detrás en lugar de una
+intuición.
+
+#### El truncado silencioso, que resultó ser inocuo
+
+`all-MiniLM-L6-v2` corta a 256 tokens y los cuerpos de Webis miden 959 de media:
+**el 84 % del artículo no llegaba nunca al modelo**, y el corte caía a mitad de
+frase. Estábamos comparando el titular con el primer cuarto del texto sin que
+nada lo dijera.
+
+Antes de dar por débil la señal había que quitarle esa mordaza. Cuatro formas de
+agregar, todas con el mismo modelo para aislar el efecto:
+
+| Variante | AUC global |
+|---|---|
+| truncado (lo que hacía) | 0,716 |
+| primer trozo, cortando por frase | 0,716 |
+| **trocear todo y quedarse con el máximo** | **0,717** |
+| media de todos los trozos | 0,692 |
+
+**El 84 % que tirábamos no aportaba nada.** Toda la información está en el
+*lead*, lo cual encaja con cómo se escribe una noticia: el primer párrafo cumple
+lo que promete el titular. Y promediar el artículo entero sale *peor*, porque
+diluye la señal con párrafos que hablan de otra cosa.
+
+Así que el detector recorta ahora a 1.000 caracteres **de forma explícita y
+cortando por final de frase**. No ahorra cómputo —el modelo ya sólo procesaba 256
+tokens— pero convierte un límite invisible en uno declarado, y evita que entre en
+la similitud el embedding de media frase, que no representa nada.
+
+#### La pregunta que de verdad importaba
+
+Todo lo anterior mide la incoherencia contra la etiqueta de *clickbait*, y esta
+señal no existe para eso. Existe para cazar **el titular sobrio que engaña**, el
+caso que las señales de forma no pueden ver por construcción.
+
+```
+titulares que NINGUNA señal de forma marca   8.793  (45,1 %)
+de esos, los humanos dicen que sí engañaban    470  (5,3 %)
+ROC-AUC de la incoherencia ahí                0,628
+precisión con el umbral en 0,30               0,120
+```
+
+El hueco existe y la señal separa por encima del azar. Pero **cuando dice
+«engañoso» ahí, acierta una de cada nueve veces**.
+
+Y no es culpa del umbral: es aritmética de tasa base. De 1.000 titulares sobrios,
+53 engañan y 947 no. Aunque el detector ordene bien, bajar el corte para pescar
+unos pocos de esos 53 arrastra decenas de los 947, simplemente porque hay
+dieciocho veces más. **Un buen orden no garantiza buena precisión cuando lo que
+buscas es raro.**
+
+Eso explica también por qué su precisión global (0,649) parecía decente: venía de
+los casos donde las señales de forma **también** disparaban. Era precisión
+prestada — donde está sola, rinde mal.
+
+#### La cascada: sí sube la precisión, no compra veredicto
+
+Si la precisión depende de la tasa base, filtrar antes con otra señal debería
+mejorarla sin cambiar nada del detector. Se comprueba:
+
+| Filtro previo | n dentro | Tasa base | Precisión de la incoherencia |
+|---|---|---|---|
+| *(sin filtro)* | 19.484 | 24,2 % | 0,673 |
+| lexical | 9.079 | 34,1 % | 0,663 |
+| linear | 5.698 | 41,0 % | 0,708 |
+| **dedicada** | 5.417 | **70,9 %** | **0,852** |
+
+Funciona, y el detalle lo remata: dentro del grupo de la dedicada su **AUC baja**
+(0,617 frente a 0,720) — ordena *peor* y aun así es más precisa. Precisión y
+calidad de ordenación son cosas distintas.
+
+Pero el veredicto no mejora:
+
+| Combinación | Precisión | Recall | F1 |
+|---|---|---|---|
+| dedicada sola | 0,709 | 0,814 | **0,758** |
+| dedicada ∧ incoherencia | 0,852 | 0,198 | 0,322 |
+| dedicada ∨ incoherencia | 0,673 | 0,822 | 0,740 |
+
+Y aparece lo que responde de verdad la pregunta de fondo:
+
+```
+lexical  solo  F1 0,448   →   lexical  ∨ incoherencia  F1 0,488
+linear   solo  F1 0,448   →   linear   ∨ incoherencia  F1 0,517
+dedicada sola  F1 0,758   →   dedicada ∨ incoherencia  F1 0,740
+```
+
+**La incoherencia aporta a las señales débiles y no aporta a la fuerte.** Sabe
+cosas que el léxico y el lineal no saben, pero la señal dedicada ya las sabe casi
+todas. Su aportación no es nula: es *redundante con la que ya tenemos*.
+
+Y hay que anotar un coste que no sale en ninguna de estas tablas: **una cascada
+no es un contraste**. Si B sólo ve lo que A dejó pasar, B ya no puede discrepar
+de A en lo que A descartó, y `AMBIGUO` deja de significar «dos señales miraron lo
+mismo y no coincidieron». Encadenar compra precisión pagando con la propiedad que
+sostiene la tesis del proyecto.
+
+#### Lo que esto abre, y que ya no es calibrar
+
+`dedicada ∨ incoherencia` baja la precisión de 0,709 a 0,673: **cuando la
+incoherencia dispara y la dedicada dice que no, la incoherencia suele estar
+equivocada.** Y eso es exactamente lo que hace hoy `_overall`, donde `engano`
+pisa a `forma`.
+
+Le estamos dando derecho de veto a una señal que, en los casos donde discrepan,
+acierta menos que aquella a la que anula. **Los números no sostienen esa
+jerarquía**, y revisarla es una decisión de arquitectura que merece su propia
+issue.
+
+Se guarda además un punto de operación que puede servir a la interfaz:
+`dedicada ∧ incoherencia` da **precisión 0,852**, la más alta medida en todo el
+proyecto. Sólo dispara en el 5,6 % de los titulares, así que no vale como
+veredicto principal — pero sí como «esto es clickbait con alta confianza».
+
+### Contra qué techo estábamos midiendo (#121)
+
+Durante toda la Épica 5 y la Fase B las métricas se han leído contra un 1,0
+implícito: un F1 de 0,50 «es flojo», uno de 0,90 «es bueno». Eso presupone que la
+tarea tiene una respuesta correcta y que un sistema perfecto la acertaría
+siempre.
+
+Al bajar el Webis-17 completo —para desbloquear #75 y poder calibrar `engano`—
+apareció que el corpus guarda los **cinco juicios individuales** de cada titular,
+no sólo su media. Con eso se puede comprobar el supuesto.
+
+#### La tarea es intrínsecamente ambigua
+
+Sobre 19.484 titulares:
+
+| | |
+|---|---|
+| Titulares con los 5 anotadores de acuerdo | **34,9 %** |
+| Un juicio individual coincide con el consenso | 81,5 % |
+| **Un anotador contra el consenso de su grupo** | **F1 0,665** (P 0,598 · R 0,749) |
+
+**Dos de cada tres titulares tienen al menos una persona que ve otra cosa.** Y una
+persona, juzgando contra lo que acuerdan sus compañeros, no pasa de 0,665.
+
+Eso reencuadra todo lo medido hasta ahora. El 0,50 del léxico no está a medio
+camino de lo posible: está a dos tercios. Y el 0,758 de la señal dedicada, que
+parecía mediocre comparado con su 0,946 en Chakraborty, **está por encima de lo
+que consigue un anotador individual**.
+
+Con un matiz que hay que decir para que el número no se sobrevenda: predecir el
+**consenso de un grupo** es más fácil que predecir un juicio suelto, porque el
+agregado promedia el ruido individual. Que el modelo supere a una persona en esa
+tarea no significa que juzgue el clickbait mejor que ella. (Y el 0,665 es, si
+acaso, generoso con el humano: el consenso incluye al anotador evaluado.)
+
+#### Por qué Chakraborty da números tan altos
+
+Chakraborty etiqueta **por fuente** —BuzzFeed es clickbait, NYT no—, y ese método
+**no puede producir un caso dudoso**: cada titular cae limpio de un lado. Webis
+etiqueta por juicio humano y tiene un 65,1 % de zona gris.
+
+Restringiendo Webis a sus titulares unánimes, que es lo más parecido a
+Chakraborty que existe dentro de Webis:
+
+| Subconjunto | n | % positivos | F1 de la señal dedicada |
+|---|---|---|---|
+| Todo Webis-630 | 19.484 | 24,2 % | 0,758 |
+| **Los 5 de acuerdo** | 6.808 | 12,9 % | **0,906** |
+| Al menos uno discrepa | 12.676 | 30,3 % | 0,725 |
+| *Chakraborty, referencia* | *300* | *50 %* | *0,946* |
+
+Quitando la zona gris, 0,758 → 0,906; el resto lo explica el balance de clases.
+
+**El 0,946 no dice nada especial sobre ese modelo: dice que Chakraborty mide la
+mitad fácil del problema.** Y es una segunda objeción al corpus, independiente
+del sesgo de fuente que ya conocíamos de #76 y #109: no sólo su etiqueta apunta a
+quién publicó, es que además **elimina la zona donde el clickbait deja de ser
+evidente y empieza a ser interesante**.
+
+Conviene aplicárselo a los números propios: el 87,0 % del léxico y el 89,3 % del
+lineal están medidos ahí.
+
+#### El léxico no falla por difícil: falla por ciego
+
+Sobre clickbait **inequívoco** —los cinco anotadores de acuerdo— el léxico caza
+el 69,4 %. #109 había medido, por cobertura de vocabulario, un techo de recall
+del **67,5 %**.
+
+Está en su techo. Lo que se le escapa del clickbait más evidente no se le escapa
+por sutil, se le escapa porque **no dispara ningún cue**. Es la misma conclusión
+de #109 llegando por un camino independiente, y vuelve a señalar a #75.
+
+*(El F1 del léxico BAJA en el subconjunto unánime —0,448 a 0,351— y eso no
+contradice lo anterior: ese subconjunto tiene sólo un 12,9 % de positivos, y con
+tantos negativos una señal que se pasa de marcar pierde precisión y con ella F1.
+El recall es la columna comparable entre grupos, porque el balance de clases no
+lo toca.)*
+
+#### Dos cosas que salieron sin buscarlas
+
+**Los errores viven en la zona gris.** El 92,9 % de los fallos de la señal
+dedicada caen en los titulares dudosos, que son el 65,1 % del corpus. Si fallara
+al azar, le tocaría el 65 %. **Se equivoca casi exclusivamente donde las personas
+tampoco se ponen de acuerdo.**
+
+**Y su confianza sigue la duda humana**: 0,918 de media en los unánimes, 0,834 en
+los dudosos; por debajo de 0,9 cae el 21,3 % de los primeros y el 52,8 % de los
+segundos. Nadie se lo enseñó — se entrenó con la etiqueta binaria y nunca vio los
+juicios individuales.
+
+Eso convierte la confianza en **información y no en decoración**: cuando la señal
+dice 0,83 está marcando, con bastante fidelidad, un titular sobre el que cinco
+personas discutirían. Es un argumento medido para exponerla en la interfaz en vez
+de un sí/no, y entra en R3.8 y en la pantalla de resultados de H3.
+
+#### Corrección a lo que se afirmó en #115
+
+La sección de #115 decía:
+
+> *«El inventario real en inglés es Chakraborty (etiqueta por fuente) y Webis-17
+> (etiqueta humana). Nada más.»*
+
+**Es falso, y el error fue de método:** esa búsqueda sólo miró el Hub de
+HuggingFace. Buscando en Zenodo aparecen más corpus en inglés con etiqueta
+humana y licencia permisiva — entre ellos **Webis-Clickbait-16** (2.992 tuits
+anotados por tres personas, CC BY 4.0), que es un tercer corpus distinto.
+
+Lo que sí aguanta, y sigue explicando el caso de `elozano`, es la parte acotada:
+**en el Hub de HuggingFace no hay más que Chakraborty reempaquetado**. La
+distinción vale para la memoria porque dice **dónde** buscar: en los repositorios
+académicos publican los autores de los papers; en el Hub, quien reempaqueta para
+entrenar.
+
+#### Lo que se vendoriza, y lo que no
+
+El corpus completo son **937 MB** de zip, la mayoría imágenes de los tuits. Del
+extracto se parte en dos por tamaño: los **titulares** (1,10 MB) van versionados
+a `data/external/`, y los **cuerpos de artículo** (29 MB) a `var/`, gitignorados
+y regenerables con `python -m backend.evaluation.webis_extract <zip>`.
+
+Dos campos que el extracto de #76 no guardaba y ahora sí: el **`id`** —sin él,
+cruzar los dos splits obliga a comparar por texto normalizado— y los
+**`truthJudgments`**, sin los cuales nada de esta sección se podría haber medido.
+
+Y una trampa de nomenclatura que conviene dejar escrita: el zip se llama
+`clickbait17-train-170630` pero su carpeta interna se llama
+`clickbait17-validation-170630`. Los dos splits etiquetados son **disjuntos**
+—comparten un titular de 2.380, medido— así que no son dos versiones del mismo
+material sino dos trozos distintos. Confundirlos llevaría a evaluar un modelo
+sobre su propio entrenamiento.
+
+### Una decisión que caducó dos épicas antes de que nadie volviera (#115)
+
+`detect_clickbait` usaba `facebook/bart-large-mnli`. El registro de **E3-02** dice
+por qué, sin ambigüedad:
+
+> *«el serverless `hf-inference` **no sirve ningún modelo de clickbait
+> específico** […] Lo **único** viable para clickbait en remoto es zero-shot vía
+> `bart-large-mnli`.»*
+>
+> *«**Decisión:** zero-shot remoto con `bart-large-mnli` **para el MVP**. […]
+> dejamos `elozano` como **mejora futura** en backend local, **si llega la
+> infra**.»*
+
+Se eligió **por eliminación**, no por mérito. La evidencia que lo sostenía era
+*«discrimina bien, ver ejemplo arriba»*: un ejemplo suelto, no una medida.
+
+Y la infra llegó. `LocalNLPClient`, construido en la Épica 5, carga cualquier
+modelo de HuggingFace sin pasar por el proveedor serverless que era la
+restricción original. **La condición del aplazamiento se cumplió dos épicas antes
+de que nadie volviera a la nota**, porque nadie tenía motivo para releerla.
+
+#### El sustituto obvio era el equivocado
+
+E3-02 dejaba nombre y apellidos: `elozano/bert-base-cased-clickbait-news`, un
+modelo entrenado *en* clickbait. Medido en #109 dio **99,7 %** sobre Chakraborty
+dev — y ese número, en ese corpus, es motivo de sospecha y no de celebración.
+Fuera: **F1 0,185** contra una clase mayoritaria del 69,0 %. Memorización.
+
+Eso obligó a buscar de verdad, con tres criterios y en este orden:
+
+1. **Licencia** clara que permita uso citando.
+2. **Procedencia de la etiqueta.** Humana vale; por-fuente reproduce el atajo que
+   #76 destapó y #109 cuantificó.
+3. **Independencia** del par acoplado — porque la plaza no necesita otra
+   confirmación, necesita una señal capaz de discrepar con fundamento.
+
+#### Y ahí salió el hallazgo que no buscábamos
+
+39 datasets candidatos en el Hub. En inglés y con licencia permisiva, cinco. Los
+cinco son **Chakraborty reempaquetado**, medido por solapamiento de titulares:
+
+| Dataset | Licencia | Solapamiento |
+|---|---|---|
+| `marksverdhei/clickbait_title_classification` | MIT | **100 %** |
+| `christinacdl/Multilingual_Clickbait_Dataset` | Apache-2.0 | 86 % |
+| `christinacdl/clickbait_detection_dataset` | Apache-2.0 | 86 % |
+| `christinacdl/clickbait_notclickbait_dataset` | Apache-2.0 | 57 % |
+| `christinacdl/Clickbait_New` | Apache-2.0 | 56 % |
+
+*(100 filas de cada uno; es cota inferior.)*
+
+**La variedad de corpus de clickbait es ilusoria: un dataset con cinco
+envoltorios.** Eso explica estructuralmente el caso de elozano —no fue mala
+suerte al elegir, es que casi todo lo que hay arrastra las mismas etiquetas
+por-fuente— y responde el bullet de #78 «búsqueda de corpus adicionales» con un
+**no medido** en vez de con un «no encontré».
+
+En **el Hub** el inventario real es **Chakraborty** (etiqueta por fuente) y
+**Webis-17** (etiqueta humana), y nada más.
+
+> **Corregido en #121.** Esta frase se escribió como «el inventario real en
+> inglés», sin acotar, y así era falsa: la búsqueda sólo miró HuggingFace. En
+> Zenodo hay más corpus en inglés con etiqueta humana y licencia permisiva —
+> entre ellos Webis-Clickbait-16. Lo que aguanta es la versión acotada al Hub.
+
+#### El elegido, y por qué su patrón es el inverso
+
+`Stremie/roberta-base-clickbait`, Apache-2.0, cuyo README declara entrenamiento
+sobre **Webis-17** y **`postText`** — el mismo campo que tenemos vendorizado, sin
+desajuste — con ~0,7 de F1 en su test.
+
+|  | En su propio corpus | Fuera |
+|---|---|---|
+| `elozano` | 99,7 % (Chakraborty) | **F1 0,185** (Webis) |
+| `Stremie` | F1 0,631 (Webis) | **F1 0,946** (Chakraborty) |
+
+Alto **fuera** y más bajo **dentro**: eso es generalizar, no memorizar. Un modelo
+que hubiera memorizado rozaría el 1,0 en su propio material.
+
+Y el detalle que más pesa para la memoria: ese 0,946 en Chakraborty **supera al
+0,865 que el lineal saca dentro de su propio dominio**. Un modelo entrenado con
+juicio humano transfiere al corpus etiquetado por fuente mejor de lo que el
+modelo entrenado en ese corpus se maneja en él. Es el argumento de #78 —*la
+palanca es la supervisión, no el algoritmo*— medido por segunda vez y desde el
+otro lado.
+
+*(De paso contextualiza todos los números de Webis: si un modelo entrenado allí
+sólo llega a 0,631, el ~0,50 de nuestras señales no estaba tan lejos del techo
+real como parecía.)*
+
+#### El voto vuelve, y no es una marcha atrás
+
+#109 le había quitado el voto a esta señal. La sustitución lo devuelve:
+
+| Tercera señal | Acierto | `forma` AMBIGUO | de esa ambigüedad, error suyo |
+|---|---|---|---|
+| BART (antes) | 63,7 % | 37,0 % | **78,4 %** |
+| Stremie | **94,7 %** | **15,0 %** | **20,0 %** |
+
+Cuatro de cada cinco ambigüedades pasan de ser ruido a ser discrepancia legítima.
+Ése es el criterio, y no el acierto: *ambiguo* debe querer decir que dos señales
+fiables no coinciden, no que alguna se equivocó.
+
+No es contradecir a #109. Aquel silencio se declaró **condicional** en la propia
+ficha —«placeholder pendiente de #115»— precisamente para que se pudiera
+encontrar cuando llegara el momento. Es la lección de E3-02 aplicada: una nota
+provisional debe decir **qué la desbloquearía**.
+
+#### `dedicated.py`, o por qué faltaba un módulo
+
+Al ir a escribir la traducción de etiquetas apareció la causa de fondo de #116.
+Tres de las cinco señales tenían módulo propio —`lexical`, `linear`,
+`incoherence`—; ésta y el tono, no: llamaban al backend directamente **desde las
+dos fachadas**. Por eso su id y sus etiquetas acabaron duplicados: no había dónde
+ponerlos.
+
+`backend/integrations/nlp/dedicated.py` cierra esa asimetría. Contiene el id (que
+lee de la ficha), el mapeo de etiquetas y la normalización, y las dos fachadas lo
+llaman. El vocabulario del modelo **no sale hacia fuera**: la tool sigue
+publicando `clickbait`/`factual news`, que es contrato leído por el LLM, de modo
+que el próximo cambio de modelo no se propaga a quien consume la señal.
+
+Y ese mapeo **falla en vez de dejar pasar** una etiqueta que no conozca. Si se
+colara, el extractor de veredicto la compararía con `clickbait`, no coincidiría,
+y **todos los titulares saldrían factuales sin que se levantara ninguna
+excepción**. Es el mismo patrón que #116: el fallo peligroso no es el que rompe,
+es el que no rompe.
+
+#### Lo que no arregla
+
+Sigue siendo una señal **opaca**, así que `forma` gana acierto y no gana
+transparencia. Y su independencia del par acoplado es **desconocida, que no es lo
+mismo que buena**: su único corpus de test honesto es Chakraborty, donde tres
+clasificadores competentes coinciden por fuerza (kappa 0,726 y 0,772), y en Webis
+no se puede medir porque es su material de entrenamiento. Queda declarado en la
+ficha en esos términos.
+
+La segunda señal interpretable e independiente que a `forma` le sigue faltando es
+#75.
+
+#### Auditar el requisito destapó que el código mentía
+
+Cambiar de modelo es la prueba de fuego de **R3.9**, que pide divulgar los
+modelos empleados **y permitir intercambiarlos por configuración, sin cambios de
+código**. Así que al terminar se comprobó contra `docs/requisitos.md`.
+
+La primera mitad se cumple. La segunda **no**: la sustitución exigió tocar la
+tabla de fichas, escribir `dedicated.py` y añadir un mapeo de etiquetas. Todo
+código, que es justo lo que el requisito excluye.
+
+Lo llamativo es que el docstring de `model_cards.py` **afirmaba lo contrario**:
+
+> *«La otra mitad de R3.9 (intercambiar modelos por configuración) la cubre la
+> factoría `get_nlp_backend` vía el setting `nlp_backend` (remote/local).»*
+
+`nlp_backend` decide **dónde** corre el modelo, no **cuál** es. El docstring
+confundía las dos cosas y daba por cumplido un requisito que no lo estaba —
+durante dos épicas, sin que nadie lo notara, porque hasta ahora nunca se había
+cambiado un modelo. Corregido aquí; el hueco queda en **#119**.
+
+Y hay una tensión que conviene registrar antes de implementar nada, porque puede
+que la respuesta correcta sea matizar el requisito y no forzar el código: **el id
+se configura fácil, el mapeo de etiquetas no**. Cada modelo trae su vocabulario
+—`Clickbait`/`Not Clickbait` aquí, `LABEL_0`/`LABEL_1` en muchos otros— y la
+traducción es específica de cada uno. Se suma la diferencia de modo de
+invocación: un clasificador se llama con `classify`, un NLI con `zero_shot` más
+etiquetas candidatas. Cambiar entre esas dos familias no es cambiar un id.
+
+Del resto de lo auditado, dos apuntes que no son incumplimiento:
+
+- **R3.5** (texto vacío → error) sale **reforzado**: `dedicated.detect` comprueba
+  el titular antes de llamar al modelo.
+- **R3.8** (priorizar medios interpretables) gana **evidencia propia a favor**: lo
+  medido en #109 dice que la señal white-box es la que mejor generaliza fuera de
+  dominio, por delante de las opacas.
+- **R3.6** (tiempos razonables) probablemente mejora —el modelo pasa de
+  BART-large a un roberta-base—, pero **no se ha medido**, así que no se apunta
+  como mejora.
+
+### Un campo que servía a tres amos: los ids de modelo (#116)
+
+Tres modelos, **ocho declaraciones de su identificador** repartidas por el
+backend. Cambiar el modelo de una señal en un sitio y no en los otros dejaba las
+dos fachadas —REST y MCP— respondiendo con **modelos distintos al mismo
+titular**, y sin que nada fallara: los dos caminos seguían devolviendo una
+etiqueta válida y bien formada.
+
+Salió al preparar #115, que es precisamente un cambio de modelo.
+
+#### Por qué no se había arreglado antes
+
+El `TODO` que lo registraba explicaba también el obstáculo:
+
+> *«Unificar leyéndolos de `MODEL_CARDS["name"]` exige antes normalizar ese
+> campo, que hoy mezcla ids de HuggingFace con descripciones en prosa.»*
+
+Y era exacto. `name` valía `"facebook/bart-large-mnli"` en tres fichas y
+`"Léxico por reglas (listas de cues de Chakraborty et al. 2016)"` en dos. Un solo
+campo intentando ser a la vez identificador de máquina y etiqueta para personas,
+que son cosas que no se parecen en nada: una tiene que coincidir carácter a
+carácter con lo que espera un tercero, la otra tiene que leerse bien en una
+tarjeta de la interfaz. Cuando un campo sirve a dos amos, hay que elegir a cuál
+servir mal.
+
+#### La separación
+
+| Campo | Quién lo consume | Ejemplo |
+|---|---|---|
+| `signal` | `/analyze`, para buscar la ficha de cada resultado | `detect_clickbait` |
+| `model_id` | el orquestador y la tool, para construir la llamada | `facebook/bart-large-mnli` |
+| `name` | la interfaz | `BART-large MNLI (zero-shot por inferencia)` |
+
+`model_id` es **`None`** en el léxico y el lineal. No es un hueco: dice que esa
+señal no es un modelo descargable —una son regex y listas de cues, la otra un
+JSON de pesos del propio repo—, y esa distinción se consulta desde fuera.
+
+El campo entra también en `FichaModelo`, el `TypedDict` que MCP publica como
+`outputSchema` de `describe_models`. Si sólo estuviera en el diccionario, el
+contrato publicado y la realidad divergirían — que es el mismo error, una capa
+más arriba.
+
+#### Una divergencia que ya estaba ahí
+
+Al recorrer los ocho sitios apareció uno que no era duplicación sino
+**discrepancia**: `IncoherenceDetector.MODEL` decía `"all-MiniLM-L6-v2"` mientras
+su ficha decía `"sentence-transformers/all-MiniLM-L6-v2"`.
+
+Dos cadenas distintas para el mismo modelo. Resolvían igual —`sentence-transformers`
+busca los nombres desnudos en su propia organización—, así que **no rompía nada**
+y podía durar indefinidamente con la divulgación diciendo una cosa y el código
+cargando otra. Es el caso que mejor ilustra la issue: el daño de la duplicación
+no es que falle, es que **no falla**.
+
+#### Unificar no basta
+
+Poner el id en un sitio no impide que vuelva a salir de ahí; sólo lo hace menos
+probable. Lo que lo impide es un test que capture **con qué modelo se llama de
+verdad** por cada camino: se sustituye el backend por un espía, se invocan las
+tools por el protocolo y las señales por el orquestador, y se compara lo
+capturado contra la ficha.
+
+Y como un test de regresión que nunca se ha visto fallar no demuestra nada, se
+comprobó introduciendo cada divergencia posible y verificando que la caza:
+
+```
+tool MCP con otro id                                       lo caza
+orquestador REST con otro id                               lo caza
+detector con el nombre desnudo (la divergencia que HABÍA)  lo caza
+```
+
+#### Lo que sigue duplicado, a propósito
+
+Las etiquetas candidatas `["clickbait", "factual news"]` continúan escritas en
+`orchestrator.py` y en `tool.py`. No se mueven a la ficha por dos razones: una
+ficha **divulga qué es una señal, no cómo se la invoca**, y meterle parámetros de
+llamada la convierte en configuración; y #115 sustituye ese modelo por un
+clasificador, que no lleva etiquetas candidatas — sería trabajo para borrarlo en
+la PR siguiente.
+
+O sea que #116 unifica **el identificador**, no toda la invocación. Queda anotado
+en el código como decisión, no como olvido.
+
+### Tres señales de forma, pero una opinión y media (#109)
+
+La dimensión `forma` contrasta tres señales —léxico, lineal y zero-shot— y es la
+que sostiene la tesis del proyecto: enseñar señales de distinta naturaleza en vez
+de un veredicto único de caja negra. #109 preguntaba si ese contraste era real.
+
+No lo era, y el motivo estaba en tres líneas de código.
+
+#### El acoplamiento no es empírico, es estructural
+
+`linear.featurize_cues()` empieza llamando a `lexical.detect()`. El lineal no es
+una segunda opinión sobre el titular: es una segunda regla de agregación sobre
+**el mismo vector**. Y con `THRESHOLD=1`, donde cada match aporta al menos 1, el
+veredicto del léxico resulta ser exactamente el indicador de si ese vector tiene
+algo dentro:
+
+```
+veredicto de lexical == any(featurize_cues(h))   ->   100,0 % de 6.400 titulares
+```
+
+El léxico es, literalmente, una función determinista del *input* del lineal. No
+aporta ningún bit que el lineal no tenga ya. Que el acoplamiento estuviera
+declarado en la ficha del lineal —«usa las mismas pistas de superficie»— se
+quedaba corto: no es que usen pistas parecidas, es que es la misma señal.
+
+#### La mitad del acuerdo es ceguera simultánea
+
+El acoplamiento se había resumido en un kappa de Cohen de 0,880. Ese número
+engaña, y descomponerlo enseña por qué:
+
+| Subconjunto | Acuerdo |
+|---|---|
+| **Chakraborty dev**, global | 94,0 % · kappa 0,880 |
+| — vector vacío (50,0 % de los titulares) | **100 %, forzado** |
+| — vector con contenido (50,0 %) | 88,0 % |
+| **Webis-17**, global | 78,3 % · kappa 0,576 |
+| — vector vacío (47,1 %) | **100 %, forzado** |
+| — vector con contenido (52,9 %) | 59,1 % |
+
+Con 390 rasgos y un intercepto de −1,6349, un vector vacío da `p = 0,163`: el
+lineal responde «no» sin haber mirado nada, y el léxico responde «no» por
+definición. **En la mitad de los titulares no pueden discrepar.** No es que
+juzguen igual: es que son ciegos en los mismos sitios. Medir el acuerdo global
+sin separar esa mitad exagera el acoplamiento y esconde su causa.
+
+#### El techo que ningún reentrenamiento levanta
+
+Esa ceguera tiene una segunda consecuencia, peor que la primera:
+
+| | Chakraborty dev | Webis-17 |
+|---|---|---|
+| Positivos reales con vector vacío | 15,5 % | **32,5 %** |
+| Techo de recall alcanzable | 84,5 % | **67,5 %** |
+
+Un tercio del clickbait real de Webis es invisible para el featurizador: no
+dispara ni un cue de las listas de Chakraborty. Como `w · 0 = 0` sea cual sea
+`w`, **reentrenar los pesos no puede pasar de 0,675** — y el recall medido sobre
+el corpus completo ya está en 0,478, así que el margen real del reentrenamiento
+son veinte puntos y se acabó.
+
+Eso invierte el orden previsto: **#75 (featurización) pasa a ser prerrequisito de
+#78 (reentrenamiento)**, no un experimento opcional posterior. Y hay un motivo
+para alegrarse: el punto ciego compartido y el techo de recall son *el mismo
+hecho*, así que rellenarlo desacopla las señales **y** levanta el techo. Una sola
+intervención para los dos problemas.
+
+#### El sesgo de fuente, ahora con número
+
+El intercepto negativo permite medir cuánto vale por sí solo que **dispare algún
+cue**, sin mirar cuál ni con qué peso — es decir, cuánto vale el atajo:
+
+| | Chakraborty dev | Webis-17 |
+|---|---|---|
+| Aciertos por defecto en el grupo de vector vacío | 84,5 % | 78,6 % |
+| Tasa base de la clase mayoritaria | 50,0 % | 69,0 % |
+| **Ganancia sobre no mirar** | **+34,5 pts** | **+9,6 pts** |
+
+El atajo vale **3,6 veces menos** fuera de Chakraborty. Y no por falta de
+cobertura del vocabulario, que es casi idéntica en los dos corpus (47,1 % de
+vectores vacíos frente a 50,0 %): dentro de Chakraborty el vocabulario separa
+BuzzFeed de NYT, y allí eso coincide con la etiqueta. En Webis las dos clases
+comparten medio y el atajo se queda sin nada que separar. Es la confirmación
+cuantificada de lo que #76 había destapado de forma cualitativa.
+
+#### El zero-shot deja de votar, y eso es un aplazamiento declarado
+
+Con el par acoplado reducido a una señal, la única independiente en `forma` era
+el zero-shot. Se midió, y es la más floja **en los dos dominios**:
+
+| Señal | Chakraborty dev · n=300 (acierto) | Webis-17 · n=600 (F1) |
+|---|---|---|
+| léxico | 87,0 % | 0,526 |
+| lineal | 89,3 % | 0,519 |
+| zero-shot | **63,7 %** | **0,405** |
+
+Se había especulado con que su flojera dentro de dominio fuera en realidad la
+robustez de no haberse sobreajustado a nada. La medida externa lo descarta: es
+peor en los dos sitios.
+
+El problema no era su error, sino cómo se propagaba. Al discrepar en solitario
+dejaba la dimensión en `None` por la invariante 2, de modo que **el 37 % de los
+titulares salía AMBIGUO, y el 78 % de esa ambigüedad era un error suyo**. De ahí
+el criterio que se adopta: *ambiguo* debe significar que **dos señales fiables
+discrepan**, no que alguna discrepa. Si no, al usuario se le presenta ruido con
+apariencia de matiz — justo lo contrario de lo que persigue la explicabilidad.
+
+Así que deja de votar. Devolver `None` en su `verdict` es toda la
+implementación, igual que en el tono, pero conviene no confundir los dos casos:
+el tono no vota porque **mide otra cosa**; el zero-shot no vota porque, midiendo
+lo mismo, **se midió peor**.
+
+Ahora bien: callarlo **no arregla el fondo, y decirlo importa**. `forma` queda
+sobre el par acoplado, o sea sobre una sola familia de evidencia, y la dimensión
+deja de ser un contraste. Además el modelo era ya un placeholder de E3-02,
+elegido por eliminación —lo único que el serverless de HuggingFace servía
+entonces— y no por medida. Silenciarlo sin sustituirlo mantiene ese aplazamiento,
+sólo que callado. Por eso queda **escrito en su ficha** como placeholder
+pendiente de #115, en vez de disimulado: la sustitución del modelo es una
+decisión propia, con su propia comparativa de candidatos, y no un apéndice de una
+PR sobre acoplamiento.
+
+Se conserva visible en lugar de retirarlo porque, al no haber visto ningún corpus
+de clickbait, es la única señal del sistema inmune al sesgo de fuente. Es mala,
+pero es mala de forma independiente.
+
+#### Lo que se descartó
+
+**Subir el `THRESHOLD` del léxico.** Haría que usara la magnitud del score y no
+sólo su soporte, y el kappa bajaría de inmediato. Pero esa magnitud vive dentro
+del mismo vector que el lineal ya recibe entero: bajaría la métrica de
+acoplamiento sin añadir un solo bit de información al sistema. Mejora cosmética,
+y de las peores, porque el número mejora mientras el problema sigue igual.
+
+**Sustituir el lineal por un modelo dedicado de terceros.**
+`elozano/bert-base-cased-clickbait-news` da un **99,7 %** en Chakraborty dev
+(n=300), un número que en este corpus es motivo de sospecha y no de celebración.
+En Webis-17 completo (n=2.459): acierto 69,6 %, precisión 0,545, **recall 0,112,
+F1 0,185** — contra una clase mayoritaria de 69,0 %, o sea indistinguible de no
+mirar. Memorización del corpus, no capacidad.
+
+El caso vale más como resultado que como descarte: **refuerza que el algoritmo no
+es la palanca, lo es la supervisión**. Un tercero, con más capacidad y mejor
+entrenamiento, no escapó del atajo — lo explotó mejor. Y de paso queda como caso
+de calibración del banco de pruebas: cualquier candidato futuro que puntúe muy
+alto en Chakraborty y se hunda en Webis está haciendo lo mismo.
+
+#### El resultado que no se buscaba
+
+Al estratificar el recall por `truthMean` —el juicio medio de los anotadores
+humanos de Webis— para comprobar si el modelo dedicado sólo veía el clickbait
+flagrante, apareció otra cosa:
+
+| Tramo | truthMean | dedicado | zero-shot | lineal | **léxico** |
+|---|---|---|---|---|---|
+| tibios | 0,52 | 4,8 % | 27,4 % | 29,0 % | **51,6 %** |
+| medios | 0,65 | 11,3 % | 30,6 % | 61,3 % | **75,8 %** |
+| flagrantes | 0,81 | 12,9 % | 41,9 % | 62,9 % | **85,5 %** |
+
+*(62 positivos por tramo, sobre la muestra de 600.)*
+
+**El recall de la señal de reglas sigue el juicio humano de intensidad casi
+linealmente, y fuera de su dominio de entrenamiento.** Es la que mejor generaliza
+de las cuatro, y el detalle fino importa: el lineal —que es su propio
+featurizado, re-pesado sobre Chakraborty— la sigue de lejos y **se estanca en los
+dos tramos altos** (61,3 % → 62,9 %), justo donde el léxico despega hasta el
+85,5 %. Aprender los pesos sobre etiquetas por-fuente no mejoró la regla: la
+empeoró donde el clickbait es más evidente.
+
+En un trabajo cuyo eje es la explicabilidad, eso no es un adorno: es evidencia
+empírica —propia y medida— de que renunciar a la interpretabilidad no compraba
+aquí ninguna capacidad.
+
+La segunda lectura es sobre el dedicado: no detecta ni el clickbait flagrante
+(12,9 %). No aprendió un concepto que escale en severidad; memorizó los rasgos de
+un corpus concreto.
+
+Y una tercera, que abre trabajo: **la etiqueta binaria está tirando información**.
+Si el juicio humano es graduado y las señales responden a esa graduación,
+entrenar contra un 0/1 desaprovecha lo que los anotadores sí midieron. Queda
+propuesto en #78 valorar `truthMean` como objetivo continuo.
+
+#### Reproducir estos números
+
+Ninguna cifra de esta sección es un dato suelto de una libreta: todas salen de
+tres módulos que se pueden volver a correr, y los tamaños de muestra van
+etiquetados porque no todos coinciden.
+
+```
+python -m backend.evaluation.eval_featurizado                    # segundos
+python -m backend.evaluation.eval_acoplamiento --con-zero-shot 300
+NLP_BACKEND=local python -m backend.evaluation.eval_transferencia # minutos
+```
+
+El primero no carga ningún modelo —es todo regex y un producto escalar—, así que
+la parte estructural del hallazgo se comprueba al instante. Los otros dos cachean
+sus predicciones en `var/`, con el tamaño y la semilla en el nombre del fichero:
+reutilizar una caché contra otra muestra daría un resultado equivocado en
+silencio, así que además se comparan los titulares guardados.
+
+`NLP_BACKEND=local` no es opcional. En remoto los veredictos dependen de qué
+sirva HuggingFace ese día, y entonces las cifras dejan de ser reproducibles —
+cosa que se descubrió justamente al escribir esto, cuando una corrida remota se
+cayó a mitad y reventó al indexar un `data` que era `None`. Los dos scripts que
+llaman al backend comprueban ahora el `ToolResult` y fallan diciendo en qué
+titular y por qué.
+
+### Un timeout que no cortaba: la petición se colgaba en vez de fallar (#113)
+
+Al probar `analyze_headline` por el protocolo apareció algo que ningún test cubría: **una herramienta que tarda más que su timeout no producía un error, dejaba la petición colgada para siempre.**
+
+```
+servidor MCP   tool.invoke  duration_ms=151326  success=True
+API            sin respuesta · 6 min con la conexión abierta · 0 % de CPU
+cliente        ningún código HTTP
+```
+
+La tool **terminó bien** a los 151 s. El corte configurado eran 60. La API nunca devolvió nada.
+
+#### Por qué es peor que un timeout
+
+Un timeout que devuelve un error es manejable: la interfaz lo enseña, el usuario reintenta, el hueco de conexión se libera. Una petición que no vuelve deja el navegador esperando indefinidamente y ocupa un *worker*. Es un modo de fallo distinto — y era justo el que el ajuste pretendía evitar.
+
+Además afectaba al catálogo, cuyo comentario prometía literalmente lo que no cumplía: *«sin él, un servidor que acepta la conexión y no responde dejaría `/tools` colgado»*. Lo que sí funcionaba era el servidor **caído** —conexión rechazada, falla rápido, sale `unreachable`—; el servidor **lento** es otro caso y no estaba cubierto.
+
+#### La causa: dos timeouts que miden cosas distintas
+
+| | Qué mide |
+|---|---|
+| `timeout` de httpx *(el que había)* | **inactividad entre bytes** |
+| `asyncio.timeout` *(el que faltaba)* | **duración total** |
+
+Con una tool lenta que no envía nada mientras trabaja, el primero no salta. Reproducido sin modelos ni red, con una tool que duerme 10 s y un corte de 2: **25 s esperando** hasta que un vigilante externo lo mató. Con `asyncio.timeout`, corta a los **2,1 s**.
+
+Los dos se conservan: cubren fallos distintos y hacen falta ambos cortes.
+
+#### Se responde 504, no `status: error`
+
+Es una categoría nueva junto al 404 y el 422, y no un `ExecuteResponse` con estado de error. El motivo está medido: **al agotarse la espera la herramienta puede haber terminado bien** —de hecho terminó—. Decirle a quien mira que «el análisis falló» sería mentirle; un 504 dice que está tardando demasiado, que es lo que ocurre.
+
+#### `except*`, y por qué no vale un `except` normal
+
+Lo que sale de una sesión MCP viene envuelto **dos veces**, un task group de anyio por capa:
+
+```
+ExceptionGroup: 'unhandled errors in a TaskGroup'
+  ExceptionGroup: 'unhandled errors in a TaskGroup'
+    TimeoutError
+```
+
+Ese envoltorio **no se puede desactivar**: es la semántica de los task groups, donde pueden fallar varias tareas a la vez y no existe «la» excepción que devolver. *(anyio 3 desenvolvía cuando había una sola; anyio 4 envuelve siempre.)*
+
+Se usa **`except*`** (Python 3.11), que desmonta el grupo y compara por tipo **a cualquier profundidad** — así no depende de cuántas capas ponga la librería mañana. Un test lo fija con 0, 1, 2 y 3 niveles de anidamiento.
+
+Se descartó recorrer el árbol a mano, pero la alternativa queda escrita en el código: `except*` puede entrar en **varias ramas** —un grupo admite tipos distintos— así que un timeout acompañado de otro fallo saldría como 500 en vez de 504. Se asume; un timeout más un fallo independiente no es realmente «no respondió a tiempo».
+
+#### Dos tests, porque uno solo no basta
+
+El **rápido** sustituye la sesión por una que lanza el error ya fabricado: corre en milisegundos, entra en el CI y verifica **la traducción** a 504. Pero si `asyncio.timeout` no cortara, seguiría pasando igual.
+
+El **fiel** —marcado `integration`, fuera del CI— levanta un servidor MCP con una tool lenta y comprueba que la llamada **termina**. Ése prueba el mecanismo.
+
+#### El linter tenía la respuesta y le faltaba una línea
+
+Al declarar `target-version = "py312"` en ruff saltó esto:
+
+```
+ASYNC109  open_session(url, timeout: float)
+          help: Use `asyncio.timeout` instead
+```
+
+La regla `ASYNC` añadida en #103 **estaba señalando este mismo bug** y no podía decirlo: `asyncio.timeout()` existe desde 3.11, así que ruff no lo recomienda si no sabe a qué versión apuntas. Faltaba una línea de configuración para que el linter pudiera avisar de algo que costó una tarde encontrar a mano.
+
+Se queda con un `noqa` explicado —el parámetro es complemento y no sustituto— y en la línea, no en `ruff.toml`, para que la regla siga activa en el resto. Declarar la versión destapó además ocho enums que ruff quiere como `StrEnum`; eso **no** es cosmético —cambia lo que devuelve `str(Dimension.FORMA)`— y va a #108 con su repaso de puntos de uso.
+
+### La orquestación sale de `api/`: las dos fachadas comparten veredicto (#107)
+
+Al dibujar el flujo de peticiones se comprobó que la orquestación del análisis
+—contrastar señales, agruparlas por dimensión, derivar el veredicto— vivía en
+`backend/api/analyze.py` y tenía **un solo consumidor**. El servidor MCP exponía
+las cinco señales sueltas y nada que las combinara.
+
+#### Se perdía justo el caso que demuestra el trabajo
+
+Un agente conversacional que recibe cuatro resultados crudos y decide él hará una
+de dos cosas: quedarse con la mayoría, o matizar en prosa. Lo que **no** hará es
+producir `ambiguo` con la discrepancia declarada — que es la tesis del proyecto,
+no un detalle de implementación.
+
+Es decir: el chat y el formulario habrían dado **veredictos distintos al mismo
+titular**, y el que se perdía era el bueno.
+
+#### Los criterios decidieron dónde iba
+
+Fue la primera vez que `docs/estructura.md` se usó para decidir en lugar de para
+describir. Las tres carpetas existentes rechazaron la pieza **por su propio
+criterio**: `api/` porque la orquestación sí existiría sin HTTP, `core/` porque
+no puede saber de clickbait, `integrations/` porque no envuelve nada externo.
+Ninguna la admitía, así que pidieron un paquete nuevo — `backend/analysis/`.
+
+La separación que hubo que hacer es entre **dominio** y **contrato**: `Dimension`,
+`OverallVerdict` o `SignalResult` describen qué es el clickbait y se fueron;
+`ServerInfo`, `ExecuteResponse` o `HistoryEntry` describen el sistema que lo
+sirve y se quedaron. `schemas.py` pasó de 440 a 296 líneas.
+
+Y la dependencia va **en un solo sentido**: `api/` importa de `analysis/`, nunca
+al revés. Es comprobable, y por eso es una alarma y no una opinión — el día que
+`analysis/` necesite importar de `api/`, algo está mal colocado.
+
+#### Qué garantiza el arreglo
+
+```python
+assert analysis_tool.analyze is orchestrator.analyze
+```
+
+Ese test es el issue entero: **no hay dos jerarquías de veredicto capaces de
+divergir**. La herramienta MCP no reimplementa nada, llama a la misma función que
+`/analyze` y devuelve el mismo tipo.
+
+Se descartó que el agente llamara a `POST /analyze` —consistencia trivial, pero
+el título del TFG es «agente basado en MCP» y que su capacidad principal esquive
+MCP es una pregunta previsible en la defensa— y también meter las reglas de
+agregación en el prompt: convertiría en no determinista y opaco justo el paso que
+se diseñó para ser explícito. **Aunque un modelo perfecto siguiera la jerarquía
+sin fallar, tendrías una agregación correcta pero no auditable.**
+
+La división que queda: **el LLM elige qué preguntar; el código decide qué
+significa la respuesta.**
+
+#### Un hallazgo sobre el contrato de salida
+
+MCP sólo publica `outputSchema` si el tipo de retorno está declarado — con
+`-> dict` no publica nada (#100). Las once tools existentes usan `TypedDict`;
+ésta devuelve un modelo Pydantic, que no se había probado. Medido:
+
+| Retorno | `outputSchema` |
+|---|---|
+| `-> dict` | **None** |
+| `TypedDict` | 212 caracteres, 2 propiedades |
+| **`AnalyzeResponse` (Pydantic)** | **4.147 caracteres**, con `$defs` de los 6 tipos anidados |
+
+Pydantic resuelve los tipos anidados y arrastra los docstrings como
+`description`, así que el LLM recibe los valores admitidos de cada enum y no sólo
+los nombres de campo. Mucho mejor que un `TypedDict` plano — y también mucho más
+grande.
+
+Con las definiciones de tools ya en ~2.362 tokens (medido en el spike #82, donde
+`num_ctx=2048` daba 7/20 aciertos frente a 17/20 con 8192), esto sube el catálogo
+de golpe. **Se deja la respuesta completa y se anota**: el límite es de memoria
+del modelo y se alivia con más cómputo. Con el matiz de que no desaparece del
+todo — un catálogo grande también dificulta la selección aunque quepa. Si hace
+falta, la palanca es recortar los `description` heredados de los docstrings.
+
+#### Y una tensión que se resolvió sola
+
+Registrar la tool desde `integrations/nlp/tool.py` habría creado un ciclo, porque
+`analysis/` ya importa las señales de `nlp/`. Se registra desde su propio paquete
+y `main.py` lo llama explícitamente — igual que `health.register(mcp)`.
+
+Eso convirtió la tensión 4 de `docs/estructura.md` (que `health` conociera MCP
+desde `core/`) de excepción incómoda en **patrón declarado**: *el descubrimiento
+encuentra las integraciones; lo que no es una integración se registra a mano*.
+Dos casos ya no son una excepción.
 
 ### Validación E2E de la capa REST, y estructura del repositorio
 

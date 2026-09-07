@@ -1,11 +1,13 @@
-"""Orquestación de ``POST /analyze``.
+"""Orquestación del análisis: lanza las señales y agrega su resultado.
 
 Lanza las señales de clickbait a la vez, envuelve cada una en el formato
-uniforme de ``schemas`` y agrega el resultado. Tres invariantes lo gobiernan:
+uniforme de ``domain`` y agrega el resultado. Tres invariantes lo gobiernan:
 
 1. **Una señal vota si —y solo si— su ``is_clickbait`` no es None.** Ahí caen
-   sin caso especial tanto las que fallaron como el tono, que por naturaleza no
-   emite veredicto de clickbait.
+   sin caso especial las que fallaron y el tono, que por naturaleza no emite
+   veredicto de clickbait. Entre #109 y #115 hubo un tercer caso —una señal
+   excluida por medirse peor que las demás— y el mismo ``None`` bastó para
+   expresarlo sin tocar la agregación: la palanca ya estaba puesta.
 2. **Una dimensión aparece si alguna de sus señales votó.** Si las que votaron
    discrepan, no se promedia ni se resuelve por mayoría: se declara ``None``.
 3. **El veredicto global sale de las dimensiones con jerarquía** —el engaño pesa
@@ -21,14 +23,20 @@ vez de propagar la primera excepción la DEVUELVE dentro de la lista de
 resultados, en la posición que le toca. Cada excepción se traduce entonces a una
 señal en estado ``error`` y la respuesta sigue siendo un 200 con lo que sí se
 pudo calcular.
+
+Vive fuera de ``api/`` porque **no depende de que haya HTTP**: es la lógica que
+define qué significa el resultado, y las dos fachadas —REST y MCP— la comparten.
 """
 
 import asyncio
+import time
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from typing import Any
 
-from backend.api.schemas import (
+import structlog
+
+from backend.analysis.domain import (
     AnalyzeRequest,
     AnalyzeResponse,
     Dimension,
@@ -39,16 +47,21 @@ from backend.api.schemas import (
     SignalType,
 )
 from backend.core.models import ToolResult
-from backend.integrations.nlp import lexical, linear
+from backend.integrations.nlp import dedicated, lexical, linear
 from backend.integrations.nlp.factory import get_nlp_backend
 from backend.integrations.nlp.incoherence import IncoherenceDetector
-from backend.integrations.nlp.model_cards import cards_by_signal
+from backend.integrations.nlp.model_cards import cards_by_signal, model_id_de
+
+log = structlog.get_logger()
 
 # Instancias únicas: LocalNLPClient cachea los pipelines por instancia y el
 # detector carga el modelo de forma perezosa, así que crearlos por petición
 # tiraría la caché y recargaría el modelo cada vez. Como contrapartida, el
 # backend queda fijado al importar: cambiarlo exige reiniciar, igual que en la
 # tool MCP (que lo fija en register()).
+#
+# Y es lo que obliga a que precalentar() viva aquí: hay que calentar ESTAS dos
+# instancias, no unas equivalentes, o el coste se paga dos veces.
 _api = get_nlp_backend()
 _detector = IncoherenceDetector()
 
@@ -58,12 +71,34 @@ _detector = IncoherenceDetector()
 # test_model_cards_signals_match_registered_tools.
 _CARDS = cards_by_signal()
 
-# TODO(deuda): estos ids están duplicados en integrations/nlp/tool.py. Unificar
-# leyéndolos de MODEL_CARDS["name"] exige antes normalizar ese campo, que hoy
-# mezcla ids de HuggingFace con descripciones en prosa.
-_ZERO_SHOT_MODEL = "facebook/bart-large-mnli"
-_ZERO_SHOT_LABELS = ["clickbait", "factual news"]
-_SENTIMENT_MODEL = "cardiffnlp/twitter-roberta-base-sentiment-latest"
+# El id sale de la ficha (#116). Antes estaba cableado aquí y otra vez en
+# integrations/nlp/tool.py, así que cambiar el modelo en un sitio dejaba las dos
+# fachadas —REST y MCP— respondiendo con modelos distintos al mismo titular, y
+# sin que nada fallara: los dos caminos seguían devolviendo una etiqueta válida.
+#
+# Sólo queda el del tono: la señal de clickbait pasó a `integrations/nlp/dedicated`
+# en #115, que es donde viven ya sus hermanas —léxico, lineal, incoherencia— y
+# donde el id y el mapeo de etiquetas tienen un único sitio.
+_SENTIMENT_MODEL = model_id_de("analyze_sentiment")
+
+
+def _con_cuerpo(content: str | None) -> str:
+    """El cuerpo de la noticia, exigiendo que esté.
+
+    ``needs_content`` garantiza que las señales que lo requieren no se ejecutan
+    sin él, pero esa garantía vive en ``_run_signals``, muy por debajo de esta
+    tabla: ningún tipador puede unir los dos puntos, y ningún lector de un
+    vistazo tampoco.
+
+    Si alguien pusiera ``needs_content=False`` en la entrada de la incoherencia,
+    el guardia dejaría de correr y el fallo saldría dentro del detector, como un
+    ``TypeError`` al medir la longitud de ``None`` — convertido después en una
+    señal en estado ``error`` por el aislamiento de fallos. Sin excepción que
+    suba, sin test rojo. Esto lo convierte en un mensaje que dice qué pasó.
+    """
+    if content is None:
+        raise ValueError("Esta señal requiere el cuerpo de la noticia.")
+    return content
 
 
 @dataclass(frozen=True)
@@ -106,7 +141,25 @@ class _Signal:
 _SIGNALS: tuple[_Signal, ...] = (
     _Signal(
         name="detect_clickbait",
-        run=lambda h, c: _api.zero_shot(h, _ZERO_SHOT_MODEL, _ZERO_SHOT_LABELS),
+        run=lambda h, c: dedicated.detect(_api, h),
+        # VUELVE A VOTAR (#115), después de que #109 se lo quitara. No es una
+        # marcha atrás: aquel silencio se declaró condicional en la ficha —
+        # «placeholder pendiente de #115»— y esto es la condición cumpliéndose.
+        #
+        # Lo que #109 silenció fue un modelo elegido POR ELIMINACIÓN en E3-02,
+        # que acertaba el 63,7 %. Su problema no era el error sino cómo se
+        # propagaba: al discrepar en solitario dejaba la dimensión en None
+        # (invariante 2), y así el 37 % de los titulares salía AMBIGUO con el
+        # 78 % de esa ambigüedad siendo un error suyo.
+        #
+        # El sustituto cambia esos dos números a 15 % y 20 %. O sea que cuatro
+        # de cada cinco ambigüedades pasan a ser discrepancia legítima, y
+        # AMBIGUO recupera el significado que la tesis le atribuye. Ése es el
+        # criterio, y no el acierto: «ambiguo» debe querer decir que dos señales
+        # fiables no coinciden, no que alguna se equivocó.
+        #
+        # La etiqueta la normaliza `dedicated`, no esta tabla: el veredicto se
+        # lee igual que antes aunque el modelo de debajo hable otro idioma.
         verdict=lambda d: d["label"] == "clickbait",
     ),
     _Signal(
@@ -123,7 +176,7 @@ _SIGNALS: tuple[_Signal, ...] = (
     ),
     _Signal(
         name="detect_clickbait_incoherence",
-        run=lambda h, c: _detector.detect(h, c),
+        run=lambda h, c: _detector.detect(h, _con_cuerpo(c)),
         verdict=lambda d: d["incoherent"],
         needs_content=True,
     ),
@@ -136,6 +189,63 @@ _SIGNALS: tuple[_Signal, ...] = (
         verdict=lambda d: None,
     ),
 )
+
+
+async def precalentar() -> dict[str, float]:
+    """Carga y ejercita los modelos antes de la primera petición (#125).
+
+    Vive aquí y no en la app REST porque ``LocalNLPClient`` cachea sus pipelines
+    **por instancia**: hay que calentar exactamente los objetos ``_api`` y
+    ``_detector`` que va a usar la petición. Calentar otros equivalentes pagaría
+    el coste dos veces y dejaría la primera petición igual de lenta.
+
+    EJERCITA, no sólo carga. Medido en #125, el desglose de los ~102 s en frío:
+
+        imports de torch/transformers/sentence-transformers   53,5 s
+        carga de los tres modelos                             33,0 s
+        PRIMERA inferencia                                    15,5 s
+
+    Esos últimos 15,5 s no los paga cargar el modelo, sólo hacerle pasar una
+    entrada. Y son en su mayoría coste GLOBAL, no por modelo: la primera
+    inferencia del dedicado tardó 9,78 s y la del sentimiento 0,01 s, porque
+    para entonces torch ya había inicializado lo suyo.
+
+    Respeta ``nlp_backend``: con ``remote`` las señales de titular van por HTTP a
+    HuggingFace y cargar sus modelos en local sería trabajo tirado. La
+    incoherencia corre siempre en local, así que se calienta siempre.
+
+    Devuelve los tiempos por señal para poder registrarlos, en vez de imprimir
+    desde aquí: quien llama decide si eso se loguea y cómo.
+    """
+    from backend.config.settings import settings
+
+    tiempos: dict[str, float] = {}
+    titular = "Precalentando el modelo"
+
+    async def cronometrar(etiqueta: str, tarea) -> None:
+        inicio = time.perf_counter()
+        try:
+            await tarea()
+        except Exception as exc:
+            # No se propaga: un modelo que no carga no debe impedir que la API
+            # sirva `/tools` o `/history`. Se registra el fallo con un tiempo
+            # negativo para que sea inconfundible en los logs.
+            log.warning("preheat.failed", signal=etiqueta, error=str(exc))
+            tiempos[etiqueta] = -1.0
+            return
+        tiempos[etiqueta] = time.perf_counter() - inicio
+
+    if settings.nlp_backend == "local":
+        await cronometrar("detect_clickbait", lambda: dedicated.detect(_api, titular))
+        await cronometrar(
+            "analyze_sentiment", lambda: _api.classify(titular, _SENTIMENT_MODEL)
+        )
+
+    await cronometrar(
+        "detect_clickbait_incoherence",
+        lambda: _detector.detect(titular, "Un cuerpo cualquiera para calentar."),
+    )
+    return tiempos
 
 
 async def analyze(request: AnalyzeRequest) -> AnalyzeResponse:
@@ -164,7 +274,7 @@ async def _run_signals(headline: str, content: str | None) -> list[SignalResult]
         if spec.needs_content and not (content and content.strip()):
             by_name[spec.name] = _build(
                 spec,
-                SignalStatus.NO_APLICABLE,
+                SignalStatus.NOT_APPLICABLE,
                 detail="Requiere el cuerpo o teaser de la noticia.",
             )
         else:
@@ -213,11 +323,12 @@ async def _run_one(spec: _Signal, headline: str, content: str | None) -> SignalR
             SignalStatus.ERROR,
             detail=outcome.error or "La señal no devolvió resultado.",
         )
+    datos = outcome.unwrap()
     return _build(
         spec,
         SignalStatus.OK,
-        is_clickbait=spec.verdict(outcome.data),
-        data=outcome.data,
+        is_clickbait=spec.verdict(datos),
+        data=datos,
     )
 
 
@@ -229,16 +340,23 @@ def _build(
     data: dict[str, Any] | None = None,
     detail: str | None = None,
 ) -> SignalResult:
-    """Envuelve el resultado de una señal leyendo dimensión y tipo de su ficha.
+    """Envuelve el resultado de una señal leyendo su ficha: etiqueta, dimensión y tipo.
 
     Único sitio donde se construye un SignalResult, así que la traducción ficha
     → respuesta está en un solo punto. El acceso a ``_CARDS`` puede dar KeyError
     si se añade una señal sin ficha: es intencionado, y el test de alineación lo
     detecta antes.
+
+    ``label`` se añadió en #133 por el mismo motivo que ya viajaban los otros dos:
+    para que la interfaz no tenga que saber cómo se llama cada señal. Antes lo
+    sabía, en un diccionario propio de ``vocabulario.ts`` que nadie vigilaba —
+    renombrar una señal aquí no rompía ningún test, sólo hacía que la pantalla
+    pintara el id crudo. Es la forma exacta del fallo de #116.
     """
     card = _CARDS[spec.name]
     return SignalResult(
         name=spec.name,
+        label=card["name"],
         status=status,
         dimension=Dimension(card["dimension"]),
         type=SignalType(card["type"]),
@@ -255,7 +373,7 @@ def _aggregate(signals: list[SignalResult]) -> list[DimensionVerdict]:
         # `is None` y no `if not signal.is_clickbait`: False es un veredicto
         # VÁLIDO —"esta señal dice que no es clickbait"— y con la comprobación
         # por falsedad se perderían todos los votos negativos, dejando cualquier
-        # titular factual en sin_datos. Este único filtro cubre a la vez las
+        # titular factual en no_data. Este único filtro cubre a la vez las
         # señales que fallaron y las que no votan por naturaleza (el tono).
         if signal.is_clickbait is None:
             continue
@@ -290,21 +408,21 @@ def _overall(dimensions: list[DimensionVerdict]) -> OverallVerdict:
     # Primero: con la lista vacía, el any() de abajo daría False y caería en
     # FACTUAL, declarando factual un titular que nadie pudo analizar.
     if not dimensions:
-        return OverallVerdict.SIN_DATOS
+        return OverallVerdict.NO_DATA
 
     by_dimension = {d.dimension: d for d in dimensions}
-    engano = by_dimension.get(Dimension.ENGANO)
-    forma = by_dimension.get(Dimension.FORMA)
+    deception = by_dimension.get(Dimension.DECEPTION)
+    form = by_dimension.get(Dimension.FORM)
 
     # El engaño manda: un titular que promete lo que el cuerpo no cumple es
     # clickbait aunque esté redactado con sobriedad.
-    if engano is not None and engano.is_clickbait:
-        return OverallVerdict.ENGANOSO
-    if forma is not None and forma.is_clickbait:
-        return OverallVerdict.CLICKBAIT_DE_FORMA
+    if deception is not None and deception.is_clickbait:
+        return OverallVerdict.DECEPTIVE
+    if form is not None and form.is_clickbait:
+        return OverallVerdict.STYLISTIC_CLICKBAIT
     # Una detección positiva pesa más que una discrepancia: solo si nadie ha
     # detectado nada importa que alguna dimensión quedara sin resolver. La
     # discrepancia no se pierde, sigue visible en dimensions[].
     if any(d.is_clickbait is None for d in dimensions):
-        return OverallVerdict.AMBIGUO
+        return OverallVerdict.AMBIGUOUS
     return OverallVerdict.FACTUAL

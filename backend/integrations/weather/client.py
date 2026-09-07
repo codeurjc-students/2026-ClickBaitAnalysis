@@ -39,7 +39,7 @@ class WeatherAPI(BaseAPI):
             return ToolResult.fail("Unable to find requested zone")
 
         # Eliminamos la URL Base ya que el json contiene la URL completa y no solo el endpoint
-        forecast = points_json.data.get("properties", {}).get("forecast")
+        forecast = points_json.unwrap().get("properties", {}).get("forecast")
         if not forecast:
             return ToolResult.fail("Forecast URL not found")
         points_url = forecast.replace(f"{self.BASE_URL}", "")

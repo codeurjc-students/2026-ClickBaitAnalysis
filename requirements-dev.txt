@@ -20,3 +20,16 @@ sentence-transformers
 # el CI sin que cambiara una línea de código. El CI lo instala por separado
 # (`pip install ruff==...`) para no meter tooling en las deps de ejecución.
 ruff==0.16.1
+#
+# --- Tipos: comprobador estático (configuración en pyrightconfig.json) ---
+# Pineado por la misma razón que ruff: pyright afina reglas entre versiones, y
+# sin fijarla el CI fallaría sin que cambiara una línea de código. El CI también
+# lo instala por separado.
+#
+# Se eligió pyright y no mypy porque **Pylance ES pyright**: lo que ve quien
+# escribe en el editor es exactamente lo que rompe el CI, en vez de dos listas
+# parecidas que hay que traducir.
+#
+# Ojo al instalarlo: el paquete de pip descarga un runtime de Node la primera
+# vez (~50 MB) y lo cachea en `~/.cache/pyright-python`.
+pyright==1.1.411

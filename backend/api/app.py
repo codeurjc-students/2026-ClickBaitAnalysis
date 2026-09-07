@@ -20,6 +20,7 @@ al llegar a ``/tools``, que sí necesita la capa MCP: enumerar las herramientas
 conectadas en runtime no se puede hacer importando módulos.
 """
 
+import time
 from contextlib import asynccontextmanager
 from datetime import datetime
 from typing import Annotated
@@ -28,13 +29,13 @@ import structlog
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 
+from backend.analysis.domain import AnalyzeRequest
+from backend.analysis.orchestrator import analyze, precalentar
 from backend.api import history
-from backend.api.analyze import analyze
 from backend.api.catalog import fetch_catalog
-from backend.api.execute import InvalidArguments, ToolNotFound, execute_tool
+from backend.api.execute import execute_tool
 from backend.api.schemas import (
-    AnalyzeRequest,
-    AnalyzeResponse,
+    AnalyzeResult,
     CatalogResponse,
     ExecuteRequest,
     ExecuteResponse,
@@ -45,8 +46,12 @@ from backend.api.schemas import (
     RetentionPolicy,
 )
 from backend.config.settings import settings
-from backend.core.health import check_health
+from backend.core.health import Salud, check_health
 from backend.core.logging import configure_logging
+
+# Las tres excepciones son vocabulario del MECANISMO, no de la fachada: viven
+# donde se lanzan (#137). Importarlas de `api.execute` las haría parecer suyas.
+from backend.core.mcp.tools import InvalidArguments, ToolNotFound, ToolTimeout
 
 log = structlog.get_logger()
 
@@ -65,7 +70,24 @@ async def lifespan(app: FastAPI):
         service="clickbait-api",
         nlp_backend=settings.nlp_backend,
         cors_origins=settings.cors_origins,
+        preheat_models=settings.preheat_models,
     )
+
+    # Precalentado BLOQUEANTE, a propósito (#125). Hacerlo en segundo plano
+    # dejaría a uvicorn aceptando conexiones mientras los modelos cargan: las
+    # primeras peticiones seguirían siendo lentas y encima no habría forma
+    # limpia de saber cuándo está listo. Bloquear es lo que quiere un
+    # orquestador de contenedores — el servicio no está *ready* hasta que lo
+    # está — a cambio de un `start_period` generoso en el healthcheck de H4.
+    if settings.preheat_models:
+        inicio = time.perf_counter()
+        tiempos = await precalentar()
+        log.info(
+            "api.preheat",
+            total_s=round(time.perf_counter() - inicio, 1),
+            **{k: round(v, 1) for k, v in tiempos.items()},
+        )
+
     yield
 
 
@@ -100,23 +122,31 @@ app.add_middleware(
 )
 
 
-@app.post("/analyze", response_model=AnalyzeResponse, tags=["análisis"])
-async def post_analyze(request: AnalyzeRequest) -> AnalyzeResponse:
+@app.post("/analyze", response_model=AnalyzeResult, tags=["análisis"])
+async def post_analyze(request: AnalyzeRequest) -> AnalyzeResult:
     """Analiza un titular contrastando todas las señales disponibles.
 
     Devuelve **200 aunque alguna señal falle**: cada una lleva su propio
     `status`, y perder tres análisis correctos porque el cuarto dio timeout
     sería un error. Si el cuerpo de la noticia no se
-    envía, la señal de incoherencia queda en `no_aplicable` y la dimensión de
+    envía, la señal de incoherencia queda en `not_applicable` y la dimensión de
     engaño no se puede evaluar.
 
     Cada análisis queda registrado en el historial. Si esa escritura
     falla, la respuesta se devuelve igual: perder un análisis correcto porque el
     disco esté lleno sería peor que no guardarlo.
+
+    Por eso el análisis viene **envuelto** en `AnalyzeResult`, con el `id` de la
+    entrada al lado (#133). El id se calculaba desde #102 y se descartaba una
+    línea antes de salir del proceso, así que no había forma de pedir después un
+    análisis concreto: `GET /history/{id}` es la otra mitad de ese hueco.
+
+    El `id` puede ser `null` —el registro falla y el análisis sigue siendo
+    válido—, así que quien lo consuma tiene que funcionar sin él.
     """
     respuesta = await analyze(request)
 
-    await history.record(
+    entry_id = await history.record(
         kind=HistoryKind.ANALYSIS,
         origin=Origin.API,
         status="ok" if respuesta.has_any_result else "error",
@@ -124,7 +154,7 @@ async def post_analyze(request: AnalyzeRequest) -> AnalyzeResponse:
         headline=respuesta.headline,
         verdict=respuesta.verdict.value,
     )
-    return respuesta
+    return AnalyzeResult(id=entry_id, analysis=respuesta)
 
 
 @app.get("/tools", response_model=CatalogResponse, tags=["catálogo"])
@@ -143,7 +173,24 @@ async def get_tools() -> CatalogResponse:
     return await fetch_catalog()
 
 
-@app.post("/tools/{name}/execute", response_model=ExecuteResponse, tags=["catálogo"])
+@app.post(
+    "/tools/{name}/execute",
+    response_model=ExecuteResponse,
+    tags=["catálogo"],
+    # Los tres finales que NO son 200 se declaran, por el mismo motivo que el
+    # 404 del historial: sin esto el contrato publica 200 y 422 y nada más, y
+    # quien escribe el cliente los saca de leer este fichero. Aquí duele más que
+    # allí porque son tres y significan cosas distintas — y el 504 sobre todo,
+    # que no dice que la herramienta fallara sino que se agotó la espera: puede
+    # haber terminado bien (medido en #113, acabó a los 151 s con la API ya
+    # desistida). La pantalla de Sistema los distingue desde #128.
+    responses={
+        404: {"description": "No hay ninguna herramienta con ese nombre."},
+        504: {
+            "description": "Se agotó la espera; la herramienta puede haber terminado."
+        },
+    },
+)
 async def post_execute(name: str, request: ExecuteRequest) -> ExecuteResponse:
     """Ejecuta una herramienta concreta con los argumentos indicados.
 
@@ -158,6 +205,12 @@ async def post_execute(name: str, request: ExecuteRequest) -> ExecuteResponse:
     Devuelve **404** si la herramienta no existe, **422** si los argumentos no
     encajan, y **200 con `status` en `error`** si la herramienta se ejecutó y
     falló: eso último no es un error HTTP, porque la petición era correcta.
+
+    Y **504** si el servidor MCP tarda más de `mcp_execute_timeout`. Es una
+    categoría aparte del `status: error` a propósito: al agotarse la espera la
+    herramienta **puede haber terminado bien** —medido en #113, acabó con éxito a
+    los 151 s mientras la API ya había desistido—, así que decir que el análisis
+    falló sería falso. Lo que falló es la espera.
     """
     try:
         respuesta = await execute_tool(name, request.arguments)
@@ -167,6 +220,14 @@ async def post_execute(name: str, request: ExecuteRequest) -> ExecuteResponse:
         ) from None
     except InvalidArguments as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from None
+    except ToolTimeout:
+        raise HTTPException(
+            status_code=504,
+            detail=(
+                f"'{name}' no respondió en {settings.mcp_execute_timeout:.0f} s. "
+                "Puede que siga ejecutándose; vuelve a consultarlo en un momento."
+            ),
+        ) from None
 
     # Sólo se registra lo que llegó a ejecutarse. Una petición rechazada por 404
     # o 422 no es una ejecución: ensuciaría el historial con intentos fallidos
@@ -209,7 +270,7 @@ async def get_history(
         str | None,
         Query(
             max_length=50,
-            description="Qué CONCLUYÓ el análisis: `enganoso`, `factual`, `ambiguo`…",
+            description="Qué CONCLUYÓ el análisis: `deceptive`, `factual`, `ambiguous`…",
         ),
     ] = None,
     status: Annotated[
@@ -287,8 +348,48 @@ async def get_history(
     )
 
 
+@app.get(
+    "/history/{entry_id}",
+    response_model=HistoryEntry,
+    tags=["historial"],
+    # El 404 se DECLARA, no sólo se lanza. Sin esto el contrato publica 200 y
+    # 422 y nada más, así que el cliente generado no sabe que ese código existe
+    # y quien escribe la pantalla lo descubre leyendo este fichero — que es
+    # exactamente lo que #133 quitó de en medio para las respuestas.
+    #
+    # Y aquí no es un caso de borde: la RETENCIÓN poda entradas, así que un
+    # enlace guardado a un análisis acaba dando 404 por funcionamiento normal.
+    responses={404: {"description": "No hay ninguna entrada con ese id."}},
+)
+async def get_history_entry(entry_id: int) -> HistoryEntry:
+    """Una entrada del historial por su id, con su respuesta completa.
+
+    Es la puerta de lectura que le faltaba al historial: lo guardado desde #102
+    no es un resumen sino la respuesta entera, pero sólo se podía pedir una
+    página con filtros. Con esto, un análisis concreto se puede **recuperar sin
+    reejecutar** — que además de costar ~20 s podría dar otro resultado, porque
+    las señales remotas no son deterministas.
+
+    Habilita volver a un resultado desde el historial (#129) y una futura ruta
+    `/analisis/:id` en la SPA, que #127 dejó preparada: su bloque de resultados
+    recibe el análisis como entrada, así que esa pantalla sólo tendría que
+    resolverlo desde aquí y alimentar al mismo componente.
+
+    **404 si no existe**, y la traducción se hace aquí y no en `history.py`: para
+    el almacén «no está» es una respuesta legítima y devuelve `None`, porque es
+    el único que puede servir también a la fachada MCP, donde no hay códigos de
+    estado. Un id no entero da **422** antes de llegar a la base, por la firma.
+    """
+    fila = await history.get(entry_id)
+    if fila is None:
+        raise HTTPException(
+            status_code=404, detail=f"No hay ninguna entrada con id {entry_id}."
+        )
+    return HistoryEntry(**fila)
+
+
 @app.get("/health", tags=["operación"])
-async def get_health() -> dict:
+async def get_health() -> Salud:
     """Estado de las integraciones externas.
 
     Sondea cada API con una petición ligera y agrega: `ok` si todas responden,

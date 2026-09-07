@@ -18,29 +18,31 @@ de otro ni deja rastro en `var/`.
 
 import asyncio
 import sqlite3
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta, timezone
 
 import pytest
 from fastapi.testclient import TestClient
 
-from backend.api import app as app_mod
-from backend.api import history
-from backend.api.app import app
-from backend.api.execute import ToolNotFound
-from backend.api.schemas import (
+from backend.analysis.domain import (
     AnalyzeResponse,
     Dimension,
     DimensionVerdict,
-    ExecuteResponse,
-    ExecuteStatus,
-    HistoryKind,
-    Origin,
     OverallVerdict,
     SignalResult,
     SignalStatus,
     SignalType,
 )
+from backend.api import app as app_mod
+from backend.api import history
+from backend.api.app import app
+from backend.api.schemas import (
+    ExecuteResponse,
+    ExecuteStatus,
+    HistoryKind,
+    Origin,
+)
 from backend.config.settings import settings
+from backend.core.mcp.tools import ToolNotFound
 
 client = TestClient(app)
 
@@ -82,11 +84,11 @@ def test_el_payload_vuelve_como_diccionario():
     tendría que saber que aquí dentro se guarda serializado. Con Postgres y una
     columna `jsonb` ese `json.loads` de fuera reventaría.
     """
-    _guardar(payload={"verdict": "enganoso", "signals": [{"name": "lexical"}]})
+    _guardar(payload={"verdict": "deceptive", "signals": [{"name": "lexical"}]})
 
     filas, _ = _leer()
     assert filas[0]["payload"] == {
-        "verdict": "enganoso",
+        "verdict": "deceptive",
         "signals": [{"name": "lexical"}],
     }
 
@@ -196,7 +198,7 @@ def test_una_excepcion_deshace_la_escritura():
 
 def _sembrar(cuantas, dias=0):
     """Escribe filas saltándose la poda, para preparar un estado de partida."""
-    marca = (datetime.now(timezone.utc) - timedelta(days=dias)).isoformat()
+    marca = (datetime.now(UTC) - timedelta(days=dias)).isoformat()
     with history._conectar() as conexion:
         conexion.executemany(
             history._INSERT,
@@ -286,8 +288,9 @@ def _respuesta_analisis(headline="Un titular"):
         signals=[
             SignalResult(
                 name="detect_clickbait_lexical",
+                label="Léxico por reglas",
                 status=SignalStatus.OK,
-                dimension=Dimension.FORMA,
+                dimension=Dimension.FORM,
                 type=SignalType.INTERPRETABLE,
                 is_clickbait=True,
                 data={"score": 2},
@@ -295,12 +298,12 @@ def _respuesta_analisis(headline="Un titular"):
         ],
         dimensions=[
             DimensionVerdict(
-                dimension=Dimension.FORMA,
+                dimension=Dimension.FORM,
                 is_clickbait=True,
                 contributing=["detect_clickbait_lexical"],
             )
         ],
-        verdict=OverallVerdict.CLICKBAIT_DE_FORMA,
+        verdict=OverallVerdict.STYLISTIC_CLICKBAIT,
     )
 
 
@@ -346,7 +349,7 @@ def test_un_analyze_deja_UNA_entrada_y_no_una_por_senal(analisis):
     assert cuerpo["total"] == 1
     assert cuerpo["items"][0]["kind"] == "analysis"
     assert cuerpo["items"][0]["headline"] == "Un titular"
-    assert cuerpo["items"][0]["verdict"] == "clickbait_de_forma"
+    assert cuerpo["items"][0]["verdict"] == "stylistic_clickbait"
 
 
 def test_la_entrada_guarda_la_respuesta_completa(analisis):
@@ -355,7 +358,7 @@ def test_la_entrada_guarda_la_respuesta_completa(analisis):
     client.post("/analyze", json={"headline": "Un titular"})
 
     payload = client.get("/history").json()["items"][0]["payload"]
-    assert payload["verdict"] == "clickbait_de_forma"
+    assert payload["verdict"] == "stylistic_clickbait"
     assert payload["signals"][0]["name"] == "detect_clickbait_lexical"
     assert payload["signals"][0]["data"] == {"score": 2}
 
@@ -438,14 +441,57 @@ def test_los_topes_salen_en_el_esquema_openapi():
     assert parametros["offset"]["minimum"] == 0
 
 
+def test_una_entrada_se_recupera_por_su_id(analisis):
+    """La puerta que le faltaba al historial (#133).
+
+    Lo guardado desde #102 es la respuesta COMPLETA, no un resumen, así que
+    recuperar un análisis no obliga a reejecutarlo — que además de costar ~20 s
+    podría dar otro resultado, porque las señales remotas no son deterministas.
+    """
+    creado = client.post("/analyze", json={"headline": "Un titular"}).json()
+
+    entrada = client.get(f"/history/{creado['id']}").json()
+
+    assert entrada["id"] == creado["id"]
+    assert entrada["headline"] == "Un titular"
+    assert entrada["payload"] == creado["analysis"]
+
+
+def test_un_id_que_no_existe_da_404():
+    """404 y no lista vacía: preguntar por UNA entrada concreta que no está es
+    un caso distinto de filtrar y no encontrar nada."""
+    assert client.get("/history/999999").status_code == 404
+
+
+def test_el_contrato_declara_ese_404():
+    """Que lo lance no basta: tiene que estar PUBLICADO (#129).
+
+    El cliente de Angular se genera del contrato, así que un código que sólo
+    vive en el `raise` obliga a leer `app.py` para saber que existe. Y este en
+    concreto no es raro: la retención poda entradas, de modo que un enlace
+    guardado a un análisis termina dando 404 por funcionamiento normal.
+    """
+    respuestas = client.get("/openapi.json").json()["paths"]["/history/{entry_id}"][
+        "get"
+    ]["responses"]
+
+    assert "404" in respuestas
+    assert "entrada" in respuestas["404"]["description"]
+
+
+def test_un_id_que_no_es_entero_da_422():
+    """Lo para la firma, antes de tocar la base de datos."""
+    assert client.get("/history/no-soy-un-id").status_code == 422
+
+
 # ---------------------------------------------------------------- los filtros
 
 
 def _poblar():
     """Un historial variado: análisis con tres veredictos y dos herramientas."""
-    _guardar(headline="engañoso", verdict="enganoso", status="ok")
+    _guardar(headline="engañoso", verdict="deceptive", status="ok")
     _guardar(headline="factual", verdict="factual", status="ok")
-    _guardar(headline="roto", verdict="sin_datos", status="error")
+    _guardar(headline="roto", verdict="no_data", status="error")
     _guardar(kind=HistoryKind.TOOL, tool="analyze_sentiment", status="ok")
     _guardar(kind=HistoryKind.TOOL, tool="health_check", status="error")
 
@@ -474,7 +520,7 @@ def test_filtro_por_verdict():
     """Lo que CONCLUYÓ: es el filtro que quiere quien mira sus análisis."""
     _poblar()
 
-    cuerpo = client.get("/history?verdict=enganoso").json()
+    cuerpo = client.get("/history?verdict=deceptive").json()
     assert cuerpo["total"] == 1
     assert cuerpo["items"][0]["headline"] == "engañoso"
 
@@ -494,7 +540,7 @@ def test_los_filtros_se_acumulan():
 
     cuerpo = client.get("/history?kind=analysis&status=ok").json()
     assert cuerpo["total"] == 2
-    assert {i["verdict"] for i in cuerpo["items"]} == {"enganoso", "factual"}
+    assert {i["verdict"] for i in cuerpo["items"]} == {"deceptive", "factual"}
 
 
 def test_el_total_va_ya_filtrado():
@@ -510,7 +556,7 @@ def test_filtro_por_fechas():
     _sembrar(4, dias=60)
     _guardar(headline="de hoy")
 
-    desde = (datetime.now(timezone.utc) - timedelta(days=1)).isoformat()
+    desde = (datetime.now(UTC) - timedelta(days=1)).isoformat()
     cuerpo = client.get("/history", params={"since": desde}).json()
 
     assert cuerpo["total"] == 1
@@ -524,7 +570,7 @@ def test_las_fechas_se_normalizan_a_utc():
     _guardar(headline="de hoy")
 
     # El MISMO instante expresado en dos husos distintos: mismo resultado.
-    hace_una_hora = datetime.now(timezone.utc) - timedelta(hours=1)
+    hace_una_hora = datetime.now(UTC) - timedelta(hours=1)
     en_utc = hace_una_hora.isoformat()
     en_otro_huso = hace_una_hora.astimezone(timezone(timedelta(hours=5))).isoformat()
 

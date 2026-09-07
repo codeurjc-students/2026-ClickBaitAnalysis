@@ -1,0 +1,32 @@
+# Finales de línea: LF siempre, en el índice Y en el árbol de trabajo.
+#
+# `text=auto` deja que git distinga texto de binario por su cuenta —los `.gz` de
+# `data/` y el favicon ya se detectan bien y quedan intactos— y `eol=lf` fija
+# también el disco, no sólo lo commiteado.
+#
+# El motivo no es cosmético, y es concreto. El repositorio vive en WSL, donde
+# `core.autocrlf` está sin poner, pero es alcanzable desde Windows, cuyo git lo
+# trae en `true`. Un checkout desde ese lado dejaría `frontend/openapi.json` y
+# `frontend/src/app/api/schema.d.ts` con CRLF en disco, mientras las
+# herramientas que los generan los escriben con LF.
+#
+# Y esos dos ficheros se comparan con su versión regenerada —por
+# `test_el_contrato_commiteado_esta_al_dia` y por el job de frontend—, así que
+# el desajuste no saldría como un detalle de formato: saldría como un diff
+# permanente que NO se arregla regenerando, que es justo lo que el mensaje de
+# error manda hacer. El fallo diría una cosa y la solución sería otra.
+#
+# Añadido en #126 sin renormalizar nada: `git ls-files --eol` no encontró un
+# solo CRLF en el índice.
+* text=auto eol=lf
+
+# `schema.d.ts` no se lee en una revisión: es la traducción mecánica de
+# `openapi.json`, y cambia entero cada vez que se toca un modelo. Marcarlo como
+# generado hace que GitHub lo colapse en el diff de las pull requests —con su
+# «Load diff» para desplegarlo si hace falta— y lo saque de las estadísticas de
+# lenguaje del repositorio.
+#
+# El contrato SÍ queda visible: `openapi.json` no lleva la marca a propósito,
+# porque es el que cuenta qué cambió de la API y esa es justo la parte que hay
+# que mirar.
+frontend/src/app/api/schema.d.ts linguist-generated=true

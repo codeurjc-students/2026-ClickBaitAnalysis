@@ -44,6 +44,9 @@ def discover_and_register(mcp: FastMCP) -> DiscoveryResult:
     otras diez herramientas. Es la misma postura que en ``/analyze`` con las
     señales.
     """
+    if __package__ is None:
+        raise RuntimeError("El descubrimiento sólo funciona dentro de un paquete.")
+
     paquete = importlib.import_module(__package__)
     registrados: list[str] = []
     fallidos: dict[str, str] = {}
