@@ -108,11 +108,13 @@
             <td>{{ entrada.status }}</td>
             <td>
               @if (entrada.kind === 'analysis') {
-                <a [routerLink]="['/analisis', entrada.id]">Ver el análisis</a>
+                <a class="accion" [routerLink]="['/analisis', entrada.id]">
+                  Ver el análisis
+                </a>
               } @else {
                 <button
                   type="button"
-                  class="secundario"
+                  class="accion"
                   (click)="alternar(entrada.id)"
                   [attr.aria-expanded]="abierta() === entrada.id"
                 >

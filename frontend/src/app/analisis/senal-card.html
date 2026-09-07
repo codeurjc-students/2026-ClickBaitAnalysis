@@ -1,4 +1,8 @@
-<article class="tarjeta" [attr.data-tipo]="senal().type">
+<article
+  class="tarjeta"
+  [class.atenuada]="atenuada()"
+  [attr.data-tipo]="senal().type"
+>
   <button
     type="button"
     class="cabecera"
@@ -11,8 +15,25 @@
     <span class="chevron" aria-hidden="true">{{ abierta() ? '▾' : '▸' }}</span>
   </button>
 
-  @if (senal().status !== 'ok') {
-    <p class="motivo">{{ senal().detail }}</p>
+  @if (atenuada()) {
+    <p class="motivo">
+      @if (senal().status === 'error') {
+        <!--
+          R6.7: el `detail` de una señal caída es texto técnico —«HTTP error:
+          400 - {"error":"Model not supported by provider hf-inference"}»— y
+          volcarlo como ÚNICO mensaje es lo que el requisito prohíbe. Se
+          antepone la frase que se entiende, y el volcado se queda marcado como
+          lo que es: no se esconde, porque es lo único que permite diagnosticar.
+        -->
+        <span class="motivo__resumen">Esta señal no llegó a ejecutarse.</span>
+        <span class="motivo__tecnico">{{ senal().detail }}</span>
+      } @else {
+        <!-- En `not_applicable` el detalle YA es la frase que se entiende
+             («Requiere el cuerpo o teaser de la noticia»): anteponerle nada
+             sería ruido. -->
+        {{ senal().detail }}
+      }
+    </p>
   } @else if (abierta()) {
     @switch (senal().name) {
       @case ('detect_clickbait_lexical') {

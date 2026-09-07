@@ -220,6 +220,21 @@ button:focus-visible {
   border-left-color: var(--opaque);
 }
 
+/* La insignia dice el tipo y lo dice CON SU COLOR, igual que el borde. Es lo
+   que `senal-card` ya hacía; tenerlo de dos maneras según la pantalla era la
+   incoherencia. */
+.ficha[data-tipo='interpretable'] .badge {
+  background: var(--interpretable-fondo);
+}
+
+.ficha[data-tipo='hybrid'] .badge {
+  background: var(--hybrid-fondo);
+}
+
+.ficha[data-tipo='opaque'] .badge {
+  background: var(--opaque-fondo);
+}
+
 .ficha__tarea {
   margin: 0;
   color: var(--texto-suave);

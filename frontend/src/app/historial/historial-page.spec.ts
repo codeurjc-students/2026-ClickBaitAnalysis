@@ -196,4 +196,20 @@ describe('HistorialPage', () => {
     const raiz = fixture.nativeElement as HTMLElement;
     expect(raiz.textContent).toContain('La API falló al leer el historial');
   });
+
+  // Las dos acciones de una fila hacen lo mismo —enseñar esa entrada— y se ven
+  // igual. Lo que no comparten es la naturaleza, y es deliberado: una navega y
+  // tiene que ser un enlace (otra pestaña, y el lector de pantalla lo anuncia
+  // como tal), la otra despliega aquí y tiene que ser un botón.
+  it('las dos acciones comparten estilo sin compartir naturaleza', async () => {
+    const raiz = await montar();
+
+    const enlace = raiz.querySelector('tbody a');
+    const boton = raiz.querySelector('tbody button');
+
+    expect(enlace?.classList).toContain('accion');
+    expect(boton?.classList).toContain('accion');
+    expect(enlace?.tagName).toBe('A');
+    expect(boton?.tagName).toBe('BUTTON');
+  });
 });

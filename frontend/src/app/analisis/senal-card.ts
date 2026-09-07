@@ -4,6 +4,7 @@ import type { SenalGuardada } from './formas';
 import { comoEtiqueta, comoIncoherencia, comoLexico, comoLineal } from './datos';
 import {
   estadoDeSenal,
+  funciono,
   nombreDeCategoria,
   nombreDeSenal,
   numero,
@@ -32,6 +33,16 @@ export class SenalCard {
    * el análisis anterior.
    */
   readonly abierta = linkedSignal(() => this.senal().type !== 'opaque');
+
+  /**
+   * Una señal que no llegó a producir resultado se APAGA.
+   *
+   * El borde de color lleva el TIPO —dónde está la transparencia—, y eso
+   * hace que una opaca caída se vea igual que una opaca sana: medido en
+   * #130, las dos con `rgb(184,84,80)`. El tipo no se pierde al apagarla,
+   * sigue escrito en la insignia.
+   */
+  readonly atenuada = computed(() => !funciono(this.senal()));
 
   readonly lexico = computed(() => comoLexico(this.senal().data));
   readonly lineal = computed(() => comoLineal(this.senal().data));

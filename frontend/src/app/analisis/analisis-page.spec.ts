@@ -15,7 +15,7 @@ const RESPUESTA: AnalyzeResponse = {
   signals: [
     {
       name: 'detect_clickbait_lexical',
-      label: 'Léxico por reglas',
+      label: 'Léxico por reglas (listas de cues de Chakraborty et al. 2016)',
       status: 'ok',
       dimension: 'form',
       type: 'interpretable',
@@ -30,7 +30,7 @@ const RESPUESTA: AnalyzeResponse = {
     },
     {
       name: 'detect_clickbait_incoherence',
-      label: 'Incoherencia titular ↔ cuerpo',
+      label: 'MiniLM-L6-v2 (embeddings de frase)',
       status: 'not_applicable',
       dimension: 'deception',
       type: 'hybrid',
@@ -39,7 +39,7 @@ const RESPUESTA: AnalyzeResponse = {
     },
     {
       name: 'analyze_sentiment',
-      label: 'Tono',
+      label: 'RoBERTa afinado en tuits (3 clases)',
       status: 'ok',
       dimension: 'tone',
       type: 'opaque',
@@ -276,5 +276,39 @@ describe('AnalisisPage', () => {
       'no tiene forma de an',
     );
     expect(html().querySelector('.veredicto')).toBeNull();
+  });
+
+  // El índice compacto tiene que decir de un vistazo cuáles votaron. La segunda
+  // señal del fixture es `not_applicable` (la incoherencia sin cuerpo), que es
+  // el caso real de un análisis sin contenido.
+  it('las pastillas de las señales que no votaron se apagan', async () => {
+    pagina.formulario.controls.headline.setValue('Un titular');
+    await enviar();
+
+    http.expectOne('/api/analyze').flush(SOBRE);
+    await fixture.whenStable();
+
+    const apagadas = [...html().querySelectorAll('.pastilla')]
+      .filter((pastilla) => pastilla.classList.contains('atenuada'))
+      .map((pastilla) => pastilla.querySelector('strong')?.textContent);
+
+    expect(apagadas).toEqual(['MiniLM-L6-v2']);
+  });
+
+  // Medido en #130: con el `label` entero una sola pastilla ocupaba 531 px de
+  // 1024, y el comentario de la plantilla seguía prometiendo un índice compacto.
+  // La precisión entre paréntesis es de la ficha, no del indice.
+  it('el índice usa el nombre corto y la tarjeta el completo', async () => {
+    pagina.formulario.controls.headline.setValue('Un titular');
+    await enviar();
+
+    http.expectOne('/api/analyze').flush(SOBRE);
+    await fixture.whenStable();
+
+    const pastilla = html().querySelector('.pastilla strong')?.textContent;
+    expect(pastilla).toBe('Léxico por reglas');
+
+    const tarjeta = html().querySelector('app-senal-card strong')?.textContent;
+    expect(tarjeta).toContain('Chakraborty et al. 2016');
   });
 });

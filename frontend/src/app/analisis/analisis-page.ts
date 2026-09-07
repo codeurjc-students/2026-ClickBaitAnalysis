@@ -19,6 +19,8 @@ import { TitularResaltado } from './titular-resaltado';
 import {
   estadoDeSenal,
   nombreDeDimension,
+  funciono,
+  nombreCortoDeSenal,
   nombreDeSenal,
   nombreDeVeredicto,
   resumenDimension,
@@ -92,7 +94,9 @@ export class AnalisisPage {
 
   // La plantilla sólo ve miembros de la clase, no imports del módulo.
   protected readonly nombre = nombreDeSenal;
+  protected readonly nombreCorto = nombreCortoDeSenal;
   protected readonly estado = estadoDeSenal;
+  protected readonly funciono = funciono;
   protected readonly dimension = nombreDeDimension;
   protected readonly resumen = resumenDimension;
 

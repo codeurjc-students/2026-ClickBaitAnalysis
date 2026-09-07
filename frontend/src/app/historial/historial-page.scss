@@ -130,6 +130,33 @@ code {
   white-space: nowrap;
 }
 
+/* Las dos acciones de una fila hacen lo mismo —enseñar esa entrada— y tienen
+   que verse igual. Lo que NO se iguala es el elemento: una navega y sigue
+   siendo un enlace —se abre en otra pestaña, y el lector de pantalla lo
+   anuncia como enlace—, y la otra despliega aquí y sigue siendo un botón.
+   Misma pinta, distinta naturaleza.
+
+   El `nowrap` además le quita una línea a cada fila a 768 px, donde «Ver el
+   análisis» partía en dos. */
+.accion {
+  display: inline-block;
+  padding: 0.35rem 0.8rem;
+  border: 1px solid var(--borde);
+  border-radius: 6px;
+  background: var(--fondo-suave);
+  color: inherit;
+  font: inherit;
+  font-size: 0.85rem;
+  text-decoration: none;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.accion:hover {
+  border-color: var(--acento);
+  color: var(--acento);
+}
+
 /* --- Paginación y estados --- */
 
 .retencion {
