@@ -122,6 +122,31 @@ export type HistoryKind = Esquemas['HistoryKind'];
 export type Origin = Esquemas['Origin'];
 export type RetentionPolicy = Esquemas['RetentionPolicy'];
 
+// --- Salud de las integraciones externas (GET /health) ---
+//
+// De `paths`, como todo lo que cruza la red. Aquí el contrato aporta algo que
+// no aporta en las otras rutas: `integrations` es un diccionario ABIERTO
+// —`Record<string, Sonda>`—, no una lista de las tres de hoy. Así una
+// integración nueva en el backend aparece sola en la interfaz; enumerarlas aquí
+// a mano la dejaría fuera sin que nada fallara al compilar.
+//
+// Ojo con lo que este endpoint NO cubre: sondea las APIs de noticias
+// (`weather`, `guardian`, `nyt`) y **ninguna señal NLP**. Un `ok` aquí no dice
+// nada sobre si `detect_clickbait` funciona — el 3-09 habría dicho `ok` con esa
+// señal devolviendo 400 toda la mañana. Ver #156.
+type Health = paths['/health']['get'];
+export type HealthResult = Health['responses'][200]['content']['application/json'];
+
+// El estado agregado sale de la respuesta y no de `components` porque en el
+// contrato es un enum EN LÍNEA, sin esquema propio con nombre.
+export type EstadoSalud = HealthResult['status'];
+
+// La sonda de una integración: si respondió y, si no, por qué. El `error` es el
+// texto de la excepción de httpx, así que es técnico a propósito — quien lo
+// pinte tiene que marcarlo como tal, igual que hizo #130 con el `detail` de una
+// señal caída.
+export type Sonda = Esquemas['Sonda'];
+
 // --- Errores de validación de FastAPI (422) ---
 export type HTTPValidationError = Esquemas['HTTPValidationError'];
 export type ValidationError = Esquemas['ValidationError'];

@@ -1,0 +1,171 @@
+/*
+ * El indicador vive en la cabecera, así que se ancla con `position: relative` y
+ * el panel sale flotando por encima del contenido. Empujar la página hacia
+ * abajo al desplegarlo movería la pantalla que se está mirando, que es justo lo
+ * que no quieres cuando lo abres para entender un fallo que tienes delante.
+ */
+.salud {
+  position: relative;
+}
+
+/*
+ * El color del estado se resuelve una vez y lo heredan el punto y el borde. Los
+ * tres colores son los mismos que usan los tipos de señal, para no introducir
+ * un vocabulario cromático nuevo: verde responde, ámbar avisa, rojo falla.
+ */
+.salud[data-estado='ok'] {
+  --color-estado: var(--interpretable);
+}
+
+.salud[data-estado='degraded'] {
+  --color-estado: var(--aviso);
+}
+
+.salud[data-estado='down'],
+.salud[data-estado='incomunicado'] {
+  --color-estado: var(--error);
+}
+
+.salud[data-estado='cargando'] {
+  --color-estado: var(--texto-suave);
+}
+
+.pastilla {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.3rem 0.7rem;
+  border: 1px solid var(--borde);
+  border-radius: 999px;
+  background: var(--fondo);
+  color: var(--texto-suave);
+  font: inherit;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.pastilla:hover {
+  border-color: var(--color-estado);
+}
+
+.punto {
+  width: 0.55rem;
+  height: 0.55rem;
+  border-radius: 50%;
+  background: var(--color-estado);
+}
+
+/* Mayúsculas por CSS: en el DOM el texto va en caja normal, porque muchos
+   lectores de pantalla deletrean las palabras escritas en caja alta. */
+.etiqueta {
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.chevron {
+  color: var(--texto-suave);
+}
+
+.detalle {
+  position: absolute;
+  top: calc(100% + 0.5rem);
+  right: 0;
+  z-index: 10;
+  width: min(24rem, calc(100vw - 2rem));
+  padding: 0.9rem 1rem;
+  border: 1px solid var(--borde);
+  border-top: 3px solid var(--color-estado);
+  border-radius: 0.5rem;
+  background: var(--fondo);
+  box-shadow: 0 4px 16px rgb(0 0 0 / 12%);
+  font-size: 0.85rem;
+}
+
+.explicacion {
+  margin: 0 0 0.75rem;
+}
+
+.fallo {
+  margin: 0 0 0.75rem;
+  padding: 0.5rem 0.6rem;
+  border-radius: 0.35rem;
+  background: var(--error-fondo);
+  color: var(--error);
+}
+
+.sondas {
+  margin: 0 0 0.75rem;
+  padding: 0;
+  list-style: none;
+}
+
+.sonda {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 0.15rem 0.5rem;
+  padding: 0.4rem 0;
+  border-top: 1px solid var(--borde);
+}
+
+.sonda__nombre {
+  font-weight: 600;
+}
+
+.sonda__estado {
+  color: var(--texto-suave);
+  text-align: right;
+}
+
+.sonda.caida .sonda__estado {
+  color: var(--error);
+  font-weight: 600;
+}
+
+/* El volcado técnico ocupa la fila entera y se distingue del resto: no se
+   esconde, pero tampoco se confunde con la frase que sí se entiende. */
+.sonda__tecnico {
+  grid-column: 1 / -1;
+  font-family: ui-monospace, monospace;
+  font-size: 0.75rem;
+  color: var(--texto-suave);
+  overflow-wrap: anywhere;
+}
+
+.alcance {
+  margin: 0 0 0.75rem;
+  padding-top: 0.6rem;
+  border-top: 1px solid var(--borde);
+  color: var(--texto-suave);
+  font-size: 0.78rem;
+}
+
+.acciones {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.momento {
+  color: var(--texto-suave);
+  font-size: 0.78rem;
+}
+
+.recargar {
+  margin-left: auto;
+  padding: 0.3rem 0.7rem;
+  border: 1px solid var(--borde);
+  border-radius: 0.35rem;
+  background: var(--fondo-suave);
+  color: inherit;
+  font: inherit;
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+
+.recargar:disabled {
+  color: var(--texto-suave);
+  cursor: default;
+}

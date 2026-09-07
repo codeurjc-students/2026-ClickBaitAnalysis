@@ -217,6 +217,7 @@ lógica: si algo se le añadiera, pertenece a otro sitio.
 | `analisis/` | Analizar un titular y ver el resultado —también uno guardado—, con lo que sólo esa vista usa: los guardianes del `data`, el resaltado del titular, la tarjeta de señal y el vocabulario |
 | `historial/` | La lista de lo anterior: filtros, paginación y el aviso de retención |
 | `sistema/` | Servidores, catálogo y fichas de modelo, más el lector de esquemas que genera el formulario de cada herramienta |
+| `salud/` | El indicador de salud de la cabecera (#147). **No es una pantalla**: no tiene ruta y se monta en la cáscara, porque la pregunta que responde —«¿esto falla por mí o por un tercero?»— surge desde cualquiera de las tres. Meterlo en la carpeta de una de ellas obligaría a las otras dos a importar de esa pantalla, que es justo la dependencia que la regla de abajo prohíbe |
 
 **Tres reglas que no se ven mirando el árbol:**
 

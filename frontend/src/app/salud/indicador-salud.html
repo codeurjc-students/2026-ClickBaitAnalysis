@@ -1,0 +1,60 @@
+<div class="salud" [attr.data-estado]="estado()">
+  <button
+    type="button"
+    class="pastilla"
+    (click)="alternar()"
+    [attr.aria-expanded]="abierto()"
+    aria-controls="detalle-salud"
+  >
+    <!-- El punto es decoración: el estado va en el texto de al lado, porque el
+         color no puede ser el único canal. -->
+    <span class="punto" aria-hidden="true"></span>
+    <span class="etiqueta" role="status">{{ etiqueta() }}</span>
+    <span class="chevron" aria-hidden="true">{{ abierto() ? '▾' : '▸' }}</span>
+  </button>
+
+  @if (abierto()) {
+    <div class="detalle" id="detalle-salud">
+      <p class="explicacion">{{ explicacion() }}</p>
+
+      @if (error(); as motivo) {
+        <p class="fallo" role="alert">{{ motivo }}</p>
+      }
+
+      @if (sondas().length > 0) {
+        <ul class="sondas">
+          @for (integracion of sondas(); track integracion.clave) {
+            <li class="sonda" [class.caida]="!integracion.sonda.reachable">
+              <span class="sonda__nombre">{{ integracion.nombre }}</span>
+              <span class="sonda__estado">
+                {{ integracion.sonda.reachable ? 'responde' : 'no responde' }}
+              </span>
+
+              <!-- El `error` de la sonda es el texto de la excepción de httpx,
+                   así que es técnico. Se enseña igual —es lo único que permite
+                   diagnosticar— pero marcado como lo que es, igual que hizo
+                   #130 con el `detail` de una señal caída. -->
+              @if (integracion.sonda.error; as tecnico) {
+                <span class="sonda__tecnico">{{ tecnico }}</span>
+              }
+            </li>
+          }
+        </ul>
+      }
+
+      <p class="alcance">
+        Sólo las APIs de noticias. Las señales de análisis no se sondean aquí:
+        que esto esté en verde no significa que respondan.
+      </p>
+
+      <div class="acciones">
+        @if (comprobadoA(); as hora) {
+          <span class="momento">Comprobado a las {{ hora }}</span>
+        }
+        <button type="button" class="recargar" (click)="consultar()" [disabled]="cargando()">
+          {{ cargando() ? 'Comprobando…' : 'Volver a comprobar' }}
+        </button>
+      </div>
+    </div>
+  }
+</div>
