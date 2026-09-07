@@ -136,6 +136,8 @@ Dos ramas permanentes con papeles distintos:
 
 _(El **MVP se entregó sin tag**: el versionado empieza de facto en `v0.2.0`, porque hasta entonces el flujo era `feature → PR → main` directo y no había promoción que tagear. Crear un `v0.1.0` ahora sería abrir un corte en el tiempo hacia atrás, que es justo lo que el principio de abajo prohíbe.)_
 
+_(El primer patch fue **`v0.4.1`**, y fija el criterio: un patch cabe cuando **lo publicado induce a error a quien despliegue o lea**, no sólo cuando el código falla. Allí el tag, la release y el README llamaban «caída del proveedor» a una limitación permanente, y la ficha del modelo —que la API sirve— declaraba una vía remota inexistente. Esperar a la siguiente minor habría dejado meses de documentación llamando avería a un límite de diseño.)_
+
 > **Principio:** las versiones son **cortes en el tiempo**, no contenedores temáticos. Una mejora posterior va a la **siguiente** versión aunque pertenezca por dominio a una épica ya taggeada (la trazabilidad temática la dan los labels de épica en los issues, no los tags). Los tags son inmutables: nunca se "reabre" una versión.
 
 _(Histórico: hasta la v0.2.0 el flujo era feature → PR → `main` directo; el esquema dev→main se adoptó al cerrar la Épica 5.)_
@@ -1438,10 +1440,39 @@ que se vea coherente:
 - Los números de arriba salen de `getComputedStyle` y `getBoundingClientRect`
   sobre la aplicación corriendo con sus tres procesos —servidor MCP, API y
   `ng serve`—, no de mirar capturas.
-- El caso de prueba se creó a propósito: un análisis nuevo con el proveedor
-  `hf-inference` caído, que dejó una entrada con una señal en `error` y otra en
-  `not_applicable` — los dos casos que el issue pide comprobar, reales y no
+- El caso de prueba se creó a propósito: un análisis nuevo dejó una entrada con
+  una señal en `error` —la dedicada, por el límite de abajo— y otra en
+  `not_applicable`. Los dos casos que el issue pide comprobar, reales y no
   simulados.
+
+#### Corrección: la señal caída no era una caída del proveedor
+
+Durante esta issue se describió el fallo de `detect_clickbait` como una caída de
+`hf-inference` «igual que la de la Épica 4». **Es falso, y el propio repositorio
+ya decía lo contrario.** Se corrige aquí porque el error llegó a la PR #150, al
+mensaje del tag `v0.4.0` y a su release.
+
+Lo que hay, en tres momentos:
+
+- **Épica 3** ya lo dejó escrito: *«el serverless `hf-inference` no sirve ningún
+  modelo de clickbait específico»*, sondeados tres.
+- **#127**, el 3 de septiembre, lo confirmó para el modelo elegido: *«No es un
+  timeout ocasional como los medidos en la Épica 4: es permanente»*.
+- **El 7 de septiembre** se cerró contra el catálogo del proveedor: la ficha del
+  Hub no declara **ningún** proveedor para `Stremie/roberta-base-clickbait`, y de
+  los **40 modelos de clickbait** del Hub **ninguno** tiene proveedor. El de
+  sentimiento sí responde, por la misma vía y con el mismo token: 3.248.238
+  descargas/mes frente a 59. **HuggingFace sirve por demanda.** Doce reintentos
+  en dos minutos no lo reactivan.
+
+Un timeout se reintenta; esto no. La diferencia decide qué se hace en H4 —
+desplegar con `nlp_backend=local`, porque el modelo existe en el Hub aunque su
+servicio no— y por eso el límite pasa a estar declarado en la **ficha del
+modelo**, que es donde cada señal dice lo que puede y lo que no.
+
+Y el historial lo respalda: 8 análisis en `error` el 3 de septiembre a las 08:03,
+20 correctos entre las 08:08 y las 09:10 —con el backend en local—, y error otra
+vez el 6 y el 7 con el defecto `remote`.
 
 #### Límites
 
