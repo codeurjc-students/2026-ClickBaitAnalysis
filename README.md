@@ -1189,6 +1189,79 @@ Añadir el registro a `/analyze` convirtió, sin avisar, todos los tests de esa 
 
 `tests/api/test_history.py` cubre los dos lados por separado —el almacén llamando a sus funciones, el endpoint por HTTP— porque responden preguntas distintas: si los datos sobreviven y salen en orden, y si la decisión de «una entrada por análisis» se sostiene de verdad.
 
+### R6.14 se escribe, y el frontend entra en los diagramas
+
+Sin issue, y conviene decir por qué: **salió de revisar los cuatro criterios de
+tageo** antes de la release `v0.4`, y son dos huecos de documentación que un
+issue propio sólo habría retrasado. El primero es además un fallo de coherencia
+que un tribunal ve antes que nadie.
+
+#### El README citaba un requisito que no existía
+
+`CLAUDE.md` recogía desde el 3 de septiembre una decisión: **R6.10 gana un matiz
+y aparece R6.14** —la interfaz no debe dejar controles que no funcionen—. Se
+aplicó en #128, donde el botón de ejecutar se bloquea si un parámetro
+obligatorio tiene un esquema que la pantalla no sabe representar, y se justificó
+**citando R6.14** en el README y en el cuerpo de la PR #148.
+
+Pero `docs/requisitos.md` tenía trece criterios en el Requisito 6. **R6.14 no
+existía.** La documentación afirmaba cumplir algo que el documento no contenía,
+y llevaba así desde el 6 de septiembre.
+
+Ahora está escrito:
+
+> **R6.14** · SI una capacidad no está disponible —el Agent_Orchestrator sin
+> configurar, o un parámetro de herramienta cuyo esquema LA Web_Interface no sabe
+> representar—, ENTONCES LA Web_Interface NO DEBERÁ ofrecer controles que no
+> puedan funcionar: DEBERÁ explicar por qué no está disponible en lugar de dejar
+> un botón cuyo único resultado posible es un error.
+
+Complementa a R6.7 y no lo repite: **aquel pide que el error se entienda; éste,
+no provocarlo.** Y R6.10 recibe su matiz —el formulario está siempre, el
+asistente cuando el orquestador esté configurado—, que no es una preferencia de
+diseño sino una consecuencia de la infraestructura: la máquina que corre el
+modelo se apaga cuando no se usa, así que el despliegue tiene que funcionar sin
+el agente.
+
+#### Los diagramas se paraban en el backend
+
+`docs/arquitectura.md` tenía siete secciones y las siete eran de servidor. De la
+SPA, nada — y H3 acababa de cerrarse. Se añaden dos.
+
+**La cadena del contrato** (sección 8) es la única del sistema que **cruza dos
+lenguajes y un paso de compilación**, así que no se ve entera en ningún fichero:
+`schemas.py` → `/openapi.json` → `openapi-typescript` → `schema.d.ts` →
+`models.ts` → servicios → pantallas → guardianes. Con ella se explican de un
+vistazo tres decisiones que hasta ahora sólo vivían en comentarios: por qué
+`schema.d.ts` se commitea aunque sea generado (para que un cambio de contrato
+aparezca en un diff), por qué el CI lo regenera y falla si difiere, y por qué
+`models.ts` se bifurca entre `paths` y `components`.
+
+**El camino de un análisis guardado** (sección 9) dibuja la decisión de #129:
+`/analizar` y `/analisis/:id` son la misma pantalla, y lo único distinto es de
+dónde sale el resultado. La secuencia enseña las dos salidas del guardián —encaja
+o no encaja— que en prosa se explican mal.
+
+Se escriben en **mermaid**, como los cuatro de #106: viven en el repositorio
+como texto, se difean y no exigen abrir una aplicación para corregir una flecha.
+Los dos SVG de draw.io son de Fase A y siguen congelados a propósito.
+
+#### Una etiqueta caducada, anotada y no corregida
+
+El diagrama de componentes de Fase A rotula **«MCP Server (STDIO)»**, y el
+transporte es configurable desde #90 — hoy se sirve por `streamable-http`. El
+dibujo se conserva porque todo lo demás sigue siendo cierto; lo que se añade es
+la nota que impide leerlo como vigente. Rehacer un diagrama congelado por una
+etiqueta costaría más de lo que aclara, y perderlo de vista costaría más aún.
+
+#### De paso, la tabla de estado de requisitos
+
+La fila de R6 decía «catálogo, historial y responsive pendientes (128, 129,
+130)». Las tres estaban cerradas. Ahora distingue lo que está hecho —las tres
+pantallas del camino determinista, con R6.7, R6.8 y R6.14— de lo que **no puede
+estarlo todavía**: R6.10, R6.12 y R6.13 dependen del asistente, y el asistente es
+R13.
+
 ### Lo que la interfaz no contaba de sí misma (#130)
 
 Último de H3, y transversal por naturaleza: sólo se puede hacer cuando las

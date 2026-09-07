@@ -117,10 +117,11 @@ Este documento define los requisitos para un Trabajo de Fin de Grado (TFG) que i
 7. LA Web_Interface DEBERÁ mostrar mensajes de error en un formato entendible.
 8. LA Web_Interface DEBERÁ ser receptiva y funcionar en dispositivos de escritorio y tabletas.
 9. LA Web_Interface DEBERÁ incluir capacidades de filtrado y búsqueda para el catálogo de herramientas.
-10. LA Web_Interface DEBERÁ ofrecer **dos vías de entrada**: un formulario de análisis directo (determinista) y un **asistente conversacional** (ver Requisito 13).
+10. LA Web_Interface DEBERÁ ofrecer **dos vías de entrada**: un formulario de análisis directo (determinista) y un **asistente conversacional** (ver Requisito 13). _(Matizado: el formulario está SIEMPRE; el asistente, **cuando el Agent_Orchestrator esté configurado**. El despliegue tiene que funcionar sin él, porque la máquina que corre el modelo se apaga cuando no se usa. Ver memoria de cambios.)_
 11. LA Web_Interface DEBERÁ mostrar el estado de los **MCP_Server conectados** (nombre, transporte, estado y herramientas que aporta), generado dinámicamente a partir del descubrimiento; los filtros por servidor DEBERÁN derivarse de esa misma lista.
 12. CUANDO el Agent_Orchestrator invoque herramientas, LA Web_Interface DEBERÁ renderizar el **resultado estructurado de cada herramienta** —no solo la narración del modelo— junto a la **traza** de herramientas invocadas.
 13. SI la narración del modelo llega **vacía o ilegible**, ENTONCES LA Web_Interface DEBERÁ mostrar igualmente los **resultados estructurados** de las herramientas invocadas, indicando de forma discreta que el asistente no generó un resumen. LA Web_Interface NO DEBERÁ condicionar la visualización del análisis a la existencia de esa narración. _(Modo de fallo observado en el spike #82: el agente invoca correctamente las herramientas y devuelve una respuesta de cero caracteres; el análisis existe y no debe perderse.)_
+14. SI una capacidad no está disponible —el Agent_Orchestrator sin configurar, o un parámetro de herramienta cuyo esquema LA Web_Interface no sabe representar—, ENTONCES LA Web_Interface NO DEBERÁ ofrecer controles que no puedan funcionar: DEBERÁ explicar por qué no está disponible en lugar de dejar un botón cuyo único resultado posible es un error. _(Complementa a R6.7: aquel pide que el error se entienda; éste, no provocarlo. Ver memoria de cambios.)_
 
 ### Requisito 7: Entorno de implementación de Docker
 
