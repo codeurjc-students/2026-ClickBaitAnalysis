@@ -8,16 +8,51 @@ Version de Python: 3.12.3
 
 ## Plan de trabajo — hitos hasta la entrega
 
-**Estado actual (agosto 2026): `v0.2.0`.** El núcleo NLP está completo y validado: cuatro señales de clickbait contrastables, un modelo lineal interpretable propio, divulgación de modelos y una evaluación metodológicamente cerrada (split train/dev/test + validación externa). Lo que resta es la **capa web** (R4–R8) y la memoria. **Entrega: febrero 2027.**
+**Estado actual (septiembre 2026): `v0.4.0`.** El núcleo NLP está completo y
+validado —cuatro señales de clickbait contrastables, un modelo lineal
+interpretable propio, divulgación de modelos y una evaluación metodológicamente
+cerrada (split train/dev/test + validación externa)—, y la capa web ya sirve las
+tres pantallas del camino determinista sobre un contrato generado. Lo que resta
+es el **despliegue** (R7, R8), el **agente conversacional** (R13) y la memoria.
+**Entrega: febrero 2027.**
 
-| Hito | Fecha | Contenido | Requisitos |
-|---|---|---|---|
-| **H1 · Diseño de interfaz** | ago–sep 2026 | Wireframes de pantallas y navegación, definición de funcionalidades, diseño de los endpoints REST | — |
-| **H2 · `v0.3` API REST** | octubre | FastAPI: exposición de las tools, catálogo con metadatos, historial **persistente**, OpenAPI, CORS, tests | **R4, R5, R9** |
-| **H3 · `v0.4` SPA funcional** | noviembre | Angular: análisis de un titular → resultados con explicabilidad visual (cues resaltados, contraste de señales), catálogo de tools | **R6** |
-| **H4 · `v0.5` Docker** | diciembre | Docker Compose (MCP + API / web), **volumen** para el historial, despliegue continuo | **R7, R8** |
-| **H5 · `v1.0` Pulido y despliegue** | enero 2027 | Responsive, gestión de errores, pruebas E2E, despliegue | R6 |
-| **H6 · Memoria y defensa** | ene–feb 2027 | Redacción de la memoria y preparación de la defensa | — |
+**El agente conversacional (R13) es H5.** Hasta el 7 de septiembre no estaba en
+ninguna fila de esta tabla, que es un hueco grande: **el agente da nombre al
+TFG**. El spike #82 validó el *tool calling* y las decisiones de diseño están
+tomadas —`POST /chat` con sondeo, `backend/agent/`, `integrations/llm/`—, pero no
+tenía fecha ni versión.
+
+| Hito | Previsto (ago 2026) | Real | Contenido | Requisitos |
+|---|---|---|---|---|
+| **H1 · Diseño de interfaz** | ago–sep 2026 | **2 ago** | Wireframes de pantallas y navegación, definición de funcionalidades, diseño de los endpoints REST, R13 | — |
+| **H2 · `v0.3` API REST** | octubre | **15 ago** | FastAPI: exposición de las tools, catálogo con metadatos, historial **persistente**, OpenAPI, CORS, tests | **R4, R5, R9** |
+| **H3 · `v0.4` SPA funcional** | noviembre | **7 sep** | Angular: análisis con explicabilidad visual, catálogo de tools, historial, responsive y gestión de errores | **R6** |
+| **H4 · `v0.5` Docker y despliegue** | diciembre | *octubre* | Docker Compose (MCP + API / web), **volumen** para el historial, despliegue continuo y pruebas E2E | **R7, R8** |
+| **H5 · `v0.6` Agente conversacional** | — | *nov–dic* | Bucle del agente, `POST /chat` con sondeo, pantalla de chat y traza de herramientas | **R13**, R6.10/12/13 |
+| **H6 · `v1.0` Memoria y defensa** | ene–feb 2027 | *dic–feb* | Redacción de la memoria y preparación de la defensa | — |
+
+**El proyecto va unos dos meses por delante de esta previsión.** H2 se cerró en
+agosto donde se planificó octubre, y H3 en septiembre donde se planificó
+noviembre. La columna «previsto» se conserva a propósito: el desfase es un dato
+del proyecto —dice que la estimación de agosto era conservadora— y no un error
+que tapar. La columna «real» de H4 a H6 es la **re-previsión hecha con ese
+adelanto**: deja alrededor de un mes de colchón antes de febrero, que es lo que
+se come el agente si sale como en el spike.
+
+**Reparto de H4 a H6, decidido el 2026-09-07.** El H5 original era «responsive,
+gestión de errores, pruebas E2E y despliegue», y #130 se llevó las dos primeras
+a H3. De lo que quedaba, el despliegue ya era H4 y las pruebas E2E son *cómo se
+verifica un despliegue*, así que se funden ahí. **H5 pasa a ser el agente**, que
+no tenía hito, y con ello H6 recupera el `v1.0` — que el esquema reserva para la
+entrega final y antes se le daba a «pulido».
+
+**El orden Docker → agente no es arbitrario.** `CLAUDE.md` fija que el
+despliegue tiene que funcionar **sin el agente**, porque la máquina que corre el
+modelo se apaga cuando no se usa; esa propiedad se demuestra desplegando
+primero. Y el agente vive en la máquina 2 por SSH desde la 1, así que necesita
+que la 1 exista. El contraargumento —el agente es lo único de resultado
+incierto, y el riesgo se ataca antes— se acepta pero pesa menos: los dos meses
+de adelanto son el colchón que lo absorbe.
 
 _(Corrección de la tabla, 2026-08-11: **R9 —la persistencia— no figuraba en ninguna fila**. H2 pedía «historial de ejecución» y H4 «historial persistente», pero el requisito que los sostiene no estaba listado en ninguno de los dos. Se asigna a H2: hacer el historial en memoria ahora y persistirlo en diciembre sería construirlo dos veces y entregar una pantalla que pierde los datos al reiniciar. A H4 le queda lo que de verdad le corresponde — montar el volumen (R7.6) para que ese fichero sobreviva al contenedor.)_
 
@@ -97,7 +132,11 @@ Dos ramas permanentes con papeles distintos:
 3. **Verificación E2E** del servidor MCP pasada (tools respondiendo en vivo).
 4. **Documentación al día** (README y requisitos reflejan lo incluido).
 
-**Esquema de versiones** (semver adaptado al TFG): **minor** (`v0.X.0`) = bloque funcional — **un hito** en Fase B (`v0.3` = H2, `v0.4` = H3…), una épica en Fase A (`v0.1.0` = MVP, `v0.2.0` = Épica 5 NLP explicable); **patch** (`v0.X.Y`) = hotfix sobre lo shipeado; **major** (`v1.0.0`) = entrega final del TFG.
+**Esquema de versiones** (semver adaptado al TFG): **minor** (`v0.X.0`) = bloque funcional — **un hito** en Fase B (`v0.3` = H2, `v0.4` = H3…), una épica en Fase A (`v0.2.0` = Épica 5 NLP explicable); **patch** (`v0.X.Y`) = hotfix sobre lo shipeado; **major** (`v1.0.0`) = entrega final del TFG.
+
+_(El **MVP se entregó sin tag**: el versionado empieza de facto en `v0.2.0`, porque hasta entonces el flujo era `feature → PR → main` directo y no había promoción que tagear. Crear un `v0.1.0` ahora sería abrir un corte en el tiempo hacia atrás, que es justo lo que el principio de abajo prohíbe.)_
+
+_(El primer patch fue **`v0.4.1`**, y fija el criterio: un patch cabe cuando **lo publicado induce a error a quien despliegue o lea**, no sólo cuando el código falla. Allí el tag, la release y el README llamaban «caída del proveedor» a una limitación permanente, y la ficha del modelo —que la API sirve— declaraba una vía remota inexistente. Esperar a la siguiente minor habría dejado meses de documentación llamando avería a un límite de diseño.)_
 
 > **Principio:** las versiones son **cortes en el tiempo**, no contenedores temáticos. Una mejora posterior va a la **siguiente** versión aunque pertenezca por dominio a una épica ya taggeada (la trazabilidad temática la dan los labels de épica en los issues, no los tags). Los tags son inmutables: nunca se "reabre" una versión.
 
@@ -1401,10 +1440,39 @@ que se vea coherente:
 - Los números de arriba salen de `getComputedStyle` y `getBoundingClientRect`
   sobre la aplicación corriendo con sus tres procesos —servidor MCP, API y
   `ng serve`—, no de mirar capturas.
-- El caso de prueba se creó a propósito: un análisis nuevo con el proveedor
-  `hf-inference` caído, que dejó una entrada con una señal en `error` y otra en
-  `not_applicable` — los dos casos que el issue pide comprobar, reales y no
+- El caso de prueba se creó a propósito: un análisis nuevo dejó una entrada con
+  una señal en `error` —la dedicada, por el límite de abajo— y otra en
+  `not_applicable`. Los dos casos que el issue pide comprobar, reales y no
   simulados.
+
+#### Corrección: la señal caída no era una caída del proveedor
+
+Durante esta issue se describió el fallo de `detect_clickbait` como una caída de
+`hf-inference` «igual que la de la Épica 4». **Es falso, y el propio repositorio
+ya decía lo contrario.** Se corrige aquí porque el error llegó a la PR #150, al
+mensaje del tag `v0.4.0` y a su release.
+
+Lo que hay, en tres momentos:
+
+- **Épica 3** ya lo dejó escrito: *«el serverless `hf-inference` no sirve ningún
+  modelo de clickbait específico»*, sondeados tres.
+- **#127**, el 3 de septiembre, lo confirmó para el modelo elegido: *«No es un
+  timeout ocasional como los medidos en la Épica 4: es permanente»*.
+- **El 7 de septiembre** se cerró contra el catálogo del proveedor: la ficha del
+  Hub no declara **ningún** proveedor para `Stremie/roberta-base-clickbait`, y de
+  los **40 modelos de clickbait** del Hub **ninguno** tiene proveedor. El de
+  sentimiento sí responde, por la misma vía y con el mismo token: 3.248.238
+  descargas/mes frente a 59. **HuggingFace sirve por demanda.** Doce reintentos
+  en dos minutos no lo reactivan.
+
+Un timeout se reintenta; esto no. La diferencia decide qué se hace en H4 —
+desplegar con `nlp_backend=local`, porque el modelo existe en el Hub aunque su
+servicio no— y por eso el límite pasa a estar declarado en la **ficha del
+modelo**, que es donde cada señal dice lo que puede y lo que no.
+
+Y el historial lo respalda: 8 análisis en `error` el 3 de septiembre a las 08:03,
+20 correctos entre las 08:08 y las 09:10 —con el backend en local—, y error otra
+vez el 6 y el 7 con el defecto `remote`.
 
 #### Límites
 

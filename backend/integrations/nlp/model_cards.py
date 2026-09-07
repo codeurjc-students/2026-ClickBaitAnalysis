@@ -101,9 +101,12 @@ MODEL_CARDS: list[FichaModelo] = [
             "A favor, y es lo que más pesa: entrenado con ETIQUETA HUMANA (`truthMean` de anotadores), no por fuente. Es la única señal del sistema con supervisión no sesgada por el medio que publicó el titular — el fallo que #76 destapó y #109 cuantificó.",
             "No memoriza, verificado: rinde MEJOR fuera de su dominio (F1 0.946 en Chakraborty) que dentro (0.631 y 0.758 en los dos splits de Webis), el patrón inverso al de `elozano/bert-base-cased-clickbait-news`, descartado por 99.7% dentro y F1 0.185 fuera.",
             "Ese 0.946 de Chakraborty NO significa que sea mejor ahí (#121): Chakraborty etiqueta por fuente y ese método no puede producir casos dudosos, así que mide sólo la mitad fácil del problema. Restringiendo Webis a los titulares donde los 5 anotadores coinciden — lo más parecido a Chakraborty que hay dentro de Webis — sube a F1 0.906, y el resto lo explica el balance de clases.",
+            "NO SE PUEDE SERVIR EN REMOTO, y es permanente: `hf-inference` responde `400 Model not supported by provider`. Detectado el 2026-09-03 al ejecutar la pantalla contra la API de verdad, y confirmado el 2026-09-07 contra el catálogo del proveedor: la ficha del Hub no declara ninguno (`inferenceProviderMapping` vacío) y NINGUNO de los 40 modelos de clickbait del Hub lo tiene. HuggingFace sirve por demanda, y éste tiene 59 descargas/mes frente a los 3.248.238 del de sentimiento, que sí responde por la misma vía y con el mismo token. Doce reintentos en dos minutos no lo reactivan. Con `nlp_backend=remote` esta señal sale SIEMPRE en `error` y el veredicto se emite con las otras cuatro.",
             "Contexto imprescindible para leer cualquiera de estos números: el techo humano de la tarea es F1 0.665, y sólo el 34.9% de los titulares tiene a los 5 anotadores de acuerdo (#121). Sus errores se concentran donde las personas discrepan (92.9% de los fallos en el 65.1% dudoso) y su confianza baja ahí (0.918 vs 0.834), sin haber visto nunca los juicios individuales.",
         ],
-        "backend": "remote | local",
+        # Era "remote | local" hasta el 2026-09-07. La vía remota no existe: ver
+        # el límite de arriba.
+        "backend": "local",
     },
     {
         "signal": "analyze_sentiment",
