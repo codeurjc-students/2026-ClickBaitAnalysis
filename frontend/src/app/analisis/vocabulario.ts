@@ -43,6 +43,23 @@ export function nombreDeSenal(senal: SenalGuardada): string {
   return senal.label ?? senal.name;
 }
 
+/**
+ * El nombre de una señal para el ÍNDICE, sin su precisión entre paréntesis.
+ *
+ * Los `label` que llegan desde #133 la traen incorporada —«RoBERTa dedicado
+ * (entrenado en Webis-17)»—, y eso es justo lo que hace falta en la ficha y
+ * estorba en un índice: medido en #130, una sola pastilla ocupaba 531 px de
+ * 1024, y la plantilla seguía prometiendo que cabían todas sobre la línea de
+ * flotación.
+ *
+ * Se corta por el paréntesis, que es una REGLA y no un diccionario: una señal
+ * nueva no hay que añadirla aquí. El nombre completo sigue entero en la
+ * tarjeta, que es donde se lee con calma.
+ */
+export function nombreCortoDeSenal(senal: SenalGuardada): string {
+  return nombreDeSenal(senal).split(' (')[0];
+}
+
 export function nombreDeVeredicto(verdict: string): string {
   return VEREDICTOS[verdict] ?? verdict;
 }
@@ -53,6 +70,18 @@ export function nombreDeDimension(dimension: string): string {
 
 export function nombreDeCategoria(categoria: string): string {
   return CATEGORIAS[categoria] ?? categoria;
+}
+
+/**
+ * ¿Llegó esta señal a producir un resultado?
+ *
+ * Se compara contra `ok` y no contra la lista de estados malos a propósito:
+ * `not_applicable` se llamaba `no_aplicable` antes de #134, así que enumerar
+ * los fallos dejaría sin apagar lo guardado entonces. `ok` es el valor que no
+ * ha cambiado nunca.
+ */
+export function funciono(senal: SenalGuardada): boolean {
+  return senal.status === 'ok';
 }
 
 /** Qué dijo la señal, o por qué no dijo nada. */

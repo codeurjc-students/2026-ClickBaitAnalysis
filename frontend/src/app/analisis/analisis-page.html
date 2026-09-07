@@ -104,11 +104,17 @@
 
   <h2 class="seccion">Señales contrastadas ({{ analisis.signals.length }})</h2>
 
-  <!-- Índice compacto: todas las señales caben sobre la línea de flotación. -->
+  <!-- Índice compacto, y lo es porque la pastilla usa el nombre CORTO: con el
+       `label` entero una sola ocupaba 531 px de 1024 (medido en #130). El
+       nombre completo está en la tarjeta, dos dedos más abajo. -->
   <ul class="pastillas">
     @for (senal of analisis.signals; track senal.name) {
-      <li class="pastilla" [attr.data-tipo]="senal.type">
-        <strong>{{ nombre(senal) }}</strong>
+      <li
+        class="pastilla"
+        [class.atenuada]="!funciono(senal)"
+        [attr.data-tipo]="senal.type"
+      >
+        <strong>{{ nombreCorto(senal) }}</strong>
         <span>{{ estado(senal) }}</span>
       </li>
     }

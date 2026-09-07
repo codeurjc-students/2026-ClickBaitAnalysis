@@ -221,6 +221,14 @@ button[disabled] {
   background: var(--opaque-fondo);
 }
 
+/* Y la pastilla se apaga con su tarjeta: el índice tiene que decir de un
+   vistazo cuáles votaron. Mismo truco de especificidad. */
+.pastilla.atenuada[data-tipo] {
+  border-color: var(--borde);
+  background: var(--fondo-suave);
+  color: var(--texto-suave);
+}
+
 .pastilla span {
   color: var(--texto-suave);
 }

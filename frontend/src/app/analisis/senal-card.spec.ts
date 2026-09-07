@@ -1,6 +1,7 @@
 import { TestBed, type ComponentFixture } from '@angular/core/testing';
 
 import type { SignalResult } from '../api/models';
+import type { SenalGuardada } from './formas';
 import { SenalCard } from './senal-card';
 
 const LEXICA: SignalResult = {
@@ -52,7 +53,9 @@ const DESCONOCIDA: SignalResult = {
 describe('SenalCard', () => {
   let fixture: ComponentFixture<SenalCard>;
 
-  const montar = async (senal: SignalResult) => {
+  // La forma ANCHA, no el contrato: esta tarjeta pinta también lo guardado
+  // con versiones anteriores, y es lo que recibe de verdad desde #129.
+  const montar = async (senal: SenalGuardada) => {
     fixture = TestBed.createComponent(SenalCard);
     fixture.componentRef.setInput('senal', senal);
     await fixture.whenStable();
@@ -114,5 +117,39 @@ describe('SenalCard', () => {
     expect(html.querySelector('.crudo')?.textContent).toContain(
       'que nadie ha previsto',
     );
+  });
+
+  // Medido en #130 sobre el análisis 31: la tarjeta de una opaca CAÍDA tenía el
+  // mismo borde que la de una opaca sana, `rgb(184,84,80)`, porque el color
+  // lleva el TIPO. Lo único que las distinguía era leer la palabra «error».
+  it('una señal caída se apaga, y una sana no', async () => {
+    const caida = await montar(CAIDA);
+    expect(caida.querySelector('.tarjeta')?.classList).toContain('atenuada');
+
+    const sana = await montar(LEXICA);
+    expect(sana.querySelector('.tarjeta')?.classList).not.toContain('atenuada');
+  });
+
+  // Apagarla no puede borrar de que TIPO era: eso sigue siendo cierto, sólo
+  // deja de competir por la atención.
+  it('apagada, la tarjeta sigue diciendo su tipo', async () => {
+    const raiz = await montar(CAIDA);
+
+    expect(raiz.querySelector('.badge')?.textContent).toContain('opaque');
+    expect(raiz.querySelector('.tarjeta')?.getAttribute('data-tipo')).toBe('opaque');
+  });
+
+  // `not_applicable` tampoco votó, así que también se apaga. Y se comprueba con
+  // el valor ANTIGUO —`no_aplicable`, de antes de #134— porque el historial los
+  // guarda: `funciono` compara contra `ok`, no contra la lista de fallos.
+  it('una señal no aplicable se apaga, también con la clave vieja', async () => {
+    // Tipado con la forma ANCHA, no con el contrato: `no_aplicable` no es un
+    // `SignalStatus` válido hoy —lo dice el compilador— y ése es justo el
+    // caso, una fila guardada antes de #134.
+    const vieja: SenalGuardada = { ...CAIDA, status: 'no_aplicable' };
+
+    const raiz = await montar(vieja);
+
+    expect(raiz.querySelector('.tarjeta')?.classList).toContain('atenuada');
   });
 });
