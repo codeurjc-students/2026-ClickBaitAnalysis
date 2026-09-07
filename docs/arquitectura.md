@@ -311,6 +311,95 @@ La primera lleva además un `assert modulos` delante del recorrido: si la
 travesía del árbol se rompiera, la prueba se convertiría en un `assert not []`
 que pasa siempre.
 
+## 8 · El frontend: de dónde salen sus tipos
+
+Es la única cadena del sistema que **cruza dos lenguajes y un paso de
+compilación**, así que no se ve entera en ningún fichero.
+
+```mermaid
+flowchart LR
+    subgraph py["Backend · Python"]
+        SCH["schemas.py<br/>(Pydantic)"] --> OA["/openapi.json"]
+    end
+
+    OA -->|"npm run gen:api"| SD["schema.d.ts<br/>generado y COMMITEADO"]
+
+    subgraph ts["Frontend · TypeScript"]
+        SD --> MOD["models.ts"]
+        MOD -->|"de paths: lo que cruza la red"| SRV["servicios<br/>analyze · tools · history"]
+        MOD -->|"de components: las piezas"| PZ["piezas<br/>SignalResult · ToolInfo"]
+        SRV --> PAN["pantallas"]
+        PZ --> PAN
+        PAN --> GU["guardianes<br/>datos · formas · campos"]
+    end
+```
+
+Cuatro cosas que el dibujo hace visibles:
+
+- **`schema.d.ts` se genera y se commitea.** Podría regenerarse al construir,
+  pero entonces un cambio de contrato no aparecería en ningún diff. Commiteado,
+  la PR que cambia el backend enseña qué tipos cambian en el frontend.
+- **El CI lo regenera y falla si difiere.** Es lo único que impide que el
+  frontend compile contra un contrato viejo, y saltó de verdad al cambiar
+  `ToolModelCard` en #128.
+- **La bifurcación de `models.ts` no es de estilo.** Lo que cruza la red se toma
+  de `paths`, porque `http.post<T>()` no comprueba nada: es una afirmación, y
+  eligiendo `T` a mano de `components` la afirmación deja de estar atada a la
+  ruta. Pasó en #133 —el backend empezó a devolver un sobre y el frontend siguió
+  compilando— y por eso la regla es dura. Las piezas de dentro sí vienen de
+  `components`: son formas con nombre propio que se pasan a un componente.
+- **Los guardianes son la frontera de lo no tipado.** El `data` de una señal, el
+  `payload` del historial y el `input_schema` de una herramienta son
+  diccionarios libres en el contrato **a propósito**, para que quepa lo que aún
+  no existe. Cada uno pasa por una función que comprueba y devuelve `null` si no
+  encaja, y lo que no encaja **se enseña en crudo** en vez de desaparecer.
+
+## 9 · Volver a un análisis guardado
+
+`/analizar` y `/analisis/:id` son **la misma pantalla**. Lo único distinto es de
+dónde sale el resultado, y eso lo dejó preparado #127 al hacer que el bloque de
+resultados recibiera el análisis como estado en vez de calcularlo.
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant HI as Historial
+    participant RO as Router
+    participant PA as AnalisisPage
+    participant API as Backend_API
+    participant GU as comoAnalisis
+
+    HI->>RO: /analisis/29
+    RO->>PA: id como input()
+    PA->>API: GET /history/29
+    API-->>PA: HistoryEntry con su payload
+    PA->>GU: comoAnalisis(payload)
+
+    alt tiene forma de analisis
+        GU-->>PA: AnalisisGuardado
+        PA->>PA: pinta la MISMA vista
+    else no la tiene
+        GU-->>PA: null
+        PA->>PA: lo dice, y el crudo queda en el historial
+    end
+```
+
+Tres decisiones que el diagrama no puede enseñar solo:
+
+- **El id llega como `input()`**, enlazado por `withComponentInputBinding()`. La
+  carga va en un `effect` y no en el constructor porque ir de `/analisis/28` a
+  `/analisis/29` **reutiliza el componente**: un `snapshot` leído al construir no
+  se enteraría del cambio.
+- **`comoAnalisis` devuelve tipos más anchos que el contrato**, y es deliberado.
+  `required` describe lo que el backend produce HOY; el historial guarda lo de
+  ayer. Hay filas sin `label` —anterior a #133— y con el veredicto en castellano
+  —anterior a #134—. `AnalyzeResponse` es asignable a `AnalisisGuardado` y al
+  revés no: esa asimetría es la que permite una sola vista para los dos orígenes.
+- **El 404 de `GET /history/{id}` es normal, no excepcional.** La retención poda
+  entradas, así que un enlace guardado deja de existir por funcionamiento
+  corriente; por eso el código está declarado en el contrato desde #129 y la
+  pantalla lo explica con esas palabras en vez de decir «no se pudo cargar».
+
 ## Los diagramas de la Fase A
 
 Se conservan como estaban. Describen **el servidor MCP**, que sigue siendo cierto
@@ -325,6 +414,7 @@ como componente aunque ya no sea el sistema entero.
   directos con su propio `httpx` y agrega `ok` / `degraded` / `down`.
 - El patrón **`tool.py` (registro) + `client.py` (lógica)** se repite idéntico en
   las integraciones, así que la estructura es predecible.
+- **El rótulo «MCP Server (STDIO)» ya no describe el despliegue**: el transporte es configurable desde #90 y hoy se sirve por `streamable-http`. El diagrama se conserva porque lo demás sigue siendo cierto, y mover un dibujo congelado por una etiqueta costaría más de lo que aclara — pero conviene leerlo con esta nota delante.
 
 ![Diagrama de secuencia del flujo get_nyt_news](img/secuencia.svg)
 
@@ -342,7 +432,7 @@ como componente aunque ya no sea el sistema entero.
 | **R3** NLP y explicabilidad | ◑ cinco señales contrastadas, incoherencia (R3.7) y fichas de modelo (R3.9) ✅; **sólo inglés**, y R3.9 a medias — los modelos no son intercambiables por configuración (issue 119) |
 | **R4** API REST | ✅ análisis, catálogo, ejecución, historial, CORS y OpenAPI |
 | **R5** Catálogo y transparencia | ✅ catálogo por handshake MCP, con procedencia y ficha de modelo |
-| **R6** Interfaz web | ◑ pantalla de análisis ✅ (issue 127); catálogo, historial y responsive pendientes (128, 129, 130); el asistente llega con R13 |
+| **R6** Interfaz web | ◑ las tres pantallas del camino determinista ✅ (127–130): análisis, catálogo e historial, con errores entendibles (R6.7), escritorio y tabletas (R6.8) y sin controles que no funcionen (R6.14). Pendiente lo que depende del asistente: R6.10, R6.12 y R6.13 llegan con R13 |
 | **R7** Docker | ⬜ H4 |
 | **R8** CI/CD | ◑ integración continua ✅ (Python y frontend); despliegue continuo ⬜ |
 | **R9** Persistencia e historial | ✅ SQLite con filtros y retención configurable |
