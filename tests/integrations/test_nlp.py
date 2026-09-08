@@ -10,7 +10,12 @@ from backend.config.settings import settings
 from backend.integrations.nlp import dependencias, lexical, linear, model_cards
 from backend.integrations.nlp import tool as nlp_tool
 from backend.integrations.nlp.client import HFClient
-from backend.integrations.nlp.factory import get_nlp_backend
+from backend.integrations.nlp.factory import (
+    ficha_efectiva,
+    get_incoherence_detector,
+    get_model_id,
+    get_nlp_backend,
+)
 from backend.integrations.nlp.incoherence import IncoherenceDetector
 from backend.integrations.nlp.local import LocalNLPClient
 
@@ -512,6 +517,12 @@ async def test_las_dos_fachadas_usan_el_id_de_la_ficha(monkeypatch):
 
     Por eso no basta con comprobar que las constantes existen: hay que capturar
     con qué modelo se llama DE VERDAD por cada camino.
+
+    Desde #119 se compara contra el id **resuelto** —`get_model_id`, que mira la
+    configuración y cae en la ficha— y no contra la ficha a secas. Si se dejara
+    comparando contra la ficha, este test se pondría rojo en cuanto alguien
+    configurara otro modelo, que es precisamente el caso que ahora se soporta; y
+    peor, dejaría de vigilar lo suyo: que las dos fachadas usen EL MISMO.
     """
     from backend.analysis import orchestrator
     from backend.core.models import ToolResult
@@ -551,12 +562,12 @@ async def test_las_dos_fachadas_usan_el_id_de_la_ficha(monkeypatch):
 
     # --- fachada REST ---
     espia_rest = _Espia()
-    monkeypatch.setattr(orchestrator, "_api", espia_rest)
+    monkeypatch.setattr(orchestrator, "get_nlp_backend", lambda: espia_rest)
     await orchestrator._run_signals("Un titular", None)
 
     esperado = {
-        fichas["detect_clickbait"]["model_id"],
-        fichas["analyze_sentiment"]["model_id"],
+        get_model_id("detect_clickbait"),
+        get_model_id("analyze_sentiment"),
     }
     assert set(espia_mcp.llamadas) == esperado, "la tool MCP no usa el id de la ficha"
     assert len(espia_mcp.llamadas) == 2, "alguna señal no llamó al backend"
@@ -568,8 +579,14 @@ async def test_las_dos_fachadas_usan_el_id_de_la_ficha(monkeypatch):
     # decía "all-MiniLM-L6-v2" mientras la ficha decía la ruta completa — dos
     # cadenas distintas que resolvían al mismo sitio, así que la divergencia no
     # rompía nada y podía durar para siempre.
+    #
+    # Se comprueba sobre la INSTANCIA que reparte la factoría, no sobre la
+    # constante de clase: desde #119 el id puede venir de la configuración, y la
+    # constante sólo es el defecto.
     assert (
-        IncoherenceDetector.MODEL == fichas["detect_clickbait_incoherence"]["model_id"]
+        get_incoherence_detector().model_id
+        == get_model_id("detect_clickbait_incoherence")
+        == fichas["detect_clickbait_incoherence"]["model_id"]
     )
 
 
@@ -692,3 +709,101 @@ async def test_el_aviso_no_secuestra_a_quien_sustituye_el_cargador(monkeypatch):
 
     assert result.success
     assert result.data == {"label": "OK", "score": 1.0}
+
+
+# --Modelos configurables (R3.9)
+
+
+def test_sin_configuracion_el_modelo_es_el_de_la_ficha():
+    esperado = model_cards.cards_by_signal()["detect_clickbait"]["model_id"]
+    assert get_model_id("detect_clickbait") == esperado
+
+
+def test_la_configuracion_manda_sobre_la_ficha(monkeypatch):
+    monkeypatch.setattr(settings, "nlp_models", {"detect_clickbait": "otra/cosa"})
+
+    assert get_model_id("detect_clickbait") == "otra/cosa"
+    # Sólo la señal configurada: las demás siguen con su ficha.
+    esperado = model_cards.cards_by_signal()["analyze_sentiment"]["model_id"]
+    assert get_model_id("analyze_sentiment") == esperado
+
+
+def test_el_id_se_resuelve_en_cada_llamada_no_al_importar(monkeypatch):
+    """La regresión de #87, en su versión de modelo.
+
+    Antes esto vivía en constantes de módulo —`MODEL` en `dedicated.py`,
+    `_SENTIMENT_MODEL` en el orquestador—, así que el valor quedaba fijado en el
+    primer import y ninguna configuración posterior lo movía.
+    """
+    antes = get_model_id("analyze_sentiment")
+    monkeypatch.setattr(settings, "nlp_models", {"analyze_sentiment": "otro/tono"})
+
+    assert get_model_id("analyze_sentiment") == "otro/tono" != antes
+
+
+def test_el_backend_respeta_un_cambio_de_configuracion(monkeypatch):
+    """La regresión de #87 tal cual: `_api = get_nlp_backend()` a nivel de módulo
+    ataba el cliente al backend que dijera `settings` al importar, y cambiarlo
+    después no tenía efecto."""
+    monkeypatch.setattr(settings, "nlp_backend", "local")
+    assert isinstance(get_nlp_backend(), LocalNLPClient)
+
+    monkeypatch.setattr(settings, "nlp_backend", "remote")
+    assert isinstance(get_nlp_backend(), HFClient)
+
+
+def test_el_backend_se_reutiliza_dentro_de_la_misma_configuracion(monkeypatch):
+    """Reutilizar la instancia es correcto y hay que conservarlo: `LocalNLPClient`
+    cachea los pipelines por instancia, así que una nueva por petición recargaría
+    el modelo cada vez. Lo que estaba mal era CUÁNDO se creaba."""
+    monkeypatch.setattr(settings, "nlp_backend", "local")
+
+    assert get_nlp_backend() is get_nlp_backend()
+
+
+def test_la_ficha_sin_configurar_no_cambia():
+    assert (
+        ficha_efectiva("detect_clickbait")
+        == (model_cards.cards_by_signal()["detect_clickbait"])
+    )
+
+
+def test_la_ficha_efectiva_publica_el_modelo_que_se_ejecuta(monkeypatch):
+    """Si no, se reabre el fallo que cerró #116: dos cadenas para el mismo
+    modelo, una divulgada y otra ejecutada, divergiendo sin que nada falle."""
+    monkeypatch.setattr(settings, "nlp_models", {"detect_clickbait": "otra/cosa"})
+
+    ficha = ficha_efectiva("detect_clickbait")
+
+    assert ficha["model_id"] == "otra/cosa" == get_model_id("detect_clickbait")
+
+
+def test_al_configurar_otro_modelo_las_medidas_dejan_de_publicarse(monkeypatch):
+    """Las limitaciones de la ficha se midieron sobre el modelo declarado, issue
+    a issue (#109, #115, #121). Heredarlas sería divulgar como propias unas
+    medidas ajenas — y su ausencia es información: dice que esto es un
+    experimento, no una señal caracterizada."""
+    declarada = model_cards.cards_by_signal()["detect_clickbait"]
+    monkeypatch.setattr(settings, "nlp_models", {"detect_clickbait": "otra/cosa"})
+
+    ficha = ficha_efectiva("detect_clickbait")
+
+    assert len(ficha["limitations"]) == 1
+    assert "SIN EVALUAR" in ficha["limitations"][0]
+    # Ninguna medida del modelo anterior sobrevive.
+    for medida in declarada["limitations"]:
+        assert medida not in ficha["limitations"]
+    # Y lo que describe a la SEÑAL y no al modelo sí: el hueco no cambia.
+    assert ficha["dimension"] == declarada["dimension"]
+    assert ficha["type"] == declarada["type"]
+
+
+def test_configurar_el_mismo_id_que_la_ficha_no_borra_las_medidas(monkeypatch):
+    """Poner explícitamente el modelo que ya estaba no es sustituirlo, así que
+    las medidas siguen siendo suyas."""
+    declarada = model_cards.cards_by_signal()["detect_clickbait"]
+    monkeypatch.setattr(
+        settings, "nlp_models", {"detect_clickbait": declarada["model_id"]}
+    )
+
+    assert ficha_efectiva("detect_clickbait") == declarada

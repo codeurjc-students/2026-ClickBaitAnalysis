@@ -214,3 +214,30 @@ async def test_un_servidor_caido_no_rompe_la_respuesta(monkeypatch, servidor_mcp
     assert servidor.tool_count == 0
     # Lo importante: hay respuesta, no una excepción.
     assert resultado.tools == []
+
+
+@pytest.mark.asyncio
+async def test_la_ficha_del_catalogo_es_la_del_modelo_QUE_SE_EJECUTA(
+    monkeypatch, servidor_mcp
+):
+    """Si se configura otro modelo, esta pantalla tiene que decir ése (#119).
+
+    Es la divergencia que cerró #116, y se puede reabrir por esta puerta: el
+    catálogo construía la ficha leyendo el índice declarado, así que con un
+    modelo puesto por configuración la pantalla de Sistema habría dicho uno
+    mientras `describe_models` decía otro — los dos «correctos» según su fuente,
+    y ninguna forma de notarlo salvo comparándolos a mano.
+
+    Y las medidas del anterior no viajan: eran suyas.
+    """
+    monkeypatch.setattr(settings, "nlp_models", {"detect_clickbait": "otra/cosa"})
+
+    tools = await _tools(monkeypatch, servidor_mcp)
+    dedicado = tools["detect_clickbait"].model_card
+
+    assert dedicado is not None
+    assert dedicado.model_id == "otra/cosa"
+    assert len(dedicado.limitations) == 1
+    assert "SIN EVALUAR" in dedicado.limitations[0]
+    # Lo que describe a la señal y no al modelo se conserva: el hueco no cambia.
+    assert dedicado.dimension == cards_by_signal()["detect_clickbait"]["dimension"]

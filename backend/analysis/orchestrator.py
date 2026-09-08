@@ -48,22 +48,28 @@ from backend.analysis.domain import (
 )
 from backend.core.models import ToolResult
 from backend.integrations.nlp import dedicated, lexical, linear
-from backend.integrations.nlp.factory import get_nlp_backend
-from backend.integrations.nlp.incoherence import IncoherenceDetector
-from backend.integrations.nlp.model_cards import cards_by_signal, model_id_de
+from backend.integrations.nlp.factory import (
+    get_incoherence_detector,
+    get_model_id,
+    get_nlp_backend,
+)
+from backend.integrations.nlp.model_cards import cards_by_signal
 
 log = structlog.get_logger()
 
-# Instancias únicas: LocalNLPClient cachea los pipelines por instancia y el
-# detector carga el modelo de forma perezosa, así que crearlos por petición
-# tiraría la caché y recargaría el modelo cada vez. Como contrapartida, el
-# backend queda fijado al importar: cambiarlo exige reiniciar, igual que en la
-# tool MCP (que lo fija en register()).
+# El backend y el detector se piden a la factoría EN CADA USO, no se guardan
+# aquí. Siguen siendo instancias únicas —las cachea ella—, que es lo que importa:
+# `LocalNLPClient` cachea los pipelines por instancia y el detector carga su
+# modelo perezosamente, así que crearlos por petición recargaría todo.
 #
-# Y es lo que obliga a que precalentar() viva aquí: hay que calentar ESTAS dos
-# instancias, no unas equivalentes, o el coste se paga dos veces.
-_api = get_nlp_backend()
-_detector = IncoherenceDetector()
+# Antes eran constantes de módulo, y eso ataba el backend al valor que dijera
+# `settings` en el instante de importar: cambiarlo después no tenía efecto
+# (#87). Ahora la caché de la factoría va por el valor de la configuración, así
+# que el cambio se respeta sin perder la reutilización.
+#
+# De paso desaparece la advertencia que había aquí: como la factoría devuelve
+# siempre el mismo objeto, `precalentar()` calienta por construcción el que va a
+# usar la petición, en vez de depender de que nadie mueva estas dos líneas.
 
 # Índice de fichas por nombre de tool. Es lo que permite no cablear aquí la
 # dimensión ni el tipo de cada señal: se leen de MODEL_CARDS (R3.9). Un desajuste
@@ -71,15 +77,14 @@ _detector = IncoherenceDetector()
 # test_model_cards_signals_match_registered_tools.
 _CARDS = cards_by_signal()
 
-# El id sale de la ficha (#116). Antes estaba cableado aquí y otra vez en
+# El id sale de la ficha (#116) y, desde #119, de la configuración si la hay —
+# `get_model_id` resuelve las dos cosas. Antes estaba cableado aquí y otra vez en
 # integrations/nlp/tool.py, así que cambiar el modelo en un sitio dejaba las dos
 # fachadas —REST y MCP— respondiendo con modelos distintos al mismo titular, y
 # sin que nada fallara: los dos caminos seguían devolviendo una etiqueta válida.
 #
-# Sólo queda el del tono: la señal de clickbait pasó a `integrations/nlp/dedicated`
-# en #115, que es donde viven ya sus hermanas —léxico, lineal, incoherencia— y
-# donde el id y el mapeo de etiquetas tienen un único sitio.
-_SENTIMENT_MODEL = model_id_de("analyze_sentiment")
+# Y se pide EN CADA LLAMADA, no aquí arriba: era una constante de módulo, así que
+# ninguna configuración posterior podía moverla.
 
 
 def _con_cuerpo(content: str | None) -> str:
@@ -141,7 +146,9 @@ class _Signal:
 _SIGNALS: tuple[_Signal, ...] = (
     _Signal(
         name="detect_clickbait",
-        run=lambda h, c: dedicated.detect(_api, h),
+        run=lambda titular, cuerpo: dedicated.detect(
+            get_nlp_backend(), titular, get_model_id("detect_clickbait")
+        ),
         # VUELVE A VOTAR (#115), después de que #109 se lo quitara. No es una
         # marcha atrás: aquel silencio se declaró condicional en la ficha —
         # «placeholder pendiente de #115»— y esto es la condición cumpliéndose.
@@ -160,33 +167,37 @@ _SIGNALS: tuple[_Signal, ...] = (
         #
         # La etiqueta la normaliza `dedicated`, no esta tabla: el veredicto se
         # lee igual que antes aunque el modelo de debajo hable otro idioma.
-        verdict=lambda d: d["label"] == "clickbait",
+        verdict=lambda datos: datos["label"] == "clickbait",
     ),
     _Signal(
         name="detect_clickbait_lexical",
         # Síncrona y de milisegundos: va a un hilo solo para que el bucle trate a
         # todas igual. El coste del hilo es despreciable frente a la uniformidad.
-        run=lambda h, c: asyncio.to_thread(lexical.detect, h),
-        verdict=lambda d: d["is_clickbait"],
+        run=lambda titular, cuerpo: asyncio.to_thread(lexical.detect, titular),
+        verdict=lambda datos: datos["is_clickbait"],
     ),
     _Signal(
         name="detect_clickbait_linear",
-        run=lambda h, c: asyncio.to_thread(linear.predict, h),
-        verdict=lambda d: d["is_clickbait"],
+        run=lambda titular, cuerpo: asyncio.to_thread(linear.predict, titular),
+        verdict=lambda datos: datos["is_clickbait"],
     ),
     _Signal(
         name="detect_clickbait_incoherence",
-        run=lambda h, c: _detector.detect(h, _con_cuerpo(c)),
-        verdict=lambda d: d["incoherent"],
+        run=lambda titular, cuerpo: get_incoherence_detector().detect(
+            titular, _con_cuerpo(cuerpo)
+        ),
+        verdict=lambda datos: datos["incoherent"],
         needs_content=True,
     ),
     _Signal(
         name="analyze_sentiment",
-        run=lambda h, c: _api.classify(h, _SENTIMENT_MODEL),
+        run=lambda titular, cuerpo: get_nlp_backend().classify(
+            titular, get_model_id("analyze_sentiment")
+        ),
         # El tono se muestra como una señal más pero NO vota: alejarse de la
         # objetividad no es hacer clickbait, y cuánto pesa eso lo juzga quien
         # lee. Devolver None aquí es toda la implementación de esa decisión.
-        verdict=lambda d: None,
+        verdict=lambda datos: None,
     ),
 )
 
@@ -195,9 +206,14 @@ async def precalentar() -> dict[str, float]:
     """Carga y ejercita los modelos antes de la primera petición (#125).
 
     Vive aquí y no en la app REST porque ``LocalNLPClient`` cachea sus pipelines
-    **por instancia**: hay que calentar exactamente los objetos ``_api`` y
-    ``_detector`` que va a usar la petición. Calentar otros equivalentes pagaría
-    el coste dos veces y dejaría la primera petición igual de lenta.
+    **por instancia**: hay que calentar exactamente los objetos que va a usar la
+    petición, no unos equivalentes, o el coste se paga dos veces y la primera
+    petición sigue igual de lenta.
+
+    Desde #119 eso lo garantiza la factoría, que devuelve siempre la misma
+    instancia para una configuración dada. Antes dependía de que estas llamadas
+    usaran las dos constantes de módulo correctas — cierto, pero sólo por
+    convención: nada lo impedía si alguien construía un cliente aquí.
 
     EJERCITA, no sólo carga. Medido en #125, el desglose de los ~102 s en frío:
 
@@ -236,14 +252,24 @@ async def precalentar() -> dict[str, float]:
         tiempos[etiqueta] = time.perf_counter() - inicio
 
     if settings.nlp_backend == "local":
-        await cronometrar("detect_clickbait", lambda: dedicated.detect(_api, titular))
         await cronometrar(
-            "analyze_sentiment", lambda: _api.classify(titular, _SENTIMENT_MODEL)
+            "detect_clickbait",
+            lambda: dedicated.detect(
+                get_nlp_backend(), titular, get_model_id("detect_clickbait")
+            ),
+        )
+        await cronometrar(
+            "analyze_sentiment",
+            lambda: get_nlp_backend().classify(
+                titular, get_model_id("analyze_sentiment")
+            ),
         )
 
     await cronometrar(
         "detect_clickbait_incoherence",
-        lambda: _detector.detect(titular, "Un cuerpo cualquiera para calentar."),
+        lambda: get_incoherence_detector().detect(
+            titular, "Un cuerpo cualquiera para calentar."
+        ),
     )
     return tiempos
 

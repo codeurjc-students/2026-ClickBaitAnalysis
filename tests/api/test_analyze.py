@@ -1,13 +1,20 @@
 """Tests de la orquestación de /analyze.
 
 Ninguno toca la red ni carga modelos: se sustituyen las cuatro fuentes reales
-(`_api`, `_detector`, `lexical.detect`, `linear.predict`) por dobles
-controlables. Las lambdas de `_SIGNALS` resuelven `_api` y `_detector` como
-globales del módulo EN CADA LLAMADA, así que monkeypatchear el módulo basta.
+(el backend NLP, el detector de incoherencia, `lexical.detect` y
+`linear.predict`) por dobles controlables.
+
+**Se parchean las funciones de la FACTORÍA**, no unas globales del orquestador.
+Hasta #119 el backend vivía en `orchestrator._api`, y parchear ese atributo
+funcionaba pero probaba una forma que ya no existe: ahora las lambdas de
+`_SIGNALS` piden el cliente a `get_nlp_backend()` en cada llamada. Sustituir la
+función es lo que sigue el camino real, y de paso deja de depender de que el
+orquestador guarde el cliente en algún sitio.
 """
 
 import asyncio
 import time
+from types import SimpleNamespace
 from typing import ClassVar
 
 import pytest
@@ -105,8 +112,10 @@ def señales(monkeypatch):
         lineal=True,
         delay=0.0,
     ):
-        monkeypatch.setattr(orchestrator, "_api", _FakeAPI(label, sentiment, delay))
-        monkeypatch.setattr(orchestrator, "_detector", _FakeDetector(similarity, delay))
+        api = _FakeAPI(label, sentiment, delay)
+        detector = _FakeDetector(similarity, delay)
+        monkeypatch.setattr(orchestrator, "get_nlp_backend", lambda: api)
+        monkeypatch.setattr(orchestrator, "get_incoherence_detector", lambda: detector)
 
         def fake_lexical(headline):
             time.sleep(delay)
@@ -132,6 +141,11 @@ def señales(monkeypatch):
 
         monkeypatch.setattr(lexical, "detect", fake_lexical)
         monkeypatch.setattr(linear, "predict", fake_linear)
+
+        # Se devuelven para los tests que necesitan romper UN método concreto
+        # del doble. Antes se alcanzaban por `orchestrator._api`; ahora el
+        # orquestador no los guarda, así que los reparte quien los crea.
+        return SimpleNamespace(api=api, detector=detector)
 
     return instalar
 
@@ -248,12 +262,12 @@ async def test_una_etiqueta_desconocida_del_modelo_no_pasa_por_factual(
     con «clickbait», no coincidiría, y la señal declararía factual TODO sin que
     nada fallara. Tiene que degradarse a error, que sí se ve.
     """
-    señales()
+    dobles = señales()
 
     async def responde_raro(text, model):
         return ToolResult.ok({"label": "LABEL_0", "score": 0.9})
 
-    monkeypatch.setattr(orchestrator._api, "classify", responde_raro)
+    monkeypatch.setattr(dobles.api, "classify", responde_raro)
     signals = {s.name: s for s in await _run_signals("Un titular", None)}
 
     dedicada = signals["detect_clickbait"]
@@ -337,19 +351,19 @@ async def test_cuerpo_en_blanco_equivale_a_no_tenerlo(señales, cuerpo):
 
 @pytest.mark.asyncio
 async def test_una_señal_que_revienta_no_tumba_a_las_demas(señales, monkeypatch):
-    señales()
+    dobles = señales()
 
     # Se rompe SÓLO el modelo dedicado, no el método. Desde #115 el tono comparte
     # `classify` con él, así que parchear el método entero tumbaría dos señales y
     # el test dejaría de probar lo que dice: que las demás sobreviven.
-    original = orchestrator._api.classify
+    original = dobles.api.classify
 
     async def revienta_solo_el_dedicado(text, model):
         if model == dedicated.MODEL:
             raise TimeoutError("el proveedor no respondió")
         return await original(text, model)
 
-    monkeypatch.setattr(orchestrator._api, "classify", revienta_solo_el_dedicado)
+    monkeypatch.setattr(dobles.api, "classify", revienta_solo_el_dedicado)
 
     signals = {s.name: s for s in await _run_signals("Un titular", "Un cuerpo")}
 
@@ -475,11 +489,11 @@ async def test_forma_sobria_pero_engañosa(señales):
 
 @pytest.mark.asyncio
 async def test_si_todas_las_señales_fallan_no_hay_veredicto(señales, monkeypatch):
-    señales()
+    dobles = señales()
     for modulo, atributo in ((lexical, "detect"), (linear, "predict")):
         monkeypatch.setattr(modulo, atributo, lambda h: ToolResult.fail("caído"))
     for metodo in ("zero_shot", "classify"):
-        monkeypatch.setattr(orchestrator._api, metodo, _falla)
+        monkeypatch.setattr(dobles.api, metodo, _falla)
 
     response = await orchestrator.analyze(AnalyzeRequest(headline="Un titular"))
 
@@ -536,13 +550,13 @@ async def test_una_señal_que_no_carga_no_impide_arrancar(señales, monkeypatch)
     arranque: si una excepción subiera, un modelo corrupto dejaría la API sin
     levantar entera, cuando `/tools` y `/history` no necesitan ningún modelo.
     """
-    señales()
+    dobles = señales()
     monkeypatch.setattr(settings, "nlp_backend", "remote")
 
     async def revienta(headline, content):
         raise RuntimeError("el modelo no está")
 
-    monkeypatch.setattr(orchestrator._detector, "detect", revienta)
+    monkeypatch.setattr(dobles.detector, "detect", revienta)
 
     tiempos = await orchestrator.precalentar()
 

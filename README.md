@@ -1228,6 +1228,123 @@ Añadir el registro a `/analyze` convirtió, sin avisar, todos los tests de esa 
 
 `tests/api/test_history.py` cubre los dos lados por separado —el almacén llamando a sus funciones, el endpoint por HTTP— porque responden preguntas distintas: si los datos sobreviven y salen en orden, y si la decisión de «una entrada por análisis» se sostiene de verdad.
 
+### La otra mitad de R3.9: los modelos, por configuración (#119, #87)
+
+R3.9 pide dos cosas —**divulgar** los modelos y **permitir intercambiarlos por
+configuración, sin cambios de código**— y sólo se cumplía la primera. La segunda
+llevaba desde #115 documentada como incumplida, después de que aquel cambio de
+modelo lo demostrara de la peor manera: sustituir `facebook/bart-large-mnli` por
+`Stremie/roberta-base-clickbait` exigió tocar la tabla de fichas, escribir
+`dedicated.py` y añadir un mapeo de etiquetas. Todo código.
+
+Ahora es esto:
+
+```
+NLP_MODELS={"detect_clickbait": "otra-org/otro-modelo"}
+```
+
+Un **diccionario por señal** y no un campo por señal, para que una señal nueva
+quede configurable sin tocar `settings.py` — el mismo criterio que el formulario
+generado de #128, donde añadir una tool no toca el frontend.
+
+#### Eran dos issues y era un solo bug
+
+#87 decía que el backend se congela al importar. Al mirarlo, el **modelo**
+también, y en tres sitios más:
+
+```
+orchestrator.py   _api = get_nlp_backend()   ·   _SENTIMENT_MODEL = model_id_de(…)
+dedicated.py      MODEL = model_id_de("detect_clickbait")
+incoherence.py    MODEL = model_id_de(…)          ← atributo de clase
+tool.py           api = get_nlp_backend()    ·   detector = IncoherenceDetector()
+```
+
+Cinco constantes resueltas **en tiempo de importación**. Da igual de dónde
+venga el valor si se lee una sola vez y para siempre: configurarlo sin arreglar
+esto habría producido un ajuste que no hace nada, que es peor que no tenerlo.
+
+Así que no es «#87 es prerrequisito de #119»: es la misma corrección —dejar de
+resolver configuración al importar— vista desde dos sitios.
+
+#### Dónde se lee la configuración, y por qué no donde parecía
+
+La tentación era que `model_id_de` consultara `settings`. Habría sido un error:
+`model_cards.py` lo importan `incoherence.py` y `dedicated.py`, así que los
+detectores pasarían a arrastrar `settings` —cuyos campos de API son
+**obligatorios**— y no se podrían importar sin un `.env`. Es exactamente lo que
+protege `test_los_detectores_no_conocen_la_configuracion`, cuyo comentario
+anticipa el caso: *«meter `settings` en un módulo nuevo obliga a editar esta
+línea a mano — la decisión consciente que se quiere forzar»*.
+
+Lo resuelve **`factory.py`**, cuyo oficio declarado ya *es* leer configuración.
+Pasa de decidir *dónde* corre el modelo a decidir también *cuál* es y *qué ficha
+se publica*: el mismo trabajo con un parámetro más, sin excepciones nuevas en el
+test. Y la regla que sale de ahí, que vale para la próxima: **los detectores no
+resuelven su configuración, la reciben** — `dedicated.detect` ya recibía el
+backend, ahora recibe también el id, y `IncoherenceDetector` lo toma en el
+constructor con la ficha como defecto.
+
+El cacheado va **por el valor del setting** (`lru_cache` sobre una función que
+lo recibe como argumento). Así un cambio de configuración produce otra clave y
+el cliente correcto sale solo, sin invalidar nada a mano — y se conserva lo que
+sí estaba bien: reutilizar la instancia, porque `LocalNLPClient` cachea los
+pipelines y crear uno por petición recargaría el modelo cada vez. **Lo que
+estaba mal era cuándo se creaba, no que se reutilizara.**
+
+De regalo, `precalentar()` deja de depender de una advertencia escrita: como la
+factoría devuelve siempre el mismo objeto, calienta por construcción el que va a
+usar la petición.
+
+#### Lo que NO se hereda: las medidas
+
+Aquí estaba la decisión de verdad, y no es técnica.
+
+La ficha de la señal dedicada dice F1 0.946 en Chakraborty, 0.631 y 0.758 en los
+dos splits de Webis, que sus errores se concentran donde las personas discrepan…
+**Todo eso se midió sobre un modelo concreto**, issue a issue (#109, #115,
+#121). Publicarlo junto a un modelo distinto sería divulgar como propias unas
+medidas ajenas — cumplir R3.9 rompiendo R3.9.
+
+Así que la ficha se parte en dos por su naturaleza:
+
+| | Ejemplo | ¿Sobrevive al cambio? |
+|---|---|---|
+| **De la señal** — el hueco | dimensión `form`, tipo `opaque`, qué tarea cumple | **Sí.** Describe el papel, no al ocupante |
+| **Del modelo** — el ocupante | F1 0.946, entrenado con etiqueta humana, techo humano 0.665 | **No.** Son suyas |
+
+Con un modelo puesto por configuración, `ficha_efectiva` publica el id que se
+ejecuta y **sustituye las medidas por su ausencia declarada**: *sin evaluar en
+este proyecto*. Y esa ausencia **es información**: dice que eso es un
+experimento, no una señal caracterizada.
+
+#### Dos trampas que aparecieron al hacerlo
+
+**El catálogo REST leía la ficha declarada.** `api/catalog.py` construía
+`ToolModelCard` desde el índice, así que con un modelo configurado la pantalla
+de Sistema habría dicho uno mientras `describe_models` decía otro —los dos
+«correctos» según su fuente— y sin forma de notarlo salvo comparándolos a mano.
+Es **la divergencia que cerró #116, reabierta por la puerta de al lado** por este
+mismo cambio. Ahora las dos fachadas piden la ficha efectiva, y hay un test que
+lo fija.
+
+**Los tests parcheaban `orchestrator._api`.** Veinte se pusieron rojos, y era la
+trampa latente que #87 describía por escrito: al no existir ya ese atributo,
+falla ruidosamente en vez de seguir probando una forma que ya no es. Ahora
+sustituyen la función de la factoría, que es el camino real.
+
+#### Lo que queda fuera, y no como límite
+
+**Cambiar de familia de modelo** —de un clasificador a un zero-shot— sigue sin
+ser configuración: un zero-shot necesita etiquetas candidatas y otra llamada.
+Pero eso **no es una limitación de fondo**, y por eso no se documenta como tal:
+`local.py` ya cachea los pipelines por `(tarea, modelo)` y `pipeline()` recibe la
+tarea como una cadena, así que la maquinaria está. Es alcance, y tiene su propia
+issue (**#159**) con las decisiones que arrastra — entre ellas que las etiquetas
+de un zero-shot *forman parte de la pregunta*: cambiar «clickbait» por
+«sensationalist headline» cambia el resultado con el mismo modelo.
+
+`docs/requisitos.md` no se toca: R3.9 **se cumple**, no se matiza.
+
 ### Dos señales dependían de paquetes que producción no instala (#156, primera parte)
 
 #156 preguntaba si se puede servir la señal dedicada, ahora que HuggingFace
