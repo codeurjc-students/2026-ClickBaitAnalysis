@@ -1,6 +1,7 @@
 import asyncio
 
 from backend.core.models import ToolResult
+from backend.integrations.nlp.dependencias import motivo_si_falta
 from backend.integrations.nlp.model_cards import model_id_de
 
 
@@ -76,6 +77,11 @@ class IncoherenceDetector:
         return recorte[: fin + 1] if fin > cls.LEAD_CHARS // 2 else recorte
 
     async def detect(self, headline: str, content: str) -> ToolResult:
+        # Esta señal NO tiene vía remota: si falta el paquete, no funciona con
+        # ningún `nlp_backend`. Por eso el aviso va aquí y no en la factoría.
+        if motivo := motivo_si_falta("sentence_transformers"):
+            return ToolResult.fail(motivo)
+
         try:
             model = self._get_model()
             embedding = await asyncio.to_thread(

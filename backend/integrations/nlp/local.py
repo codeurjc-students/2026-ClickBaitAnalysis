@@ -4,6 +4,7 @@ from typing import Any
 
 from backend.core.models import ToolResult
 from backend.integrations.nlp.base import NLPBackend
+from backend.integrations.nlp.dependencias import motivo_si_falta
 
 # Lo que devuelve `transformers.pipeline`: algo que se llama con un texto y
 # devuelve su predicción. Se declara así y no como `object` porque `object` no es
@@ -40,6 +41,14 @@ class LocalNLPClient(NLPBackend):
     # Tasks que nos interesan "text-classification" y "zero-shot-classification"
 
     async def classify(self, text: str, model: str) -> ToolResult:
+        # Antes de llamar, no después: sin torch el fallo ocurre DENTRO de
+        # `transformers` y sale como `name 'torch' is not defined`, que parece un
+        # bug de este código. Comprobado el 2026-09-08 con `requirements.txt` a
+        # secas. Preguntar no importa el paquete, así que el import perezoso de
+        # abajo —el que permite el CI ligero— sigue intacto.
+        if motivo := motivo_si_falta("torch"):
+            return ToolResult.fail(motivo)
+
         try:
             pipe = self._get_pipeline("text-classification", model)
             result = await asyncio.to_thread(
@@ -54,6 +63,9 @@ class LocalNLPClient(NLPBackend):
             return ToolResult.fail(f"Error inesperado usando el modelo {model}: {e}")
 
     async def zero_shot(self, text: str, model: str, labels: list[str]) -> ToolResult:
+        if motivo := motivo_si_falta("torch"):
+            return ToolResult.fail(motivo)
+
         try:
             pipe = self._get_pipeline("zero-shot-classification", model)
             output = await asyncio.to_thread(
