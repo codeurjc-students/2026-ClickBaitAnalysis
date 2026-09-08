@@ -561,3 +561,24 @@ async def test_una_señal_que_no_carga_no_impide_arrancar(señales, monkeypatch)
     tiempos = await orchestrator.precalentar()
 
     assert tiempos["detect_clickbait_incoherence"] == -1.0
+
+
+@pytest.mark.asyncio
+async def test_la_tarjeta_rotula_el_modelo_que_se_ejecuto(señales, monkeypatch):
+    """La tercera puerta de la divergencia de #116, y la peor de las tres.
+
+    Detectado ejecutando el sistema con otro modelo configurado: el catálogo y
+    `describe_models` ya decían el efectivo, pero la tarjeta del análisis seguía
+    rotulada «RoBERTa dedicado (entrenado en Webis-17)» — y ésa es justo la que
+    mira quien lee el resultado.
+    """
+    señales()
+    monkeypatch.setattr(settings, "nlp_models", {"detect_clickbait": "otra/cosa"})
+
+    signals = {s.name: s for s in await _run_signals("Un titular", None)}
+    dedicada = signals["detect_clickbait"]
+
+    assert "otra/cosa" in dedicada.label
+    assert "Webis" not in dedicada.label
+    # Lo que describe a la señal y no al modelo no cambia.
+    assert dedicada.dimension == Dimension.FORM
