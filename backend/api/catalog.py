@@ -42,6 +42,7 @@ from backend.api.schemas import (
 )
 from backend.config.settings import settings
 from backend.core.mcp import tools as mcp_tools
+from backend.integrations.nlp.factory import ficha_efectiva
 from backend.integrations.nlp.model_cards import cards_by_signal
 
 log = structlog.get_logger()
@@ -113,10 +114,17 @@ def _ficha_de(nombre: str) -> ToolModelCard | None:
     El índice vive en ``model_cards`` porque lo comparte con la orquestación de
     ``/analyze``: dos copias acabarían divergiendo. Devuelve None para las
     herramientas que no son señales — fuentes de contenido y utilidades.
+
+    **La ficha que se publica es la EFECTIVA** (#119): si alguien ha puesto otro
+    modelo por configuración, aquí sale ese, no el declarado. Leer el índice a
+    secas dejaría esta pantalla diciendo un modelo mientras ``describe_models``
+    dice otro — que es exactamente la divergencia que cerró #116, reabierta por
+    la puerta de al lado.
     """
-    card = cards_by_signal().get(nombre)
-    if card is None:
+    if nombre not in cards_by_signal():
         return None
+
+    card = ficha_efectiva(nombre)
 
     return ToolModelCard(
         name=card["name"],

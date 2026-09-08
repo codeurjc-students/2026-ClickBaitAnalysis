@@ -40,7 +40,12 @@ class IncoherenceDetector:
     # un token. ~4 caracteres por token en inglés.
     LEAD_CHARS = 1000
 
-    def __init__(self) -> None:
+    def __init__(self, model: str | None = None) -> None:
+        # El id se RECIBE, con la ficha como defecto (#119). Resolverlo aquí
+        # obligaría a este módulo a leer `settings`, y entonces importarlo
+        # exigiría un `.env` con las claves de API — justo lo que el test de
+        # arquitectura protege: los detectores se prueban sin montar nada.
+        self.model_id = model or self.MODEL
         self._model = None  # Singleton
 
     def _get_model(self):
@@ -63,7 +68,7 @@ class IncoherenceDetector:
                 SentenceTransformer,
             )
 
-            self._model = SentenceTransformer(self.MODEL)
+            self._model = SentenceTransformer(self.model_id)
         return self._model
 
     @classmethod

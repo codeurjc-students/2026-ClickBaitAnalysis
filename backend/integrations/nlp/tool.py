@@ -14,8 +14,12 @@ from mcp.server.fastmcp.exceptions import ToolError
 from backend.core.observability import log_tool_invocation
 from backend.integrations.metadata import tool_meta
 from backend.integrations.nlp import dedicated, lexical, linear, model_cards
-from backend.integrations.nlp.factory import get_nlp_backend
-from backend.integrations.nlp.incoherence import IncoherenceDetector
+from backend.integrations.nlp.factory import (
+    ficha_efectiva,
+    get_incoherence_detector,
+    get_model_id,
+    get_nlp_backend,
+)
 from backend.integrations.nlp.outputs import (
     Etiqueta,
     FichaModelo,
@@ -27,13 +31,14 @@ from backend.integrations.nlp.outputs import (
 
 def register(mcp: FastMCP):
 
-    api = get_nlp_backend()
-    detector = IncoherenceDetector()
-
-    # Los ids de modelo salen de las fichas (#116), no cableados aquí. Se
-    # resuelven una vez al registrar y no en cada llamada: MODEL_CARDS es una
-    # constante de módulo, así que releerla por invocación sería trabajo inútil.
-    _ficha = model_cards.cards_by_signal()
+    # Ni el backend ni el detector se crean aquí. Los pide la factoría en cada
+    # llamada, que los cachea: así siguen siendo instancias únicas —cargar un
+    # modelo cuesta— pero dejan de quedarse atados a la configuración que hubiera
+    # al registrar. Antes, cambiar `nlp_backend` después de arrancar no tenía
+    # efecto en esta fachada (#87).
+    #
+    # Los ids salen de la ficha (#116) y de la configuración si la hay (#119),
+    # y también por llamada: una constante aquí volvería a congelarlos.
 
     @mcp.tool(meta=tool_meta("Señales de análisis", __name__))
     @log_tool_invocation
@@ -57,7 +62,9 @@ def register(mcp: FastMCP):
         Raises:
             Si la llamada al modelo falla (timeout o caída del proveedor).
         """
-        response = await dedicated.detect(api, headline)
+        response = await dedicated.detect(
+            get_nlp_backend(), headline, get_model_id("detect_clickbait")
+        )
         if not response.has_content():
             raise ToolError(response.error or "Error al analizar el titular")
         return response.unwrap()
@@ -80,8 +87,8 @@ def register(mcp: FastMCP):
         Raises:
             Si la llamada al modelo falla (timeout o caída del proveedor).
         """
-        response = await api.classify(
-            text, model_cards.model_id_de("analyze_sentiment")
+        response = await get_nlp_backend().classify(
+            text, get_model_id("analyze_sentiment")
         )
         if not response.has_content():
             raise ToolError(response.error or "Error al analizar el sentimiento")
@@ -114,7 +121,7 @@ def register(mcp: FastMCP):
         Raises:
             Si el cálculo de los embeddings falla.
         """
-        response = await detector.detect(headline, content)
+        response = await get_incoherence_detector().detect(headline, content)
         if not response.has_content():
             raise ToolError(
                 response.error or "Error al analizar incoherencia en el titular"
@@ -187,4 +194,7 @@ def register(mcp: FastMCP):
             La lista de fichas de modelo (signal, name, task, type, dimension,
             limitations, backend).
         """
-        return model_cards.MODEL_CARDS
+        # La ficha EFECTIVA, no la declarada: si alguien ha puesto otro modelo
+        # por configuración, esto publica ese id y deja de publicar unas medidas
+        # que eran del anterior (#119).
+        return [ficha_efectiva(card["signal"]) for card in model_cards.MODEL_CARDS]

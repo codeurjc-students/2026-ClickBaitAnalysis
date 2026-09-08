@@ -20,6 +20,26 @@ class Settings(BaseSettings):
         "remote"  # Añadimos dos opciones de backend NLP, así mantenemos remoto sin cambiar mucho.
     )
 
+    # Qué MODELO ejecuta cada señal, por si se quiere probar otro sin tocar
+    # código. Es la segunda mitad de R3.9, que hasta #119 estaba sin cumplir:
+    # `nlp_backend` decide DÓNDE corre el modelo, no CUÁL es.
+    #
+    # Vacío significa «el de la ficha». Se sobrescribe por nombre de señal:
+    #   NLP_MODELS='{"detect_clickbait": "otra-org/otro-modelo"}'
+    #
+    # Es un DICCIONARIO y no un campo por señal a propósito: una señal nueva
+    # queda configurable sin tocar este fichero. Mismo criterio que el
+    # formulario generado de #128, donde añadir una tool no toca el frontend.
+    #
+    # Ojo con lo que implica: las medidas de la ficha se hicieron sobre el
+    # modelo declarado, así que al sobrescribirlo **dejan de publicarse** — un
+    # modelo puesto a mano es un experimento, no una señal caracterizada. Lo
+    # resuelve `ficha_efectiva` en la factoría.
+    #
+    # Sólo cambia el id, no el modo de invocación: un zero-shot necesita además
+    # etiquetas candidatas y otra llamada. Eso es #159.
+    nlp_models: dict[str, str] = {}
+
     # Cargar los modelos NLP al arrancar en vez de en la primera petición.
     #
     # POR DEFECTO APAGADO, y el defecto importa más que el flag. Precalentar
