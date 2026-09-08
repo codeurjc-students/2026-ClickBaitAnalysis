@@ -26,6 +26,17 @@ así que esto NO deshace los imports perezosos de `local.py` e `incoherence.py`
 
 from importlib.util import find_spec
 
+
+class FaltaDependencia(RuntimeError):
+    """El paquete que necesita esta señal no está instalado.
+
+    Excepción propia y no un `RuntimeError` pelado porque quien la captura tiene
+    que distinguirla de un fallo de verdad: su mensaje ya está redactado para
+    quien mira la pantalla, así que se devuelve tal cual en vez de envolverlo en
+    «Error inesperado …».
+    """
+
+
 # Cómo se instala cada una. La rueda de torch se pide del índice de CPU a
 # propósito: son 769 MB frente a 1,2 GB de la variante CUDA, y la máquina de
 # despliegue no tiene GPU. Medido el 2026-09-08, junto con lo demás: con esta

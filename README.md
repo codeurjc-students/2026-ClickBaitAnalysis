@@ -1320,6 +1320,33 @@ Un detalle que la tabla de `estructura.md` obligó a respetar: la fila de
 permite el CI ligero»*. La comprobación usa `find_spec`, que **resuelve el módulo
 sin ejecutarlo**, así que no deshace nada de eso.
 
+#### El CI cazó lo que en local no se veía
+
+La primera versión ponía la comprobación en la puerta de `classify` y `detect`.
+En local pasaron las 223 pruebas; **el CI tumbó cinco**. La causa es la misma
+asimetría de siempre, un nivel más arriba: el entorno de desarrollo tiene torch y
+el del CI no, porque instala `requirements.txt` a secas. Los tests que sustituyen
+`_get_pipeline` nunca necesitaron torch — pero el guardián estaba **antes** de esa
+sustitución, así que allí se disparaba y secuestraba pruebas que no iban de esto.
+
+Arreglado moviéndolo **dentro del cargador perezoso**, que es justo lo que los
+tests sustituyen: quien lo sustituye no lo ve, y quien va a cargar de verdad sí.
+El mensaje viaja como excepción propia —`FaltaDependencia`— para que quien la
+captura lo devuelva tal cual en vez de envolverlo en «Error inesperado», que era
+la mitad del problema original.
+
+Y queda un test que fija la lección **en los dos entornos**: simula la ausencia
+del paquete *y* sustituye el cargador a la vez, exigiendo que gane la
+sustitución. Sin él, un cambio así sólo se detecta subiendo.
+
+Esto matiza lo dicho arriba, y el matiz importa: el CI **no puede** ver que las
+señales fallen en producción —las mockea—, pero **sí** ve cuando un guardián
+cambia el comportamiento de todas, porque su entorno carece de los paquetes de
+verdad. Son dos cosas distintas, y la segunda es la que salvó esto.
+
+Desde entonces, la suite se corre en los dos sitios antes de subir: el `.venv` de
+desarrollo y un entorno con `requirements.txt` a secas. **224 pruebas en ambos.**
+
 #### Lo que NO entra, y por qué
 
 **Dónde se instala torch es el `Dockerfile`, y eso es H4.** Con los números

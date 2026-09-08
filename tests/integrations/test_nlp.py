@@ -202,11 +202,17 @@ def test_get_pipeline_caches(monkeypatch):
     fake_transformers.pipeline = fake_pipeline
     monkeypatch.setitem(sys.modules, "transformers", fake_transformers)
 
-    client = LocalNLPClient()
-    p1 = client._get_pipeline("text-classification", "m")
-    p2 = client._get_pipeline("text-classification", "m")
+    # Este test ya finge el módulo `transformers` entero, así que tiene que
+    # fingir también que su dependencia está: desde 2026-09-08 `_get_pipeline`
+    # comprueba torch antes de cargar, y en una instalación sin él —el CI— este
+    # test no va de eso y no debe fallar por ello.
+    monkeypatch.setattr(dependencias, "find_spec", lambda nombre, *args, **kw: object())
 
-    assert p1 is p2  # mismo objeto
+    client = LocalNLPClient()
+    primero = client._get_pipeline("text-classification", "modelo")
+    segundo = client._get_pipeline("text-classification", "modelo")
+
+    assert primero is segundo  # mismo objeto
     assert len(calls) == 1  # solo se creo una vez
 
 
@@ -660,3 +666,29 @@ async def test_la_incoherencia_avisa_de_su_paquete(monkeypatch):
     assert result.error is not None
     assert "sentence-transformers" in result.error
     assert "Error inesperado" not in result.error
+
+
+@pytest.mark.asyncio
+async def test_el_aviso_no_secuestra_a_quien_sustituye_el_cargador(monkeypatch):
+    """El guardián va DENTRO del cargador perezoso, no en la puerta de `classify`.
+
+    Lo destapó el CI el 2026-09-08: allí torch no está instalado de verdad, así
+    que con la comprobación en la puerta saltaba **antes** de que el test
+    pudiera sustituir `_get_pipeline`, y tumbaba cinco pruebas que no van de
+    esto. En local no se veía, porque el entorno de desarrollo sí tiene torch.
+
+    Este test lo fija en los dos entornos: simula la ausencia **y** sustituye el
+    cargador, y exige que gane la sustitución.
+    """
+    _sin_paquete(monkeypatch, "torch")
+
+    def pipeline_falso(texto):
+        return [{"label": "OK", "score": 1.0}]
+
+    cliente = LocalNLPClient()
+    monkeypatch.setattr(cliente, "_get_pipeline", lambda tarea, modelo: pipeline_falso)
+
+    result = await cliente.classify("hola", "modelo")
+
+    assert result.success
+    assert result.data == {"label": "OK", "score": 1.0}
