@@ -1,6 +1,7 @@
 import asyncio
 
 from backend.core.models import ToolResult
+from backend.integrations.nlp.dependencias import FaltaDependencia, motivo_si_falta
 from backend.integrations.nlp.model_cards import model_id_de
 
 
@@ -43,6 +44,12 @@ class IncoherenceDetector:
         self._model = None  # Singleton
 
     def _get_model(self):
+        # Dentro del cargador y no en la puerta de `detect`, por lo mismo que en
+        # `local.py`: los tests sustituyen ESTE método, y comprobar antes los
+        # secuestraría en cualquier entorno sin el paquete — como el CI.
+        if motivo := motivo_si_falta("sentence_transformers"):
+            raise FaltaDependencia(motivo)
+
         if self._model is None:
             # `sentence-transformers` vive en `requirements-dev.txt`, no en
             # `requirements.txt`, porque arrastra torch y wheels de CUDA. El CI
@@ -107,5 +114,10 @@ class IncoherenceDetector:
                     "content": content,
                 }
             )
+        except FaltaDependencia as falta:
+            # Esta señal NO tiene vía remota: si falta el paquete, no funciona
+            # con ningún `nlp_backend`. Su mensaje ya lo explica, así que sale
+            # tal cual.
+            return ToolResult.fail(str(falta))
         except Exception as e:
             return ToolResult.fail(f"Error inesperado calculando incoherencia: {e}")

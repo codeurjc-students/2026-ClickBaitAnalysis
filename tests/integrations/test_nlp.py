@@ -7,7 +7,7 @@ from httpx import Response, TimeoutException
 from mcp.server.fastmcp import FastMCP
 
 from backend.config.settings import settings
-from backend.integrations.nlp import lexical, linear, model_cards
+from backend.integrations.nlp import dependencias, lexical, linear, model_cards
 from backend.integrations.nlp import tool as nlp_tool
 from backend.integrations.nlp.client import HFClient
 from backend.integrations.nlp.factory import get_nlp_backend
@@ -202,11 +202,17 @@ def test_get_pipeline_caches(monkeypatch):
     fake_transformers.pipeline = fake_pipeline
     monkeypatch.setitem(sys.modules, "transformers", fake_transformers)
 
-    client = LocalNLPClient()
-    p1 = client._get_pipeline("text-classification", "m")
-    p2 = client._get_pipeline("text-classification", "m")
+    # Este test ya finge el módulo `transformers` entero, así que tiene que
+    # fingir también que su dependencia está: desde 2026-09-08 `_get_pipeline`
+    # comprueba torch antes de cargar, y en una instalación sin él —el CI— este
+    # test no va de eso y no debe fallar por ello.
+    monkeypatch.setattr(dependencias, "find_spec", lambda nombre, *args, **kw: object())
 
-    assert p1 is p2  # mismo objeto
+    client = LocalNLPClient()
+    primero = client._get_pipeline("text-classification", "modelo")
+    segundo = client._get_pipeline("text-classification", "modelo")
+
+    assert primero is segundo  # mismo objeto
     assert len(calls) == 1  # solo se creo una vez
 
 
@@ -583,3 +589,106 @@ async def test_model_cards_signals_match_registered_tools():
 
     carded = {card["signal"] for card in model_cards.MODEL_CARDS}
     assert carded <= registered, f"fichas sin tool: {carded - registered}"
+
+
+# --Dependencias que la instalación de producción no trae
+
+
+def _sin_paquete(monkeypatch, ausente: str):
+    """Hace que `ausente` parezca no instalado, sin desinstalar nada.
+
+    Se sustituye `find_spec` y no el import, porque es exactamente lo que
+    consulta `dependencias.motivo_si_falta`: lo que se prueba es la rama que
+    corre en una instalación de producción, donde el paquete no existe.
+    """
+    real = dependencias.find_spec
+
+    def falso(nombre: str, *args, **kwargs):
+        return None if nombre == ausente else real(nombre, *args, **kwargs)
+
+    monkeypatch.setattr(dependencias, "find_spec", falso)
+
+
+def test_motivo_es_none_si_el_paquete_esta():
+    assert dependencias.motivo_si_falta("json") is None
+
+
+def test_el_motivo_dice_que_no_es_una_averia_y_como_arreglarlo(monkeypatch):
+    """Las dos mitades importan. Medido el 2026-09-08, el mensaje anterior era
+    «Error inesperado … name 'torch' is not defined»: ni era inesperado —es el
+    estado normal de `requirements.txt` a secas— ni decía qué hacer."""
+    _sin_paquete(monkeypatch, "torch")
+
+    motivo = dependencias.motivo_si_falta("torch")
+
+    assert motivo is not None
+    assert "No es una avería" in motivo
+    assert "download.pytorch.org/whl/cpu" in motivo
+
+
+def test_el_nombre_va_como_se_instala_no_como_se_importa(monkeypatch):
+    """`sentence-transformers` con guion es lo que se teclea en el `pip install`
+    y lo que aparece en los requirements; `sentence_transformers` sólo existe
+    dentro de Python, y ponerlo ahí manda a copiar algo que no funciona."""
+    _sin_paquete(monkeypatch, "sentence_transformers")
+
+    motivo = dependencias.motivo_si_falta("sentence_transformers")
+
+    assert motivo is not None
+    assert "sentence-transformers" in motivo
+    assert "sentence_transformers" not in motivo
+
+
+@pytest.mark.asyncio
+async def test_la_senal_dedicada_avisa_de_torch_en_vez_de_reventar(monkeypatch):
+    """Sin torch el fallo ocurría DENTRO de transformers y salía como
+    `name 'torch' is not defined`, que parece un bug de este código."""
+    _sin_paquete(monkeypatch, "torch")
+
+    result = await LocalNLPClient().classify("hola", "Stremie/roberta-base-clickbait")
+
+    assert not result.success
+    assert result.error is not None
+    assert "torch" in result.error
+    assert "is not defined" not in result.error
+    assert "Error inesperado" not in result.error
+
+
+@pytest.mark.asyncio
+async def test_la_incoherencia_avisa_de_su_paquete(monkeypatch):
+    """No tiene vía remota: sin el paquete no funciona con ningún backend, así
+    que el aviso tiene que salir de la propia señal y no de la factoría."""
+    _sin_paquete(monkeypatch, "sentence_transformers")
+
+    result = await IncoherenceDetector().detect("titular", "cuerpo")
+
+    assert not result.success
+    assert result.error is not None
+    assert "sentence-transformers" in result.error
+    assert "Error inesperado" not in result.error
+
+
+@pytest.mark.asyncio
+async def test_el_aviso_no_secuestra_a_quien_sustituye_el_cargador(monkeypatch):
+    """El guardián va DENTRO del cargador perezoso, no en la puerta de `classify`.
+
+    Lo destapó el CI el 2026-09-08: allí torch no está instalado de verdad, así
+    que con la comprobación en la puerta saltaba **antes** de que el test
+    pudiera sustituir `_get_pipeline`, y tumbaba cinco pruebas que no van de
+    esto. En local no se veía, porque el entorno de desarrollo sí tiene torch.
+
+    Este test lo fija en los dos entornos: simula la ausencia **y** sustituye el
+    cargador, y exige que gane la sustitución.
+    """
+    _sin_paquete(monkeypatch, "torch")
+
+    def pipeline_falso(texto):
+        return [{"label": "OK", "score": 1.0}]
+
+    cliente = LocalNLPClient()
+    monkeypatch.setattr(cliente, "_get_pipeline", lambda tarea, modelo: pipeline_falso)
+
+    result = await cliente.classify("hola", "modelo")
+
+    assert result.success
+    assert result.data == {"label": "OK", "score": 1.0}

@@ -1228,6 +1228,142 @@ Añadir el registro a `/analyze` convirtió, sin avisar, todos los tests de esa 
 
 `tests/api/test_history.py` cubre los dos lados por separado —el almacén llamando a sus funciones, el endpoint por HTTP— porque responden preguntas distintas: si los datos sobreviven y salen en orden, y si la decisión de «una entrada por análisis» se sostiene de verdad.
 
+### Dos señales dependían de paquetes que producción no instala (#156, primera parte)
+
+#156 preguntaba si se puede servir la señal dedicada, ahora que HuggingFace
+quedó descartado como vía. La respuesta es **sí, en local y sin GPU** — y al
+medirlo apareció que el problema era más grande de lo que decía la issue.
+
+#### Lo medido
+
+En un venv desechable, con `requirements.txt` + torch CPU-only +
+`sentence-transformers`, ejecutando el camino real del sistema (`precalentar` y
+`analyze` del orquestador) y no una aproximación: **las cinco señales en `ok`**,
+veredicto `deceptive`. Es la primera vez que el sistema responde con las cinco
+desde que se detectó el problema.
+
+| | CPU-only | Con torch CUDA (entorno de desarrollo) |
+|---|---|---|
+| torch en disco | **769 MB** | 1,2 GB |
+| Arranque en frío (`precalentar`) | **24,2 s** | 52,4 s |
+| ↳ `detect_clickbait` | 13,4 s | 44,6 s |
+| RAM con los tres modelos | **1.201 MB** | 1.645 MB |
+| Análisis en caliente | 0,11 s | **0,04 s** |
+
+La rueda de CPU arranca **2,2× más rápido** y ocupa **444 MB menos de RAM**, a
+cambio de un análisis ~3× más lento. Para algo que precalienta al arrancar
+(#125), es el cambio bueno: 0,11 s no se nota, y 28 s menos de arranque sí, cada
+vez que se levanta un contenedor.
+
+**Corrección de un número que estaba escrito mal**: se venía diciendo que la
+rueda CPU-only baja de «1,2 GB a ~300 MB». Son **769 MB instalados**; los ~300
+son la descarga comprimida. El ahorro es del 36 %, no del 75 %.
+
+#### El hallazgo: no era una señal, eran dos
+
+`sentence-transformers` **tampoco está en `requirements.txt`**, y la señal de
+incoherencia declara `backend: "local"` sin vía remota. Así que en una
+instalación de producción de hoy fallan **dos** de las cinco:
+
+- `detect_clickbait` — con `remote` falla en el proveedor; con `local`, por torch.
+- `detect_clickbait_incoherence` — falla **siempre**, con cualquier `nlp_backend`.
+
+Y **el CI no puede verlo, por diseño**: los tests mockean los backends, así que
+`requirements.txt` nunca tiene que ejecutar un modelo. La única forma de
+detectarlo era instalar esa lista a secas y ejecutar de verdad — el mismo tipo de
+comprobación que #86 impuso al exigir un primer análisis real por HTTP.
+
+Las dos fichas de modelo lo declaran ahora. Es el mismo arreglo que la `v0.4.1`
+en la señal dedicada: el sistema estaba publicando una capacidad —`backend:
+"local"`— que su propia instalación de producción no puede cumplir.
+
+#### El mensaje que daba, medido antes de cambiarlo
+
+Sin las dependencias, esto es lo que veía quien mirara la pantalla:
+
+```
+detect_clickbait  → Error inesperado usando el modelo Stremie/…:
+                    name 'torch' is not defined
+incoherencia      → Error inesperado calculando incoherencia:
+                    No module named 'sentence_transformers'
+```
+
+El primero es un **`NameError`, no un `ImportError`**: `transformers` avisa por
+consola de que no encuentra PyTorch y luego revienta con una variable sin
+definir. Quien lo lee piensa que hay un bug en este código. Y los dos dicen
+**«Error inesperado»** de algo que es el estado normal de esa instalación.
+
+Ahora las dos dicen qué falta, que no es una avería y cómo habilitarlo. Se
+verificó ejecutándolo en un entorno sin las dependencias, no sólo con dobles.
+
+#### Dónde vive la comprobación, y por qué costó decidirlo
+
+El módulo nuevo es `integrations/nlp/dependencias.py`, y la ubicación no salió
+por analogía sino de aplicar los criterios de `docs/estructura.md`:
+
+- **`analysis/`** no: no es dominio.
+- **`core/`** no: sabe cero del clickbait, pero su criterio pide *«¿lo usa más de
+  una capa?»* y sus dos consumidores están los dos en `integrations/nlp/`.
+- **`integrations/`** tampoco encaja de entrada — no envuelve nada externo—, y su
+  «no va aquí aunque lo parezca» apunta justo a esto: *«la maquinaria que
+  describe las integraciones opera sobre ellas, no es una»*.
+
+Lo que lo resuelve es que ese criterio gobierna **qué paquetes existen**, no cada
+fichero de dentro: en `nlp/` ya conviven cuatro módulos que no envuelven nada
+externo —`base.py`, `factory.py`, `model_cards.py`, `outputs.py`— y ninguno está
+marcado como tensión. No es el caso de `discovery.py` y `metadata.py`
+([tensión 3](docs/estructura.md)), que viven en la raíz de `integrations/` y
+operan sobre todas.
+
+Un detalle que la tabla de `estructura.md` obligó a respetar: la fila de
+`local.py` dice que importa `transformers` de forma perezosa y que *«es lo que
+permite el CI ligero»*. La comprobación usa `find_spec`, que **resuelve el módulo
+sin ejecutarlo**, así que no deshace nada de eso.
+
+#### El CI cazó lo que en local no se veía
+
+La primera versión ponía la comprobación en la puerta de `classify` y `detect`.
+En local pasaron las 223 pruebas; **el CI tumbó cinco**. La causa es la misma
+asimetría de siempre, un nivel más arriba: el entorno de desarrollo tiene torch y
+el del CI no, porque instala `requirements.txt` a secas. Los tests que sustituyen
+`_get_pipeline` nunca necesitaron torch — pero el guardián estaba **antes** de esa
+sustitución, así que allí se disparaba y secuestraba pruebas que no iban de esto.
+
+Arreglado moviéndolo **dentro del cargador perezoso**, que es justo lo que los
+tests sustituyen: quien lo sustituye no lo ve, y quien va a cargar de verdad sí.
+El mensaje viaja como excepción propia —`FaltaDependencia`— para que quien la
+captura lo devuelva tal cual en vez de envolverlo en «Error inesperado», que era
+la mitad del problema original.
+
+Y queda un test que fija la lección **en los dos entornos**: simula la ausencia
+del paquete *y* sustituye el cargador a la vez, exigiendo que gane la
+sustitución. Sin él, un cambio así sólo se detecta subiendo.
+
+Esto matiza lo dicho arriba, y el matiz importa: el CI **no puede** ver que las
+señales fallen en producción —las mockea—, pero **sí** ve cuando un guardián
+cambia el comportamiento de todas, porque su entorno carece de los paquetes de
+verdad. Son dos cosas distintas, y la segunda es la que salvó esto.
+
+Desde entonces, la suite se corre en los dos sitios antes de subir: el `.venv` de
+desarrollo y un entorno con `requirements.txt` a secas. **224 pruebas en ambos.**
+
+#### Lo que NO entra, y por qué
+
+**Dónde se instala torch es el `Dockerfile`, y eso es H4.** Con los números
+delante, la decisión ya no es de preferencia: meterlo en `requirements.txt`
+serían ~900 MB de instalación en cada ejecución del CI para unos tests que lo
+mockean. Va en la imagen, con `--index-url https://download.pytorch.org/whl/cpu`
+—comprobado que instalar `sentence-transformers` después **no** lo sustituye por
+la variante CUDA—. Por eso **#156 se queda abierta**.
+
+Dos cosas más que salieron para H4 y quedan anotadas en la issue:
+
+- **Cachear los modelos dentro de la imagen** (~1 GB de pesos), o cada
+  contenedor nuevo los descarga antes de poder responder.
+- **`HF_TOKEN` no llega al proceso**: está en `.env` y lo lee `settings`, pero
+  `transformers` lo toma del entorno, así que en un contenedor nuevo la primera
+  descarga va sin autenticar y con el límite de tasa bajo.
+
 ### El semáforo que faltaba: qué APIs responden, desde cualquier pantalla (#147)
 
 `GET /health` existía desde #86: sondea Weather, Guardian y NYT, agrega en
