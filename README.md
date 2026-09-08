@@ -1317,7 +1317,7 @@ ejecuta y **sustituye las medidas por su ausencia declarada**: *sin evaluar en
 este proyecto*. Y esa ausencia **es información**: dice que eso es un
 experimento, no una señal caracterizada.
 
-#### Dos trampas que aparecieron al hacerlo
+#### Dos trampas que aparecieron al hacerlo, y una tercera al ejecutarlo
 
 **El catálogo REST leía la ficha declarada.** `api/catalog.py` construía
 `ToolModelCard` desde el índice, así que con un modelo configurado la pantalla
@@ -1331,6 +1331,45 @@ lo fija.
 trampa latente que #87 describía por escrito: al no existir ya ese atributo,
 falla ruidosamente en vez de seguir probando una forma que ya no es. Ahora
 sustituyen la función de la factoría, que es el camino real.
+
+#### La tercera puerta, que sólo apareció ejecutándolo
+
+Con las dos anteriores tapadas y la suite en verde, se levantó el sistema con
+otro modelo configurado —`elozano/bert-base-cased-clickbait-news`, el que #115
+midió y descartó— para comprobarlo contra la realidad. El catálogo y
+`describe_models` decían el modelo efectivo, como debían. Y la **tarjeta del
+análisis** seguía rotulada «RoBERTa dedicado (entrenado en Webis-17)».
+
+Era la misma divergencia de #116 por tercera vez, y **la peor de las tres**: el
+catálogo lo mira quien va a inspeccionar el sistema, pero la tarjeta la mira
+quien lee el resultado. El orquestador guardaba `_CARDS`, un índice de las fichas
+**declaradas** resuelto al importar, y rotulaba con él.
+
+Ningún test lo cazaba porque ninguno comprobaba el `label` con un modelo
+configurado — y no había forma de que saltara sin ejecutar. De paso desaparece
+`_CARDS`: dejar ahí un índice declarado es dejar puesta la trampa para el
+siguiente que lo lea.
+
+#### El hueco del mapeo, medido en vez de razonado
+
+La misma ejecución dio el argumento empírico de #159, que hasta entonces era una
+deducción:
+
+```
+titular clickbait → ok      elozano dice «Clickbait», que sí está en el mapeo
+titular factual   → error   «devolvió la etiqueta "Normal", que no está en el
+                             mapeo ['Clickbait', 'Not Clickbait']»
+```
+
+`elozano` usa `Normal`/`Clickbait` y el sistema espera `Clickbait`/`Not
+Clickbait`. **Media convención coincide**, así que el modelo sustituido funciona
+con unos titulares y falla con otros — el peor reparto posible, porque una
+prueba rápida con un titular clickbait lo daría por bueno.
+
+Y falla bien: el mensaje nombra el modelo, la etiqueta que llegó y las que
+esperaba. Es el mismo criterio de #158 —el sistema dice qué pasa en vez de
+reventar por dentro— y es lo que convierte «intercambiar el modelo» en algo
+diagnosticable cuando la convención no encaja.
 
 #### Lo que queda fuera, y no como límite
 

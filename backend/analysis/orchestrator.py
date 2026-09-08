@@ -49,11 +49,11 @@ from backend.analysis.domain import (
 from backend.core.models import ToolResult
 from backend.integrations.nlp import dedicated, lexical, linear
 from backend.integrations.nlp.factory import (
+    ficha_efectiva,
     get_incoherence_detector,
     get_model_id,
     get_nlp_backend,
 )
-from backend.integrations.nlp.model_cards import cards_by_signal
 
 log = structlog.get_logger()
 
@@ -75,7 +75,9 @@ log = structlog.get_logger()
 # dimensión ni el tipo de cada señal: se leen de MODEL_CARDS (R3.9). Un desajuste
 # entre esta clave y el nombre real de la tool lo detecta antes de llegar aquí
 # test_model_cards_signals_match_registered_tools.
-_CARDS = cards_by_signal()
+# Se pide a la factoría en cada uso —igual que el backend— y no se guarda un
+# índice aquí. Un índice de módulo sería el DECLARADO, y quien lo leyera
+# rotularía el resultado con un modelo que quizá no es el que se ejecutó.
 
 # El id sale de la ficha (#116) y, desde #119, de la configuración si la hay —
 # `get_model_id` resuelve las dos cosas. Antes estaba cableado aquí y otra vez en
@@ -378,8 +380,15 @@ def _build(
     sabía, en un diccionario propio de ``vocabulario.ts`` que nadie vigilaba —
     renombrar una señal aquí no rompía ningún test, sólo hacía que la pantalla
     pintara el id crudo. Es la forma exacta del fallo de #116.
+
+    Y la ficha es la **efectiva**, no la declarada. Detectado ejecutando el
+    sistema con otro modelo configurado: el catálogo y ``describe_models`` ya
+    decían ``elozano/...`` mientras la tarjeta del análisis seguía rotulada
+    «RoBERTa dedicado (entrenado en Webis-17)». La misma divergencia de #116 por
+    una tercera puerta — y la peor de las tres, porque es la que mira quien lee
+    el resultado.
     """
-    card = _CARDS[spec.name]
+    card = ficha_efectiva(spec.name)
     return SignalResult(
         name=spec.name,
         label=card["name"],
