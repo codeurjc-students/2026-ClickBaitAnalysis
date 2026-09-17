@@ -1230,6 +1230,203 @@ Añadir el registro a `/analyze` convirtió, sin avisar, todos los tests de esa 
 
 `tests/api/test_history.py` cubre los dos lados por separado —el almacén llamando a sus funciones, el endpoint por HTTP— porque responden preguntas distintas: si los datos sobreviven y salen en orden, y si la decisión de «una entrada por análisis» se sostiene de verdad.
 
+### El sistema entero, con un comando: compose y la configuración de despliegue (#164)
+
+Con las dos imágenes hechas (#162 y #163), levantar el sistema seguía siendo
+cinco comandos a mano que había que repetir idénticos en cada despliegue.
+`compose.yaml` describe los tres servicios —`api`, `mcp` y `web`— y cómo se
+conectan, y **cierra #156**: en el despliegue, la señal dedicada responde.
+
+```bash
+sudo docker compose up --build --wait
+```
+
+Necesita un `.env` junto al fichero con las tres claves que `settings` exige
+(`GUARDIAN_API_KEY`, `NYT_API_KEY`, `HF_TOKEN`). Ahí van **sólo los secretos**:
+lo que define el despliegue va en `environment`, a la vista en el repositorio, y
+manda sobre lo que traiga el `.env`.
+
+#### Lo medido, en la máquina 1
+
+| Criterio de aceptación | Resultado |
+|---|---|
+| Los tres servicios arrancan y los `healthcheck` pasan a sano | `healthy` los tres, con `--wait` |
+| Análisis con las cinco señales en `ok` | Las cinco, con cuerpo y a través de Caddy |
+| El historial sobrevive a `down` seguido de `up --build` | `total: 3` antes y después; el volumen sigue tras el `down` |
+| La pantalla de Sistema ejecuta una herramienta a través del MCP | `detect_clickbait` y `analyze_headline` en `ok` |
+
+Además, `/api/docs` funciona con `--root-path /api`, lo que dejó medido #163. El
+criterio *«desde fuera, por IP y HTTP»* pasa a **#165**, igual que `cors_origins`
+con el dominio: aquí se probó por túnel SSH, como en #163, y abrir los puertos 80
+y 443 es trabajo de la issue que pone el certificado.
+
+#### Las decisiones del compose
+
+- **`compose.yaml` en la raíz**, y no `docker-compose.yml` en `docker/`. Es el
+  nombre actual del formato, `docker compose` lo encuentra sin `-f`, y no cumple
+  el criterio de `docker/`: no va dentro de ninguna imagen.
+- **Los servicios se llaman `api`, `mcp` y `web`.** `api` es obligatorio —es el
+  contrato con el `Caddyfile`, que reenvía a `api:8000`— y `web` coincide con la
+  imagen de #163.
+- **`name: clickbait`.** Sin nombre fijo, compose saca el del proyecto de la
+  carpeta, y en un clon con otro nombre el volumen del historial sería otro: el
+  historial *parecería* borrado.
+- **Un volumen con nombre, montado en `/app/var`**, donde la API ya escribía, así
+  que no cambia ninguna configuración. Frente a montar una carpeta del
+  repositorio, evita ficheros a nombre de root dentro del clon, que es lo que
+  dejaría `sudo`. Ojo: `docker compose down` conserva el volumen, pero
+  `down -v` lo borra.
+- **Nada expuesto**: sólo `web` publica un puerto, y en `127.0.0.1:8080`.
+- **Ningún servicio espera a otro.** `depends_on` con `service_healthy` haría que
+  una API que no llega a estar sana dejara **la web entera sin arrancar**. Sin
+  él, Caddy sirve la aplicación y contesta 502 en `/api`, que el indicador de
+  salud ya sabe explicar (#147); y un MCP caído sólo degrada la pantalla de
+  Sistema, porque `/analyze` no pasa por él.
+- **Lo común se escribe una vez.** La API y el MCP son la misma imagen con otro
+  comando, así que su construcción, el `.env` y la política de reinicio viven en
+  un ancla de YAML (`x-backend`) que los dos servicios mezclan.
+
+#### Los healthchecks, y por qué la API no usa `/health`
+
+`/health` hace **tres peticiones externas** en cada llamada. Un healthcheck cada
+30 s serían 2.880 peticiones diarias sólo a NYT, que admite 500: la cuota se
+acabaría en unas cuatro horas, y a partir de ahí `/health` daría «degradado» por
+culpa del propio healthcheck. El de la API pide `/openapi.json`, que es local y
+sólo responde cuando uvicorn ha terminado de precalentar, con una línea de
+Python porque la imagen slim no trae `curl`. El del MCP comprueba que el puerto
+acepta conexiones —hablar MCP exige abrir una sesión—, y el de la web usa el
+`wget` de busybox que trae la imagen alpine de Caddy.
+
+**Un contenedor `unhealthy` no se reinicia solo.** Docker, sin Swarm, sólo
+reinicia cuando el proceso termina (`restart: unless-stopped`). El healthcheck
+informa —lo enseña `docker compose ps` y lo espera `--wait`—, pero no arregla
+nada por sí mismo.
+
+#### La primera trampa: el MCP rechazaba a la API
+
+Leyendo el código de la librería antes de escribir el compose apareció algo que
+no estaba en la issue, y se provocó en la VM antes de arreglarlo: con el
+servidor MCP en un contenedor, **desde dentro del propio contenedor respondía
+200, y desde la API, llamándolo por su nombre, `421 Invalid Host header`**.
+
+El motivo es una defensa contra *DNS rebinding*: una web maliciosa hace que su
+dominio resuelva a `127.0.0.1` para que el navegador de la víctima hable con un
+servidor local, y el servidor se defiende rechazando peticiones cuya cabecera
+`Host` no sea `localhost`. FastMCP activa esa defensa **al construirse** si su
+host es local, y `127.0.0.1` es el defecto. `main.py` crea el servidor al
+importar y le cambiaba el host a `0.0.0.0` después, dentro de `main()`: la
+defensa ya estaba puesta y no se recalculaba. La API llamaba a
+`http://mcp:8765`, con `Host: mcp:8765`, y recibía el 421. Las pruebas ya
+conocían la protección —un comentario de `tests/test_main.py` explica que se
+deja activa—, pero no **en qué momento** se decide.
+
+`configurar_red(servidor, host, puerto)` aplica el host y el puerto y quita la
+defensa **sólo si el host no es local**, que es la misma regla que sigue la
+librería al construirse. No abre ningún hueco: protege de un navegador que ataca
+un servidor de su propia máquina, y el puerto del MCP no se publica. Es una
+función y no un argumento del constructor porque leer la configuración al
+importar es lo que quitó #87. Dos pruebas la fijan mandando en memoria la misma
+petición que se midió: con `0.0.0.0` se acepta `Host: mcp:8765`, y con
+`127.0.0.1` se sigue rechazando, así que en desarrollo la defensa se mantiene.
+
+#### La segunda trampa: el MCP seguía usando HuggingFace remoto
+
+La primera ejecución de los criterios en la VM dio verde en casi todo, y la
+herramienta léxica se ejecutó a través del MCP en 0,14 s. Pero `detect_clickbait`
+respondió:
+
+```
+HTTP error: 400 - {"error":"Model not supported by provider hf-inference"}
+```
+
+Era el 400 de #156. **El servidor MCP también ejecuta las señales NLP** —sus
+herramientas llaman a los mismos detectores—, y `NLP_BACKEND: local` estaba sólo
+en la API, así que el MCP arrancó con `remote`. La regla de #156 —«`nlp_backend=
+local` y torch CPU van juntos o no van»— vale para los dos procesos. **Sólo se
+vio ejecutando una herramienta NLP**: con la léxica, que no carga modelos, el
+criterio de aceptación habría pasado.
+
+La variable vive ahora en un ancla propia (`x-entorno-backend`) que los dos
+servicios mezclan dentro de su `environment`. Va aparte y no dentro de
+`x-backend` porque **`<<:` sólo mezcla el primer nivel**: el `environment` de
+cada servicio sustituiría al común entero, y la variable volvería a desaparecer
+sin avisar. `tests/test_compose.py` lee el compose ya resuelto y exige que todo
+servicio con la imagen del backend tenga `NLP_BACKEND=local`; contra el fichero
+anterior, falla señalando al servicio `mcp`.
+
+#### Los errores del catálogo, legibles
+
+Anotado en #163: la pantalla de Sistema enseñaba `ExceptionGroup: unhandled
+errors in a TaskGroup (1 sub-exception)` cuando un servidor MCP no respondía. El
+cliente MCP lee y escribe en tareas concurrentes, y sus errores llegan envueltos
+en grupos. Provocados los casos:
+
+| Caso | Qué llegaba | Qué se publica ahora |
+|---|---|---|
+| El nombre del servicio, rechazado | grupo → `HTTPStatusError` | `HTTP 421 Misdirected Request` |
+| Puerto cerrado | grupo → `ConnectError` | `ConnectError` |
+| Nombre que no existe | grupo → `ConnectError` | `ConnectError` |
+| Ruta que no existe | grupo → **grupo** → `McpError` | `McpError` |
+| Servidor que acepta y no contesta | `TimeoutError`, **sin grupo** | `TimeoutError` |
+
+Era además el mismo patrón que filtró la clave en #163: texto de una librería en
+una salida pública. `health.py` ya tenía su regla, y escrita dos veces acabaría
+divergiendo, así que vive en `core/errores.py` como `describir_error()`: abre los
+grupos a cualquier profundidad y devuelve el código HTTP o el nombre del tipo,
+nunca el texto. La usan `health.py` —y sus pruebas de #163 siguen pasando sin
+tocarlas— y `api/catalog.py`. Seis pruebas cubren los casos medidos.
+
+#### Las fichas, corregidas al cerrar #156
+
+Las fichas de la señal dedicada y de la incoherencia decían que *«una instalación
+de producción de hoy no puede»* ejecutarlas. Se publican —en la pantalla de
+Sistema y por `describe_models`—, y al desplegar con compose dejaban de ser
+ciertas: es el criterio de `v0.4.1`, que lo publicado no puede inducir a error.
+Ahora distinguen una instalación hecha sólo con `requirements.txt`, que sigue
+sin poder, del despliegue, que sí.
+
+#### Tiempos y memoria
+
+| | |
+|---|---|
+| Primer `up --build --wait` | 129 s, con la capa de modelos rehecha porque cambió `model_cards.py` |
+| `up` tras cambiar sólo el compose | 15 s: recrea `api` y `mcp`, y deja `web` como estaba |
+| `down` y `up --build --wait` sin cambios | 14 s |
+| Precalentado en el contenedor | 6,5 s la señal dedicada y 0,3 s el sentimiento |
+| `detect_clickbait` a través del MCP, en frío / en caliente | 6,6 s / 0,1 s |
+| `analyze_headline` a través del MCP, en frío / en caliente | **7,0 s** / 0,3 s |
+
+**Una imagen para dos servicios no se construye dos veces**: los pasos de `mcp`
+salieron todos `CACHED`. Lo que sí se hace dos veces es exportar la imagen —97 s
+cada una, en paralelo—, que es el coste de reescribir la capa de modelos.
+
+**El MCP no precalienta, y ahora está medido que no hace falta**: cargar los tres
+modelos en frío tarda 7,0 s frente a los 60 s de `mcp_execute_timeout`. Los
+tiempos en frío son con los ficheros ya en la caché de disco del sistema —el
+build y los contenedores anteriores los habían leído—; tras reiniciar la máquina
+serán mayores, y eso no se ha medido.
+
+**La memoria, con un matiz de `docker stats`.** Da 442 MiB para la API y 407 MiB
+para el MCP, muy por debajo de los 1.201 MB de #156. Leyendo la memoria de cada
+proceso:
+
+| | Total residente | Privada | Respaldada por ficheros |
+|---|---|---|---|
+| API | **1.239 MiB** | 406 MiB | 833 MiB |
+| MCP | **1.232 MiB** | 402 MiB | 830 MiB |
+
+El total coincide con #156. La parte respaldada por ficheros —las bibliotecas de
+torch y los pesos leídos de disco— no la cuenta `docker stats` porque Linux carga
+esas páginas a quien leyó primero el fichero, que no fueron estos contenedores; y
+puede compartirse entre los dos procesos, que leen los mismos ficheros de la
+misma imagen. La máquina entera usaba 2.646 MB y tenía 12.967 MB disponibles: la
+estimación de ~2,4 GB para API y MCP que se hizo al decidir H4 se queda holgada.
+
+#### Lo que NO entra
+
+- **HTTPS, el dominio, `cors_origins` y abrir los puertos 80 y 443**: #165.
+- **Fijar la revisión de cada modelo horneado**, pendiente desde #162.
+
 ### La puerta de entrada: el Angular y la API detrás de Caddy (#163)
 
 Con la imagen del backend hecha (#162), la API sólo se podía probar desde la
@@ -2023,6 +2220,10 @@ serían ~900 MB de instalación en cada ejecución del CI para unos tests que lo
 mockean. Va en la imagen, con `--index-url https://download.pytorch.org/whl/cpu`
 —comprobado que instalar `sentence-transformers` después **no** lo sustituye por
 la variante CUDA—. Por eso **#156 se queda abierta**.
+
+_(Cerrada en #164: la imagen instala torch CPU y `sentence-transformers` (#162),
+el compose fija `nlp_backend=local` en los dos procesos del backend, y en el
+despliegue las cinco señales responden en `ok`. Ver la sección de #164.)_
 
 Dos cosas más que salieron para H4 y quedan anotadas en la issue:
 
