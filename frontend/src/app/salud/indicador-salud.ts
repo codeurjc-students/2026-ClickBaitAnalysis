@@ -162,8 +162,9 @@ export class IndicadorSalud {
    * parando uvicorn con la interfaz delante.
    *
    * La razón es la topología, que es la misma en desarrollo y en despliegue:
-   * entre el navegador y la API hay siempre un proxy —`proxy.conf.json` ahora,
-   * nginx en H4— y quien contesta cuando el destino no está es el proxy. El
+   * entre el navegador y la API hay siempre un proxy —`proxy.conf.json` en
+   * desarrollo, Caddy en despliegue— y quien contesta cuando el destino no está
+   * es el proxy. Comprobado también con Caddy en #163: `502 Bad Gateway`. El
    * `status 0` de `SIN_RESPUESTA` sólo aparecería si no contestara ni él.
    *
    * Por eso los códigos de pasarela se tratan como «no hay API al otro lado» y

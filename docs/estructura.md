@@ -203,7 +203,7 @@ lógica: si algo se le añadiera, pertenece a otro sitio.
 | `docs/` | Documentación y sus fuentes (`.drawio`, `img/`) |
 | `data/` | **Versionado e inmutable**: datasets y splits congelados. Si algo cambia en ejecución, no va aquí |
 | `var/` | **Gitignored y mutable**: estado que cambia en cada petición. Es el directorio que se monta como volumen |
-| `docker/` | ¿Existe sólo para **construir una imagen**? Un `<imagen>.Dockerfile` por imagen, con su `.dockerignore` al lado y del mismo nombre, y los guiones que corren **dentro** del build, como `hornear_modelos.py` (#162). El contexto del build es la raíz del repositorio, no esta carpeta. Lo de aquí puede importar de `backend/` —el horneado lee `MODEL_CARDS` para no duplicar los ids—, pero **nunca al revés**: si la aplicación necesitara algo de esta carpeta en ejecución, no era construcción |
+| `docker/` | ¿Sólo tiene sentido **dentro de una imagen**? Un `<imagen>.Dockerfile` por imagen, con su `.dockerignore` al lado y del mismo nombre; los guiones que corren **durante** el build, como `hornear_modelos.py` (#162); y la configuración que se copia **dentro** de una imagen, como el `Caddyfile` (#163). Hasta #163 la pregunta era «¿existe sólo para construir una imagen?», y el `Caddyfile` la desbordó: no construye nada, pero fuera de la imagen web no pinta nada. Tampoco cabía en `frontend/`, que es la SPA, cuando el `Caddyfile` enruta también hacia la API. El contexto del build es la raíz del repositorio, no esta carpeta. Lo de aquí puede importar de `backend/` —el horneado lee `MODEL_CARDS` para no duplicar los ids—, pero **nunca al revés**: si `backend/` o `frontend/` necesitaran algo de esta carpeta, no pertenecía aquí |
 | `frontend/` | La SPA Angular. Sus criterios, abajo |
 
 ---
