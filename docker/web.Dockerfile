@@ -1,13 +1,15 @@
 # Dos etapas: la primera compila el Angular con Node y la segunda lo sirve con
 # Caddy. Sólo la ÚLTIMA etapa se convierte en la imagen, así que Node y
-# node_modules nunca llegan a ella: no se quitan, nunca estuvieron.
+# node_modules nunca llegan a ella: no se quitan, nunca estuvieron. Medido: la
+# etapa de compilación ocupa 261 MB de contenido y la imagen final, 24 MB.
 #
-# Etiquetas móviles (`22-slim`, `2-alpine`) hasta medir qué versión se descarga
-# al construir; después se fijan a lo medido, como torch en el backend.
+# Versiones fijadas a lo que se descargó con `22-slim` y `2-alpine` el
+# 2026-09-17, como torch en el backend. Node es la misma del entorno de
+# desarrollo.
 
 # 1 · Compilar. Debian slim y no alpine: esta etapa se tira, su tamaño no llega
 #     a la imagen, y así compila con la misma libc que el entorno de desarrollo.
-FROM node:22-slim AS compilacion
+FROM node:22.23.2-slim AS compilacion
 
 WORKDIR /frontend
 
@@ -26,8 +28,10 @@ RUN npm run build
 
 # 2 · Servir. Alpine sí: Caddy es un único ejecutable de Go sin dependencias del
 #     sistema, a diferencia de torch en el backend. `CMD` y `EXPOSE` se heredan
-#     de la imagen base: arranca con /etc/caddy/Caddyfile y expone 80 y 443.
-FROM caddy:2-alpine
+#     de la imagen base: arranca con /etc/caddy/Caddyfile y declara 80, 443
+#     (TCP, y UDP para HTTP/3) y 2019, su API de administración. `EXPOSE` sólo
+#     documenta: lo que se publica lo decide `-p` al arrancar.
+FROM caddy:2.11.4-alpine
 
 COPY docker/Caddyfile /etc/caddy/Caddyfile
 
