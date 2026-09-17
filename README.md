@@ -1228,6 +1228,248 @@ Añadir el registro a `/analyze` convirtió, sin avisar, todos los tests de esa 
 
 `tests/api/test_history.py` cubre los dos lados por separado —el almacén llamando a sus funciones, el endpoint por HTTP— porque responden preguntas distintas: si los datos sobreviven y salen en orden, y si la decisión de «una entrada por análisis» se sostiene de verdad.
 
+### La imagen del backend: los modelos dentro, y cada capa en su sitio (#162)
+
+#156 dejó medido qué necesita producción para que respondan las cinco señales
+—torch en su rueda de CPU, `sentence-transformers` y los modelos ya
+descargados— y que nada de eso va en `requirements.txt`. Esta issue lo convierte
+en una imagen, `docker/backend.Dockerfile`, que arranca la API. El servidor MCP
+usará la misma imagen con otro comando, y eso llega con el compose de #164.
+
+```bash
+sudo docker build -f docker/backend.Dockerfile -t clickbait-backend .
+```
+
+#### Lo medido, en la máquina 1
+
+| Criterio de aceptación | Resultado |
+|---|---|
+| El build termina | **168,8 s** en frío |
+| Tocar código no vuelve a descargar modelos | **2,16 s**: sólo se rehace la capa del código |
+| La API con `NLP_BACKEND=local` responde `/analyze` | **las cinco señales en `ok`**, con `HF_HUB_OFFLINE=1` |
+| Tamaño de la imagen | **4,13 GB** en disco · **1,43 GB** de contenido — abajo, por qué dos |
+
+| Capa | Tamaño |
+|---|---|
+| `python:3.12-slim` | 142 MB |
+| `requirements.txt` | 330 MB |
+| torch CPU + `sentence-transformers` | **1,14 GB** |
+| Modelos | **1,1 GB** |
+| Código del backend | 356 kB |
+| **Total, descomprimido** | **~2,71 GB** |
+
+El código es el 0,01 % de la imagen y es lo que cambia en casi cada commit. De
+esa desproporción sale todo el diseño: que tocarlo no arrastre los otros 2,7 GB.
+*(Los 1,14 GB de la tercera capa no contradicen los 769 MB de torch de #156: la
+capa incluye además las dependencias de los dos paquetes que no estaban ya
+instaladas.)*
+
+**Por qué dos tamaños.** Docker 29 guarda las imágenes en el almacén de
+containerd, que conserva **dos copias de cada capa** —la comprimida, tal como se
+descarga, y la desempaquetada, que es la que usa un contenedor—, y la columna de
+disco de `docker image ls` suma ambas: 1,43 + 2,71 ≈ 4,13. Para los 58 GB de la
+máquina cuenta el primer número.
+
+#### El orden de las capas, y el error que tenía el plan
+
+Docker cachea cada instrucción como una capa identificada por lo que entra en
+ella. Cuando una cambia, **se rehace ella y todas las de debajo**, aunque las de
+debajo no hayan cambiado. Así que el orden bueno va de lo que menos cambia a lo
+que más:
+
+```
+1  requirements.txt                 cambia al recompilar el lockfile
+2  torch + sentence-transformers    versiones fijadas a mano en el Dockerfile
+3  modelos                          se rehace cuando cambia model_cards.py
+4  código                           cambia en casi cada commit
+```
+
+El plan ponía los modelos **antes** que torch, pensando en ellos como «lo pesado
+que no hay que volver a bajar». Pero las dos capas pesan lo mismo, y lo que
+decide el orden no es el peso sino **con qué frecuencia cambia lo que invalida
+cada una**: torch sólo cambia si alguien sube su versión. Con el orden del plan,
+cada cambio en las fichas habría reinstalado también 1,14 GB de torch. Se
+invirtió antes de construir.
+
+#### Lo que la issue daba por hecho, y no era exacto
+
+La issue afirmaba que la capa de modelos *«sólo se invalida cuando cambian las
+fichas — que es exactamente cuando cambian los modelos»*. La primera mitad es
+cierta y la segunda no: Docker no sabe qué parte del fichero ha cambiado, y
+`model_cards.py` no guarda sólo ids, guarda también las descripciones, las
+limitaciones y las medidas de cada señal. Contado en el historial: **entre el 25
+de agosto y el 8 de septiembre, 9 PRs tocaron `model_cards.py`, y sólo una cambió
+un modelo** (#120, de `bart-large-mnli` a `roberta-base-clickbait`).
+
+Medido lo que cuesta: cambiar un texto de una ficha reconstruye en **1 min 55
+s** —según el registro, la descarga había terminado a los 16,7 s—, y deshacer el
+cambio vuelve a **6,2 s**, todo `CACHED`: la caché identifica cada capa por su
+contenido, y la anterior seguía guardada.
+
+#### Una etapa para aislar los ids: criterio fijado antes de medir, y descartada
+
+Hay una forma de que un cambio de texto no toque esa capa: una etapa previa del
+build que lea `MODEL_CARDS` y escriba **sólo los ids** en un fichero, y que la capa
+de modelos copie ese fichero. Un cambio de texto produciría el mismo fichero, y
+la caché acertaría.
+
+Antes de medir se fijó cuándo compensaría: si la reconstrucción costaba del
+orden de **un minuto, no**; de **diez, sí**. Midió **dos**, así que se descarta —
+una etapa más es una pieza más que entender en el `Dockerfile` para ahorrar dos
+minutos que sólo se pagan al tocar una ficha—. Fijar el umbral antes es lo que
+impide leer el número a favor de lo que ya se quería hacer.
+
+#### Qué hace falta copiar para hornear
+
+La issue pedía comprobar que `model_cards.py` no arrastrara imports que obligaran
+a copiar más. Arrastra uno: `outputs.py`, por el tipo `FichaModelo`, que a su vez
+sólo importa `typing`. Con los tres `__init__.py` del camino, vacíos, son **cinco
+ficheros**: la capa de modelos depende de ellos y del guion de horneado, y de
+ningún otro fichero del código.
+
+#### Los modelos se descargan por formato, no cargándolos
+
+La primera versión del guion **cargaba** cada modelo con su librería. Se descartó
+por dos motivos, medidos antes de escribirla:
+
+- **Duplicaba un dato.** Para cargar hay que decir qué librería usa cada señal, y
+  eso ya lo dicen `local.py` e `incoherence.py`. Es la divergencia de #116 con
+  otro dato.
+- **Horneaba el doble.** Los dos RoBERTa tienen en su rama `main` sólo
+  `pytorch_model.bin`; su `model.safetensors` vive en una PR de conversión
+  automática del Hub (`refs/pr/1` en Stremie, `refs/pr/43` en cardiffnlp).
+  Cargando con red se descargan **los dos**, ~2 GB. Pero **sin red `transformers`
+  sólo ve `main`**, y se comprobó quitando cada fichero de una copia de la caché:
+
+| Quitando | Resultado sin red |
+|---|---|
+| `model.safetensors` | carga bien |
+| `pytorch_model.bin` | `OSError: … does not appear to have a file named pytorch_model.bin or model.safetensors` |
+
+Como la imagen corre sin red hacia el Hub, el `safetensors` de la PR serían ~1 GB
+de peso muerto.
+
+`docker/hornear_modelos.py` pide a cada repositorio la lista de ficheros de
+`main` y descarga configuración y vocabulario (`*.json`, `*.txt`) más **un solo**
+fichero de pesos: `model.safetensors` si está en `main` y, si no,
+`pytorch_model.bin` — el mismo orden en que los busca `transformers`. Así no
+necesita saber qué librería carga cada modelo. `snapshot_download` filtra los
+nombres **antes** de descargar —comprobado en su código—, de modo que lo que no
+encaja no llega a transferirse. Resultado: **1,1 GB**, y las cinco señales en
+`ok` sin red.
+
+*Sobre usar el `.bin`:* `safetensors` existe porque `pickle` puede ejecutar código
+al abrir un fichero. `transformers` carga los `.bin` con `weights_only=True`, que
+rechaza precisamente eso.
+
+Las revisiones horneadas el 2026-09-16, iguales en la máquina 1 y en la caché de
+desarrollo:
+
+| Modelo | Revisión de `main` | Pesos |
+|---|---|---|
+| `Stremie/roberta-base-clickbait` | `517de05db9ba` | `pytorch_model.bin` |
+| `cardiffnlp/twitter-roberta-base-sentiment-latest` | `3216a57f2a0d` | `pytorch_model.bin` |
+| `sentence-transformers/all-MiniLM-L6-v2` | `1110a243fdf4` | `model.safetensors` |
+
+Se anotan porque **nada las fija**. El guion baja lo que haya en `main` el día del
+build: si el autor de un modelo sube pesos nuevos, reconstruir hornearía otro
+modelo, y su ficha seguiría publicando las medidas del anterior. Es la lección de
+#119 por otra puerta —allí las medidas dejaban de ser ciertas al configurar otro
+modelo; aquí, con sólo dejar pasar el tiempo—. Fijar la revisión obliga a decidir
+dónde vive ese identificador sin volver a duplicarlo, y queda anotado en #162
+como decisión aparte.
+
+#### `HF_HUB_OFFLINE=1`: lo que da y lo que cuesta
+
+Se activa **después** de hornear, y hace dos cosas:
+
+- **El modelo que se sirve es el horneado.** Con red, cada carga pregunta al Hub
+  por la revisión actual de `main`; sin ella, la imagen queda congelada y sólo
+  una reconstrucción cambia el modelo.
+- **Un horneado incompleto da error**, en vez de completarse en silencio
+  descargando lo que falte en cada contenedor nuevo.
+
+**Dónde se ve ese error no es donde se creyó.** Al escribir el `Dockerfile` se
+dio por hecho que *«falla al arrancar»*, y no: `precalentar` **se traga los
+fallos a propósito** (#125) —un modelo que no carga no debe impedir servir
+`/tools` ni `/history`— y además está **desactivado por defecto**. Sin
+`PREHEAT_MODELS=true` el error aparece en la primera petición; con él, al
+arrancar, como `preheat.failed` en el log, y el proceso sigue en pie.
+
+**El coste, medido:** un modelo puesto por `NLP_MODELS` ya **no se descarga al
+usarse**, que es lo que la propia issue daba por hecho apoyándose en #119.
+Probado en el entorno de desarrollo, con una caché vacía y la variable activa:
+
+```
+Error inesperado usando el modelo elozano/bert-base-cased-clickbait-news:
+We couldn't connect to 'https://huggingface.co' to load the files, and
+couldn't find them in the cached files.
+```
+
+Experimentar con otro modelo dentro del contenedor pide arrancarlo con
+`-e HF_HUB_OFFLINE=0`, y lo descargado queda en el contenedor, no en la imagen.
+El mensaje, además, llama «inesperado» a algo previsible: lo mismo que #158
+arregló para las dependencias.
+
+De paso, la nota de #156 sobre `HF_TOKEN` deja de afectar a los modelos
+declarados: en ejecución no se descarga nada, y en el build no hace falta porque
+los tres son públicos.
+
+#### El `.dockerignore`: lo que entra, no lo que no
+
+`docker/backend.Dockerfile.dockerignore` excluye **todo** (`*`) y abre sólo
+`requirements.txt`, `backend/` y el guion de horneado. Una lista de exclusiones
+habría que mantenerla al día con cada fichero nuevo del repositorio —un
+`.env.prod`, un volcado del historial—, y lo olvidado entraría en la imagen sin
+avisar. Con una lista de lo que entra, olvidar algo hace fallar un `COPY` a la
+vista. Es la trampa grave que anotaba la issue: **un secreto dentro de una capa
+se queda aunque luego se borre**.
+
+El contexto del build baja a **18,44 kB**, cuando sólo `.venv` son 5,3 GB. Dentro
+de lo abierto se quitan `__pycache__` y `backend/evaluation/`, que por el
+criterio de `docs/estructura.md` no se importa en ejecución.
+
+El nombre lleva delante el del `Dockerfile` porque Docker busca primero
+`<Dockerfile>.dockerignore` a su lado. La imagen del frontend (#163) necesita
+otros ficheros, y un `.dockerignore` único en la raíz tendría que servir a las
+dos.
+
+#### Detalles pequeños que romperían algo
+
+- **`python:3.12-slim`, no alpine**: alpine usa musl en vez de glibc, y torch no
+  publica ruedas para musl.
+- **`--host 0.0.0.0`**: dentro de un contenedor, `127.0.0.1` es la interfaz local
+  del propio contenedor, y el puerto publicado llega por su interfaz de red.
+  Escuchando en `127.0.0.1` arranca sin errores y nadie puede hablarle.
+- **`-p 127.0.0.1:8000:8000` al probar**: la API no tiene autenticación y en la
+  máquina 1 `ufw` está inactivo. Publicando sólo en la interfaz local del
+  anfitrión no se expone nada; desde fuera se entrará por Caddy (#163).
+- **`CMD` en forma JSON**: uvicorn es el proceso principal y recibe la señal de
+  `docker stop`. En forma de texto la recibiría un `/bin/sh` que no la reenvía,
+  y Docker acabaría matándolo a los 10 s.
+- **`UNEXPECTED` en el log al cargar el modelo de sentimiento**: el checkpoint de
+  cardiffnlp trae los pesos del *pooler*, que la cabeza de clasificación no usa.
+  Es inofensivo; lo grave sería `MISSING`, pesos que faltan y se inicializan al
+  azar.
+
+#### Limpiar el disco: `builder prune`, no `image prune`
+
+Con el almacén de containerd, **reconstruir no deja imágenes huérfanas**: las
+capas viejas pasan a la caché de build. Tras estas pruebas la caché ocupaba 6,2
+GB, 2,09 de ellos recuperables, y `docker image prune` liberó **0 B**. La
+herramienta es `docker builder prune`. `docker image prune -a`, en cambio,
+borraría la propia `clickbait-backend` si no hay un contenedor que la use.
+
+#### Lo que NO entra
+
+- **El servidor MCP**: misma imagen, otro comando, y `mcp_host` a `0.0.0.0` —su
+  defecto es `127.0.0.1`, la trampa de arriba—. Es #164.
+- **El historial** vive en `/app/var` dentro del contenedor y **se pierde al
+  recrearlo**. El volumen es #164.
+- **`nlp_backend=local` y `PREHEAT_MODELS` como configuración del despliegue**,
+  con las que se cierra #156: también #164.
+- **Fijar la revisión de cada modelo**: anotado en #162, se decide aparte.
+
 ### La otra mitad de R3.9: los modelos, por configuración (#119, #87)
 
 R3.9 pide dos cosas —**divulgar** los modelos y **permitir intercambiarlos por

@@ -31,7 +31,7 @@ RUN python /tmp/hornear_modelos.py && rm /tmp/hornear_modelos.py
 # 4 · El código, lo último porque es lo que más cambia.
 COPY backend/ backend/
 
-# Sin red hacia HuggingFace: un horneado incompleto falla al arrancar.
+# Sin red hacia HuggingFace: lo que no se horneó da error en vez de descargarse.
 ENV HF_HUB_OFFLINE=1
 
 EXPOSE 8000

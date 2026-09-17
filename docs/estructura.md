@@ -203,7 +203,7 @@ lógica: si algo se le añadiera, pertenece a otro sitio.
 | `docs/` | Documentación y sus fuentes (`.drawio`, `img/`) |
 | `data/` | **Versionado e inmutable**: datasets y splits congelados. Si algo cambia en ejecución, no va aquí |
 | `var/` | **Gitignored y mutable**: estado que cambia en cada petición. Es el directorio que se monta como volumen |
-| `docker/` | *(vacía)* — reservada para H4 |
+| `docker/` | ¿Existe sólo para **construir una imagen**? Un `<imagen>.Dockerfile` por imagen, con su `.dockerignore` al lado y del mismo nombre, y los guiones que corren **dentro** del build, como `hornear_modelos.py` (#162). El contexto del build es la raíz del repositorio, no esta carpeta. Lo de aquí puede importar de `backend/` —el horneado lee `MODEL_CARDS` para no duplicar los ids—, pero **nunca al revés**: si la aplicación necesitara algo de esta carpeta en ejecución, no era construcción |
 | `frontend/` | La SPA Angular. Sus criterios, abajo |
 
 ---
