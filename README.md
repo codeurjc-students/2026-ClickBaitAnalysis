@@ -1036,6 +1036,8 @@ Navegador ──(1)──→ nginx ──(2)──→ FastAPI ──(3)──→
 
 **Topología del frontend: nginx como proxy inverso.** Sirve el build de Angular en `/` y reenvía `/api/*` a uvicorn por la red interna. Para el navegador todo es **el mismo origen**: desaparecen CORS y el *preflight* —que hoy convierte cada `POST /analyze` en dos viajes—, pero se mantienen dos contenedores con trabajos separados. En desarrollo el equivalente es el `proxy.conf.json` de Angular, de modo que desarrollo y producción se comporten igual; ese desajuste es el fallo clásico de servir el front en un origen distinto.
 
+_(Cambiado en #163: el proxy es **Caddy**, no nginx. Lo decidido aquí —proxy delante, mismo origen, sin CORS— se mantiene; cambia la pieza, y el motivo está en la sección de #163.)_
+
 Se descartó que **FastAPI sirviera los estáticos**: no es su trabajo, acopla el despliegue del frontend al de la API, y el *catch-all* que exige el enrutado de cliente de Angular puede tragarse `/docs` y `/openapi.json` si se registra en mal orden.
 
 **`CORSMiddleware` se mantiene igualmente**, aunque la topología lo vuelva inerte en producción: R4.7 lo exige, cuesta seis líneas y es la salida si en algún momento se desarrolla sin proxy.
@@ -1227,6 +1229,242 @@ El mínimo de 1 no es cosmético: **en SQLite un `LIMIT` negativo significa «si
 Añadir el registro a `/analyze` convirtió, sin avisar, todos los tests de esa ruta en escritores del historial real: una corrida de la suite dejaba cuatro entradas «Un titular» en `var/history.db`. El aislamiento va en un fixture `autouse` de `tests/conftest.py` y no en el fichero que prueba el historial, porque **quien contamina no es quien lo prueba**: lo hace cualquier test que llame a un endpoint que registre, incluidos los que aún no existen.
 
 `tests/api/test_history.py` cubre los dos lados por separado —el almacén llamando a sus funciones, el endpoint por HTTP— porque responden preguntas distintas: si los datos sobreviven y salen en orden, y si la decisión de «una entrada por análisis» se sostiene de verdad.
+
+### La puerta de entrada: el Angular y la API detrás de Caddy (#163)
+
+Con la imagen del backend hecha (#162), la API sólo se podía probar desde la
+propia máquina. Esta issue construye **la pieza que da la cara**: una imagen que
+sirve el Angular compilado y reenvía `/api/*` a la API, de modo que para el
+navegador todo sale del mismo origen. Es la topología decidida en H2 con otra
+pieza delante.
+
+```bash
+sudo docker build -f docker/web.Dockerfile -t clickbait-web .
+```
+
+#### nginx → Caddy: cambia la pieza, no la decisión
+
+H2 eligió nginx (sección de #86). Lo que se decidió entonces —proxy inverso
+delante, mismo origen, sin CORS— no cambia. Cambia la pieza, por tres motivos:
+
+1. **Caddy renueva el certificado solo.** Los de Let's Encrypt duran 90 días;
+   con nginx la renovación depende de certbot, de un temporizador y de recargar
+   nginx, y si falla cualquiera de los tres la web cae tres meses después.
+   Contando desde septiembre, **en diciembre, antes de la defensa**.
+2. **Quitar el prefijo `/api` queda escrito.** En nginx depende de una barra
+   final en `proxy_pass`, invisible y sin error si falta; en Caddy es
+   `handle_path`.
+3. Menos configuración que justificar en la memoria.
+
+A favor de nginx quedaba que está más extendido.
+
+La imagen se llama **`web`** y no `frontend`: sirve el Angular, pero también es
+el proxy hacia la API y la puerta de entrada de todo el sistema. `frontend`
+predeciría algo falso, que es el criterio de renombrado de `docs/estructura.md`.
+
+#### Lo medido, en la máquina 1
+
+| Criterio de aceptación | Resultado |
+|---|---|
+| La imagen construye | **26,0 s** sin caché (con las imágenes base ya descargadas) |
+| Recargar `/historial` y `/analisis/1` sirve la aplicación | `200` y `text/html` en las dos, **con el mismo `Etag`**: es el mismo `index.html`, y decide el router de Angular |
+| `/api/health` llega a la API como `/health` | Responde la API, que no tiene ninguna ruta `/api/health` |
+| La imagen final no contiene Node | `command -v node` no encuentra nada |
+
+| | En disco | Contenido |
+|---|---|---|
+| Etapa de compilación, con Node y `node_modules` | 1,04 GB | 261 MB |
+| **Imagen final** | **88,9 MB** | **24 MB** |
+
+Las versiones se fijaron a lo que descargaron las etiquetas móviles al
+construir, como torch en #162: **Caddy 2.11.4** y **Node 22.23.2**, que es
+exactamente la del entorno de desarrollo.
+
+#### Dos etapas, y por qué la final no tiene Node
+
+Un `Dockerfile` puede tener varios `FROM`. Cada uno empieza una etapa desde cero
+y **sólo la última se convierte en la imagen**; de las anteriores se copia lo que
+haga falta con `COPY --from`. La primera etapa compila con Node, y la segunda
+parte de Caddy y copia sólo `dist/clickbait-web/browser`. Node no se quita de la
+imagen final: **nunca estuvo en esa etapa**.
+
+- **Compilar sobre Debian `slim`, servir sobre alpine.** La etapa de compilación
+  se tira, así que su tamaño no importa, y compila con la misma libc que el
+  entorno de desarrollo. Caddy es un único ejecutable de Go sin dependencias del
+  sistema, así que alpine no le afecta — al revés que torch en #162, que necesita
+  glibc.
+- **`package.json` y `package-lock.json` antes que el código**, por la regla de
+  capas de #162: tocar un componente reutiliza la capa de dependencias.
+- **`npm ci` y no `npm install`**: instala exactamente el lockfile y falla si no
+  coincide con `package.json`. Y con `NODE_ENV=production` omitiría las
+  `devDependencies`, que es donde está el compilador de Angular.
+- **Se copia `browser/`, no `dist/clickbait-web/`**: `COPY` de un directorio
+  copia su contenido, y `index.html` tiene que quedar en `/srv`.
+- **`CMD` y `EXPOSE` se heredan** de la imagen oficial, comprobado con `docker
+  image inspect`: arranca con `/etc/caddy/Caddyfile` y declara 80, 443 (TCP y
+  UDP) y 2019. `EXPOSE` sólo documenta; lo que se publica lo decide `-p`.
+
+#### El `Caddyfile`
+
+```caddyfile
+:80 {
+	handle_path /api/* {
+		reverse_proxy api:8000
+	}
+
+	handle {
+		root * /srv
+		try_files {path} /index.html
+		file_server
+	}
+}
+```
+
+- **`:80`, sin dominio**: Caddy sólo pide certificado cuando la dirección lleva
+  un dominio, y eso es #165. Tampoco la IP: con una IP activaría HTTPS con un
+  certificado propio que el navegador rechaza.
+- **`handle_path` quita el prefijo**, como `pathRewrite` en `proxy.conf.json`.
+  La contraprueba: `/api/api/health` devuelve `{"detail":"Not Found"}`, porque a
+  la API le llega `/api/health`. Es lo que habría pasado con **todas** las rutas
+  usando `handle`, que recoge igual pero no recorta.
+- **`try_files`** sirve el fichero si existe y, si no, reescribe a `index.html`
+  por dentro: la URL no cambia y la respuesta es 200. Efecto secundario: un `.js`
+  que no existe también devuelve `index.html` con 200, así que tras un
+  redespliegue el síntoma de un fichero perdido sería un error de tipo MIME, no
+  un 404.
+- **El orden de los bloques lo decide Caddy**, no el fichero. No se dio por
+  hecho: `caddy adapt`, que enseña la configuración ya traducida, pone el recorte
+  de `/api` en la línea 27 y `file_server` en la 82.
+- **`api` es un contrato**: el contenedor de la API se llama así, y su servicio
+  en el compose de #164 tendrá que llamarse igual.
+- Con la API parada, Caddy contesta **`502 Bad Gateway`**, lo mismo que dejó
+  documentado #147 con `proxy.conf.json`.
+
+**Dónde vive el `Caddyfile`, y un criterio que se desbordó.** El criterio de
+`docker/`, escrito en #162, preguntaba *«¿existe sólo para construir una
+imagen?»*, y el `Caddyfile` no construye nada. Tampoco cabía en `frontend/`, que
+es la SPA, cuando el `Caddyfile` enruta también hacia la API. La pregunta pasa a
+ser *«¿sólo tiene sentido dentro de una imagen?»*.
+
+#### El `.dockerignore`, probado con un canario
+
+Excluir `frontend/node_modules` no es sólo por tamaño: el `COPY frontend/ ./` va
+**después** de `npm ci`, y si `node_modules` entrara en el contexto pisaría las
+dependencias recién instaladas con las de la máquina que construye.
+
+Mirar el tamaño del contexto no lo demostraba —en la VM no hay `node_modules`
+que excluir, que es lo que ya engañó en #162—, así que se creó uno falso con un
+fichero trampa, se construyó sólo la primera etapa (`--target compilacion`) y se
+buscó dentro: `No such file or directory`. La exclusión funciona.
+
+#### Cómo se probó sin exponer nada
+
+Sin compose todavía (#164), los dos contenedores se conectaron con una red de
+Docker creada a mano, donde cada uno encuentra al otro por su nombre. **La API
+no se publicó**: sólo se llega a ella a través de Caddy. Y Caddy se publicó en
+`127.0.0.1:8080`, no en la IP pública, aunque la issue decía «por IP»: el puerto
+80 de la máquina 1 es alcanzable desde internet, y detrás hay una API sin
+autenticación que gasta las cuotas de Guardian y NYT. El navegador llegó por un
+túnel SSH abierto desde el panel de puertos de VS Code. Exponer la aplicación se
+decide en #165, con HTTPS.
+
+#### Lo que salió al probarlo: la clave de Guardian se publicaba
+
+La primera respuesta de `/api/health` traía **la clave de Guardian en texto
+plano**, dentro del mensaje de error. Guardian y NYT reciben la clave en la URL
+(`?api-key=…`); ante un 401, el mensaje de la excepción de httpx incluye la URL
+completa, y `health.py` devolvía `str(exc)` tal cual. Ese texto es público: sale
+por `GET /health`, lo pinta el indicador de la cabecera (#147) y lo recibe por
+MCP quien llame a `health_check`, el LLM del agente incluido.
+
+Antes de arreglarlo se provocaron los errores con una clave falsa, que es la
+regla que dejó #162 para traducir errores de librerías:
+
+| Camino | Caso | ¿Llevaba la clave? |
+|---|---|---|
+| `health._probe` (lo que sale por `/health`) | 401 de Guardian o de NYT | **sí**: `Client error '401 Unauthorized' for url '…?api-key=…'` |
+| | timeout | no, pero el mensaje salía **vacío** |
+| | fallo de conexión | no |
+| `BaseAPI.make_request` (lo que reciben los clientes) | 401, timeout y conexión | no: escribe su propio mensaje |
+
+La fuga estaba sólo en `health.py`, y ahora `_probe` redacta el error: un error
+HTTP es `HTTP 401 Unauthorized`, y un fallo de red, el nombre de su tipo
+(`ConnectError`, `ConnectTimeout`). Los fallos de red también se reducen al tipo
+aunque salieran limpios, porque sólo se midieron dos de los que puede lanzar
+httpx y la salida es pública; se pierde el detalle `Name or service not known`, y
+se acepta. De paso, el timeout deja de dar un error vacío, que el indicador leía
+como «no responde» sin motivo.
+
+Cinco pruebas lo fijan. La principal simula que las tres APIs responden 401 y
+comprueba que **las claves de la configuración no aparecen en ninguna parte** de
+la respuesta completa de `check_health()` convertida a JSON, así que un campo
+nuevo queda cubierto sin tener que acordarse de él. Y una prueba existente exigía
+justo lo contrario —que el texto de la excepción llegara a la respuesta—, y
+ahora exige que no llegue. Repetida la medición contra las APIs reales, los
+cuatro casos salen limpios. **246 pruebas en los dos entornos.**
+
+**Con una clave válida la fuga no desaparecía, sólo era menos frecuente**: pasaba
+cada vez que Guardian o NYT respondieran con un error, un 429 por cuota
+incluido. La clave expuesta resultó estar ya rechazada por Guardian —la misma en
+desarrollo y en la VM, comprobado comparando un hash, no la clave—, y se generó
+una nueva. El orden acordado fue **primero el arreglo y después la clave**, para
+no filtrar también la nueva.
+
+**Por qué no bastaba con mandar la clave en una cabecera.** Contra la
+interceptación en la red no cambia nada: HTTPS cifra igual la URL y las
+cabeceras. Contra las filtraciones por descuido sí ayuda, porque las URLs se
+escriben en muchos más sitios —mensajes de error, logs de librerías HTTP y de
+proxies, trazas—; pero NYT sólo acepta la clave en la URL, y la clave pública de
+pruebas de Guardian ya da 401 también en la URL, así que no se pudo comprobar si
+Guardian la acepta en cabecera. El arreglo que vale para las dos es no reenviar
+texto de librerías a una salida pública. `logging.py` ya silenciaba el log de
+httpx por lo mismo: alguien previó la fuga en los logs, pero no en los mensajes
+de error.
+
+#### Lo que salió al probarlo: `/api/docs`, roto
+
+La página de documentación cargaba, pero pedía su esquema a `/openapi.json`, sin
+el prefijo. Esa ruta la recoge el bloque de la SPA y devuelve `index.html`, y
+Swagger responde *«does not specify a valid version field»*.
+
+Tiene su ironía. H2 descartó que FastAPI sirviera el Angular, entre otros
+motivos, porque la ruta comodín de la SPA *«puede tragarse `/docs` y
+`/openapi.json`»*. Ha pasado igualmente, un nivel más arriba, en el proxy.
+
+El `Caddyfile` es correcto: lo que falta es que la API sepa que vive bajo `/api`.
+Se comprobó arrancándola con **`uvicorn … --root-path /api`**: la documentación
+pasa a pedir `/api/openapi.json`, que llega como JSON (`"openapi":"3.1.0"`), y
+`/health` y `/analyze` siguen respondiendo, que era el riesgo del cambio. Va a
+**#164**, en el comando de la API del compose, y no en el `CMD` del `Dockerfile`:
+ahí rompería la documentación al acceder a la API sin proxy, como en las pruebas
+de #162.
+
+#### Lo que salió al probarlo: el historial se pierde al recrear el contenedor
+
+El historial es `/app/var/history.db`, un fichero en la capa escribible del
+contenedor. Reproducido con control:
+
+| Acción | Historial |
+|---|---|
+| Dos análisis | `total: 2` |
+| `docker restart api` | `total: 2` |
+| `docker rm` + `docker run` | **`total: 0`**, y el siguiente análisis vuelve a ser `id: 1` |
+
+Reiniciar no pierde nada; recrear, todo. Y recrear es lo que hace `docker compose
+up --build` en cada despliegue, así que el volumen de #164 deja de ser una
+precaución anotada y pasa a ser un fallo reproducido.
+
+#### Lo que NO entra
+
+- **HTTPS y el dominio**: #165.
+- **Para #164, anotado en la issue**: el compose; el servidor MCP, sin el cual la
+  pantalla de Sistema dice «no responde» —`MCP_SERVERS` apunta por defecto a
+  `127.0.0.1`, que dentro del contenedor es el propio contenedor—; el
+  `--root-path`; el volumen del historial; y el detalle del error de un servidor
+  MCP caído, que hoy dice `ExceptionGroup: unhandled errors in a TaskGroup` sin
+  el motivo real y reenvía texto de librería, el mismo patrón que la fuga.
+- **Compresión y cabeceras de caché** de los estáticos: no se han medido, y no se
+  añaden a ciegas.
 
 ### La imagen del backend: los modelos dentro, y cada capa en su sitio (#162)
 

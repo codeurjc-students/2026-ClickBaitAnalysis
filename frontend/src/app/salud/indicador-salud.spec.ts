@@ -163,9 +163,10 @@ describe('IndicadorSalud', () => {
 
   // Medido el 7-09 parando uvicorn con la interfaz delante: con la API apagada
   // NO llega `status 0`, llega **502**, porque entre el navegador y la API hay
-  // siempre un proxy —`proxy.conf.json` hoy, nginx en H4— y quien contesta
-  // cuando el destino no está es él. Sin este caso, el mensaje diría que la API
-  // no pudo informar de su estado, de un proceso que está apagado.
+  // siempre un proxy —`proxy.conf.json` en desarrollo, Caddy en despliegue, que
+  // da el mismo 502 (#163)— y quien contesta cuando el destino no está es él.
+  // Sin este caso, el mensaje diría que la API no pudo informar de su estado, de
+  // un proceso que está apagado.
   it('un 502 del proxy se lee como que no hay API, no como que la API falló', async () => {
     fixture = TestBed.createComponent(IndicadorSalud);
     http.expectOne('/api/health').flush('Bad Gateway', {
