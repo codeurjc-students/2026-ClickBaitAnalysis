@@ -141,10 +141,11 @@ export type HealthResult = Health['responses'][200]['content']['application/json
 // contrato es un enum EN LÍNEA, sin esquema propio con nombre.
 export type EstadoSalud = HealthResult['status'];
 
-// La sonda de una integración: si respondió y, si no, por qué. El `error` es el
-// texto de la excepción de httpx, así que es técnico a propósito — quien lo
-// pinte tiene que marcarlo como tal, igual que hizo #130 con el `detail` de una
-// señal caída.
+// La sonda de una integración: si respondió y, si no, por qué. El `error` lo
+// redacta el backend —`HTTP 401 Unauthorized`, `ConnectTimeout`— y NO es el
+// texto de la excepción de httpx, que llevaba la URL con la clave de la API
+// dentro (#163). Sigue siendo técnico — quien lo pinte tiene que marcarlo como
+// tal, igual que hizo #130 con el `detail` de una señal caída.
 export type Sonda = Esquemas['Sonda'];
 
 // --- Errores de validación de FastAPI (422) ---

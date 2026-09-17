@@ -30,10 +30,11 @@
                 {{ integracion.sonda.reachable ? 'responde' : 'no responde' }}
               </span>
 
-              <!-- El `error` de la sonda es el texto de la excepción de httpx,
-                   así que es técnico. Se enseña igual —es lo único que permite
-                   diagnosticar— pero marcado como lo que es, igual que hizo
-                   #130 con el `detail` de una señal caída. -->
+              <!-- El `error` de la sonda es un código HTTP o un tipo de fallo
+                   que redacta el backend: nunca el texto de httpx, que llevaba
+                   la clave de la API (#163). Es técnico, y se enseña igual —es
+                   lo único que permite diagnosticar— pero marcado como lo que
+                   es, igual que hizo #130 con el `detail` de una señal caída. -->
               @if (integracion.sonda.error; as tecnico) {
                 <span class="sonda__tecnico">{{ tecnico }}</span>
               }
