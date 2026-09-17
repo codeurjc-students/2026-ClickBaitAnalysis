@@ -20,6 +20,17 @@ x-backend: &backend
   env_file: .env
   restart: unless-stopped
 
+# Configuración que necesitan los DOS procesos, porque los dos ejecutan señales
+# NLP: la API desde `/analyze` y el MCP desde sus herramientas. Hasta #164 estaba
+# sólo en la API, y el MCP arrancaba con `remote`: ejecutar `detect_clickbait`
+# desde la pantalla de Sistema daba el 400 de #156.
+#
+# Va en un ancla aparte y no dentro de `x-backend` porque `<<:` sólo mezcla el
+# primer nivel: el `environment` de cada servicio SUSTITUIRÍA al común en vez de
+# sumarse, y la variable volvería a desaparecer sin avisar.
+x-entorno-backend: &entorno-backend
+  NLP_BACKEND: local # el modelo dedicado no se sirve en remoto (#156)
+
 services:
   api:
     <<: *backend
@@ -29,7 +40,7 @@ services:
     # que rompería la documentación al llamar a la API sin proxy.
     command: ["uvicorn", "backend.api.app:app", "--host", "0.0.0.0", "--port", "8000", "--root-path", "/api"]
     environment:
-      NLP_BACKEND: local # el modelo dedicado no se sirve en remoto (#156)
+      <<: *entorno-backend
       PREHEAT_MODELS: "true" # la carga se paga al arrancar, no en la 1.ª petición (#125)
       MCP_SERVERS: '["http://mcp:8765/mcp"]' # el nombre del servicio es su dirección
     volumes:
@@ -54,6 +65,7 @@ services:
     <<: *backend
     command: ["python", "-m", "backend.main"]
     environment:
+      <<: *entorno-backend
       MCP_TRANSPORT: streamable-http # stdio no cruza contenedores
       MCP_HOST: 0.0.0.0 # en 127.0.0.1 sería invisible para la API
     healthcheck:
