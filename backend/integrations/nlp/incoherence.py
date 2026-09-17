@@ -1,7 +1,11 @@
 import asyncio
 
 from backend.core.models import ToolResult
-from backend.integrations.nlp.dependencias import FaltaDependencia, motivo_si_falta
+from backend.integrations.nlp.dependencias import (
+    FaltaDependencia,
+    motivo_si_falta,
+    motivo_si_falta_modelo,
+)
 from backend.integrations.nlp.model_cards import model_id_de
 
 
@@ -68,7 +72,14 @@ class IncoherenceDetector:
                 SentenceTransformer,
             )
 
-            self._model = SentenceTransformer(self.model_id)
+            try:
+                self._model = SentenceTransformer(self.model_id)
+            except OSError as error:
+                # Lo mismo que en `local.py`: sólo el modelo que no se puede
+                # descargar con la descarga desactivada deja de ser «inesperado».
+                if motivo := motivo_si_falta_modelo(self.model_id, error):
+                    raise FaltaDependencia(motivo) from error
+                raise
         return self._model
 
     @classmethod

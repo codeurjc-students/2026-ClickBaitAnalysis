@@ -22,13 +22,32 @@ genérico de cada señal. Medido el 2026-09-08 sobre una instalación con
 **Se pregunta, no se importa.** `find_spec` resuelve el módulo sin ejecutarlo,
 así que esto NO deshace los imports perezosos de `local.py` e `incoherence.py`
 — que son justo lo que permite que el CI corra sin torch.
+
+**Lo mismo con los modelos (#162).** La imagen de despliegue trae horneados los
+modelos de las fichas y corre con `HF_HUB_OFFLINE=1`, así que uno puesto por
+`NLP_MODELS` no puede descargarse. Otra vez un estado normal, y otra vez salía
+como ``Error inesperado usando el modelo …: We couldn't connect to
+'https://huggingface.co'…``. Aquí no se puede preguntar antes sin copiar qué
+ficheros necesita cada librería, así que se interpreta el fallo — y medido el
+2026-09-17, no todo `OSError` es este caso:
+
+- sin red y nunca horneado → `OSError` causado por `LocalEntryNotFoundError`, igual
+  en `transformers` y en `sentence-transformers`. **Éste es el caso.**
+- sin red y horneado a medias → `ValueError` en el clasificador, `OSError` sin
+  causa en la incoherencia. Una imagen mal construida: sí es una avería.
+- con red y un id que no existe → `OSError` causado por `RepositoryNotFoundError`.
 """
 
 from importlib.util import find_spec
 
+from huggingface_hub import is_offline_mode
+from huggingface_hub.errors import LocalEntryNotFoundError
+
+from backend.integrations.nlp.model_cards import MODEL_CARDS
+
 
 class FaltaDependencia(RuntimeError):
-    """El paquete que necesita esta señal no está instalado.
+    """Lo que necesita esta señal —un paquete o un modelo— no está en esta instalación.
 
     Excepción propia y no un `RuntimeError` pelado porque quien la captura tiene
     que distinguirla de un fallo de verdad: su mensaje ya está redactado para
@@ -69,4 +88,38 @@ def motivo_si_falta(paquete: str) -> str | None:
         "No es una avería: `requirements.txt` no lo incluye a propósito —pesa "
         "cientos de MB y las pruebas lo mockean—, así que lo instala la imagen "
         f"de despliegue. Para habilitarla aquí: {comando}"
+    )
+
+
+def motivo_si_falta_modelo(modelo: str, error: BaseException) -> str | None:
+    """El motivo que enseñar si `error` es no poder descargar `modelo`; `None` si no.
+
+    Se le pasa el error que lanzó la librería al cargar. Las tres condiciones son
+    necesarias, y cada una evita un mensaje falso:
+
+    1. **La causa es `LocalEntryNotFoundError`**: «no está en la caché y no pude
+       preguntar al Hub». Sin esto, un id mal escrito o un horneado a medias
+       recibirían este mensaje.
+    2. **La descarga está desactivada.** Esa misma causa aparece si se cae la red
+       sin la bandera puesta, y entonces decir que está desactivada sería falso.
+    3. **El modelo no es de los declarados.** Uno declarado tenía que venir
+       horneado: si falta, la imagen está mal construida, y eso SÍ es una avería
+       que debe seguir diciéndose como tal.
+    """
+    if not isinstance(error.__cause__, LocalEntryNotFoundError):
+        return None
+    # `is_offline_mode` lee la variable de entorno UNA vez, al importar
+    # `huggingface_hub`, así que las pruebas sustituyen esta función en vez de
+    # tocar el entorno.
+    if not is_offline_mode():
+        return None
+    if modelo in {ficha["model_id"] for ficha in MODEL_CARDS}:
+        return None
+
+    return (
+        f"El modelo `{modelo}` no está descargado en esta instalación y la "
+        "descarga está desactivada (`HF_HUB_OFFLINE=1`). No es una avería: la "
+        "imagen de despliegue trae horneados sólo los modelos que declaran las "
+        "fichas, y éste llega por configuración (`NLP_MODELS`). Para probarlo "
+        "aquí, arrancar con `HF_HUB_OFFLINE=0` y se descargará al usarse."
     )
