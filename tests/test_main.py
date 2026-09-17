@@ -30,6 +30,13 @@ def run_espia(monkeypatch):
     )
     monkeypatch.setattr(main_mod.mcp.settings, "host", "sin-tocar")
     monkeypatch.setattr(main_mod.mcp.settings, "port", 0)
+    # `configurar_red` puede quitarle la protección al singleton: se restaura
+    # para que no llegue cambiada a otros tests.
+    monkeypatch.setattr(
+        main_mod.mcp.settings,
+        "transport_security",
+        main_mod.mcp.settings.transport_security,
+    )
     return recibido
 
 
@@ -53,6 +60,60 @@ def test_main_propaga_host_y_puerto_al_servidor(monkeypatch, run_espia):
 
     assert main_mod.mcp.settings.host == "0.0.0.0"
     assert main_mod.mcp.settings.port == 9999
+
+
+# ----- La protección contra DNS rebinding (#164) -----
+
+_INICIO = {
+    "jsonrpc": "2.0",
+    "id": 1,
+    "method": "initialize",
+    "params": {
+        "protocolVersion": "2025-06-18",
+        "capabilities": {},
+        "clientInfo": {"name": "prueba", "version": "0"},
+    },
+}
+_CABECERAS_MCP = {
+    "Accept": "application/json, text/event-stream",
+    "Content-Type": "application/json",
+}
+
+
+async def _iniciar_sesion_como(servidor, direccion: str) -> int:
+    """Manda un `initialize` en memoria, con la cabecera `Host` de `direccion`.
+
+    Es la misma petición que se midió en la VM. La app se construye DESPUÉS de
+    configurar la red: FastMCP lee la protección al construirla.
+    """
+    app = servidor.streamable_http_app()
+    transporte = httpx.ASGITransport(app=app)
+    async with (
+        app.router.lifespan_context(app),
+        httpx.AsyncClient(transport=transporte, base_url=direccion) as http_client,
+    ):
+        respuesta = await http_client.post("/mcp", json=_INICIO, headers=_CABECERAS_MCP)
+    return respuesta.status_code
+
+
+@pytest.mark.asyncio
+async def test_escuchando_en_la_red_acepta_el_nombre_del_servicio(servidor_mcp):
+    """El fallo de #164. Dentro de compose la API llama al MCP como
+    `http://mcp:8765`, y con la protección que FastMCP activa al construirse la
+    respuesta era `421 Invalid Host header`: cambiar el host a `0.0.0.0` después
+    no la recalculaba."""
+    main_mod.configurar_red(servidor_mcp, "0.0.0.0", 8765)
+
+    assert await _iniciar_sesion_como(servidor_mcp, "http://mcp:8765") == 200
+
+
+@pytest.mark.asyncio
+async def test_escuchando_en_local_la_proteccion_se_mantiene(servidor_mcp):
+    """La otra mitad: en desarrollo el servidor escucha en local y la protección
+    sigue activa. Si la librería cambiara su regla, esto avisa."""
+    main_mod.configurar_red(servidor_mcp, "127.0.0.1", 8765)
+
+    assert await _iniciar_sesion_como(servidor_mcp, "http://mcp:8765") == 421
 
 
 def test_un_transporte_desconocido_se_rechaza_al_arrancar():

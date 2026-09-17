@@ -105,6 +105,7 @@ mismo que genérico.
 | `logging.py` | `configure_logging()` — structlog, en consola o JSON |
 | `observability.py` | `log_tool_invocation`, el decorador que registra cada invocación con parámetros y duración |
 | `health.py` | `check_health()` y su registro como tool MCP — ⚠️ [tensión 4](#4--health-conoce-mcp-desde-core) |
+| `errores.py` | `describir_error()`: cómo se describe un error en una **salida pública** —código HTTP o nombre del tipo, nunca el texto de la librería, que llegó a publicar una clave de API (#163)—. Abre los `ExceptionGroup` del cliente MCP (#164). La usan `health.py` y `api/catalog.py`: dos capas, y ningún conocimiento del clickbait |
 | `mcp/session.py` | Abre sesiones MCP. Es donde el sistema actúa como **cliente**, no como servidor |
 | `mcp/tools.py` | Descubre e invoca herramientas, devolviendo un resultado neutro |
 
@@ -205,6 +206,7 @@ lógica: si algo se le añadiera, pertenece a otro sitio.
 | `var/` | **Gitignored y mutable**: estado que cambia en cada petición. Es el directorio que se monta como volumen |
 | `docker/` | ¿Sólo tiene sentido **dentro de una imagen**? Un `<imagen>.Dockerfile` por imagen, con su `.dockerignore` al lado y del mismo nombre; los guiones que corren **durante** el build, como `hornear_modelos.py` (#162); y la configuración que se copia **dentro** de una imagen, como el `Caddyfile` (#163). Hasta #163 la pregunta era «¿existe sólo para construir una imagen?», y el `Caddyfile` la desbordó: no construye nada, pero fuera de la imagen web no pinta nada. Tampoco cabía en `frontend/`, que es la SPA, cuando el `Caddyfile` enruta también hacia la API. El contexto del build es la raíz del repositorio, no esta carpeta. Lo de aquí puede importar de `backend/` —el horneado lee `MODEL_CARDS` para no duplicar los ids—, pero **nunca al revés**: si `backend/` o `frontend/` necesitaran algo de esta carpeta, no pertenecía aquí |
 | `frontend/` | La SPA Angular. Sus criterios, abajo |
+| `compose.yaml` | Un fichero, no una carpeta, pero con la misma pregunta: ¿describe cómo se levanta el sistema **entero** en una máquina? Va en la raíz y no en `docker/` porque no va dentro de ninguna imagen, y porque ahí `docker compose` lo encuentra sin `-f` (#164) |
 
 ---
 

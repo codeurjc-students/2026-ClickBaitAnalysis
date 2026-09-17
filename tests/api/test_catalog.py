@@ -210,7 +210,9 @@ async def test_un_servidor_caido_no_rompe_la_respuesta(monkeypatch, servidor_mcp
     assert resultado.degraded
     servidor = resultado.servers[0]
     assert servidor.status == ServerStatus.UNREACHABLE
-    assert servidor.detail  # el motivo, para poder diagnosticarlo
+    # El motivo, y legible: hasta #164 era el texto del grupo que envuelve el
+    # error —«unhandled errors in a TaskGroup»—, que no decía nada.
+    assert servidor.detail == "ConnectError"
     assert servidor.tool_count == 0
     # Lo importante: hay respuesta, no una excepción.
     assert resultado.tools == []
