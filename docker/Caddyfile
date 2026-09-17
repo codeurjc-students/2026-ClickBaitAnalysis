@@ -1,0 +1,24 @@
+# `:80`: cualquier petición que llegue al puerto 80, por HTTP. Sin dominio,
+# Caddy no intenta sacar certificado; eso es #165. No se pone la IP: con una
+# IP activaría HTTPS con un certificado propio que el navegador rechaza.
+:80 {
+	# `handle_path` quita el prefijo `/api` antes de reenviar: `/api/tools` llega
+	# como `/tools`, igual que con `pathRewrite` en proxy.conf.json. Con `handle`
+	# llegaría tal cual, y la API respondería 404 a todo.
+	handle_path /api/* {
+		# `api` es un contrato: el contenedor de la API tiene que llamarse así,
+		# y también su servicio en el compose de #164. El 8000 es el puerto de
+		# uvicorn DENTRO del contenedor; no hace falta publicarlo.
+		reverse_proxy api:8000
+	}
+
+	# Lo que no es de la API es la SPA. Si la ruta no es un fichero, se sirve
+	# index.html sin cambiar la URL, y el router de Angular decide: así recargar
+	# /historial no da 404. Efecto secundario: un .js que no existe también
+	# devuelve index.html con 200.
+	handle {
+		root * /srv
+		try_files {path} /index.html
+		file_server
+	}
+}
