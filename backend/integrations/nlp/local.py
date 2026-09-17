@@ -4,7 +4,11 @@ from typing import Any
 
 from backend.core.models import ToolResult
 from backend.integrations.nlp.base import NLPBackend
-from backend.integrations.nlp.dependencias import FaltaDependencia, motivo_si_falta
+from backend.integrations.nlp.dependencias import (
+    FaltaDependencia,
+    motivo_si_falta,
+    motivo_si_falta_modelo,
+)
 
 # Lo que devuelve `transformers.pipeline`: algo que se llama con un texto y
 # devuelve su predicción. Se declara así y no como `object` porque `object` no es
@@ -41,7 +45,15 @@ class LocalNLPClient(NLPBackend):
             # sobrecarga por cada tarea concreta, así que ninguna casa. No es un
             # fallo nuestro: el valor sale de las dos llamadas de abajo y las dos
             # pasan una tarea válida.
-            pipe = pipeline(task, model=model)  # pyright: ignore[reportCallIssue, reportArgumentType]
+            try:
+                pipe = pipeline(task, model=model)  # pyright: ignore[reportCallIssue, reportArgumentType]
+            except OSError as error:
+                # Un modelo que no se puede descargar porque la descarga está
+                # desactivada es un estado normal de la imagen (#162), no un
+                # fallo. Cualquier otro `OSError` sigue su camino.
+                if motivo := motivo_si_falta_modelo(model, error):
+                    raise FaltaDependencia(motivo) from error
+                raise
             self._pipelines[key] = pipe
 
         return self._pipelines[key]

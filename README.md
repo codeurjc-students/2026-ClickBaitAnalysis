@@ -1398,7 +1398,8 @@ arrancar, como `preheat.failed` en el log, y el proceso sigue en pie.
 
 **El coste, medido:** un modelo puesto por `NLP_MODELS` ya **no se descarga al
 usarse**, que es lo que la propia issue daba por hecho apoyándose en #119.
-Probado en el entorno de desarrollo, con una caché vacía y la variable activa:
+Probado en el entorno de desarrollo, con una caché vacía y la variable activa,
+esto es lo que decía antes del arreglo de abajo:
 
 ```
 Error inesperado usando el modelo elozano/bert-base-cased-clickbait-news:
@@ -1408,8 +1409,39 @@ couldn't find them in the cached files.
 
 Experimentar con otro modelo dentro del contenedor pide arrancarlo con
 `-e HF_HUB_OFFLINE=0`, y lo descargado queda en el contenedor, no en la imagen.
-El mensaje, además, llama «inesperado» a algo previsible: lo mismo que #158
-arregló para las dependencias.
+
+#### El mensaje llamaba «inesperado» a algo previsible
+
+Es el problema que #158 arregló para las dependencias, y se arregla aquí con el
+mismo mecanismo: `FaltaDependencia`, cuyo mensaje las dos señales ya devuelven
+tal cual. Lo delicado era **reconocer el caso**. Preguntar antes de cargar
+obligaría a copiar qué ficheros necesita cada librería —la divergencia de
+siempre—, así que se interpreta el fallo. Y capturar cualquier `OSError` habría
+sido un error, medido:
+
+| Caso | Clasificador (`transformers`) | Incoherencia (`sentence-transformers`) |
+|---|---|---|
+| Sin red, modelo nunca horneado | `OSError` ← `LocalEntryNotFoundError` | `OSError` ← `LocalEntryNotFoundError` |
+| Sin red, horneado a medias | `ValueError` | `OSError`, sin causa |
+| Con red, un id que no existe | `OSError` ← `RepositoryNotFoundError` | — |
+
+La flecha es la causa encadenada: la librería hace `raise OSError(…) from
+error`, y Python guarda el original en `__cause__`. Con eso delante,
+`motivo_si_falta_modelo` sólo da el mensaje nuevo si se cumplen **tres
+condiciones**, y cada una evita uno falso:
+
+1. **La causa es `LocalEntryNotFoundError`.** Si no, un id mal escrito o un
+   horneado a medias lo recibirían.
+2. **La descarga está desactivada.** Esa causa aparece también si se cae la red
+   sin la bandera puesta, y decir «desactivada» sería falso.
+3. **El modelo no es de los declarados.** Uno declarado tenía que venir
+   horneado: si falta, la imagen está mal construida, y eso **sí** es una avería.
+
+Comprobado sin red y con la caché vacía: `elozano/…` en la señal dedicada y otro
+MiniLM en la incoherencia dan el mensaje nuevo, y `Stremie/…`, que está
+declarado, sigue diciendo «Error inesperado», como debe. Seis pruebas lo fijan;
+las dos de extremo a extremo fingen el paquete entero, así que corren en el CI
+sin torch. **241 pruebas en los dos entornos.**
 
 De paso, la nota de #156 sobre `HF_TOKEN` deja de afectar a los modelos
 declarados: en ejecución no se descarga nada, y en el build no hace falta porque
