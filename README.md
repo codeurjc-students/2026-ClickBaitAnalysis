@@ -8,13 +8,17 @@ Version de Python: 3.12.3
 
 ## Plan de trabajo — hitos hasta la entrega
 
-**Estado actual (septiembre 2026): `v0.4.0`.** El núcleo NLP está completo y
+**Estado actual (septiembre 2026): `v0.5.0`.** El núcleo NLP está completo y
 validado —cuatro señales de clickbait contrastables, un modelo lineal
 interpretable propio, divulgación de modelos y una evaluación metodológicamente
-cerrada (split train/dev/test + validación externa)—, y la capa web ya sirve las
-tres pantallas del camino determinista sobre un contrato generado. Lo que resta
-es el **despliegue** (R7, R8), el **agente conversacional** (R13) y la memoria.
-**Entrega: febrero 2027.**
+cerrada (split train/dev/test + validación externa)—, la capa web sirve las tres
+pantallas del camino determinista sobre un contrato generado, y **el sistema está
+desplegado**: tres contenedores levantados con un comando en la máquina de la
+universidad, servidos por HTTPS en
+[`gongarcia.tfg.etsii.urjc.es`](https://gongarcia.tfg.etsii.urjc.es), con las
+cinco señales respondiendo y el historial sobreviviendo a los redespliegues. Lo
+que resta es el **agente conversacional** (R13) y la memoria. **Entrega: febrero
+2027.**
 
 **El agente conversacional (R13) es H5.** Hasta el 7 de septiembre no estaba en
 ninguna fila de esta tabla, que es un hueco grande: **el agente da nombre al
@@ -27,15 +31,17 @@ tenía fecha ni versión.
 | **H1 · Diseño de interfaz** | ago–sep 2026 | **2 ago** | Wireframes de pantallas y navegación, definición de funcionalidades, diseño de los endpoints REST, R13 | — |
 | **H2 · `v0.3` API REST** | octubre | **15 ago** | FastAPI: exposición de las tools, catálogo con metadatos, historial **persistente**, OpenAPI, CORS, tests | **R4, R5, R9** |
 | **H3 · `v0.4` SPA funcional** | noviembre | **7 sep** | Angular: análisis con explicabilidad visual, catálogo de tools, historial, responsive y gestión de errores | **R6** |
-| **H4 · `v0.5` Docker y despliegue** | diciembre | *octubre* | Docker Compose (MCP + API / web), **volumen** para el historial, despliegue continuo y pruebas E2E | **R7, R8** |
+| **H4 · `v0.5` Docker y despliegue** | diciembre | **20 sep** | Docker Compose (MCP + API / web), **volumen** para el historial, HTTPS y pruebas E2E | **R7, R8** |
 | **H5 · `v0.6` Agente conversacional** | — | *nov–dic* | Bucle del agente, `POST /chat` con sondeo, pantalla de chat y traza de herramientas | **R13**, R6.10/12/13 |
 | **H6 · `v1.0` Memoria y defensa** | ene–feb 2027 | *dic–feb* | Redacción de la memoria y preparación de la defensa | — |
 
-**El proyecto va unos dos meses por delante de esta previsión.** H2 se cerró en
-agosto donde se planificó octubre, y H3 en septiembre donde se planificó
-noviembre. La columna «previsto» se conserva a propósito: el desfase es un dato
-del proyecto —dice que la estimación de agosto era conservadora— y no un error
-que tapar. La columna «real» de H4 a H6 es la **re-previsión hecha con ese
+**El proyecto va casi tres meses por delante de esta previsión.** H2 se cerró en
+agosto donde se planificó octubre, H3 en septiembre donde se planificó noviembre,
+y **H4 en septiembre donde se planificó diciembre** — trece días después de H3,
+porque las dos máquinas llegaron el 16 de septiembre y el despliegue dependía de
+ellas. La columna «previsto» se conserva a propósito: el desfase es un dato del
+proyecto —dice que la estimación de agosto era conservadora— y no un error que
+tapar. La columna «real» de H5 y H6 es la **re-previsión hecha con ese
 adelanto**: deja alrededor de un mes de colchón antes de febrero, que es lo que
 se come el agente si sale como en el spike.
 
