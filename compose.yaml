@@ -43,6 +43,10 @@ services:
       <<: *entorno-backend
       PREHEAT_MODELS: "true" # la carga se paga al arrancar, no en la 1.ª petición (#125)
       MCP_SERVERS: '["http://mcp:8765/mcp"]' # el nombre del servicio es su dirección
+      # R4.7. Con el mismo origen no se ejercita —el navegador nunca hace una
+      # petición entre orígenes—, pero el requisito lo pide y el valor por
+      # defecto, `localhost:4200`, sería falso en despliegue.
+      CORS_ORIGINS: '["https://gongarcia.tfg.etsii.urjc.es"]'
     volumes:
       # El historial es /app/var/history.db. Sin volumen se pierde al RECREAR el
       # contenedor —no al reiniciarlo—, y `up --build` recrea: medido en #163.
@@ -83,13 +87,26 @@ services:
       context: .
       dockerfile: docker/web.Dockerfile
     image: clickbait-web
-    # Sólo en la interfaz local hasta #165, que abre 80 y 443 con HTTPS. Mientras
-    # tanto, el navegador llega por túnel SSH.
+    # Abiertos a internet desde #165: el 80 sólo redirige a HTTPS. El UDP es para
+    # HTTP/3, que Caddy ofrece por su cuenta; si la red no lo deja pasar, el
+    # navegador usa TCP y no se rompe nada.
     ports:
-      - "127.0.0.1:8080:80"
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      # El certificado y su clave, generados en la máquina. En SÓLO LECTURA: el
+      # contenedor no tiene por qué poder tocarlos.
+      - /etc/clickbait/tls:/certificados:ro
+      # Lo que Caddy guarda entre arranques. Con un certificado puesto a mano
+      # apenas usa nada, pero el día que lo saque una autoridad, sin esto pediría
+      # uno nuevo en cada recreación y se acercaría a sus límites semanales.
+      - caddy_datos:/data
     healthcheck:
-      # `wget` es el de busybox, que trae la imagen alpine de Caddy.
-      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1/"]
+      # A la API de administración de Caddy, que sólo escucha dentro del
+      # contenedor. Ya no vale pedir `http://127.0.0.1/`: desde #165 el sitio
+      # tiene nombre, y una petición a otro nombre no casa con él.
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:2019/config/"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -102,3 +119,4 @@ services:
 
 volumes:
   historial:
+  caddy_datos:

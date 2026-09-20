@@ -1,7 +1,26 @@
-# `:80`: cualquier petición que llegue al puerto 80, por HTTP. Sin dominio,
-# Caddy no intenta sacar certificado; eso es #165. No se pone la IP: con una
-# IP activaría HTTPS con un certificado propio que el navegador rechaza.
-:80 {
+# El sitio, por su nombre. Caddy sirve HTTPS en el 443 y redirige el 80 solo.
+#
+# El certificado es AUTOFIRMADO y se carga de dos ficheros que viven en la
+# máquina, fuera del repositorio y de la imagen. No es lo que se quería: el
+# registro CAA de `urjc.es` sólo autoriza a HARICA, así que Let's Encrypt
+# responde `403 urn:ietf:params:acme:error:caa — CAA record for urjc.es prevents
+# issuance` (medido contra su entorno de pruebas el 2026-09-20). Cifra el
+# tráfico, y los equipos donde se instale el certificado además detectan un
+# intermediario; el resto verá un aviso.
+#
+# Pasar a una autoridad de verdad es cambiar SÓLO la línea `tls`: quitarla si
+# arreglan el CAA —Caddy usaría Let's Encrypt— o sustituirla por un bloque con
+# el ACME de HARICA.
+gongarcia.tfg.etsii.urjc.es {
+	tls /certificados/certificado.pem /certificados/clave.pem
+
+	# R12.5, un tope al tamaño de la petición. Va aquí porque esto es la puerta:
+	# lo que se rechaza en Caddy no llega a ocupar memoria en la API. 1 MB deja
+	# sitio de sobra a un titular con el cuerpo de su noticia.
+	request_body {
+		max_size 1MB
+	}
+
 	# `handle_path` quita el prefijo `/api` antes de reenviar: `/api/tools` llega
 	# como `/tools`, igual que con `pathRewrite` en proxy.conf.json. Con `handle`
 	# llegaría tal cual, y la API respondería 404 a todo.
