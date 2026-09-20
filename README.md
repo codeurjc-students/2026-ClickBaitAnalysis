@@ -1230,6 +1230,187 @@ Añadir el registro a `/analyze` convirtió, sin avisar, todos los tests de esa 
 
 `tests/api/test_history.py` cubre los dos lados por separado —el almacén llamando a sus funciones, el endpoint por HTTP— porque responden preguntas distintas: si los datos sobreviven y salen en orden, y si la decisión de «una entrada por análisis» se sostiene de verdad.
 
+### HTTPS, el certificado que no se pudo pedir, y la verificación desde fuera (#165)
+
+La última issue de H4 abre la aplicación a internet en
+`https://gongarcia.tfg.etsii.urjc.es` y la verifica de extremo a extremo. El
+plan era un certificado de Let's Encrypt renovado solo por Caddy —el motivo por
+el que se eligió Caddy en #163—, y **no se pudo**: la universidad no lo autoriza.
+
+#### Lo que bloquea: un registro CAA de `urjc.es`
+
+Un **registro CAA** es una entrada del DNS donde el dueño de un dominio declara
+**qué autoridades pueden emitir certificados** para él. Toda autoridad está
+obligada a consultarlo, y sube por el árbol del nombre hasta el primer nivel que
+tenga registros. Consultado en dos resolvedores distintos:
+
+| Nivel | CAA |
+|---|---|
+| `gongarcia.tfg.etsii.urjc.es` | ninguno |
+| `tfg.etsii.urjc.es` | ninguno |
+| `etsii.urjc.es` | ninguno |
+| **`urjc.es`** | **`issue "harica.gr"`**, `issuewild "harica.gr"` |
+
+Así que sólo HARICA puede emitir. No se dio por supuesto: se levantó un Caddy
+temporal en la máquina 1, contra el entorno de **pruebas** de Let's Encrypt —el
+de producción tiene límites semanales—, y respondió:
+
+```
+HTTP 403 urn:ietf:params:acme:error:caa - While processing CAA for
+gongarcia.tfg.etsii.urjc.es: CAA record for urjc.es prevents issuance
+```
+
+**Todo lo demás funcionaba**: los servidores de validación de Let's Encrypt
+llegaron a la VM por el 443 **desde cuatro IPs distintas** y Caddy les respondió.
+El DNS, los puertos y la red están bien; lo único que bloquea es el CAA. ZeroSSL,
+la alternativa que Caddy probaría, está igual de excluida.
+
+#### Lo que se hace en su lugar, y lo que protege de verdad
+
+Un **certificado autofirmado del sitio**, generado en la máquina 1, con la clave
+privada en `/etc/clickbait/tls`, sólo legible por root, fuera del repositorio y
+de la imagen. Válido hasta el **2027-05-18**, que cubre la defensa.
+
+Y aquí está el matiz que cambió un criterio de la issue. **Un autofirmado cifra,
+pero no evita un intermediario** para quien pulsa «aceptar el riesgo»: el
+atacante presenta su propio certificado y el navegador muestra **el mismo aviso**
+que con el nuestro. El aviso es la única alarma contra un MitM, y uno que aparece
+siempre deja de ser una alarma.
+
+| | Contra quien escucha | Contra quien se pone en medio | Avisos |
+|---|---|---|---|
+| Sólo HTTP | ❌ | ❌ | «No seguro» |
+| Autofirmado, aceptando el aviso | ✅ | ❌ | siempre |
+| **Autofirmado instalado como de confianza** | ✅ | ✅ **en ese equipo** | ninguno ahí |
+| De una autoridad | ✅ | ✅ para todos | ninguno |
+
+Por eso el criterio **«abre sin avisos del navegador»** pasa a **«abre sin avisos
+en los equipos donde se instala el certificado, y cifrada con aviso en los
+demás»**, y se instala en los que importan: el del autor y el de la defensa.
+
+**Se instala el certificado del sitio, no una autoridad propia.** Caddy sabe
+crear su propia autoridad y renovar sola (`tls internal`), pero confiar en una
+autoridad en un equipo es confiar en ella **para cualquier dominio**: si su clave
+se filtrara de la VM, podría suplantar cualquier sitio ante ese equipo. El
+certificado lleva `CA:FALSE`, así que sólo vale para este nombre.
+
+#### Las salidas que quedan abiertas, y por qué no se tomaron ahora
+
+- **Pedir a la universidad un CAA que autorice a Let's Encrypt** en
+  `tfg.etsii.urjc.es`: una línea de DNS, y el plan original volvería tal cual. No
+  depende de este repositorio.
+- **ACME de HARICA**, la autoridad que sí está autorizada: Caddy admite sus
+  credenciales y la renovación seguiría siendo automática. Hay que preguntar si
+  la universidad lo ofrece.
+- **Un certificado de HARICA emitido a mano**, que alguien de la URJC tiene que
+  tramitar.
+- **Un dominio fuera de `urjc.es`**, que daría un certificado válido para todo el
+  mundo hoy mismo, a cambio de que la dirección no sea la de la universidad.
+
+Las cuatro desembocan en **cambiar una sola línea**: el `tls` del `Caddyfile`.
+
+#### La configuración
+
+- **El sitio pasa de `:80` a su nombre**, y con eso Caddy sirve el 443 y
+  **redirige el 80 solo** — comprobado en su log, porque con un certificado
+  cargado a mano no era obvio que siguiera haciéndolo.
+- **Los puertos 80, 443 y 443/udp** publicados. El UDP es para HTTP/3, que Caddy
+  activa por su cuenta.
+- **El certificado montado en sólo lectura** desde la máquina.
+- **Un volumen para los datos de Caddy**: hoy apenas guarda nada, pero el día que
+  el certificado lo emita una autoridad, sin volumen pediría uno nuevo en cada
+  recreación del contenedor y se acercaría a los límites semanales.
+- **`request_body { max_size 1MB }`**, que cumple **R12.5** en la puerta: lo que
+  se rechaza en Caddy no llega a ocupar memoria en la API.
+- **`CORS_ORIGINS` con el dominio** (R4.7), que venía anotado de #164.
+- **El healthcheck de `web` cambia**: pedía `http://127.0.0.1/`, y con un sitio
+  con nombre esa petición ya no casa con nada. Ahora pregunta a la API de
+  administración de Caddy, que sólo escucha dentro del contenedor.
+
+#### Renovar: `reload` no basta, y eso se descubrió midiendo
+
+El procedimiento parecía obvio —copiar los dos ficheros y recargar— y **estaba
+mal**:
+
+| Paso | Qué se sirve |
+|---|---|
+| Cambiar los ficheros | el certificado **viejo** |
+| `caddy reload` | el certificado **viejo**: la configuración no ha cambiado, y Caddy no relee los ficheros |
+| **`caddy reload --force`** | el **nuevo**, y **0 de 60 peticiones fallaron** durante el cambio |
+
+Es exactamente cómo una renovación se convierte en una caída silenciosa: se
+copian los ficheros, se recarga, no hay ningún error… y el navegador sigue
+recibiendo el certificado caducado. Queda un recordatorio en el calendario para
+el 2027-05-03, con el procedimiento y esta trampa dentro.
+
+*(La primera medición de este reemplazo también fue defectuosa: las peticiones
+de control validaban contra el certificado **nuevo** mientras el servidor aún
+servía el viejo, y contó 52 fallos de 60 que no eran caídas. Medir
+disponibilidad y medir identidad son dos cosas distintas, y mezclarlas produjo un
+número alarmante y falso.)*
+
+#### La verificación de extremo a extremo, desde fuera de la universidad
+
+Ejecutada desde una conexión doméstica, contra el dominio:
+
+| | Resultado |
+|---|---|
+| `https://` con el certificado instalado | 200, validación correcta |
+| `https://` sin instalarlo | rechazado, como haría un navegador |
+| `http://` | **308** a `https://` |
+| `/`, `/historial`, `/sistema` | 200 `text/html` |
+| `/api/health` | `ok`, con las tres APIs respondiendo |
+| Un análisis con cuerpo | **las cinco señales en `ok`**, veredicto `deceptive` |
+| Catálogo y ejecución por MCP | 12 herramientas, `detect_clickbait` en `ok` |
+| `/api/docs` | pide `/api/openapi.json` y carga |
+| **R12.5**: petición de 2 MB | **413** |
+| **R4.7**: CORS | la cabecera sale con nuestro origen y **no** con otro |
+| Certificado servido | el esperado, 239 días por delante |
+
+**HTTP/3 no se pudo comprobar desde aquí**: el `curl` de WSL no lo trae. Caddy lo
+anuncia y escucha, pero que la red de la universidad deje pasar UDP queda sin
+medir.
+
+#### Reiniciar la máquina: vuelve solo, y cuánto tarda
+
+| | |
+|---|---|
+| La web responde por HTTPS | **23 s** tras la orden de reinicio |
+| Los tres servicios sanos | a los **43 s** |
+| Precalentado **con la caché de disco fría** | **19,1 s** en total (16,4 s la señal dedicada) |
+| Historial, catálogo y salud | intactos |
+
+Eso cierra lo que #164 dejó abierto: en frío de verdad, la señal dedicada tarda
+**16,4 s frente a 6,6 s** con los ficheros ya en caché. Sigue muy por debajo del
+`start_period` de 120 s del healthcheck.
+
+**Y aparece una ventana de ~20 s**, entre que la web responde y la API termina de
+precalentar, en la que `/api/*` devuelve el 502 de Caddy. **Se deja así**, y el
+motivo es que ya está resuelto donde importa: la aplicación no enseña ese 502,
+sino la frase que decidió #147, «No se pudo contactar con la API». Las dos
+alternativas se descartaron con su precio delante:
+
+- **Que Caddy espere a la API** en vez de dar 502 borraría el error tras un
+  reinicio, pero también **enmascararía una caída de verdad**: el indicador se
+  quedaría girando en lugar de decir que no responde, que es justo lo contrario
+  de lo que #147 decidió.
+- **Distinguir «arrancando» de «caída» en el indicador**, con un reintento, es la
+  buena si algún día reiniciamos a menudo; hoy cambia un criterio de #147 por una
+  ventana de veinte segundos que ocurre muy de vez en cuando.
+
+#### Lo que NO entra
+
+- **R12.4, la limitación de velocidad**, que el requisito pide y no existe para
+  las peticiones entrantes: necesita un plugin en Caddy o una dependencia nueva
+  en FastAPI. Va en **#169**, ahora que la aplicación está expuesta y sin
+  autenticación.
+- **La sonda de salud por modelo**, que #147 dejó anotada y #156 no cubrió.
+- **Fijar la revisión de cada modelo horneado**, pendiente desde #162.
+
+*(Corrección de trazabilidad: la issue citaba **R8.2**, que habla del CI
+ejecutando las pruebas al hacer push y no tiene nada que ver. Lo que aplica es
+**R7.7** —exponer los puertos adecuados—, **R4.7** y **R12.5**.)*
+
 ### El sistema entero, con un comando: compose y la configuración de despliegue (#164)
 
 Con las dos imágenes hechas (#162 y #163), levantar el sistema seguía siendo
