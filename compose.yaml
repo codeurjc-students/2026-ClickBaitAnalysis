@@ -1,0 +1,122 @@
+# El sistema completo: la API, el servidor MCP y la web con Caddy delante.
+#
+# Desde la raíz del repositorio, con un `.env` que traiga las claves:
+#   sudo docker compose up -d --build --wait
+#
+# Nombre de proyecto fijo: sin él, compose lo saca del nombre de la carpeta, y el
+# volumen del historial se llamaría distinto —y saldría vacío— en un clon con
+# otro nombre.
+name: clickbait
+
+# La API y el MCP son la MISMA imagen con otro comando (#162). Lo común se
+# escribe una vez: repetirlo en los dos servicios es dejar que diverjan.
+x-backend: &backend
+  build:
+    context: .
+    dockerfile: docker/backend.Dockerfile
+  image: clickbait-backend
+  # Sólo los secretos. Lo que define el despliegue va en `environment`, a la
+  # vista, y manda sobre lo que traiga el `.env`.
+  env_file: .env
+  restart: unless-stopped
+
+# Configuración que necesitan los DOS procesos, porque los dos ejecutan señales
+# NLP: la API desde `/analyze` y el MCP desde sus herramientas. Hasta #164 estaba
+# sólo en la API, y el MCP arrancaba con `remote`: ejecutar `detect_clickbait`
+# desde la pantalla de Sistema daba el 400 de #156.
+#
+# Va en un ancla aparte y no dentro de `x-backend` porque `<<:` sólo mezcla el
+# primer nivel: el `environment` de cada servicio SUSTITUIRÍA al común en vez de
+# sumarse, y la variable volvería a desaparecer sin avisar.
+x-entorno-backend: &entorno-backend
+  NLP_BACKEND: local # el modelo dedicado no se sirve en remoto (#156)
+
+services:
+  api:
+    <<: *backend
+    # `--root-path /api`: Caddy quita el prefijo antes de reenviar, y sin esto la
+    # documentación pide `/openapi.json` en vez de `/api/openapi.json` y recibe el
+    # index.html de la SPA. Medido en #163. Aquí y no en el `CMD` del Dockerfile,
+    # que rompería la documentación al llamar a la API sin proxy.
+    command: ["uvicorn", "backend.api.app:app", "--host", "0.0.0.0", "--port", "8000", "--root-path", "/api"]
+    environment:
+      <<: *entorno-backend
+      PREHEAT_MODELS: "true" # la carga se paga al arrancar, no en la 1.ª petición (#125)
+      MCP_SERVERS: '["http://mcp:8765/mcp"]' # el nombre del servicio es su dirección
+      # R4.7. Con el mismo origen no se ejercita —el navegador nunca hace una
+      # petición entre orígenes—, pero el requisito lo pide y el valor por
+      # defecto, `localhost:4200`, sería falso en despliegue.
+      CORS_ORIGINS: '["https://gongarcia.tfg.etsii.urjc.es"]'
+    volumes:
+      # El historial es /app/var/history.db. Sin volumen se pierde al RECREAR el
+      # contenedor —no al reiniciarlo—, y `up --build` recrea: medido en #163.
+      - historial:/app/var
+    healthcheck:
+      # NO `/health`: sondea tres APIs externas en cada llamada. Cada 30 s serían
+      # 2.880 peticiones diarias sólo a NYT, que admite 500: la cuota se acabaría
+      # en unas cuatro horas. `/openapi.json` es local, y sólo responde cuando el
+      # precalentado ha terminado. Python y no curl: la imagen slim no lo trae.
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/openapi.json', timeout=5)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      # Precalentar tardó 24,2 s con torch CPU (#156); el margen es para no dar
+      # por caído un contenedor que sólo está cargando modelos.
+      start_period: 120s
+      start_interval: 5s
+
+  mcp:
+    <<: *backend
+    command: ["python", "-m", "backend.main"]
+    environment:
+      <<: *entorno-backend
+      MCP_TRANSPORT: streamable-http # stdio no cruza contenedores
+      MCP_HOST: 0.0.0.0 # en 127.0.0.1 sería invisible para la API
+    healthcheck:
+      # Basta con que el puerto acepte conexiones: hablar MCP exige una sesión.
+      test: ["CMD", "python", "-c", "import socket; socket.create_connection(('127.0.0.1', 8765), timeout=5)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+      start_interval: 5s
+    # Sin `ports`: sólo se llega a él desde la red de compose.
+
+  web:
+    build:
+      context: .
+      dockerfile: docker/web.Dockerfile
+    image: clickbait-web
+    # Abiertos a internet desde #165: el 80 sólo redirige a HTTPS. El UDP es para
+    # HTTP/3, que Caddy ofrece por su cuenta; si la red no lo deja pasar, el
+    # navegador usa TCP y no se rompe nada.
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      # El certificado y su clave, generados en la máquina. En SÓLO LECTURA: el
+      # contenedor no tiene por qué poder tocarlos.
+      - /etc/clickbait/tls:/certificados:ro
+      # Lo que Caddy guarda entre arranques. Con un certificado puesto a mano
+      # apenas usa nada, pero el día que lo saque una autoridad, sin esto pediría
+      # uno nuevo en cada recreación y se acercaría a sus límites semanales.
+      - caddy_datos:/data
+    healthcheck:
+      # A la API de administración de Caddy, que sólo escucha dentro del
+      # contenedor. Ya no vale pedir `http://127.0.0.1/`: desde #165 el sitio
+      # tiene nombre, y una petición a otro nombre no casa con él.
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:2019/config/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+      start_interval: 2s
+    restart: unless-stopped
+    # Sin `depends_on` en ningún servicio, a propósito: con una API caída, la web
+    # sigue sirviendo la aplicación y el indicador de salud explica el 502
+    # (#147); con un MCP caído, sólo se degrada la pantalla de Sistema.
+
+volumes:
+  historial:
+  caddy_datos:

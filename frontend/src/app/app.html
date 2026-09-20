@@ -6,6 +6,10 @@
     <a routerLink="/historial" routerLinkActive="activo">Historial</a>
     <a routerLink="/sistema" routerLinkActive="activo">Sistema</a>
   </nav>
+
+  <!-- Fuera del `nav`: no es un destino, es el estado de algo. Meterlo dentro
+       lo anunciaría como una pestaña más a quien navegue por landmarks. -->
+  <app-indicador-salud />
 </header>
 
 <main class="contenido">

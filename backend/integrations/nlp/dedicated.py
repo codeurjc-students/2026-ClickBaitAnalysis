@@ -51,17 +51,23 @@ ETIQUETAS = {
 }
 
 
-async def detect(api, headline: str) -> ToolResult:
+async def detect(api, headline: str, model: str | None = None) -> ToolResult:
     """Clasifica un titular con el modelo dedicado y normaliza su etiqueta.
 
     Recibe el backend en vez de construirlo: las dos fachadas ya tienen uno
     —cacheado, porque cargar el modelo cuesta— y crear otro aquí tiraría esa
     caché y duplicaría el modelo en memoria.
+
+    Y desde #119 recibe también el **id del modelo**, por el mismo motivo un
+    nivel más abajo: resolverlo aquí obligaría a este módulo a leer `settings`,
+    y entonces no se podría importar sin un `.env` con las claves de API. El
+    defecto es el de la ficha, así que quien no configure nada no nota nada.
     """
     if not headline or not headline.strip():
         return ToolResult.fail("El titular está vacío o no es válido")
 
-    respuesta = await api.classify(headline, MODEL)
+    modelo = model or MODEL
+    respuesta = await api.classify(headline, modelo)
     if not respuesta.has_content():
         return respuesta
 
@@ -72,7 +78,7 @@ async def detect(api, headline: str) -> ToolResult:
         # y TODOS los titulares saldrían factuales — un fallo total que no
         # levanta ninguna excepción y que sólo se ve midiendo.
         return ToolResult.fail(
-            f"{MODEL} devolvió la etiqueta «{cruda}», que no está en el mapeo "
+            f"{modelo} devolvió la etiqueta «{cruda}», que no está en el mapeo "
             f"{sorted(ETIQUETAS)}: revisa si el modelo ha cambiado de convención"
         )
 

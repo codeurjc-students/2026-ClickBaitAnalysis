@@ -41,7 +41,9 @@ from backend.api.schemas import (
     ToolModelCard,
 )
 from backend.config.settings import settings
+from backend.core.errores import describir_error
 from backend.core.mcp import tools as mcp_tools
+from backend.integrations.nlp.factory import ficha_efectiva
 from backend.integrations.nlp.model_cards import cards_by_signal
 
 log = structlog.get_logger()
@@ -66,15 +68,14 @@ async def fetch_catalog() -> CatalogResponse:
     # las URLs, así que cada resultado corresponde al servidor de su posición.
     for url, resultado in zip(settings.mcp_servers, resultados, strict=True):
         if isinstance(resultado, BaseException):
-            log.warning(
-                "catalogo.servidor_inalcanzable", url=url, motivo=str(resultado)
-            )
+            # Nunca el texto de la excepción (#163): llegaba envuelto en un
+            # `ExceptionGroup` que sólo decía «unhandled errors in a TaskGroup»,
+            # y además es texto de librería en una salida pública. Medidos los
+            # casos en #164: `HTTP 421 Misdirected Request`, `ConnectError`…
+            motivo = describir_error(resultado)
+            log.warning("catalogo.servidor_inalcanzable", url=url, motivo=motivo)
             servers.append(
-                ServerInfo(
-                    url=url,
-                    status=ServerStatus.UNREACHABLE,
-                    detail=f"{type(resultado).__name__}: {resultado}",
-                )
+                ServerInfo(url=url, status=ServerStatus.UNREACHABLE, detail=motivo)
             )
             continue
 
@@ -113,10 +114,17 @@ def _ficha_de(nombre: str) -> ToolModelCard | None:
     El índice vive en ``model_cards`` porque lo comparte con la orquestación de
     ``/analyze``: dos copias acabarían divergiendo. Devuelve None para las
     herramientas que no son señales — fuentes de contenido y utilidades.
+
+    **La ficha que se publica es la EFECTIVA** (#119): si alguien ha puesto otro
+    modelo por configuración, aquí sale ese, no el declarado. Leer el índice a
+    secas dejaría esta pantalla diciendo un modelo mientras ``describe_models``
+    dice otro — que es exactamente la divergencia que cerró #116, reabierta por
+    la puerta de al lado.
     """
-    card = cards_by_signal().get(nombre)
-    if card is None:
+    if nombre not in cards_by_signal():
         return None
+
+    card = ficha_efectiva(nombre)
 
     return ToolModelCard(
         name=card["name"],

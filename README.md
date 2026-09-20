@@ -8,13 +8,17 @@ Version de Python: 3.12.3
 
 ## Plan de trabajo — hitos hasta la entrega
 
-**Estado actual (septiembre 2026): `v0.4.0`.** El núcleo NLP está completo y
+**Estado actual (septiembre 2026): `v0.5.0`.** El núcleo NLP está completo y
 validado —cuatro señales de clickbait contrastables, un modelo lineal
 interpretable propio, divulgación de modelos y una evaluación metodológicamente
-cerrada (split train/dev/test + validación externa)—, y la capa web ya sirve las
-tres pantallas del camino determinista sobre un contrato generado. Lo que resta
-es el **despliegue** (R7, R8), el **agente conversacional** (R13) y la memoria.
-**Entrega: febrero 2027.**
+cerrada (split train/dev/test + validación externa)—, la capa web sirve las tres
+pantallas del camino determinista sobre un contrato generado, y **el sistema está
+desplegado**: tres contenedores levantados con un comando en la máquina de la
+universidad, servidos por HTTPS en
+[`gongarcia.tfg.etsii.urjc.es`](https://gongarcia.tfg.etsii.urjc.es), con las
+cinco señales respondiendo y el historial sobreviviendo a los redespliegues. Lo
+que resta es el **agente conversacional** (R13) y la memoria. **Entrega: febrero
+2027.**
 
 **El agente conversacional (R13) es H5.** Hasta el 7 de septiembre no estaba en
 ninguna fila de esta tabla, que es un hueco grande: **el agente da nombre al
@@ -27,15 +31,17 @@ tenía fecha ni versión.
 | **H1 · Diseño de interfaz** | ago–sep 2026 | **2 ago** | Wireframes de pantallas y navegación, definición de funcionalidades, diseño de los endpoints REST, R13 | — |
 | **H2 · `v0.3` API REST** | octubre | **15 ago** | FastAPI: exposición de las tools, catálogo con metadatos, historial **persistente**, OpenAPI, CORS, tests | **R4, R5, R9** |
 | **H3 · `v0.4` SPA funcional** | noviembre | **7 sep** | Angular: análisis con explicabilidad visual, catálogo de tools, historial, responsive y gestión de errores | **R6** |
-| **H4 · `v0.5` Docker y despliegue** | diciembre | *octubre* | Docker Compose (MCP + API / web), **volumen** para el historial, despliegue continuo y pruebas E2E | **R7, R8** |
+| **H4 · `v0.5` Docker y despliegue** | diciembre | **20 sep** | Docker Compose (MCP + API / web), **volumen** para el historial, HTTPS y pruebas E2E | **R7, R8** |
 | **H5 · `v0.6` Agente conversacional** | — | *nov–dic* | Bucle del agente, `POST /chat` con sondeo, pantalla de chat y traza de herramientas | **R13**, R6.10/12/13 |
 | **H6 · `v1.0` Memoria y defensa** | ene–feb 2027 | *dic–feb* | Redacción de la memoria y preparación de la defensa | — |
 
-**El proyecto va unos dos meses por delante de esta previsión.** H2 se cerró en
-agosto donde se planificó octubre, y H3 en septiembre donde se planificó
-noviembre. La columna «previsto» se conserva a propósito: el desfase es un dato
-del proyecto —dice que la estimación de agosto era conservadora— y no un error
-que tapar. La columna «real» de H4 a H6 es la **re-previsión hecha con ese
+**El proyecto va casi tres meses por delante de esta previsión.** H2 se cerró en
+agosto donde se planificó octubre, H3 en septiembre donde se planificó noviembre,
+y **H4 en septiembre donde se planificó diciembre** — trece días después de H3,
+porque las dos máquinas llegaron el 16 de septiembre y el despliegue dependía de
+ellas. La columna «previsto» se conserva a propósito: el desfase es un dato del
+proyecto —dice que la estimación de agosto era conservadora— y no un error que
+tapar. La columna «real» de H5 y H6 es la **re-previsión hecha con ese
 adelanto**: deja alrededor de un mes de colchón antes de febrero, que es lo que
 se come el agente si sale como en el spike.
 
@@ -1036,6 +1042,8 @@ Navegador ──(1)──→ nginx ──(2)──→ FastAPI ──(3)──→
 
 **Topología del frontend: nginx como proxy inverso.** Sirve el build de Angular en `/` y reenvía `/api/*` a uvicorn por la red interna. Para el navegador todo es **el mismo origen**: desaparecen CORS y el *preflight* —que hoy convierte cada `POST /analyze` en dos viajes—, pero se mantienen dos contenedores con trabajos separados. En desarrollo el equivalente es el `proxy.conf.json` de Angular, de modo que desarrollo y producción se comporten igual; ese desajuste es el fallo clásico de servir el front en un origen distinto.
 
+_(Cambiado en #163: el proxy es **Caddy**, no nginx. Lo decidido aquí —proxy delante, mismo origen, sin CORS— se mantiene; cambia la pieza, y el motivo está en la sección de #163.)_
+
 Se descartó que **FastAPI sirviera los estáticos**: no es su trabajo, acopla el despliegue del frontend al de la API, y el *catch-all* que exige el enrutado de cliente de Angular puede tragarse `/docs` y `/openapi.json` si se registra en mal orden.
 
 **`CORSMiddleware` se mantiene igualmente**, aunque la topología lo vuelva inerte en producción: R4.7 lo exige, cuesta seis líneas y es la salida si en algún momento se desarrolla sin proxy.
@@ -1227,6 +1235,1306 @@ El mínimo de 1 no es cosmético: **en SQLite un `LIMIT` negativo significa «si
 Añadir el registro a `/analyze` convirtió, sin avisar, todos los tests de esa ruta en escritores del historial real: una corrida de la suite dejaba cuatro entradas «Un titular» en `var/history.db`. El aislamiento va en un fixture `autouse` de `tests/conftest.py` y no en el fichero que prueba el historial, porque **quien contamina no es quien lo prueba**: lo hace cualquier test que llame a un endpoint que registre, incluidos los que aún no existen.
 
 `tests/api/test_history.py` cubre los dos lados por separado —el almacén llamando a sus funciones, el endpoint por HTTP— porque responden preguntas distintas: si los datos sobreviven y salen en orden, y si la decisión de «una entrada por análisis» se sostiene de verdad.
+
+### HTTPS, el certificado que no se pudo pedir, y la verificación desde fuera (#165)
+
+La última issue de H4 abre la aplicación a internet en
+`https://gongarcia.tfg.etsii.urjc.es` y la verifica de extremo a extremo. El
+plan era un certificado de Let's Encrypt renovado solo por Caddy —el motivo por
+el que se eligió Caddy en #163—, y **no se pudo**: la universidad no lo autoriza.
+
+#### Lo que bloquea: un registro CAA de `urjc.es`
+
+Un **registro CAA** es una entrada del DNS donde el dueño de un dominio declara
+**qué autoridades pueden emitir certificados** para él. Toda autoridad está
+obligada a consultarlo, y sube por el árbol del nombre hasta el primer nivel que
+tenga registros. Consultado en dos resolvedores distintos:
+
+| Nivel | CAA |
+|---|---|
+| `gongarcia.tfg.etsii.urjc.es` | ninguno |
+| `tfg.etsii.urjc.es` | ninguno |
+| `etsii.urjc.es` | ninguno |
+| **`urjc.es`** | **`issue "harica.gr"`**, `issuewild "harica.gr"` |
+
+Así que sólo HARICA puede emitir. No se dio por supuesto: se levantó un Caddy
+temporal en la máquina 1, contra el entorno de **pruebas** de Let's Encrypt —el
+de producción tiene límites semanales—, y respondió:
+
+```
+HTTP 403 urn:ietf:params:acme:error:caa - While processing CAA for
+gongarcia.tfg.etsii.urjc.es: CAA record for urjc.es prevents issuance
+```
+
+**Todo lo demás funcionaba**: los servidores de validación de Let's Encrypt
+llegaron a la VM por el 443 **desde cuatro IPs distintas** y Caddy les respondió.
+El DNS, los puertos y la red están bien; lo único que bloquea es el CAA. ZeroSSL,
+la alternativa que Caddy probaría, está igual de excluida.
+
+#### Lo que se hace en su lugar, y lo que protege de verdad
+
+Un **certificado autofirmado del sitio**, generado en la máquina 1, con la clave
+privada en `/etc/clickbait/tls`, sólo legible por root, fuera del repositorio y
+de la imagen. Válido hasta el **2027-05-18**, que cubre la defensa.
+
+Y aquí está el matiz que cambió un criterio de la issue. **Un autofirmado cifra,
+pero no evita un intermediario** para quien pulsa «aceptar el riesgo»: el
+atacante presenta su propio certificado y el navegador muestra **el mismo aviso**
+que con el nuestro. El aviso es la única alarma contra un MitM, y uno que aparece
+siempre deja de ser una alarma.
+
+| | Contra quien escucha | Contra quien se pone en medio | Avisos |
+|---|---|---|---|
+| Sólo HTTP | ❌ | ❌ | «No seguro» |
+| Autofirmado, aceptando el aviso | ✅ | ❌ | siempre |
+| **Autofirmado instalado como de confianza** | ✅ | ✅ **en ese equipo** | ninguno ahí |
+| De una autoridad | ✅ | ✅ para todos | ninguno |
+
+Por eso el criterio **«abre sin avisos del navegador»** pasa a **«abre sin avisos
+en los equipos donde se instala el certificado, y cifrada con aviso en los
+demás»**, y se instala en los que importan: el del autor y el de la defensa.
+
+**Se instala el certificado del sitio, no una autoridad propia.** Caddy sabe
+crear su propia autoridad y renovar sola (`tls internal`), pero confiar en una
+autoridad en un equipo es confiar en ella **para cualquier dominio**: si su clave
+se filtrara de la VM, podría suplantar cualquier sitio ante ese equipo. El
+certificado lleva `CA:FALSE`, así que sólo vale para este nombre.
+
+#### Las salidas que quedan abiertas, y por qué no se tomaron ahora
+
+- **Pedir a la universidad un CAA que autorice a Let's Encrypt** en
+  `tfg.etsii.urjc.es`: una línea de DNS, y el plan original volvería tal cual. No
+  depende de este repositorio.
+- **ACME de HARICA**, la autoridad que sí está autorizada: Caddy admite sus
+  credenciales y la renovación seguiría siendo automática. Hay que preguntar si
+  la universidad lo ofrece.
+- **Un certificado de HARICA emitido a mano**, que alguien de la URJC tiene que
+  tramitar.
+- **Un dominio fuera de `urjc.es`**, que daría un certificado válido para todo el
+  mundo hoy mismo, a cambio de que la dirección no sea la de la universidad.
+
+Las cuatro desembocan en **cambiar una sola línea**: el `tls` del `Caddyfile`.
+
+#### La configuración
+
+- **El sitio pasa de `:80` a su nombre**, y con eso Caddy sirve el 443 y
+  **redirige el 80 solo** — comprobado en su log, porque con un certificado
+  cargado a mano no era obvio que siguiera haciéndolo.
+- **Los puertos 80, 443 y 443/udp** publicados. El UDP es para HTTP/3, que Caddy
+  activa por su cuenta.
+- **El certificado montado en sólo lectura** desde la máquina.
+- **Un volumen para los datos de Caddy**: hoy apenas guarda nada, pero el día que
+  el certificado lo emita una autoridad, sin volumen pediría uno nuevo en cada
+  recreación del contenedor y se acercaría a los límites semanales.
+- **`request_body { max_size 1MB }`**, que cumple **R12.5** en la puerta: lo que
+  se rechaza en Caddy no llega a ocupar memoria en la API.
+- **`CORS_ORIGINS` con el dominio** (R4.7), que venía anotado de #164.
+- **El healthcheck de `web` cambia**: pedía `http://127.0.0.1/`, y con un sitio
+  con nombre esa petición ya no casa con nada. Ahora pregunta a la API de
+  administración de Caddy, que sólo escucha dentro del contenedor.
+
+#### Renovar: `reload` no basta, y eso se descubrió midiendo
+
+El procedimiento parecía obvio —copiar los dos ficheros y recargar— y **estaba
+mal**:
+
+| Paso | Qué se sirve |
+|---|---|
+| Cambiar los ficheros | el certificado **viejo** |
+| `caddy reload` | el certificado **viejo**: la configuración no ha cambiado, y Caddy no relee los ficheros |
+| **`caddy reload --force`** | el **nuevo**, y **0 de 60 peticiones fallaron** durante el cambio |
+
+Es exactamente cómo una renovación se convierte en una caída silenciosa: se
+copian los ficheros, se recarga, no hay ningún error… y el navegador sigue
+recibiendo el certificado caducado. Queda un recordatorio en el calendario para
+el 2027-05-03, con el procedimiento y esta trampa dentro.
+
+*(La primera medición de este reemplazo también fue defectuosa: las peticiones
+de control validaban contra el certificado **nuevo** mientras el servidor aún
+servía el viejo, y contó 52 fallos de 60 que no eran caídas. Medir
+disponibilidad y medir identidad son dos cosas distintas, y mezclarlas produjo un
+número alarmante y falso.)*
+
+#### La verificación de extremo a extremo, desde fuera de la universidad
+
+Ejecutada desde una conexión doméstica, contra el dominio:
+
+| | Resultado |
+|---|---|
+| `https://` con el certificado instalado | 200, validación correcta |
+| `https://` sin instalarlo | rechazado, como haría un navegador |
+| `http://` | **308** a `https://` |
+| `/`, `/historial`, `/sistema` | 200 `text/html` |
+| `/api/health` | `ok`, con las tres APIs respondiendo |
+| Un análisis con cuerpo | **las cinco señales en `ok`**, veredicto `deceptive` |
+| Catálogo y ejecución por MCP | 12 herramientas, `detect_clickbait` en `ok` |
+| `/api/docs` | pide `/api/openapi.json` y carga |
+| **R12.5**: petición de 2 MB | **413** |
+| **R4.7**: CORS | la cabecera sale con nuestro origen y **no** con otro |
+| Certificado servido | el esperado, 239 días por delante |
+
+**HTTP/3 no se pudo comprobar desde aquí**: el `curl` de WSL no lo trae. Caddy lo
+anuncia y escucha, pero que la red de la universidad deje pasar UDP queda sin
+medir.
+
+#### Reiniciar la máquina: vuelve solo, y cuánto tarda
+
+| | |
+|---|---|
+| La web responde por HTTPS | **23 s** tras la orden de reinicio |
+| Los tres servicios sanos | a los **43 s** |
+| Precalentado **con la caché de disco fría** | **19,1 s** en total (16,4 s la señal dedicada) |
+| Historial, catálogo y salud | intactos |
+
+Eso cierra lo que #164 dejó abierto: en frío de verdad, la señal dedicada tarda
+**16,4 s frente a 6,6 s** con los ficheros ya en caché. Sigue muy por debajo del
+`start_period` de 120 s del healthcheck.
+
+**Y aparece una ventana de ~20 s**, entre que la web responde y la API termina de
+precalentar, en la que `/api/*` devuelve el 502 de Caddy. **Se deja así**, y el
+motivo es que ya está resuelto donde importa: la aplicación no enseña ese 502,
+sino la frase que decidió #147, «No se pudo contactar con la API». Las dos
+alternativas se descartaron con su precio delante:
+
+- **Que Caddy espere a la API** en vez de dar 502 borraría el error tras un
+  reinicio, pero también **enmascararía una caída de verdad**: el indicador se
+  quedaría girando en lugar de decir que no responde, que es justo lo contrario
+  de lo que #147 decidió.
+- **Distinguir «arrancando» de «caída» en el indicador**, con un reintento, es la
+  buena si algún día reiniciamos a menudo; hoy cambia un criterio de #147 por una
+  ventana de veinte segundos que ocurre muy de vez en cuando.
+
+#### Lo que NO entra
+
+- **R12.4, la limitación de velocidad**, que el requisito pide y no existe para
+  las peticiones entrantes: necesita un plugin en Caddy o una dependencia nueva
+  en FastAPI. Va en **#169**, ahora que la aplicación está expuesta y sin
+  autenticación.
+- **La sonda de salud por modelo**, que #147 dejó anotada y #156 no cubrió.
+- **Fijar la revisión de cada modelo horneado**, pendiente desde #162.
+
+*(Corrección de trazabilidad: la issue citaba **R8.2**, que habla del CI
+ejecutando las pruebas al hacer push y no tiene nada que ver. Lo que aplica es
+**R7.7** —exponer los puertos adecuados—, **R4.7** y **R12.5**.)*
+
+### El sistema entero, con un comando: compose y la configuración de despliegue (#164)
+
+Con las dos imágenes hechas (#162 y #163), levantar el sistema seguía siendo
+cinco comandos a mano que había que repetir idénticos en cada despliegue.
+`compose.yaml` describe los tres servicios —`api`, `mcp` y `web`— y cómo se
+conectan, y **cierra #156**: en el despliegue, la señal dedicada responde.
+
+```bash
+sudo docker compose up --build --wait
+```
+
+Necesita un `.env` junto al fichero con las tres claves que `settings` exige
+(`GUARDIAN_API_KEY`, `NYT_API_KEY`, `HF_TOKEN`). Ahí van **sólo los secretos**:
+lo que define el despliegue va en `environment`, a la vista en el repositorio, y
+manda sobre lo que traiga el `.env`.
+
+#### Lo medido, en la máquina 1
+
+| Criterio de aceptación | Resultado |
+|---|---|
+| Los tres servicios arrancan y los `healthcheck` pasan a sano | `healthy` los tres, con `--wait` |
+| Análisis con las cinco señales en `ok` | Las cinco, con cuerpo y a través de Caddy |
+| El historial sobrevive a `down` seguido de `up --build` | `total: 3` antes y después; el volumen sigue tras el `down` |
+| La pantalla de Sistema ejecuta una herramienta a través del MCP | `detect_clickbait` y `analyze_headline` en `ok` |
+
+Además, `/api/docs` funciona con `--root-path /api`, lo que dejó medido #163. El
+criterio *«desde fuera, por IP y HTTP»* pasa a **#165**, igual que `cors_origins`
+con el dominio: aquí se probó por túnel SSH, como en #163, y abrir los puertos 80
+y 443 es trabajo de la issue que pone el certificado.
+
+#### Las decisiones del compose
+
+- **`compose.yaml` en la raíz**, y no `docker-compose.yml` en `docker/`. Es el
+  nombre actual del formato, `docker compose` lo encuentra sin `-f`, y no cumple
+  el criterio de `docker/`: no va dentro de ninguna imagen.
+- **Los servicios se llaman `api`, `mcp` y `web`.** `api` es obligatorio —es el
+  contrato con el `Caddyfile`, que reenvía a `api:8000`— y `web` coincide con la
+  imagen de #163.
+- **`name: clickbait`.** Sin nombre fijo, compose saca el del proyecto de la
+  carpeta, y en un clon con otro nombre el volumen del historial sería otro: el
+  historial *parecería* borrado.
+- **Un volumen con nombre, montado en `/app/var`**, donde la API ya escribía, así
+  que no cambia ninguna configuración. Frente a montar una carpeta del
+  repositorio, evita ficheros a nombre de root dentro del clon, que es lo que
+  dejaría `sudo`. Ojo: `docker compose down` conserva el volumen, pero
+  `down -v` lo borra.
+- **Nada expuesto**: sólo `web` publica un puerto, y en `127.0.0.1:8080`.
+- **Ningún servicio espera a otro.** `depends_on` con `service_healthy` haría que
+  una API que no llega a estar sana dejara **la web entera sin arrancar**. Sin
+  él, Caddy sirve la aplicación y contesta 502 en `/api`, que el indicador de
+  salud ya sabe explicar (#147); y un MCP caído sólo degrada la pantalla de
+  Sistema, porque `/analyze` no pasa por él.
+- **Lo común se escribe una vez.** La API y el MCP son la misma imagen con otro
+  comando, así que su construcción, el `.env` y la política de reinicio viven en
+  un ancla de YAML (`x-backend`) que los dos servicios mezclan.
+
+#### Los healthchecks, y por qué la API no usa `/health`
+
+`/health` hace **tres peticiones externas** en cada llamada. Un healthcheck cada
+30 s serían 2.880 peticiones diarias sólo a NYT, que admite 500: la cuota se
+acabaría en unas cuatro horas, y a partir de ahí `/health` daría «degradado» por
+culpa del propio healthcheck. El de la API pide `/openapi.json`, que es local y
+sólo responde cuando uvicorn ha terminado de precalentar, con una línea de
+Python porque la imagen slim no trae `curl`. El del MCP comprueba que el puerto
+acepta conexiones —hablar MCP exige abrir una sesión—, y el de la web usa el
+`wget` de busybox que trae la imagen alpine de Caddy.
+
+**Un contenedor `unhealthy` no se reinicia solo.** Docker, sin Swarm, sólo
+reinicia cuando el proceso termina (`restart: unless-stopped`). El healthcheck
+informa —lo enseña `docker compose ps` y lo espera `--wait`—, pero no arregla
+nada por sí mismo.
+
+#### La primera trampa: el MCP rechazaba a la API
+
+Leyendo el código de la librería antes de escribir el compose apareció algo que
+no estaba en la issue, y se provocó en la VM antes de arreglarlo: con el
+servidor MCP en un contenedor, **desde dentro del propio contenedor respondía
+200, y desde la API, llamándolo por su nombre, `421 Invalid Host header`**.
+
+El motivo es una defensa contra *DNS rebinding*: una web maliciosa hace que su
+dominio resuelva a `127.0.0.1` para que el navegador de la víctima hable con un
+servidor local, y el servidor se defiende rechazando peticiones cuya cabecera
+`Host` no sea `localhost`. FastMCP activa esa defensa **al construirse** si su
+host es local, y `127.0.0.1` es el defecto. `main.py` crea el servidor al
+importar y le cambiaba el host a `0.0.0.0` después, dentro de `main()`: la
+defensa ya estaba puesta y no se recalculaba. La API llamaba a
+`http://mcp:8765`, con `Host: mcp:8765`, y recibía el 421. Las pruebas ya
+conocían la protección —un comentario de `tests/test_main.py` explica que se
+deja activa—, pero no **en qué momento** se decide.
+
+`configurar_red(servidor, host, puerto)` aplica el host y el puerto y quita la
+defensa **sólo si el host no es local**, que es la misma regla que sigue la
+librería al construirse. No abre ningún hueco: protege de un navegador que ataca
+un servidor de su propia máquina, y el puerto del MCP no se publica. Es una
+función y no un argumento del constructor porque leer la configuración al
+importar es lo que quitó #87. Dos pruebas la fijan mandando en memoria la misma
+petición que se midió: con `0.0.0.0` se acepta `Host: mcp:8765`, y con
+`127.0.0.1` se sigue rechazando, así que en desarrollo la defensa se mantiene.
+
+#### La segunda trampa: el MCP seguía usando HuggingFace remoto
+
+La primera ejecución de los criterios en la VM dio verde en casi todo, y la
+herramienta léxica se ejecutó a través del MCP en 0,14 s. Pero `detect_clickbait`
+respondió:
+
+```
+HTTP error: 400 - {"error":"Model not supported by provider hf-inference"}
+```
+
+Era el 400 de #156. **El servidor MCP también ejecuta las señales NLP** —sus
+herramientas llaman a los mismos detectores—, y `NLP_BACKEND: local` estaba sólo
+en la API, así que el MCP arrancó con `remote`. La regla de #156 —«`nlp_backend=
+local` y torch CPU van juntos o no van»— vale para los dos procesos. **Sólo se
+vio ejecutando una herramienta NLP**: con la léxica, que no carga modelos, el
+criterio de aceptación habría pasado.
+
+La variable vive ahora en un ancla propia (`x-entorno-backend`) que los dos
+servicios mezclan dentro de su `environment`. Va aparte y no dentro de
+`x-backend` porque **`<<:` sólo mezcla el primer nivel**: el `environment` de
+cada servicio sustituiría al común entero, y la variable volvería a desaparecer
+sin avisar. `tests/test_compose.py` lee el compose ya resuelto y exige que todo
+servicio con la imagen del backend tenga `NLP_BACKEND=local`; contra el fichero
+anterior, falla señalando al servicio `mcp`.
+
+#### Los errores del catálogo, legibles
+
+Anotado en #163: la pantalla de Sistema enseñaba `ExceptionGroup: unhandled
+errors in a TaskGroup (1 sub-exception)` cuando un servidor MCP no respondía. El
+cliente MCP lee y escribe en tareas concurrentes, y sus errores llegan envueltos
+en grupos. Provocados los casos:
+
+| Caso | Qué llegaba | Qué se publica ahora |
+|---|---|---|
+| El nombre del servicio, rechazado | grupo → `HTTPStatusError` | `HTTP 421 Misdirected Request` |
+| Puerto cerrado | grupo → `ConnectError` | `ConnectError` |
+| Nombre que no existe | grupo → `ConnectError` | `ConnectError` |
+| Ruta que no existe | grupo → **grupo** → `McpError` | `McpError` |
+| Servidor que acepta y no contesta | `TimeoutError`, **sin grupo** | `TimeoutError` |
+
+Era además el mismo patrón que filtró la clave en #163: texto de una librería en
+una salida pública. `health.py` ya tenía su regla, y escrita dos veces acabaría
+divergiendo, así que vive en `core/errores.py` como `describir_error()`: abre los
+grupos a cualquier profundidad y devuelve el código HTTP o el nombre del tipo,
+nunca el texto. La usan `health.py` —y sus pruebas de #163 siguen pasando sin
+tocarlas— y `api/catalog.py`. Seis pruebas cubren los casos medidos.
+
+#### Las fichas, corregidas al cerrar #156
+
+Las fichas de la señal dedicada y de la incoherencia decían que *«una instalación
+de producción de hoy no puede»* ejecutarlas. Se publican —en la pantalla de
+Sistema y por `describe_models`—, y al desplegar con compose dejaban de ser
+ciertas: es el criterio de `v0.4.1`, que lo publicado no puede inducir a error.
+Ahora distinguen una instalación hecha sólo con `requirements.txt`, que sigue
+sin poder, del despliegue, que sí.
+
+#### Tiempos y memoria
+
+| | |
+|---|---|
+| Primer `up --build --wait` | 129 s, con la capa de modelos rehecha porque cambió `model_cards.py` |
+| `up` tras cambiar sólo el compose | 15 s: recrea `api` y `mcp`, y deja `web` como estaba |
+| `down` y `up --build --wait` sin cambios | 14 s |
+| Precalentado en el contenedor | 6,5 s la señal dedicada y 0,3 s el sentimiento |
+| `detect_clickbait` a través del MCP, en frío / en caliente | 6,6 s / 0,1 s |
+| `analyze_headline` a través del MCP, en frío / en caliente | **7,0 s** / 0,3 s |
+
+**Una imagen para dos servicios no se construye dos veces**: los pasos de `mcp`
+salieron todos `CACHED`. Lo que sí se hace dos veces es exportar la imagen —97 s
+cada una, en paralelo—, que es el coste de reescribir la capa de modelos.
+
+**El MCP no precalienta, y ahora está medido que no hace falta**: cargar los tres
+modelos en frío tarda 7,0 s frente a los 60 s de `mcp_execute_timeout`. Los
+tiempos en frío son con los ficheros ya en la caché de disco del sistema —el
+build y los contenedores anteriores los habían leído—; tras reiniciar la máquina
+serán mayores, y eso no se ha medido.
+
+**La memoria, con un matiz de `docker stats`.** Da 442 MiB para la API y 407 MiB
+para el MCP, muy por debajo de los 1.201 MB de #156. Leyendo la memoria de cada
+proceso:
+
+| | Total residente | Privada | Respaldada por ficheros |
+|---|---|---|---|
+| API | **1.239 MiB** | 406 MiB | 833 MiB |
+| MCP | **1.232 MiB** | 402 MiB | 830 MiB |
+
+El total coincide con #156. La parte respaldada por ficheros —las bibliotecas de
+torch y los pesos leídos de disco— no la cuenta `docker stats` porque Linux carga
+esas páginas a quien leyó primero el fichero, que no fueron estos contenedores; y
+puede compartirse entre los dos procesos, que leen los mismos ficheros de la
+misma imagen. La máquina entera usaba 2.646 MB y tenía 12.967 MB disponibles: la
+estimación de ~2,4 GB para API y MCP que se hizo al decidir H4 se queda holgada.
+
+#### Lo que NO entra
+
+- **HTTPS, el dominio, `cors_origins` y abrir los puertos 80 y 443**: #165.
+- **Fijar la revisión de cada modelo horneado**, pendiente desde #162.
+
+### La puerta de entrada: el Angular y la API detrás de Caddy (#163)
+
+Con la imagen del backend hecha (#162), la API sólo se podía probar desde la
+propia máquina. Esta issue construye **la pieza que da la cara**: una imagen que
+sirve el Angular compilado y reenvía `/api/*` a la API, de modo que para el
+navegador todo sale del mismo origen. Es la topología decidida en H2 con otra
+pieza delante.
+
+```bash
+sudo docker build -f docker/web.Dockerfile -t clickbait-web .
+```
+
+#### nginx → Caddy: cambia la pieza, no la decisión
+
+H2 eligió nginx (sección de #86). Lo que se decidió entonces —proxy inverso
+delante, mismo origen, sin CORS— no cambia. Cambia la pieza, por tres motivos:
+
+1. **Caddy renueva el certificado solo.** Los de Let's Encrypt duran 90 días;
+   con nginx la renovación depende de certbot, de un temporizador y de recargar
+   nginx, y si falla cualquiera de los tres la web cae tres meses después.
+   Contando desde septiembre, **en diciembre, antes de la defensa**.
+2. **Quitar el prefijo `/api` queda escrito.** En nginx depende de una barra
+   final en `proxy_pass`, invisible y sin error si falta; en Caddy es
+   `handle_path`.
+3. Menos configuración que justificar en la memoria.
+
+A favor de nginx quedaba que está más extendido.
+
+La imagen se llama **`web`** y no `frontend`: sirve el Angular, pero también es
+el proxy hacia la API y la puerta de entrada de todo el sistema. `frontend`
+predeciría algo falso, que es el criterio de renombrado de `docs/estructura.md`.
+
+#### Lo medido, en la máquina 1
+
+| Criterio de aceptación | Resultado |
+|---|---|
+| La imagen construye | **26,0 s** sin caché (con las imágenes base ya descargadas) |
+| Recargar `/historial` y `/analisis/1` sirve la aplicación | `200` y `text/html` en las dos, **con el mismo `Etag`**: es el mismo `index.html`, y decide el router de Angular |
+| `/api/health` llega a la API como `/health` | Responde la API, que no tiene ninguna ruta `/api/health` |
+| La imagen final no contiene Node | `command -v node` no encuentra nada |
+
+| | En disco | Contenido |
+|---|---|---|
+| Etapa de compilación, con Node y `node_modules` | 1,04 GB | 261 MB |
+| **Imagen final** | **88,9 MB** | **24 MB** |
+
+Las versiones se fijaron a lo que descargaron las etiquetas móviles al
+construir, como torch en #162: **Caddy 2.11.4** y **Node 22.23.2**, que es
+exactamente la del entorno de desarrollo.
+
+#### Dos etapas, y por qué la final no tiene Node
+
+Un `Dockerfile` puede tener varios `FROM`. Cada uno empieza una etapa desde cero
+y **sólo la última se convierte en la imagen**; de las anteriores se copia lo que
+haga falta con `COPY --from`. La primera etapa compila con Node, y la segunda
+parte de Caddy y copia sólo `dist/clickbait-web/browser`. Node no se quita de la
+imagen final: **nunca estuvo en esa etapa**.
+
+- **Compilar sobre Debian `slim`, servir sobre alpine.** La etapa de compilación
+  se tira, así que su tamaño no importa, y compila con la misma libc que el
+  entorno de desarrollo. Caddy es un único ejecutable de Go sin dependencias del
+  sistema, así que alpine no le afecta — al revés que torch en #162, que necesita
+  glibc.
+- **`package.json` y `package-lock.json` antes que el código**, por la regla de
+  capas de #162: tocar un componente reutiliza la capa de dependencias.
+- **`npm ci` y no `npm install`**: instala exactamente el lockfile y falla si no
+  coincide con `package.json`. Y con `NODE_ENV=production` omitiría las
+  `devDependencies`, que es donde está el compilador de Angular.
+- **Se copia `browser/`, no `dist/clickbait-web/`**: `COPY` de un directorio
+  copia su contenido, y `index.html` tiene que quedar en `/srv`.
+- **`CMD` y `EXPOSE` se heredan** de la imagen oficial, comprobado con `docker
+  image inspect`: arranca con `/etc/caddy/Caddyfile` y declara 80, 443 (TCP y
+  UDP) y 2019. `EXPOSE` sólo documenta; lo que se publica lo decide `-p`.
+
+#### El `Caddyfile`
+
+```caddyfile
+:80 {
+	handle_path /api/* {
+		reverse_proxy api:8000
+	}
+
+	handle {
+		root * /srv
+		try_files {path} /index.html
+		file_server
+	}
+}
+```
+
+- **`:80`, sin dominio**: Caddy sólo pide certificado cuando la dirección lleva
+  un dominio, y eso es #165. Tampoco la IP: con una IP activaría HTTPS con un
+  certificado propio que el navegador rechaza.
+- **`handle_path` quita el prefijo**, como `pathRewrite` en `proxy.conf.json`.
+  La contraprueba: `/api/api/health` devuelve `{"detail":"Not Found"}`, porque a
+  la API le llega `/api/health`. Es lo que habría pasado con **todas** las rutas
+  usando `handle`, que recoge igual pero no recorta.
+- **`try_files`** sirve el fichero si existe y, si no, reescribe a `index.html`
+  por dentro: la URL no cambia y la respuesta es 200. Efecto secundario: un `.js`
+  que no existe también devuelve `index.html` con 200, así que tras un
+  redespliegue el síntoma de un fichero perdido sería un error de tipo MIME, no
+  un 404.
+- **El orden de los bloques lo decide Caddy**, no el fichero. No se dio por
+  hecho: `caddy adapt`, que enseña la configuración ya traducida, pone el recorte
+  de `/api` en la línea 27 y `file_server` en la 82.
+- **`api` es un contrato**: el contenedor de la API se llama así, y su servicio
+  en el compose de #164 tendrá que llamarse igual.
+- Con la API parada, Caddy contesta **`502 Bad Gateway`**, lo mismo que dejó
+  documentado #147 con `proxy.conf.json`.
+
+**Dónde vive el `Caddyfile`, y un criterio que se desbordó.** El criterio de
+`docker/`, escrito en #162, preguntaba *«¿existe sólo para construir una
+imagen?»*, y el `Caddyfile` no construye nada. Tampoco cabía en `frontend/`, que
+es la SPA, cuando el `Caddyfile` enruta también hacia la API. La pregunta pasa a
+ser *«¿sólo tiene sentido dentro de una imagen?»*.
+
+#### El `.dockerignore`, probado con un canario
+
+Excluir `frontend/node_modules` no es sólo por tamaño: el `COPY frontend/ ./` va
+**después** de `npm ci`, y si `node_modules` entrara en el contexto pisaría las
+dependencias recién instaladas con las de la máquina que construye.
+
+Mirar el tamaño del contexto no lo demostraba —en la VM no hay `node_modules`
+que excluir, que es lo que ya engañó en #162—, así que se creó uno falso con un
+fichero trampa, se construyó sólo la primera etapa (`--target compilacion`) y se
+buscó dentro: `No such file or directory`. La exclusión funciona.
+
+#### Cómo se probó sin exponer nada
+
+Sin compose todavía (#164), los dos contenedores se conectaron con una red de
+Docker creada a mano, donde cada uno encuentra al otro por su nombre. **La API
+no se publicó**: sólo se llega a ella a través de Caddy. Y Caddy se publicó en
+`127.0.0.1:8080`, no en la IP pública, aunque la issue decía «por IP»: el puerto
+80 de la máquina 1 es alcanzable desde internet, y detrás hay una API sin
+autenticación que gasta las cuotas de Guardian y NYT. El navegador llegó por un
+túnel SSH abierto desde el panel de puertos de VS Code. Exponer la aplicación se
+decide en #165, con HTTPS.
+
+#### Lo que salió al probarlo: la clave de Guardian se publicaba
+
+La primera respuesta de `/api/health` traía **la clave de Guardian en texto
+plano**, dentro del mensaje de error. Guardian y NYT reciben la clave en la URL
+(`?api-key=…`); ante un 401, el mensaje de la excepción de httpx incluye la URL
+completa, y `health.py` devolvía `str(exc)` tal cual. Ese texto es público: sale
+por `GET /health`, lo pinta el indicador de la cabecera (#147) y lo recibe por
+MCP quien llame a `health_check`, el LLM del agente incluido.
+
+Antes de arreglarlo se provocaron los errores con una clave falsa, que es la
+regla que dejó #162 para traducir errores de librerías:
+
+| Camino | Caso | ¿Llevaba la clave? |
+|---|---|---|
+| `health._probe` (lo que sale por `/health`) | 401 de Guardian o de NYT | **sí**: `Client error '401 Unauthorized' for url '…?api-key=…'` |
+| | timeout | no, pero el mensaje salía **vacío** |
+| | fallo de conexión | no |
+| `BaseAPI.make_request` (lo que reciben los clientes) | 401, timeout y conexión | no: escribe su propio mensaje |
+
+La fuga estaba sólo en `health.py`, y ahora `_probe` redacta el error: un error
+HTTP es `HTTP 401 Unauthorized`, y un fallo de red, el nombre de su tipo
+(`ConnectError`, `ConnectTimeout`). Los fallos de red también se reducen al tipo
+aunque salieran limpios, porque sólo se midieron dos de los que puede lanzar
+httpx y la salida es pública; se pierde el detalle `Name or service not known`, y
+se acepta. De paso, el timeout deja de dar un error vacío, que el indicador leía
+como «no responde» sin motivo.
+
+Cinco pruebas lo fijan. La principal simula que las tres APIs responden 401 y
+comprueba que **las claves de la configuración no aparecen en ninguna parte** de
+la respuesta completa de `check_health()` convertida a JSON, así que un campo
+nuevo queda cubierto sin tener que acordarse de él. Y una prueba existente exigía
+justo lo contrario —que el texto de la excepción llegara a la respuesta—, y
+ahora exige que no llegue. Repetida la medición contra las APIs reales, los
+cuatro casos salen limpios. **246 pruebas en los dos entornos.**
+
+**Con una clave válida la fuga no desaparecía, sólo era menos frecuente**: pasaba
+cada vez que Guardian o NYT respondieran con un error, un 429 por cuota
+incluido. La clave expuesta resultó estar ya rechazada por Guardian —la misma en
+desarrollo y en la VM, comprobado comparando un hash, no la clave—, y se generó
+una nueva. El orden acordado fue **primero el arreglo y después la clave**, para
+no filtrar también la nueva.
+
+**Por qué no bastaba con mandar la clave en una cabecera.** Contra la
+interceptación en la red no cambia nada: HTTPS cifra igual la URL y las
+cabeceras. Contra las filtraciones por descuido sí ayuda, porque las URLs se
+escriben en muchos más sitios —mensajes de error, logs de librerías HTTP y de
+proxies, trazas—; pero NYT sólo acepta la clave en la URL, y la clave pública de
+pruebas de Guardian ya da 401 también en la URL, así que no se pudo comprobar si
+Guardian la acepta en cabecera. El arreglo que vale para las dos es no reenviar
+texto de librerías a una salida pública. `logging.py` ya silenciaba el log de
+httpx por lo mismo: alguien previó la fuga en los logs, pero no en los mensajes
+de error.
+
+#### Lo que salió al probarlo: `/api/docs`, roto
+
+La página de documentación cargaba, pero pedía su esquema a `/openapi.json`, sin
+el prefijo. Esa ruta la recoge el bloque de la SPA y devuelve `index.html`, y
+Swagger responde *«does not specify a valid version field»*.
+
+Tiene su ironía. H2 descartó que FastAPI sirviera el Angular, entre otros
+motivos, porque la ruta comodín de la SPA *«puede tragarse `/docs` y
+`/openapi.json`»*. Ha pasado igualmente, un nivel más arriba, en el proxy.
+
+El `Caddyfile` es correcto: lo que falta es que la API sepa que vive bajo `/api`.
+Se comprobó arrancándola con **`uvicorn … --root-path /api`**: la documentación
+pasa a pedir `/api/openapi.json`, que llega como JSON (`"openapi":"3.1.0"`), y
+`/health` y `/analyze` siguen respondiendo, que era el riesgo del cambio. Va a
+**#164**, en el comando de la API del compose, y no en el `CMD` del `Dockerfile`:
+ahí rompería la documentación al acceder a la API sin proxy, como en las pruebas
+de #162.
+
+#### Lo que salió al probarlo: el historial se pierde al recrear el contenedor
+
+El historial es `/app/var/history.db`, un fichero en la capa escribible del
+contenedor. Reproducido con control:
+
+| Acción | Historial |
+|---|---|
+| Dos análisis | `total: 2` |
+| `docker restart api` | `total: 2` |
+| `docker rm` + `docker run` | **`total: 0`**, y el siguiente análisis vuelve a ser `id: 1` |
+
+Reiniciar no pierde nada; recrear, todo. Y recrear es lo que hace `docker compose
+up --build` en cada despliegue, así que el volumen de #164 deja de ser una
+precaución anotada y pasa a ser un fallo reproducido.
+
+#### Lo que NO entra
+
+- **HTTPS y el dominio**: #165.
+- **Para #164, anotado en la issue**: el compose; el servidor MCP, sin el cual la
+  pantalla de Sistema dice «no responde» —`MCP_SERVERS` apunta por defecto a
+  `127.0.0.1`, que dentro del contenedor es el propio contenedor—; el
+  `--root-path`; el volumen del historial; y el detalle del error de un servidor
+  MCP caído, que hoy dice `ExceptionGroup: unhandled errors in a TaskGroup` sin
+  el motivo real y reenvía texto de librería, el mismo patrón que la fuga.
+- **Compresión y cabeceras de caché** de los estáticos: no se han medido, y no se
+  añaden a ciegas.
+
+### La imagen del backend: los modelos dentro, y cada capa en su sitio (#162)
+
+#156 dejó medido qué necesita producción para que respondan las cinco señales
+—torch en su rueda de CPU, `sentence-transformers` y los modelos ya
+descargados— y que nada de eso va en `requirements.txt`. Esta issue lo convierte
+en una imagen, `docker/backend.Dockerfile`, que arranca la API. El servidor MCP
+usará la misma imagen con otro comando, y eso llega con el compose de #164.
+
+```bash
+sudo docker build -f docker/backend.Dockerfile -t clickbait-backend .
+```
+
+#### Lo medido, en la máquina 1
+
+| Criterio de aceptación | Resultado |
+|---|---|
+| El build termina | **168,8 s** en frío |
+| Tocar código no vuelve a descargar modelos | **2,16 s**: sólo se rehace la capa del código |
+| La API con `NLP_BACKEND=local` responde `/analyze` | **las cinco señales en `ok`**, con `HF_HUB_OFFLINE=1` |
+| Tamaño de la imagen | **4,13 GB** en disco · **1,43 GB** de contenido — abajo, por qué dos |
+
+| Capa | Tamaño |
+|---|---|
+| `python:3.12-slim` | 142 MB |
+| `requirements.txt` | 330 MB |
+| torch CPU + `sentence-transformers` | **1,14 GB** |
+| Modelos | **1,1 GB** |
+| Código del backend | 356 kB |
+| **Total, descomprimido** | **~2,71 GB** |
+
+El código es el 0,01 % de la imagen y es lo que cambia en casi cada commit. De
+esa desproporción sale todo el diseño: que tocarlo no arrastre los otros 2,7 GB.
+*(Los 1,14 GB de la tercera capa no contradicen los 769 MB de torch de #156: la
+capa incluye además las dependencias de los dos paquetes que no estaban ya
+instaladas.)*
+
+**Por qué dos tamaños.** Docker 29 guarda las imágenes en el almacén de
+containerd, que conserva **dos copias de cada capa** —la comprimida, tal como se
+descarga, y la desempaquetada, que es la que usa un contenedor—, y la columna de
+disco de `docker image ls` suma ambas: 1,43 + 2,71 ≈ 4,13. Para los 58 GB de la
+máquina cuenta el primer número.
+
+#### El orden de las capas, y el error que tenía el plan
+
+Docker cachea cada instrucción como una capa identificada por lo que entra en
+ella. Cuando una cambia, **se rehace ella y todas las de debajo**, aunque las de
+debajo no hayan cambiado. Así que el orden bueno va de lo que menos cambia a lo
+que más:
+
+```
+1  requirements.txt                 cambia al recompilar el lockfile
+2  torch + sentence-transformers    versiones fijadas a mano en el Dockerfile
+3  modelos                          se rehace cuando cambia model_cards.py
+4  código                           cambia en casi cada commit
+```
+
+El plan ponía los modelos **antes** que torch, pensando en ellos como «lo pesado
+que no hay que volver a bajar». Pero las dos capas pesan lo mismo, y lo que
+decide el orden no es el peso sino **con qué frecuencia cambia lo que invalida
+cada una**: torch sólo cambia si alguien sube su versión. Con el orden del plan,
+cada cambio en las fichas habría reinstalado también 1,14 GB de torch. Se
+invirtió antes de construir.
+
+#### Lo que la issue daba por hecho, y no era exacto
+
+La issue afirmaba que la capa de modelos *«sólo se invalida cuando cambian las
+fichas — que es exactamente cuando cambian los modelos»*. La primera mitad es
+cierta y la segunda no: Docker no sabe qué parte del fichero ha cambiado, y
+`model_cards.py` no guarda sólo ids, guarda también las descripciones, las
+limitaciones y las medidas de cada señal. Contado en el historial: **entre el 25
+de agosto y el 8 de septiembre, 9 PRs tocaron `model_cards.py`, y sólo una cambió
+un modelo** (#120, de `bart-large-mnli` a `roberta-base-clickbait`).
+
+Medido lo que cuesta: cambiar un texto de una ficha reconstruye en **1 min 55
+s** —según el registro, la descarga había terminado a los 16,7 s—, y deshacer el
+cambio vuelve a **6,2 s**, todo `CACHED`: la caché identifica cada capa por su
+contenido, y la anterior seguía guardada.
+
+#### Una etapa para aislar los ids: criterio fijado antes de medir, y descartada
+
+Hay una forma de que un cambio de texto no toque esa capa: una etapa previa del
+build que lea `MODEL_CARDS` y escriba **sólo los ids** en un fichero, y que la capa
+de modelos copie ese fichero. Un cambio de texto produciría el mismo fichero, y
+la caché acertaría.
+
+Antes de medir se fijó cuándo compensaría: si la reconstrucción costaba del
+orden de **un minuto, no**; de **diez, sí**. Midió **dos**, así que se descarta —
+una etapa más es una pieza más que entender en el `Dockerfile` para ahorrar dos
+minutos que sólo se pagan al tocar una ficha—. Fijar el umbral antes es lo que
+impide leer el número a favor de lo que ya se quería hacer.
+
+#### Qué hace falta copiar para hornear
+
+La issue pedía comprobar que `model_cards.py` no arrastrara imports que obligaran
+a copiar más. Arrastra uno: `outputs.py`, por el tipo `FichaModelo`, que a su vez
+sólo importa `typing`. Con los tres `__init__.py` del camino, vacíos, son **cinco
+ficheros**: la capa de modelos depende de ellos y del guion de horneado, y de
+ningún otro fichero del código.
+
+#### Los modelos se descargan por formato, no cargándolos
+
+La primera versión del guion **cargaba** cada modelo con su librería. Se descartó
+por dos motivos, medidos antes de escribirla:
+
+- **Duplicaba un dato.** Para cargar hay que decir qué librería usa cada señal, y
+  eso ya lo dicen `local.py` e `incoherence.py`. Es la divergencia de #116 con
+  otro dato.
+- **Horneaba el doble.** Los dos RoBERTa tienen en su rama `main` sólo
+  `pytorch_model.bin`; su `model.safetensors` vive en una PR de conversión
+  automática del Hub (`refs/pr/1` en Stremie, `refs/pr/43` en cardiffnlp).
+  Cargando con red se descargan **los dos**, ~2 GB. Pero **sin red `transformers`
+  sólo ve `main`**, y se comprobó quitando cada fichero de una copia de la caché:
+
+| Quitando | Resultado sin red |
+|---|---|
+| `model.safetensors` | carga bien |
+| `pytorch_model.bin` | `OSError: … does not appear to have a file named pytorch_model.bin or model.safetensors` |
+
+Como la imagen corre sin red hacia el Hub, el `safetensors` de la PR serían ~1 GB
+de peso muerto.
+
+`docker/hornear_modelos.py` pide a cada repositorio la lista de ficheros de
+`main` y descarga configuración y vocabulario (`*.json`, `*.txt`) más **un solo**
+fichero de pesos: `model.safetensors` si está en `main` y, si no,
+`pytorch_model.bin` — el mismo orden en que los busca `transformers`. Así no
+necesita saber qué librería carga cada modelo. `snapshot_download` filtra los
+nombres **antes** de descargar —comprobado en su código—, de modo que lo que no
+encaja no llega a transferirse. Resultado: **1,1 GB**, y las cinco señales en
+`ok` sin red.
+
+*Sobre usar el `.bin`:* `safetensors` existe porque `pickle` puede ejecutar código
+al abrir un fichero. `transformers` carga los `.bin` con `weights_only=True`, que
+rechaza precisamente eso.
+
+Las revisiones horneadas el 2026-09-16, iguales en la máquina 1 y en la caché de
+desarrollo:
+
+| Modelo | Revisión de `main` | Pesos |
+|---|---|---|
+| `Stremie/roberta-base-clickbait` | `517de05db9ba` | `pytorch_model.bin` |
+| `cardiffnlp/twitter-roberta-base-sentiment-latest` | `3216a57f2a0d` | `pytorch_model.bin` |
+| `sentence-transformers/all-MiniLM-L6-v2` | `1110a243fdf4` | `model.safetensors` |
+
+Se anotan porque **nada las fija**. El guion baja lo que haya en `main` el día del
+build: si el autor de un modelo sube pesos nuevos, reconstruir hornearía otro
+modelo, y su ficha seguiría publicando las medidas del anterior. Es la lección de
+#119 por otra puerta —allí las medidas dejaban de ser ciertas al configurar otro
+modelo; aquí, con sólo dejar pasar el tiempo—. Fijar la revisión obliga a decidir
+dónde vive ese identificador sin volver a duplicarlo, y queda anotado en #162
+como decisión aparte.
+
+#### `HF_HUB_OFFLINE=1`: lo que da y lo que cuesta
+
+Se activa **después** de hornear, y hace dos cosas:
+
+- **El modelo que se sirve es el horneado.** Con red, cada carga pregunta al Hub
+  por la revisión actual de `main`; sin ella, la imagen queda congelada y sólo
+  una reconstrucción cambia el modelo.
+- **Un horneado incompleto da error**, en vez de completarse en silencio
+  descargando lo que falte en cada contenedor nuevo.
+
+**Dónde se ve ese error no es donde se creyó.** Al escribir el `Dockerfile` se
+dio por hecho que *«falla al arrancar»*, y no: `precalentar` **se traga los
+fallos a propósito** (#125) —un modelo que no carga no debe impedir servir
+`/tools` ni `/history`— y además está **desactivado por defecto**. Sin
+`PREHEAT_MODELS=true` el error aparece en la primera petición; con él, al
+arrancar, como `preheat.failed` en el log, y el proceso sigue en pie.
+
+**El coste, medido:** un modelo puesto por `NLP_MODELS` ya **no se descarga al
+usarse**, que es lo que la propia issue daba por hecho apoyándose en #119.
+Probado en el entorno de desarrollo, con una caché vacía y la variable activa,
+esto es lo que decía antes del arreglo de abajo:
+
+```
+Error inesperado usando el modelo elozano/bert-base-cased-clickbait-news:
+We couldn't connect to 'https://huggingface.co' to load the files, and
+couldn't find them in the cached files.
+```
+
+Experimentar con otro modelo dentro del contenedor pide arrancarlo con
+`-e HF_HUB_OFFLINE=0`, y lo descargado queda en el contenedor, no en la imagen.
+
+#### El mensaje llamaba «inesperado» a algo previsible
+
+Es el problema que #158 arregló para las dependencias, y se arregla aquí con el
+mismo mecanismo: `FaltaDependencia`, cuyo mensaje las dos señales ya devuelven
+tal cual. Lo delicado era **reconocer el caso**. Preguntar antes de cargar
+obligaría a copiar qué ficheros necesita cada librería —la divergencia de
+siempre—, así que se interpreta el fallo. Y capturar cualquier `OSError` habría
+sido un error, medido:
+
+| Caso | Clasificador (`transformers`) | Incoherencia (`sentence-transformers`) |
+|---|---|---|
+| Sin red, modelo nunca horneado | `OSError` ← `LocalEntryNotFoundError` | `OSError` ← `LocalEntryNotFoundError` |
+| Sin red, horneado a medias | `ValueError` | `OSError`, sin causa |
+| Con red, un id que no existe | `OSError` ← `RepositoryNotFoundError` | — |
+
+La flecha es la causa encadenada: la librería hace `raise OSError(…) from
+error`, y Python guarda el original en `__cause__`. Con eso delante,
+`motivo_si_falta_modelo` sólo da el mensaje nuevo si se cumplen **tres
+condiciones**, y cada una evita uno falso:
+
+1. **La causa es `LocalEntryNotFoundError`.** Si no, un id mal escrito o un
+   horneado a medias lo recibirían.
+2. **La descarga está desactivada.** Esa causa aparece también si se cae la red
+   sin la bandera puesta, y decir «desactivada» sería falso.
+3. **El modelo no es de los declarados.** Uno declarado tenía que venir
+   horneado: si falta, la imagen está mal construida, y eso **sí** es una avería.
+
+Comprobado sin red y con la caché vacía: `elozano/…` en la señal dedicada y otro
+MiniLM en la incoherencia dan el mensaje nuevo, y `Stremie/…`, que está
+declarado, sigue diciendo «Error inesperado», como debe. Seis pruebas lo fijan;
+las dos de extremo a extremo fingen el paquete entero, así que corren en el CI
+sin torch. **241 pruebas en los dos entornos.**
+
+De paso, la nota de #156 sobre `HF_TOKEN` deja de afectar a los modelos
+declarados: en ejecución no se descarga nada, y en el build no hace falta porque
+los tres son públicos.
+
+#### El `.dockerignore`: lo que entra, no lo que no
+
+`docker/backend.Dockerfile.dockerignore` excluye **todo** (`*`) y abre sólo
+`requirements.txt`, `backend/` y el guion de horneado. Una lista de exclusiones
+habría que mantenerla al día con cada fichero nuevo del repositorio —un
+`.env.prod`, un volcado del historial—, y lo olvidado entraría en la imagen sin
+avisar. Con una lista de lo que entra, olvidar algo hace fallar un `COPY` a la
+vista. Es la trampa grave que anotaba la issue: **un secreto dentro de una capa
+se queda aunque luego se borre**.
+
+El contexto del build baja a **18,44 kB**, cuando sólo `.venv` son 5,3 GB. Dentro
+de lo abierto se quitan `__pycache__` y `backend/evaluation/`, que por el
+criterio de `docs/estructura.md` no se importa en ejecución.
+
+El nombre lleva delante el del `Dockerfile` porque Docker busca primero
+`<Dockerfile>.dockerignore` a su lado. La imagen del frontend (#163) necesita
+otros ficheros, y un `.dockerignore` único en la raíz tendría que servir a las
+dos.
+
+#### Detalles pequeños que romperían algo
+
+- **`python:3.12-slim`, no alpine**: alpine usa musl en vez de glibc, y torch no
+  publica ruedas para musl.
+- **`--host 0.0.0.0`**: dentro de un contenedor, `127.0.0.1` es la interfaz local
+  del propio contenedor, y el puerto publicado llega por su interfaz de red.
+  Escuchando en `127.0.0.1` arranca sin errores y nadie puede hablarle.
+- **`-p 127.0.0.1:8000:8000` al probar**: la API no tiene autenticación y en la
+  máquina 1 `ufw` está inactivo. Publicando sólo en la interfaz local del
+  anfitrión no se expone nada; desde fuera se entrará por Caddy (#163).
+- **`CMD` en forma JSON**: uvicorn es el proceso principal y recibe la señal de
+  `docker stop`. En forma de texto la recibiría un `/bin/sh` que no la reenvía,
+  y Docker acabaría matándolo a los 10 s.
+- **`UNEXPECTED` en el log al cargar el modelo de sentimiento**: el checkpoint de
+  cardiffnlp trae los pesos del *pooler*, que la cabeza de clasificación no usa.
+  Es inofensivo; lo grave sería `MISSING`, pesos que faltan y se inicializan al
+  azar.
+
+#### Limpiar el disco: `builder prune`, no `image prune`
+
+Con el almacén de containerd, **reconstruir no deja imágenes huérfanas**: las
+capas viejas pasan a la caché de build. Tras estas pruebas la caché ocupaba 6,2
+GB, 2,09 de ellos recuperables, y `docker image prune` liberó **0 B**. La
+herramienta es `docker builder prune`. `docker image prune -a`, en cambio,
+borraría la propia `clickbait-backend` si no hay un contenedor que la use.
+
+#### Lo que NO entra
+
+- **El servidor MCP**: misma imagen, otro comando, y `mcp_host` a `0.0.0.0` —su
+  defecto es `127.0.0.1`, la trampa de arriba—. Es #164.
+- **El historial** vive en `/app/var` dentro del contenedor y **se pierde al
+  recrearlo**. El volumen es #164.
+- **`nlp_backend=local` y `PREHEAT_MODELS` como configuración del despliegue**,
+  con las que se cierra #156: también #164.
+- **Fijar la revisión de cada modelo**: anotado en #162, se decide aparte.
+
+### La otra mitad de R3.9: los modelos, por configuración (#119, #87)
+
+R3.9 pide dos cosas —**divulgar** los modelos y **permitir intercambiarlos por
+configuración, sin cambios de código**— y sólo se cumplía la primera. La segunda
+llevaba desde #115 documentada como incumplida, después de que aquel cambio de
+modelo lo demostrara de la peor manera: sustituir `facebook/bart-large-mnli` por
+`Stremie/roberta-base-clickbait` exigió tocar la tabla de fichas, escribir
+`dedicated.py` y añadir un mapeo de etiquetas. Todo código.
+
+Ahora es esto:
+
+```
+NLP_MODELS={"detect_clickbait": "otra-org/otro-modelo"}
+```
+
+Un **diccionario por señal** y no un campo por señal, para que una señal nueva
+quede configurable sin tocar `settings.py` — el mismo criterio que el formulario
+generado de #128, donde añadir una tool no toca el frontend.
+
+#### Eran dos issues y era un solo bug
+
+#87 decía que el backend se congela al importar. Al mirarlo, el **modelo**
+también, y en tres sitios más:
+
+```
+orchestrator.py   _api = get_nlp_backend()   ·   _SENTIMENT_MODEL = model_id_de(…)
+dedicated.py      MODEL = model_id_de("detect_clickbait")
+incoherence.py    MODEL = model_id_de(…)          ← atributo de clase
+tool.py           api = get_nlp_backend()    ·   detector = IncoherenceDetector()
+```
+
+Cinco constantes resueltas **en tiempo de importación**. Da igual de dónde
+venga el valor si se lee una sola vez y para siempre: configurarlo sin arreglar
+esto habría producido un ajuste que no hace nada, que es peor que no tenerlo.
+
+Así que no es «#87 es prerrequisito de #119»: es la misma corrección —dejar de
+resolver configuración al importar— vista desde dos sitios.
+
+#### Dónde se lee la configuración, y por qué no donde parecía
+
+La tentación era que `model_id_de` consultara `settings`. Habría sido un error:
+`model_cards.py` lo importan `incoherence.py` y `dedicated.py`, así que los
+detectores pasarían a arrastrar `settings` —cuyos campos de API son
+**obligatorios**— y no se podrían importar sin un `.env`. Es exactamente lo que
+protege `test_los_detectores_no_conocen_la_configuracion`, cuyo comentario
+anticipa el caso: *«meter `settings` en un módulo nuevo obliga a editar esta
+línea a mano — la decisión consciente que se quiere forzar»*.
+
+Lo resuelve **`factory.py`**, cuyo oficio declarado ya *es* leer configuración.
+Pasa de decidir *dónde* corre el modelo a decidir también *cuál* es y *qué ficha
+se publica*: el mismo trabajo con un parámetro más, sin excepciones nuevas en el
+test. Y la regla que sale de ahí, que vale para la próxima: **los detectores no
+resuelven su configuración, la reciben** — `dedicated.detect` ya recibía el
+backend, ahora recibe también el id, y `IncoherenceDetector` lo toma en el
+constructor con la ficha como defecto.
+
+El cacheado va **por el valor del setting** (`lru_cache` sobre una función que
+lo recibe como argumento). Así un cambio de configuración produce otra clave y
+el cliente correcto sale solo, sin invalidar nada a mano — y se conserva lo que
+sí estaba bien: reutilizar la instancia, porque `LocalNLPClient` cachea los
+pipelines y crear uno por petición recargaría el modelo cada vez. **Lo que
+estaba mal era cuándo se creaba, no que se reutilizara.**
+
+De regalo, `precalentar()` deja de depender de una advertencia escrita: como la
+factoría devuelve siempre el mismo objeto, calienta por construcción el que va a
+usar la petición.
+
+#### Lo que NO se hereda: las medidas
+
+Aquí estaba la decisión de verdad, y no es técnica.
+
+La ficha de la señal dedicada dice F1 0.946 en Chakraborty, 0.631 y 0.758 en los
+dos splits de Webis, que sus errores se concentran donde las personas discrepan…
+**Todo eso se midió sobre un modelo concreto**, issue a issue (#109, #115,
+#121). Publicarlo junto a un modelo distinto sería divulgar como propias unas
+medidas ajenas — cumplir R3.9 rompiendo R3.9.
+
+Así que la ficha se parte en dos por su naturaleza:
+
+| | Ejemplo | ¿Sobrevive al cambio? |
+|---|---|---|
+| **De la señal** — el hueco | dimensión `form`, tipo `opaque`, qué tarea cumple | **Sí.** Describe el papel, no al ocupante |
+| **Del modelo** — el ocupante | F1 0.946, entrenado con etiqueta humana, techo humano 0.665 | **No.** Son suyas |
+
+Con un modelo puesto por configuración, `ficha_efectiva` publica el id que se
+ejecuta y **sustituye las medidas por su ausencia declarada**: *sin evaluar en
+este proyecto*. Y esa ausencia **es información**: dice que eso es un
+experimento, no una señal caracterizada.
+
+#### Dos trampas que aparecieron al hacerlo, y una tercera al ejecutarlo
+
+**El catálogo REST leía la ficha declarada.** `api/catalog.py` construía
+`ToolModelCard` desde el índice, así que con un modelo configurado la pantalla
+de Sistema habría dicho uno mientras `describe_models` decía otro —los dos
+«correctos» según su fuente— y sin forma de notarlo salvo comparándolos a mano.
+Es **la divergencia que cerró #116, reabierta por la puerta de al lado** por este
+mismo cambio. Ahora las dos fachadas piden la ficha efectiva, y hay un test que
+lo fija.
+
+**Los tests parcheaban `orchestrator._api`.** Veinte se pusieron rojos, y era la
+trampa latente que #87 describía por escrito: al no existir ya ese atributo,
+falla ruidosamente en vez de seguir probando una forma que ya no es. Ahora
+sustituyen la función de la factoría, que es el camino real.
+
+#### La tercera puerta, que sólo apareció ejecutándolo
+
+Con las dos anteriores tapadas y la suite en verde, se levantó el sistema con
+otro modelo configurado —`elozano/bert-base-cased-clickbait-news`, el que #115
+midió y descartó— para comprobarlo contra la realidad. El catálogo y
+`describe_models` decían el modelo efectivo, como debían. Y la **tarjeta del
+análisis** seguía rotulada «RoBERTa dedicado (entrenado en Webis-17)».
+
+Era la misma divergencia de #116 por tercera vez, y **la peor de las tres**: el
+catálogo lo mira quien va a inspeccionar el sistema, pero la tarjeta la mira
+quien lee el resultado. El orquestador guardaba `_CARDS`, un índice de las fichas
+**declaradas** resuelto al importar, y rotulaba con él.
+
+Ningún test lo cazaba porque ninguno comprobaba el `label` con un modelo
+configurado — y no había forma de que saltara sin ejecutar. De paso desaparece
+`_CARDS`: dejar ahí un índice declarado es dejar puesta la trampa para el
+siguiente que lo lea.
+
+#### El hueco del mapeo, medido en vez de razonado
+
+La misma ejecución dio el argumento empírico de #159, que hasta entonces era una
+deducción:
+
+```
+titular clickbait → ok      elozano dice «Clickbait», que sí está en el mapeo
+titular factual   → error   «devolvió la etiqueta "Normal", que no está en el
+                             mapeo ['Clickbait', 'Not Clickbait']»
+```
+
+`elozano` usa `Normal`/`Clickbait` y el sistema espera `Clickbait`/`Not
+Clickbait`. **Media convención coincide**, así que el modelo sustituido funciona
+con unos titulares y falla con otros — el peor reparto posible, porque una
+prueba rápida con un titular clickbait lo daría por bueno.
+
+Y falla bien: el mensaje nombra el modelo, la etiqueta que llegó y las que
+esperaba. Es el mismo criterio de #158 —el sistema dice qué pasa en vez de
+reventar por dentro— y es lo que convierte «intercambiar el modelo» en algo
+diagnosticable cuando la convención no encaja.
+
+#### Lo que queda fuera, y no como límite
+
+**Cambiar de familia de modelo** —de un clasificador a un zero-shot— sigue sin
+ser configuración: un zero-shot necesita etiquetas candidatas y otra llamada.
+Pero eso **no es una limitación de fondo**, y por eso no se documenta como tal:
+`local.py` ya cachea los pipelines por `(tarea, modelo)` y `pipeline()` recibe la
+tarea como una cadena, así que la maquinaria está. Es alcance, y tiene su propia
+issue (**#159**) con las decisiones que arrastra — entre ellas que las etiquetas
+de un zero-shot *forman parte de la pregunta*: cambiar «clickbait» por
+«sensationalist headline» cambia el resultado con el mismo modelo.
+
+`docs/requisitos.md` no se toca: R3.9 **se cumple**, no se matiza.
+
+### Dos señales dependían de paquetes que producción no instala (#156, primera parte)
+
+#156 preguntaba si se puede servir la señal dedicada, ahora que HuggingFace
+quedó descartado como vía. La respuesta es **sí, en local y sin GPU** — y al
+medirlo apareció que el problema era más grande de lo que decía la issue.
+
+#### Lo medido
+
+En un venv desechable, con `requirements.txt` + torch CPU-only +
+`sentence-transformers`, ejecutando el camino real del sistema (`precalentar` y
+`analyze` del orquestador) y no una aproximación: **las cinco señales en `ok`**,
+veredicto `deceptive`. Es la primera vez que el sistema responde con las cinco
+desde que se detectó el problema.
+
+| | CPU-only | Con torch CUDA (entorno de desarrollo) |
+|---|---|---|
+| torch en disco | **769 MB** | 1,2 GB |
+| Arranque en frío (`precalentar`) | **24,2 s** | 52,4 s |
+| ↳ `detect_clickbait` | 13,4 s | 44,6 s |
+| RAM con los tres modelos | **1.201 MB** | 1.645 MB |
+| Análisis en caliente | 0,11 s | **0,04 s** |
+
+La rueda de CPU arranca **2,2× más rápido** y ocupa **444 MB menos de RAM**, a
+cambio de un análisis ~3× más lento. Para algo que precalienta al arrancar
+(#125), es el cambio bueno: 0,11 s no se nota, y 28 s menos de arranque sí, cada
+vez que se levanta un contenedor.
+
+**Corrección de un número que estaba escrito mal**: se venía diciendo que la
+rueda CPU-only baja de «1,2 GB a ~300 MB». Son **769 MB instalados**; los ~300
+son la descarga comprimida. El ahorro es del 36 %, no del 75 %.
+
+#### El hallazgo: no era una señal, eran dos
+
+`sentence-transformers` **tampoco está en `requirements.txt`**, y la señal de
+incoherencia declara `backend: "local"` sin vía remota. Así que en una
+instalación de producción de hoy fallan **dos** de las cinco:
+
+- `detect_clickbait` — con `remote` falla en el proveedor; con `local`, por torch.
+- `detect_clickbait_incoherence` — falla **siempre**, con cualquier `nlp_backend`.
+
+Y **el CI no puede verlo, por diseño**: los tests mockean los backends, así que
+`requirements.txt` nunca tiene que ejecutar un modelo. La única forma de
+detectarlo era instalar esa lista a secas y ejecutar de verdad — el mismo tipo de
+comprobación que #86 impuso al exigir un primer análisis real por HTTP.
+
+Las dos fichas de modelo lo declaran ahora. Es el mismo arreglo que la `v0.4.1`
+en la señal dedicada: el sistema estaba publicando una capacidad —`backend:
+"local"`— que su propia instalación de producción no puede cumplir.
+
+#### El mensaje que daba, medido antes de cambiarlo
+
+Sin las dependencias, esto es lo que veía quien mirara la pantalla:
+
+```
+detect_clickbait  → Error inesperado usando el modelo Stremie/…:
+                    name 'torch' is not defined
+incoherencia      → Error inesperado calculando incoherencia:
+                    No module named 'sentence_transformers'
+```
+
+El primero es un **`NameError`, no un `ImportError`**: `transformers` avisa por
+consola de que no encuentra PyTorch y luego revienta con una variable sin
+definir. Quien lo lee piensa que hay un bug en este código. Y los dos dicen
+**«Error inesperado»** de algo que es el estado normal de esa instalación.
+
+Ahora las dos dicen qué falta, que no es una avería y cómo habilitarlo. Se
+verificó ejecutándolo en un entorno sin las dependencias, no sólo con dobles.
+
+#### Dónde vive la comprobación, y por qué costó decidirlo
+
+El módulo nuevo es `integrations/nlp/dependencias.py`, y la ubicación no salió
+por analogía sino de aplicar los criterios de `docs/estructura.md`:
+
+- **`analysis/`** no: no es dominio.
+- **`core/`** no: sabe cero del clickbait, pero su criterio pide *«¿lo usa más de
+  una capa?»* y sus dos consumidores están los dos en `integrations/nlp/`.
+- **`integrations/`** tampoco encaja de entrada — no envuelve nada externo—, y su
+  «no va aquí aunque lo parezca» apunta justo a esto: *«la maquinaria que
+  describe las integraciones opera sobre ellas, no es una»*.
+
+Lo que lo resuelve es que ese criterio gobierna **qué paquetes existen**, no cada
+fichero de dentro: en `nlp/` ya conviven cuatro módulos que no envuelven nada
+externo —`base.py`, `factory.py`, `model_cards.py`, `outputs.py`— y ninguno está
+marcado como tensión. No es el caso de `discovery.py` y `metadata.py`
+([tensión 3](docs/estructura.md)), que viven en la raíz de `integrations/` y
+operan sobre todas.
+
+Un detalle que la tabla de `estructura.md` obligó a respetar: la fila de
+`local.py` dice que importa `transformers` de forma perezosa y que *«es lo que
+permite el CI ligero»*. La comprobación usa `find_spec`, que **resuelve el módulo
+sin ejecutarlo**, así que no deshace nada de eso.
+
+#### El CI cazó lo que en local no se veía
+
+La primera versión ponía la comprobación en la puerta de `classify` y `detect`.
+En local pasaron las 223 pruebas; **el CI tumbó cinco**. La causa es la misma
+asimetría de siempre, un nivel más arriba: el entorno de desarrollo tiene torch y
+el del CI no, porque instala `requirements.txt` a secas. Los tests que sustituyen
+`_get_pipeline` nunca necesitaron torch — pero el guardián estaba **antes** de esa
+sustitución, así que allí se disparaba y secuestraba pruebas que no iban de esto.
+
+Arreglado moviéndolo **dentro del cargador perezoso**, que es justo lo que los
+tests sustituyen: quien lo sustituye no lo ve, y quien va a cargar de verdad sí.
+El mensaje viaja como excepción propia —`FaltaDependencia`— para que quien la
+captura lo devuelva tal cual en vez de envolverlo en «Error inesperado», que era
+la mitad del problema original.
+
+Y queda un test que fija la lección **en los dos entornos**: simula la ausencia
+del paquete *y* sustituye el cargador a la vez, exigiendo que gane la
+sustitución. Sin él, un cambio así sólo se detecta subiendo.
+
+Esto matiza lo dicho arriba, y el matiz importa: el CI **no puede** ver que las
+señales fallen en producción —las mockea—, pero **sí** ve cuando un guardián
+cambia el comportamiento de todas, porque su entorno carece de los paquetes de
+verdad. Son dos cosas distintas, y la segunda es la que salvó esto.
+
+Desde entonces, la suite se corre en los dos sitios antes de subir: el `.venv` de
+desarrollo y un entorno con `requirements.txt` a secas. **224 pruebas en ambos.**
+
+#### Lo que NO entra, y por qué
+
+**Dónde se instala torch es el `Dockerfile`, y eso es H4.** Con los números
+delante, la decisión ya no es de preferencia: meterlo en `requirements.txt`
+serían ~900 MB de instalación en cada ejecución del CI para unos tests que lo
+mockean. Va en la imagen, con `--index-url https://download.pytorch.org/whl/cpu`
+—comprobado que instalar `sentence-transformers` después **no** lo sustituye por
+la variante CUDA—. Por eso **#156 se queda abierta**.
+
+_(Cerrada en #164: la imagen instala torch CPU y `sentence-transformers` (#162),
+el compose fija `nlp_backend=local` en los dos procesos del backend, y en el
+despliegue las cinco señales responden en `ok`. Ver la sección de #164.)_
+
+Dos cosas más que salieron para H4 y quedan anotadas en la issue:
+
+- **Cachear los modelos dentro de la imagen** (~1 GB de pesos), o cada
+  contenedor nuevo los descarga antes de poder responder.
+- **`HF_TOKEN` no llega al proceso**: está en `.env` y lo lee `settings`, pero
+  `transformers` lo toma del entorno, así que en un contenedor nuevo la primera
+  descarga va sin autenticar y con el límite de tasa bajo.
+
+### El semáforo que faltaba: qué APIs responden, desde cualquier pantalla (#147)
+
+`GET /health` existía desde #86: sondea Weather, Guardian y NYT, agrega en
+`ok`/`degraded`/`down` y devuelve además el detalle por integración. Estaba
+probado, y desde #139 publicaba su forma en el contrato. **No lo consumía
+nadie** — un endpoint sin destino, y R6.6 sin cumplir. La issue nació dentro de
+#128, al separar qué estado enseña cada pantalla: R6.11 pide el de los
+servidores MCP y eso sale del catálogo; la salud de las APIs de terceros es otra
+pregunta, y no la respondía ninguna vista.
+
+#### Dónde va, y por qué no en la pantalla de Sistema
+
+Las dos opciones eran defendibles y el trabajo cambiaba con la elección. Sistema
+responde **qué está conectado**, que es lo que el sistema *es*; esto responde
+**qué funciona ahora mismo**, que cambia solo y sin avisar. Mezclarlas en una
+pantalla junta dos ejes distintos.
+
+Pesó más el momento en que surge la pregunta: quien ve fallar `get_nyt_news` la
+formula **mientras mira el fallo**, en `/analizar` o en el historial. Una
+respuesta a dos clics y en otra pantalla llega tarde. Va en la cabecera, visible
+desde cualquier ruta, desplegable al pulsarla.
+
+El precio está pagado a conciencia y conviene dejarlo escrito: **la cáscara gana
+estado y una dependencia que antes no tenía**. `app.spec.ts` ya necesita
+proveedores de HTTP para montar la cabecera, así que probar la navegación arrastra
+algo que no es de la navegación. Es el coste de que el indicador sea global; a
+cambio, el componente tiene su propio spec y la cáscara sigue sin lógica propia.
+
+Vive en `salud/`, carpeta nueva, y **no es una pantalla**: no tiene ruta. Ponerlo
+dentro de `analisis/` o de `sistema/` habría obligado a las otras dos a importar
+de una pantalla ajena, que es la dependencia que #129 prohibió.
+
+#### Lo que el indicador NO cubre, y por qué se dice en voz alta
+
+`PROBES` tiene tres entradas: `weather`, `guardian` y `nyt`. **Ninguna señal
+NLP.** Así que un verde aquí no dice absolutamente nada sobre si
+`detect_clickbait` responde: el 3 de septiembre habría estado en verde toda la
+mañana mientras esa señal devolvía `400` en cada análisis.
+
+Y la trampa se repite un nivel más abajo, que es lo que la hace interesante:
+**añadir `huggingface` a la lista tampoco lo arreglaría**. El proveedor responde
+`live` —medido el 7-09, ver `v0.4.1`— y aun así ese modelo no se sirve. La sonda
+que haría falta es **por modelo**, no por proveedor, y es trabajo de backend:
+queda en #156.
+
+De ahí dos decisiones de redacción, que no son cosmética:
+
+- La pastilla dice **«APIs externas ok»**, no «sistema ok». Un semáforo que
+  promete más de lo que mira es peor que no tener semáforo, porque quien lo cree
+  deja de buscar donde está el fallo.
+- El panel lo dice con todas las letras: *«Sólo las APIs de noticias. Las
+  señales de análisis no se sondean aquí»*. Está en un test, no sólo en la
+  plantilla.
+
+Esto corrigió, de paso, una afirmación escrita el día anterior en las notas del
+proyecto, que daba por hecho que esta pantalla habría hecho visible la caída de
+HuggingFace. No la habría hecho visible. Lo mismo que pasó con `v0.4.1`: el
+error estaba en la explicación, no en el sistema.
+
+#### El hallazgo medido: con la API apagada no llega `status 0`, llega 502
+
+Al probar el estado de fallo —parando uvicorn con la interfaz delante— apareció
+lo que ningún test unitario podía enseñar: **el error no llega como `status 0`,
+llega como 502**.
+
+La causa es la topología, y **es la misma en desarrollo y en despliegue**: entre
+el navegador y la API hay siempre un proxy —`proxy.conf.json` hoy, nginx en H4—
+y quien contesta cuando el destino no está es el proxy. El `status 0` que
+`api/errores.ts` traduce como «no hay API al otro lado» sólo aparecería si no
+contestara ni él.
+
+Con el mapeo original, apagar la API pintaba *«La API no pudo informar de su
+estado (502)»*, que sugiere que la API contestó algo estando muerta — y manda a
+mirar donde no es. Ahora 502, 503 y 504 se leen como **no hay API al otro lado**,
+con la medición escrita en el código y un test que fija el caso.
+
+**Por qué los tests no lo cazaron:** `HttpTestingController` sustituye el
+transporte, así que en las pruebas no hay proxy y el escenario no existe. Habrían
+pasado igual con el mapeo malo. Es la misma lección que dejó #86 al exigir un
+primer análisis real por HTTP: hay fallos que sólo aparecen ejecutando.
+
+#### Sondear no es gratis, así que no se sondea en bucle
+
+Cada consulta son **tres peticiones HTTP reales**, con corte de 5 s por sonda,
+contra APIs de terceros que además tienen cuota. Y es información que cambia
+despacio. Así que: **al cargar y a petición**, nunca periódico. Hay un test que
+lo sostiene —comprueba que no queda ninguna petición pendiente tras montar—, de
+modo que añadir un refresco automático rompe la suite en vez de pasar
+inadvertido.
+
+Al fallar, el estado anterior **se descarta** en vez de conservarse: dejar la
+hora de un sondeo antiguo junto a un mensaje de error es peor que no saber,
+porque parece información fresca.
+
+#### El detalle, no sólo el agregado
+
+Un ámbar dice que algo falla y no dice cuál, así que no es accionable. El panel
+lista cada integración con su estado, **las caídas primero** —lo accionable no
+puede quedar el último de una lista ordenada por nombre— y con el texto de la
+excepción marcado como técnico: no se esconde, porque es lo único que permite
+diagnosticar, pero no se confunde con la frase que se entiende. Es el mismo
+criterio que #130 aplicó al `detail` de una señal caída.
+
+Una integración que el frontend no sepa nombrar **se enseña con su clave en
+crudo**: `integrations` es un diccionario abierto en el contrato, así que el
+backend puede sondear una más sin que esta interfaz se entere. Enumerar aquí las
+tres de hoy la habría escondido sin que nada fallara al compilar.
+
+#### Medido
+
+- **117 tests** en el frontend, desde los 101 con los que empezó la issue.
+- **A 768 px no desborda nada**, con cero `@media`: el panel ocupa de 360 a 744
+  en un viewport de 768. Sale flotando por encima del contenido en vez de
+  empujarlo, porque mover la pantalla que estás mirando es justo lo que no
+  quieres al abrir algo para entender un fallo que tienes delante.
 
 ### R6.14 se escribe, y el frontend entra en los diagramas
 

@@ -105,6 +105,7 @@ mismo que genérico.
 | `logging.py` | `configure_logging()` — structlog, en consola o JSON |
 | `observability.py` | `log_tool_invocation`, el decorador que registra cada invocación con parámetros y duración |
 | `health.py` | `check_health()` y su registro como tool MCP — ⚠️ [tensión 4](#4--health-conoce-mcp-desde-core) |
+| `errores.py` | `describir_error()`: cómo se describe un error en una **salida pública** —código HTTP o nombre del tipo, nunca el texto de la librería, que llegó a publicar una clave de API (#163)—. Abre los `ExceptionGroup` del cliente MCP (#164). La usan `health.py` y `api/catalog.py`: dos capas, y ningún conocimiento del clickbait |
 | `mcp/session.py` | Abre sesiones MCP. Es donde el sistema actúa como **cliente**, no como servidor |
 | `mcp/tools.py` | Descubre e invoca herramientas, devolviendo un resultado neutro |
 
@@ -150,7 +151,8 @@ El paquete más grande, porque contiene **las señales** — el núcleo del dete
 | `base.py` | `NLPBackend` (ABC): la interfaz que cumplen el backend remoto y el local |
 | `client.py` | `HFClient(BaseAPI, NLPBackend)`: backend remoto contra HuggingFace |
 | `local.py` | Backend local con `transformers`. Cachea los pipelines por `(tarea, modelo)` para no recargar, e **importa `transformers` de forma perezosa** — por eso el módulo se puede importar sin torch, que es lo que permite el CI ligero. Las inferencias van a un hilo aparte porque bloquean |
-| `factory.py` | `get_nlp_backend()`: elige uno según `settings`. Es lo que permitió cambiar de remoto a local sin tocar ninguna señal |
+| `factory.py` | **Qué hay configurado de verdad**: qué backend (`get_nlp_backend`), qué modelo ejecuta cada señal (`get_model_id`) y qué ficha se publica (`ficha_efectiva`). Con `client.py` es el ÚNICO de esta capa al que se le permite leer `settings`, y de ahí sale la forma de todo lo demás: los detectores no resuelven su configuración, la **reciben**. Cachea las instancias **por el valor del setting**, que es lo que arregla el congelado al importar de #87 sin perder la reutilización |
+| `dependencias.py` | Pregunta si `torch` o `sentence-transformers` están instalados —con `find_spec`, **sin importarlos**, para no deshacer los imports perezosos de arriba— y produce el mensaje que se enseña cuando faltan. Existe porque `requirements.txt` **no los trae a propósito**, así que faltar es el estado normal y no una avería. Desde #162 responde también por los **modelos**: con la descarga desactivada, uno puesto por `NLP_MODELS` no está en la imagen, y eso tampoco es una avería — aunque aquí no se puede preguntar antes, y se reconoce el caso por el error que lanza la librería. No envuelve nada externo, y por eso no es una integración: es un módulo de apoyo del paquete, como `base.py` o `factory.py`. No es el caso de la [tensión 3](#3--discovery-y-metadata-no-envuelven-nada), que vive en la raíz de `integrations/` y opera sobre todas |
 | `lexical.py` | Señal **interpretable**. Busca tres tipos de pista —palabras, frases y patrones regex— y devuelve cada coincidencia **con su posición** (`span`), que es lo que permite resaltar los cues sobre el titular. Clickbait si el recuento llega a `THRESHOLD` |
 | `linear.py` | Señal **interpretable**: regresión logística sobre los cues, con los pesos visibles y las contribuciones de cada rasgo en la salida. Carga los pesos de `linear_clickbait.json` — ⚠️ [bug 1](#1--linearpy-lee-el-fichero-de-pesos-al-importar) · [bug 2](#2--dos-señales-de-forma-comparten-extracción-de-rasgos) |
 | `incoherence.py` | Señal **híbrida**: decisión transparente (umbral sobre la similitud) con rasgo opaco (embeddings). Codifica titular y cuerpo con `all-MiniLM-L6-v2` y los compara por **similitud coseno**: incoherente si baja de 0,3. El modelo se carga una sola vez y de forma perezosa, de ahí los ~20 s de la primera llamada |
@@ -202,8 +204,9 @@ lógica: si algo se le añadiera, pertenece a otro sitio.
 | `docs/` | Documentación y sus fuentes (`.drawio`, `img/`) |
 | `data/` | **Versionado e inmutable**: datasets y splits congelados. Si algo cambia en ejecución, no va aquí |
 | `var/` | **Gitignored y mutable**: estado que cambia en cada petición. Es el directorio que se monta como volumen |
-| `docker/` | *(vacía)* — reservada para H4 |
+| `docker/` | ¿Sólo tiene sentido **dentro de una imagen**? Un `<imagen>.Dockerfile` por imagen, con su `.dockerignore` al lado y del mismo nombre; los guiones que corren **durante** el build, como `hornear_modelos.py` (#162); y la configuración que se copia **dentro** de una imagen, como el `Caddyfile` (#163). Hasta #163 la pregunta era «¿existe sólo para construir una imagen?», y el `Caddyfile` la desbordó: no construye nada, pero fuera de la imagen web no pinta nada. Tampoco cabía en `frontend/`, que es la SPA, cuando el `Caddyfile` enruta también hacia la API. El contexto del build es la raíz del repositorio, no esta carpeta. Lo de aquí puede importar de `backend/` —el horneado lee `MODEL_CARDS` para no duplicar los ids—, pero **nunca al revés**: si `backend/` o `frontend/` necesitaran algo de esta carpeta, no pertenecía aquí |
 | `frontend/` | La SPA Angular. Sus criterios, abajo |
+| `compose.yaml` | Un fichero, no una carpeta, pero con la misma pregunta: ¿describe cómo se levanta el sistema **entero** en una máquina? Va en la raíz y no en `docker/` porque no va dentro de ninguna imagen, y porque ahí `docker compose` lo encuentra sin `-f` (#164) |
 
 ---
 
@@ -217,6 +220,7 @@ lógica: si algo se le añadiera, pertenece a otro sitio.
 | `analisis/` | Analizar un titular y ver el resultado —también uno guardado—, con lo que sólo esa vista usa: los guardianes del `data`, el resaltado del titular, la tarjeta de señal y el vocabulario |
 | `historial/` | La lista de lo anterior: filtros, paginación y el aviso de retención |
 | `sistema/` | Servidores, catálogo y fichas de modelo, más el lector de esquemas que genera el formulario de cada herramienta |
+| `salud/` | El indicador de salud de la cabecera (#147). **No es una pantalla**: no tiene ruta y se monta en la cáscara, porque la pregunta que responde —«¿esto falla por mí o por un tercero?»— surge desde cualquiera de las tres. Meterlo en la carpeta de una de ellas obligaría a las otras dos a importar de esa pantalla, que es justo la dependencia que la regla de abajo prohíbe |
 
 **Tres reglas que no se ven mirando el árbol:**
 

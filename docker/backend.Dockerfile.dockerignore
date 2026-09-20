@@ -1,0 +1,10 @@
+# Se excluye TODO, y se abre sólo lo que la imagen necesita. El orden importa, va de arriba a abajo
+*
+
+!requirements.txt
+!backend/
+!docker/hornear_modelos.py
+
+# Dentro de lo abierto, lo que no se sirve.
+**/__pycache__
+backend/evaluation/

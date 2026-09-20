@@ -1,0 +1,16 @@
+# Se excluye TODO y se abre sólo lo que la imagen necesita. Se lee de arriba
+# abajo y gana la última regla que coincide: por eso las exclusiones van al
+# final.
+*
+
+!frontend/
+!docker/Caddyfile
+
+# El Dockerfile ejecuta `npm ci` y DESPUÉS copia frontend/: si node_modules
+# entrara, pisaría las dependencias recién instaladas con las de la máquina que
+# construye, que pueden ser de otro sistema o de otra versión.
+frontend/node_modules
+
+# Restos de compilar en la máquina: la imagen compila los suyos.
+frontend/dist
+frontend/.angular

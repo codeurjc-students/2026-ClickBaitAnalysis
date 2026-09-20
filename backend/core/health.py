@@ -6,6 +6,7 @@ import httpx
 from mcp.server.fastmcp import FastMCP
 
 from backend.config.settings import settings
+from backend.core.errores import describir_error
 from backend.core.observability import log_tool_invocation
 from backend.integrations.metadata import tool_meta
 
@@ -47,14 +48,27 @@ PROBES = {
 
 
 async def _probe(url: str, params: dict | None = None) -> Sonda:
-    """Hace una petición ligera a una API y reporta si responde correctamente."""
+    """Hace una petición ligera a una API y reporta si responde correctamente.
+
+    El `error` lo redacta `describir_error`, nunca se reenvía `str(exc)`. Medido
+    el 2026-09-17 (#163): con un 401, el mensaje de httpx es «Client error '401
+    Unauthorized' for url '…?api-key=…'» — la URL entera, y Guardian y NYT
+    llevan la clave en ella. Y este texto es público: sale por `GET /health`, lo
+    pinta el indicador de la cabecera y lo recibe por MCP quien llame a
+    `health_check`, el LLM del agente incluido.
+
+    Los fallos de red salieron limpios al medirlos, pero sólo se midieron dos
+    tipos de los que puede lanzar httpx: también se reducen al nombre del tipo.
+    De paso deja de haber errores vacíos — un timeout daba `""`, y el indicador
+    decía «no responde» sin ningún motivo.
+    """
     try:
         async with httpx.AsyncClient(timeout=PROBE_TIMEOUT) as client:
             response = await client.get(url, params=params)
             response.raise_for_status()  # Evita tratar 4xx/5xx como respuesta aceptable
         return {"reachable": True, "error": None}
     except httpx.HTTPError as exc:
-        return {"reachable": False, "error": str(exc)}
+        return {"reachable": False, "error": describir_error(exc)}
 
 
 def _aggregate_status(integrations: dict) -> Literal["ok", "degraded", "down"]:

@@ -1,6 +1,11 @@
 import asyncio
 
 from backend.core.models import ToolResult
+from backend.integrations.nlp.dependencias import (
+    FaltaDependencia,
+    motivo_si_falta,
+    motivo_si_falta_modelo,
+)
 from backend.integrations.nlp.model_cards import model_id_de
 
 
@@ -39,10 +44,21 @@ class IncoherenceDetector:
     # un token. ~4 caracteres por token en inglés.
     LEAD_CHARS = 1000
 
-    def __init__(self) -> None:
+    def __init__(self, model: str | None = None) -> None:
+        # El id se RECIBE, con la ficha como defecto (#119). Resolverlo aquí
+        # obligaría a este módulo a leer `settings`, y entonces importarlo
+        # exigiría un `.env` con las claves de API — justo lo que el test de
+        # arquitectura protege: los detectores se prueban sin montar nada.
+        self.model_id = model or self.MODEL
         self._model = None  # Singleton
 
     def _get_model(self):
+        # Dentro del cargador y no en la puerta de `detect`, por lo mismo que en
+        # `local.py`: los tests sustituyen ESTE método, y comprobar antes los
+        # secuestraría en cualquier entorno sin el paquete — como el CI.
+        if motivo := motivo_si_falta("sentence_transformers"):
+            raise FaltaDependencia(motivo)
+
         if self._model is None:
             # `sentence-transformers` vive en `requirements-dev.txt`, no en
             # `requirements.txt`, porque arrastra torch y wheels de CUDA. El CI
@@ -56,7 +72,14 @@ class IncoherenceDetector:
                 SentenceTransformer,
             )
 
-            self._model = SentenceTransformer(self.MODEL)
+            try:
+                self._model = SentenceTransformer(self.model_id)
+            except OSError as error:
+                # Lo mismo que en `local.py`: sólo el modelo que no se puede
+                # descargar con la descarga desactivada deja de ser «inesperado».
+                if motivo := motivo_si_falta_modelo(self.model_id, error):
+                    raise FaltaDependencia(motivo) from error
+                raise
         return self._model
 
     @classmethod
@@ -107,5 +130,10 @@ class IncoherenceDetector:
                     "content": content,
                 }
             )
+        except FaltaDependencia as falta:
+            # Esta señal NO tiene vía remota: si falta el paquete, no funciona
+            # con ningún `nlp_backend`. Su mensaje ya lo explica, así que sale
+            # tal cual.
+            return ToolResult.fail(str(falta))
         except Exception as e:
             return ToolResult.fail(f"Error inesperado calculando incoherencia: {e}")

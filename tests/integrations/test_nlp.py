@@ -1,16 +1,24 @@
 import asyncio
 import json
+import sys
+import types
 
 import pytest
 import respx  # Usamos en vez de htttp, ya que no hacemos llamadas de verdad, mockeamos
 from httpx import Response, TimeoutException
+from huggingface_hub.errors import LocalEntryNotFoundError
 from mcp.server.fastmcp import FastMCP
 
 from backend.config.settings import settings
-from backend.integrations.nlp import lexical, linear, model_cards
+from backend.integrations.nlp import dependencias, lexical, linear, model_cards
 from backend.integrations.nlp import tool as nlp_tool
 from backend.integrations.nlp.client import HFClient
-from backend.integrations.nlp.factory import get_nlp_backend
+from backend.integrations.nlp.factory import (
+    ficha_efectiva,
+    get_incoherence_detector,
+    get_model_id,
+    get_nlp_backend,
+)
 from backend.integrations.nlp.incoherence import IncoherenceDetector
 from backend.integrations.nlp.local import LocalNLPClient
 
@@ -202,11 +210,17 @@ def test_get_pipeline_caches(monkeypatch):
     fake_transformers.pipeline = fake_pipeline
     monkeypatch.setitem(sys.modules, "transformers", fake_transformers)
 
-    client = LocalNLPClient()
-    p1 = client._get_pipeline("text-classification", "m")
-    p2 = client._get_pipeline("text-classification", "m")
+    # Este test ya finge el módulo `transformers` entero, así que tiene que
+    # fingir también que su dependencia está: desde 2026-09-08 `_get_pipeline`
+    # comprueba torch antes de cargar, y en una instalación sin él —el CI— este
+    # test no va de eso y no debe fallar por ello.
+    monkeypatch.setattr(dependencias, "find_spec", lambda nombre, *args, **kw: object())
 
-    assert p1 is p2  # mismo objeto
+    client = LocalNLPClient()
+    primero = client._get_pipeline("text-classification", "modelo")
+    segundo = client._get_pipeline("text-classification", "modelo")
+
+    assert primero is segundo  # mismo objeto
     assert len(calls) == 1  # solo se creo una vez
 
 
@@ -506,6 +520,12 @@ async def test_las_dos_fachadas_usan_el_id_de_la_ficha(monkeypatch):
 
     Por eso no basta con comprobar que las constantes existen: hay que capturar
     con qué modelo se llama DE VERDAD por cada camino.
+
+    Desde #119 se compara contra el id **resuelto** —`get_model_id`, que mira la
+    configuración y cae en la ficha— y no contra la ficha a secas. Si se dejara
+    comparando contra la ficha, este test se pondría rojo en cuanto alguien
+    configurara otro modelo, que es precisamente el caso que ahora se soporta; y
+    peor, dejaría de vigilar lo suyo: que las dos fachadas usen EL MISMO.
     """
     from backend.analysis import orchestrator
     from backend.core.models import ToolResult
@@ -545,12 +565,12 @@ async def test_las_dos_fachadas_usan_el_id_de_la_ficha(monkeypatch):
 
     # --- fachada REST ---
     espia_rest = _Espia()
-    monkeypatch.setattr(orchestrator, "_api", espia_rest)
+    monkeypatch.setattr(orchestrator, "get_nlp_backend", lambda: espia_rest)
     await orchestrator._run_signals("Un titular", None)
 
     esperado = {
-        fichas["detect_clickbait"]["model_id"],
-        fichas["analyze_sentiment"]["model_id"],
+        get_model_id("detect_clickbait"),
+        get_model_id("analyze_sentiment"),
     }
     assert set(espia_mcp.llamadas) == esperado, "la tool MCP no usa el id de la ficha"
     assert len(espia_mcp.llamadas) == 2, "alguna señal no llamó al backend"
@@ -562,8 +582,14 @@ async def test_las_dos_fachadas_usan_el_id_de_la_ficha(monkeypatch):
     # decía "all-MiniLM-L6-v2" mientras la ficha decía la ruta completa — dos
     # cadenas distintas que resolvían al mismo sitio, así que la divergencia no
     # rompía nada y podía durar para siempre.
+    #
+    # Se comprueba sobre la INSTANCIA que reparte la factoría, no sobre la
+    # constante de clase: desde #119 el id puede venir de la configuración, y la
+    # constante sólo es el defecto.
     assert (
-        IncoherenceDetector.MODEL == fichas["detect_clickbait_incoherence"]["model_id"]
+        get_incoherence_detector().model_id
+        == get_model_id("detect_clickbait_incoherence")
+        == fichas["detect_clickbait_incoherence"]["model_id"]
     )
 
 
@@ -583,3 +609,307 @@ async def test_model_cards_signals_match_registered_tools():
 
     carded = {card["signal"] for card in model_cards.MODEL_CARDS}
     assert carded <= registered, f"fichas sin tool: {carded - registered}"
+
+
+# --Dependencias que la instalación de producción no trae
+
+
+def _sin_paquete(monkeypatch, ausente: str):
+    """Hace que `ausente` parezca no instalado, sin desinstalar nada.
+
+    Se sustituye `find_spec` y no el import, porque es exactamente lo que
+    consulta `dependencias.motivo_si_falta`: lo que se prueba es la rama que
+    corre en una instalación de producción, donde el paquete no existe.
+    """
+    real = dependencias.find_spec
+
+    def falso(nombre: str, *args, **kwargs):
+        return None if nombre == ausente else real(nombre, *args, **kwargs)
+
+    monkeypatch.setattr(dependencias, "find_spec", falso)
+
+
+def test_motivo_es_none_si_el_paquete_esta():
+    assert dependencias.motivo_si_falta("json") is None
+
+
+def test_el_motivo_dice_que_no_es_una_averia_y_como_arreglarlo(monkeypatch):
+    """Las dos mitades importan. Medido el 2026-09-08, el mensaje anterior era
+    «Error inesperado … name 'torch' is not defined»: ni era inesperado —es el
+    estado normal de `requirements.txt` a secas— ni decía qué hacer."""
+    _sin_paquete(monkeypatch, "torch")
+
+    motivo = dependencias.motivo_si_falta("torch")
+
+    assert motivo is not None
+    assert "No es una avería" in motivo
+    assert "download.pytorch.org/whl/cpu" in motivo
+
+
+def test_el_nombre_va_como_se_instala_no_como_se_importa(monkeypatch):
+    """`sentence-transformers` con guion es lo que se teclea en el `pip install`
+    y lo que aparece en los requirements; `sentence_transformers` sólo existe
+    dentro de Python, y ponerlo ahí manda a copiar algo que no funciona."""
+    _sin_paquete(monkeypatch, "sentence_transformers")
+
+    motivo = dependencias.motivo_si_falta("sentence_transformers")
+
+    assert motivo is not None
+    assert "sentence-transformers" in motivo
+    assert "sentence_transformers" not in motivo
+
+
+@pytest.mark.asyncio
+async def test_la_senal_dedicada_avisa_de_torch_en_vez_de_reventar(monkeypatch):
+    """Sin torch el fallo ocurría DENTRO de transformers y salía como
+    `name 'torch' is not defined`, que parece un bug de este código."""
+    _sin_paquete(monkeypatch, "torch")
+
+    result = await LocalNLPClient().classify("hola", "Stremie/roberta-base-clickbait")
+
+    assert not result.success
+    assert result.error is not None
+    assert "torch" in result.error
+    assert "is not defined" not in result.error
+    assert "Error inesperado" not in result.error
+
+
+@pytest.mark.asyncio
+async def test_la_incoherencia_avisa_de_su_paquete(monkeypatch):
+    """No tiene vía remota: sin el paquete no funciona con ningún backend, así
+    que el aviso tiene que salir de la propia señal y no de la factoría."""
+    _sin_paquete(monkeypatch, "sentence_transformers")
+
+    result = await IncoherenceDetector().detect("titular", "cuerpo")
+
+    assert not result.success
+    assert result.error is not None
+    assert "sentence-transformers" in result.error
+    assert "Error inesperado" not in result.error
+
+
+@pytest.mark.asyncio
+async def test_el_aviso_no_secuestra_a_quien_sustituye_el_cargador(monkeypatch):
+    """El guardián va DENTRO del cargador perezoso, no en la puerta de `classify`.
+
+    Lo destapó el CI el 2026-09-08: allí torch no está instalado de verdad, así
+    que con la comprobación en la puerta saltaba **antes** de que el test
+    pudiera sustituir `_get_pipeline`, y tumbaba cinco pruebas que no van de
+    esto. En local no se veía, porque el entorno de desarrollo sí tiene torch.
+
+    Este test lo fija en los dos entornos: simula la ausencia **y** sustituye el
+    cargador, y exige que gane la sustitución.
+    """
+    _sin_paquete(monkeypatch, "torch")
+
+    def pipeline_falso(texto):
+        return [{"label": "OK", "score": 1.0}]
+
+    cliente = LocalNLPClient()
+    monkeypatch.setattr(cliente, "_get_pipeline", lambda tarea, modelo: pipeline_falso)
+
+    result = await cliente.classify("hola", "modelo")
+
+    assert result.success
+    assert result.data == {"label": "OK", "score": 1.0}
+
+
+# --Modelos que no se pueden descargar (#162)
+
+
+def _no_descargable() -> OSError:
+    """El error tal como lo lanzan las dos librerías sin red y sin el modelo en
+    caché, medido el 2026-09-17: un `OSError` con la causa encadenada."""
+    error = OSError("We couldn't connect to 'https://huggingface.co' to load the files")
+    error.__cause__ = LocalEntryNotFoundError("no está en la caché")
+    return error
+
+
+def _descarga_desactivada(monkeypatch, desactivada: bool = True):
+    """Se sustituye la función y no `HF_HUB_OFFLINE`: `huggingface_hub` lee la
+    variable UNA vez, al importarse, así que cambiarla aquí no haría nada."""
+    monkeypatch.setattr(dependencias, "is_offline_mode", lambda: desactivada)
+
+
+def _paquete_falso(monkeypatch, nombre: str, **contenido):
+    """Sustituye un paquete pesado entero y hace que `find_spec` lo dé por
+    instalado, como `test_get_pipeline_caches`: así corre igual en el CI, que
+    no tiene torch."""
+    modulo = types.ModuleType(nombre)
+    for atributo, valor in contenido.items():
+        setattr(modulo, atributo, valor)
+    monkeypatch.setitem(sys.modules, nombre, modulo)
+    monkeypatch.setattr(
+        dependencias, "find_spec", lambda paquete, *args, **kw: object()
+    )
+
+
+def _no_se_puede_descargar(*args, **kwargs):
+    raise _no_descargable()
+
+
+def test_el_motivo_del_modelo_dice_que_no_es_una_averia_y_como_permitirlo(monkeypatch):
+    """Medido el 2026-09-17, lo que decía antes era «Error inesperado usando el
+    modelo …: We couldn't connect to 'https://huggingface.co'», de algo que es
+    el estado normal de la imagen con un modelo puesto por `NLP_MODELS`."""
+    _descarga_desactivada(monkeypatch)
+
+    motivo = dependencias.motivo_si_falta_modelo("otra/cosa", _no_descargable())
+
+    assert motivo is not None
+    assert "otra/cosa" in motivo
+    assert "No es una avería" in motivo
+    assert "HF_HUB_OFFLINE=0" in motivo
+
+
+def test_con_la_descarga_activa_no_se_culpa_a_la_bandera(monkeypatch):
+    """La misma causa aparece si se cae la red sin la bandera puesta, y entonces
+    decir que la descarga está desactivada sería falso."""
+    _descarga_desactivada(monkeypatch, desactivada=False)
+
+    assert dependencias.motivo_si_falta_modelo("otra/cosa", _no_descargable()) is None
+
+
+def test_si_falta_un_modelo_declarado_sigue_siendo_una_averia(monkeypatch):
+    """Los declarados se hornean en la imagen: si uno falta, está mal construida,
+    y eso sí debe seguir diciéndose como fallo."""
+    _descarga_desactivada(monkeypatch)
+    declarado = model_cards.cards_by_signal()["detect_clickbait"]["model_id"]
+    assert declarado is not None
+
+    assert dependencias.motivo_si_falta_modelo(declarado, _no_descargable()) is None
+
+
+def test_otro_oserror_no_se_confunde_con_este(monkeypatch):
+    """Medido: un horneado a medias da en la incoherencia un `OSError` SIN esa
+    causa. Capturar cualquier `OSError` le habría dado este mensaje."""
+    _descarga_desactivada(monkeypatch)
+    a_medias = OSError("does not appear to have a file named pytorch_model.bin")
+
+    assert dependencias.motivo_si_falta_modelo("otra/cosa", a_medias) is None
+
+
+@pytest.mark.asyncio
+async def test_la_senal_dedicada_explica_el_modelo_sin_descargar(monkeypatch):
+    _descarga_desactivada(monkeypatch)
+    _paquete_falso(monkeypatch, "transformers", pipeline=_no_se_puede_descargar)
+
+    result = await LocalNLPClient().classify("hola", "otra/cosa")
+
+    assert not result.success
+    assert result.error is not None
+    assert "HF_HUB_OFFLINE=0" in result.error
+    assert "Error inesperado" not in result.error
+
+
+@pytest.mark.asyncio
+async def test_la_incoherencia_explica_el_modelo_sin_descargar(monkeypatch):
+    _descarga_desactivada(monkeypatch)
+    _paquete_falso(
+        monkeypatch, "sentence_transformers", SentenceTransformer=_no_se_puede_descargar
+    )
+
+    result = await IncoherenceDetector(model="otra/cosa").detect("titular", "cuerpo")
+
+    assert not result.success
+    assert result.error is not None
+    assert "HF_HUB_OFFLINE=0" in result.error
+    assert "Error inesperado" not in result.error
+
+
+# --Modelos configurables (R3.9)
+
+
+def test_sin_configuracion_el_modelo_es_el_de_la_ficha():
+    esperado = model_cards.cards_by_signal()["detect_clickbait"]["model_id"]
+    assert get_model_id("detect_clickbait") == esperado
+
+
+def test_la_configuracion_manda_sobre_la_ficha(monkeypatch):
+    monkeypatch.setattr(settings, "nlp_models", {"detect_clickbait": "otra/cosa"})
+
+    assert get_model_id("detect_clickbait") == "otra/cosa"
+    # Sólo la señal configurada: las demás siguen con su ficha.
+    esperado = model_cards.cards_by_signal()["analyze_sentiment"]["model_id"]
+    assert get_model_id("analyze_sentiment") == esperado
+
+
+def test_el_id_se_resuelve_en_cada_llamada_no_al_importar(monkeypatch):
+    """La regresión de #87, en su versión de modelo.
+
+    Antes esto vivía en constantes de módulo —`MODEL` en `dedicated.py`,
+    `_SENTIMENT_MODEL` en el orquestador—, así que el valor quedaba fijado en el
+    primer import y ninguna configuración posterior lo movía.
+    """
+    antes = get_model_id("analyze_sentiment")
+    monkeypatch.setattr(settings, "nlp_models", {"analyze_sentiment": "otro/tono"})
+
+    assert get_model_id("analyze_sentiment") == "otro/tono" != antes
+
+
+def test_el_backend_respeta_un_cambio_de_configuracion(monkeypatch):
+    """La regresión de #87 tal cual: `_api = get_nlp_backend()` a nivel de módulo
+    ataba el cliente al backend que dijera `settings` al importar, y cambiarlo
+    después no tenía efecto."""
+    monkeypatch.setattr(settings, "nlp_backend", "local")
+    assert isinstance(get_nlp_backend(), LocalNLPClient)
+
+    monkeypatch.setattr(settings, "nlp_backend", "remote")
+    assert isinstance(get_nlp_backend(), HFClient)
+
+
+def test_el_backend_se_reutiliza_dentro_de_la_misma_configuracion(monkeypatch):
+    """Reutilizar la instancia es correcto y hay que conservarlo: `LocalNLPClient`
+    cachea los pipelines por instancia, así que una nueva por petición recargaría
+    el modelo cada vez. Lo que estaba mal era CUÁNDO se creaba."""
+    monkeypatch.setattr(settings, "nlp_backend", "local")
+
+    assert get_nlp_backend() is get_nlp_backend()
+
+
+def test_la_ficha_sin_configurar_no_cambia():
+    assert (
+        ficha_efectiva("detect_clickbait")
+        == (model_cards.cards_by_signal()["detect_clickbait"])
+    )
+
+
+def test_la_ficha_efectiva_publica_el_modelo_que_se_ejecuta(monkeypatch):
+    """Si no, se reabre el fallo que cerró #116: dos cadenas para el mismo
+    modelo, una divulgada y otra ejecutada, divergiendo sin que nada falle."""
+    monkeypatch.setattr(settings, "nlp_models", {"detect_clickbait": "otra/cosa"})
+
+    ficha = ficha_efectiva("detect_clickbait")
+
+    assert ficha["model_id"] == "otra/cosa" == get_model_id("detect_clickbait")
+
+
+def test_al_configurar_otro_modelo_las_medidas_dejan_de_publicarse(monkeypatch):
+    """Las limitaciones de la ficha se midieron sobre el modelo declarado, issue
+    a issue (#109, #115, #121). Heredarlas sería divulgar como propias unas
+    medidas ajenas — y su ausencia es información: dice que esto es un
+    experimento, no una señal caracterizada."""
+    declarada = model_cards.cards_by_signal()["detect_clickbait"]
+    monkeypatch.setattr(settings, "nlp_models", {"detect_clickbait": "otra/cosa"})
+
+    ficha = ficha_efectiva("detect_clickbait")
+
+    assert len(ficha["limitations"]) == 1
+    assert "SIN EVALUAR" in ficha["limitations"][0]
+    # Ninguna medida del modelo anterior sobrevive.
+    for medida in declarada["limitations"]:
+        assert medida not in ficha["limitations"]
+    # Y lo que describe a la SEÑAL y no al modelo sí: el hueco no cambia.
+    assert ficha["dimension"] == declarada["dimension"]
+    assert ficha["type"] == declarada["type"]
+
+
+def test_configurar_el_mismo_id_que_la_ficha_no_borra_las_medidas(monkeypatch):
+    """Poner explícitamente el modelo que ya estaba no es sustituirlo, así que
+    las medidas siguen siendo suyas."""
+    declarada = model_cards.cards_by_signal()["detect_clickbait"]
+    monkeypatch.setattr(
+        settings, "nlp_models", {"detect_clickbait": declarada["model_id"]}
+    )
+
+    assert ficha_efectiva("detect_clickbait") == declarada

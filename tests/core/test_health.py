@@ -11,6 +11,8 @@ cuerpo de la función no se ejecutaba nunca donde importa, y con él las dos ram
 que deciden si una integración responde.
 """
 
+import json
+
 import httpx
 import pytest
 import respx
@@ -83,14 +85,75 @@ async def test_un_codigo_de_error_no_es_alcanzable(codigo):
 
 @pytest.mark.asyncio
 async def test_un_fallo_de_red_no_es_alcanzable():
-    """La otra rama: no hay respuesta que interpretar, no llega la conexión."""
+    """La otra rama: no hay respuesta que interpretar, no llega la conexión.
+
+    Hasta #163 este test exigía lo contrario de la última línea: que el texto de
+    la excepción llegara a la respuesta. Es justo lo que filtraba la clave.
+    """
     with respx.mock:
         respx.get(URL).mock(side_effect=httpx.ConnectError("sin ruta al host"))
 
         resultado = await _probe(URL)
 
     assert resultado["reachable"] is False
-    assert "sin ruta al host" in resultado["error"]
+    assert resultado["error"] == "ConnectError"
+    assert "sin ruta al host" not in resultado["error"]
+
+
+@pytest.mark.asyncio
+async def test_un_timeout_dice_que_lo_es():
+    """Medido el 2026-09-17: `str()` de un timeout de httpx es una cadena VACÍA,
+    y el indicador trataba ese error como «sin detalle»."""
+    with respx.mock:
+        respx.get(URL).mock(side_effect=httpx.ConnectTimeout(""))
+
+        resultado = await _probe(URL)
+
+    assert resultado["error"] == "ConnectTimeout"
+
+
+# ----- La clave no sale por la respuesta (#163) -----
+
+CLAVE = "clave-de-prueba-7f3a9c"
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("codigo", "esperado"),
+    [
+        (401, "HTTP 401 Unauthorized"),
+        (429, "HTTP 429 Too Many Requests"),
+        (500, "HTTP 500 Internal Server Error"),
+    ],
+)
+async def test_un_error_http_dice_el_codigo_y_no_la_url(codigo, esperado):
+    """El mensaje de httpx para un 4xx o 5xx lleva la URL entera, y Guardian y
+    NYT llevan la clave en ella. Con una clave válida esto no desaparece: pasa
+    cada vez que la API responde con error, un 429 por cuota incluido."""
+    with respx.mock:
+        respx.get(URL).mock(return_value=httpx.Response(codigo))
+
+        resultado = await _probe(URL, {"api-key": CLAVE})
+
+    assert resultado["error"] == esperado
+    assert CLAVE not in resultado["error"]
+
+
+@pytest.mark.asyncio
+async def test_check_health_no_publica_las_claves_configuradas():
+    """La prueba que fija el arreglo, sobre la respuesta ENTERA y con las claves
+    de verdad de la configuración: cualquier campo que se añada mañana queda
+    cubierto sin tener que acordarse de él."""
+    with respx.mock:
+        for configuracion in PROBES.values():
+            respx.get(configuracion["url"]).mock(return_value=httpx.Response(401))
+
+        salud = json.dumps(await check_health())
+
+    for configuracion in PROBES.values():
+        clave = configuracion.get("params", {}).get("api-key")
+        if clave:
+            assert clave not in salud
 
 
 @pytest.mark.asyncio
