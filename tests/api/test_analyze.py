@@ -19,6 +19,7 @@ from typing import ClassVar
 
 import pytest
 from pydantic import ValidationError
+from structlog.testing import capture_logs
 
 from backend.analysis import orchestrator
 from backend.analysis.domain import (
@@ -370,7 +371,10 @@ async def test_una_señal_que_revienta_no_tumba_a_las_demas(señales, monkeypatc
     caida = signals["detect_clickbait"]
     assert caida.status == SignalStatus.ERROR
     assert caida.is_clickbait is None
-    assert "TimeoutError" in caida.detail  # tipo + mensaje, para depurar
+    # Desde #89 el detalle dice QUÉ pasó, no CÓMO está hecho esto: el tipo de la
+    # excepción y su mensaje van al log, que es donde se depura.
+    assert caida.detail == "La señal tardó demasiado en responder."
+    assert "TimeoutError" not in caida.detail
     # Las otras cuatro sobreviven: ese es el punto de return_exceptions=True.
     otras = [s for n, s in signals.items() if n != "detect_clickbait"]
     assert all(s.status == SignalStatus.OK for s in otras)
@@ -396,8 +400,59 @@ async def test_un_formato_inesperado_se_aisla_como_error(señales, monkeypatch):
     monkeypatch.setattr(lexical, "detect", lambda h: ToolResult.ok({"otra_clave": 1}))
 
     signals = {s.name: s for s in await _run_signals("Un titular", "Un cuerpo")}
-    assert signals["detect_clickbait_lexical"].status == SignalStatus.ERROR
-    assert "KeyError" in signals["detect_clickbait_lexical"].detail
+    caida = signals["detect_clickbait_lexical"]
+    assert caida.status == SignalStatus.ERROR
+    # `KeyError: 'is_clickbait'` le contaba a cualquiera cómo está estructurado
+    # el código por dentro (#89). Ahora eso vive en el log.
+    assert "KeyError" not in caida.detail
+    assert "no previsto" in caida.detail
+
+
+@pytest.mark.asyncio
+async def test_el_fallo_entero_se_registra_aunque_no_se_publique(señales, monkeypatch):
+    """Lo que sale de la respuesta tiene que aparecer en el log (#89).
+
+    Sanear sin registrar no arregla, destruye: hasta esta issue el `detail` era
+    el ÚNICO sitio donde existía el motivo de un fallo imprevisto, porque el
+    orquestador no registraba nada.
+    """
+    señales()
+    monkeypatch.setattr(lexical, "detect", lambda h: ToolResult.ok({"otra_clave": 1}))
+
+    with capture_logs() as registrado:
+        signals = {s.name: s for s in await _run_signals("Un titular", "Un cuerpo")}
+
+    caida = signals["detect_clickbait_lexical"]
+    fallo = next(linea for linea in registrado if linea["event"] == "senal.fallo")
+
+    assert fallo["signal"] == "detect_clickbait_lexical"
+    assert fallo["tipo"] == "KeyError"
+    assert "is_clickbait" in fallo["detalle"]
+    assert "Traceback" in fallo["traza"]
+    # Y nada de eso está en lo que se publica.
+    assert "KeyError" not in caida.detail
+    assert "is_clickbait" not in caida.detail
+
+
+@pytest.mark.asyncio
+async def test_la_respuesta_no_publica_interioridad(señales, monkeypatch):
+    """Sobre la respuesta ENTERA, no sobre un campo: un sitio nuevo que vuelque
+    el texto de una excepción queda cubierto sin acordarse de él."""
+    dobles = señales()
+
+    async def revienta(text, model):
+        raise RuntimeError("/app/backend/integrations/nlp/local.py falló")
+
+    monkeypatch.setattr(dobles.api, "classify", revienta)
+    monkeypatch.setattr(lexical, "detect", lambda h: ToolResult.ok({"otra_clave": 1}))
+
+    respuesta = await orchestrator.analyze(
+        AnalyzeRequest(headline="Un titular", content="Un cuerpo")
+    )
+    entera = respuesta.model_dump_json()
+
+    for rastro in ("RuntimeError", "KeyError", "Traceback", "/app/backend", ".py"):
+        assert rastro not in entera, rastro
 
 
 @pytest.mark.asyncio

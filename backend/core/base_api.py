@@ -4,6 +4,7 @@ import httpx
 import structlog
 from aiolimiter import AsyncLimiter
 
+from backend.core.errores import describir_error, mensaje_publico
 from backend.core.models import ToolResult
 
 log = structlog.get_logger()
@@ -101,20 +102,49 @@ class BaseAPI:
                         )
                         return ToolResult.ok(response.json())
 
-                except httpx.TimeoutException:
+                # Los tres mensajes de abajo SE PUBLICAN: salen por `/analyze`,
+                # por `/tools/.../execute` y por las tools MCP. Así que dicen qué
+                # pasó y nada de cómo está hecho esto por dentro (#89), y el
+                # detalle —el cuerpo del proveedor, el texto de la excepción—
+                # se registra aquí, que es donde sirve para diagnosticar.
+                except httpx.TimeoutException as error:
                     if attempt < self.MAX_RETRIES:
                         await asyncio.sleep(self.RETRY_BACKOFF)
                         continue
-                    return ToolResult.fail("Request timed out.")
+                    log.warning(
+                        "api.timeout",
+                        api=type(self).__name__,
+                        endpoint=endpoint,
+                        detalle=str(error),
+                    )
+                    return ToolResult.fail(
+                        f"La llamada a la API externa {mensaje_publico(error)}."
+                    )
                 except httpx.HTTPStatusError as e:
                     if e.response.status_code == 503 and attempt < self.MAX_RETRIES:
                         await asyncio.sleep(self.RETRY_BACKOFF)
                         continue
-                    return ToolResult.fail(
-                        f"HTTP error: {e.response.status_code} - {e.response.text}"
+                    log.warning(
+                        "api.error_http",
+                        api=type(self).__name__,
+                        endpoint=endpoint,
+                        status=e.response.status_code,
+                        cuerpo=e.response.text[:1000],
                     )
-                except Exception as e:
-                    return ToolResult.fail(f"An error occurred: {e!s}")
+                    return ToolResult.fail(
+                        f"La API externa respondió {describir_error(e)}."
+                    )
+                except Exception as error:
+                    log.warning(
+                        "api.error",
+                        api=type(self).__name__,
+                        endpoint=endpoint,
+                        tipo=type(error).__name__,
+                        detalle=str(error),
+                    )
+                    return ToolResult.fail(
+                        f"La llamada a la API externa {mensaje_publico(error)}."
+                    )
 
         # El bucle siempre devuelve: en el último intento los tres manejadores
         # retornan en vez de hacer `continue`. Salvo que `MAX_RETRIES` fuera

@@ -30,6 +30,7 @@ define qué significa el resultado, y las dos fachadas —REST y MCP— la compa
 
 import asyncio
 import time
+import traceback
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from typing import Any
@@ -46,6 +47,7 @@ from backend.analysis.domain import (
     SignalStatus,
     SignalType,
 )
+from backend.core.errores import mensaje_publico
 from backend.core.models import ToolResult
 from backend.integrations.nlp import dedicated, lexical, linear
 from backend.integrations.nlp.factory import (
@@ -320,12 +322,23 @@ async def _run_signals(headline: str, content: str | None) -> list[SignalResult]
         if isinstance(outcome, BaseException):
             # BaseException y no Exception: asyncio.CancelledError hereda de la
             # primera desde Python 3.8 y gather también la deposita en la lista.
+            # El detalle técnico va AL LOG, no a la respuesta (#89). Antes se
+            # publicaba `f"{type(outcome).__name__}: {outcome}"` —un
+            # `KeyError: 'is_clickbait'` le cuenta a cualquiera cómo está
+            # estructurado el código— y el log no recibía nada: ese texto era el
+            # ÚNICO sitio donde existía la información, así que sanearlo sin
+            # registrar primero habría sido perderla.
+            log.error(
+                "senal.fallo",
+                signal=spec.name,
+                tipo=type(outcome).__name__,
+                detalle=str(outcome),
+                traza="".join(traceback.format_exception(outcome)),
+            )
             by_name[spec.name] = _build(
                 spec,
                 SignalStatus.ERROR,
-                # TODO(deuda): el texto de la excepción es útil para depurar
-                # pero expone interioridad. Sanear antes de salir de desarrollo.
-                detail=f"{type(outcome).__name__}: {outcome}",
+                detail=f"La señal {mensaje_publico(outcome)}.",
             )
         else:
             by_name[spec.name] = outcome
