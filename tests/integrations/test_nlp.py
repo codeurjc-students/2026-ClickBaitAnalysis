@@ -388,7 +388,13 @@ async def test_detector_error_returns_fail(monkeypatch):
     result = await detector.detect("error", "no movie")
 
     assert not result.success
-    assert "Error inesperado calculando incoherencia" in result.error
+    # Desde #89 el mensaje dice qué pasó y no arrastra el texto de la librería,
+    # que puede traer rutas del contenedor: eso se queda en el log.
+    assert (
+        result.error
+        == "La incoherencia falló por un motivo no previsto; el detalle técnico queda en el log del servidor."
+    )
+    assert "modelo no encontrado" not in result.error
 
 
 # --Léxico

@@ -1,5 +1,8 @@
 import asyncio
 
+import structlog
+
+from backend.core.errores import mensaje_publico
 from backend.core.models import ToolResult
 from backend.integrations.nlp.dependencias import (
     FaltaDependencia,
@@ -7,6 +10,8 @@ from backend.integrations.nlp.dependencias import (
     motivo_si_falta_modelo,
 )
 from backend.integrations.nlp.model_cards import model_id_de
+
+log = structlog.get_logger()
 
 
 class IncoherenceDetector:
@@ -135,5 +140,12 @@ class IncoherenceDetector:
             # con ningún `nlp_backend`. Su mensaje ya lo explica, así que sale
             # tal cual.
             return ToolResult.fail(str(falta))
-        except Exception as e:
-            return ToolResult.fail(f"Error inesperado calculando incoherencia: {e}")
+        except Exception as error:
+            # Al log el fallo entero; fuera, sólo qué pasó (#89).
+            log.warning(
+                "nlp.incoherencia.fallo",
+                modelo=self.model_id,
+                tipo=type(error).__name__,
+                detalle=str(error),
+            )
+            return ToolResult.fail(f"La incoherencia {mensaje_publico(error)}.")

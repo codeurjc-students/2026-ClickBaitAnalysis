@@ -1236,6 +1236,100 @@ Añadir el registro a `/analyze` convirtió, sin avisar, todos los tests de esa 
 
 `tests/api/test_history.py` cubre los dos lados por separado —el almacén llamando a sus funciones, el endpoint por HTTP— porque responden preguntas distintas: si los datos sobreviven y salen en orden, y si la decisión de «una entrada por análisis» se sostiene de verdad.
 
+### Un TODO que caducó el día del despliegue (#89)
+
+En `orchestrator.py` había esto desde #85, cuando se escribió la orquestación:
+
+```python
+_build(
+    spec,
+    SignalStatus.ERROR,
+    # TODO(deuda): el texto de la excepción es útil para depurar
+    # pero expone interioridad. Sanear antes de salir de desarrollo.
+    detail=f"{type(outcome).__name__}: {outcome}",
+)
+```
+
+**Su condición se cumplió al publicar `v0.5.0`**: salimos de desarrollo. Desde
+entonces, cuando una señal fallaba de forma imprevista, `/analyze` devolvía a
+cualquiera de internet el nombre de la clase de la excepción y su mensaje. Un
+`KeyError: 'is_clickbait'` no es un error para quien lee un resultado: es una
+descripción de cómo está estructurado el código por dentro. Lo pide **R12.7**,
+que prohíbe revelar detalles internos a clientes externos.
+
+#### Antes de arreglar: el detalle era el ÚNICO sitio donde existía
+
+El orquestador **no registraba nada** cuando una señal reventaba. Así que
+sanear la respuesta sin tocar nada más no habría sido arreglar, sino **destruir
+la información**: se habría perdido la única pista que quedaba de un fallo
+imprevisto. El orden correcto era al revés —primero registrar, después
+sanear—, y es lo que se hizo.
+
+#### Cuatro puertas, no una
+
+La issue hablaba de `/analyze`, pero el mismo texto salía por más sitios. Es la
+lección de #116, donde el mismo dato tenía tres puertas y se taparon de una en
+una:
+
+| Dónde | Qué publicaba |
+|---|---|
+| `orchestrator.py`, fallo imprevisto | `TimeoutError: timed out`, `KeyError: 'is_clickbait'` |
+| `local.py` e `incoherence.py` | `Error inesperado usando el modelo X: <texto de torch o transformers>`, que puede traer rutas del contenedor |
+| `base_api.py` | `HTTP error: 400 - <cuerpo del proveedor>` y `An error occurred: <texto de la excepción>` |
+| `execute.py` | **los mismos mensajes, por la otra puerta**: `/tools/{name}/execute` publica el error de la herramienta |
+
+Se cerraron las cuatro a la vez. La última no necesitó cambios propios: dejó de
+filtrar en cuanto lo hicieron las otras.
+
+#### Dos funciones, porque hay dos destinatarios
+
+`core/errores.py` ya tenía `describir_error` de #163, que devuelve `HTTP 401
+Unauthorized` o `ConnectError`. Sirve para el detalle de `/health` y del
+catálogo, que **lee quien inspecciona el sistema** y la interfaz marca como
+técnico. Pero no sirve aquí: son nombres de clase, y esta issue los prohíbe
+expresamente.
+
+La función nueva, `mensaje_publico`, agrupa los fallos en **tres familias, que
+son las que cambian lo que puede hacer quien lee**: esperar («tardó demasiado en
+responder»), mirar si el servicio externo está caído («no pudo contactar con el
+servicio externo», «recibió un HTTP 503 Service Unavailable del servicio
+externo») o mirar el log («falló por un motivo no previsto»). Todo lo demás cae
+en la tercera, porque ahí la única acción posible es esa.
+
+Devuelve **predicados sin sujeto**, y quien llama pone el suyo: «La señal…», «El
+modelo `X`…», «La llamada a la API externa…». Con el sujeto dentro habría que
+elegir uno, y ninguno vale para los tres sitios.
+
+**Una trampa de herencia, medida en las pruebas**: `httpx.TimeoutException`
+**hereda** de `httpx.TransportError`, así que comprobar la conexión antes que el
+tiempo se tragaría todos los timeouts y los llamaría fallos de conexión. El
+orden de los `isinstance` es la lógica, y hay un test que lo dice.
+
+#### La tarjeta deja de volcar
+
+`senal-card` anteponía «Esta señal no llegó a ejecutarse» y pintaba el detalle
+como texto de máquina, porque el detalle era ilegible: eso lo resolvió #130 para
+cumplir R6.7 **en el frontend**. Ahora **se cumple en origen**, así que la
+tarjeta enseña el detalle tal cual, igual que hacía con `not_applicable`.
+Desaparecen la frase antepuesta y dos clases del SCSS: mantenerlas sería decir
+dos veces lo mismo y marcar como técnico algo que ya no lo es.
+
+#### Lo que lo fija
+
+- Que **el log conserva** tipo, mensaje y traza mientras la respuesta no los
+  lleva. Sin esta prueba, un día alguien quita el log «que no se usa».
+- Que **la respuesta entera** de `/analyze`, serializada, no contiene nombres de
+  clase, trazas ni rutas. Sobre la respuesta completa y no sobre un campo: un
+  sitio nuevo que vuelque el texto de una excepción queda cubierto sin que nadie
+  se acuerde de él. Es el mismo criterio que la prueba de las claves en #163.
+- Las tres familias, incluida la trampa de herencia.
+
+*(Efecto secundario que conviene saber al leer secciones anteriores: los
+mensajes que citan #156 y #162 —«Error inesperado usando el modelo …»— ya no se
+escriben así. Dicen «El modelo `X` falló por un motivo no previsto; el detalle
+técnico queda en el log del servidor». Lo que describían aquellas secciones sigue
+siendo cierto; cambia la redacción, no el comportamiento.)*
+
 ### HTTPS, el certificado que no se pudo pedir, y la verificación desde fuera (#165)
 
 La última issue de H4 abre la aplicación a internet en
