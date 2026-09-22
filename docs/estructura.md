@@ -69,7 +69,7 @@ de historia, no una propiedad suya.
 
 | Fichero | Qué hace |
 |---|---|
-| `app.py` | La aplicación y sus cinco rutas. Segundo punto de entrada del backend, hermano de `main.py` y no capa sobre él |
+| `app.py` | La aplicación y sus seis rutas. Segundo punto de entrada del backend, hermano de `main.py` y no capa sobre él |
 | `schemas.py` | El contrato: lo que entra y sale por HTTP, y los enums que lo acompañan |
 | `catalog.py` | **Traduce** el descubrimiento al contrato del catálogo — `GET /tools` |
 | `execute.py` | **Traduce** una invocación a su código de estado — `POST /tools/{name}/execute` |

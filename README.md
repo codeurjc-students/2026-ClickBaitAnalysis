@@ -1326,6 +1326,27 @@ Y se declara **una sola vez**, en el constructor de `FastAPI`, que mezcla esas r
 
 En el frontend son **cinco** traductores de error los que aprenden el 429: el del análisis, el del historial, los dos de Sistema y el del indicador de salud. El texto es compartido y vive en `api/errores.ts`, porque el motivo no es de ninguna pantalla: no depende de lo que se estuviera haciendo, sino del ritmo. Donde más se va a ver es en el indicador, que es el que más se acerca al límite de `/health`.
 
+#### Medido en la máquina 1, desde fuera
+
+Con la rama desplegada (reconstrucción de **15,8 s**, los tres servicios sanos) y las peticiones hechas desde casa, por internet y contra el certificado autofirmado:
+
+| Qué | Resultado |
+|---|---|
+| 21 peticiones seguidas a `/api/health`, cupo 20 | **20 × 200 y la 21.ª en 429**, con `retry-after: 59` y «Demasiadas peticiones. Vuelve a intentarlo en 59 s.» |
+| `/api/history` y `/api/tools` con el sondeo bloqueado | **200 las dos** — los grupos no se arrastran |
+| `X-Forwarded-For` inventada, tres valores distintos | **429 las tres**: Caddy la sobrescribe, así que no hay cupo nuevo |
+| El mismo momento, desde la propia VM | **200 tres veces**: otra dirección, otro cupo |
+| Lo que registró el servidor | `cliente=83.39.x.x`, `ruta=/health`, `grupo=sondeo` |
+| Las 20 respuestas admitidas | **el mismo `timestamp`**: un sondeo real, no veinte |
+
+Dos cosas que sólo se ven mirando los números.
+
+**El cliente que aparece en el log es la IP de casa, no la del contenedor de Caddy.** Es la comprobación de que los tres eslabones —`header_up`, `--forwarded-allow-ips` y el puerto sin publicar— están enganchados; con cualquiera suelto, ahí pondría `172.x.x.x` y el límite sería uno para todo internet.
+
+**La ventana se comportó como una ventana, no como un castigo.** En una medida hecha ya pasado el corte, el servidor pidió esperar **5 segundos** —no 60—, porque sólo hacía falta que caducara la marca más vieja; a los 7 s la petición pasó, y detrás pasaron cinco seguidas más, las que habían ido caducando mientras tanto. Eso es exactamente lo que un cubo de fichas no habría podido decir con precisión.
+
+Y una tercera, que es la de fondo: **el sondeo de salud consumió tres peticiones externas en vez de sesenta**. El límite por cliente no habría evitado ni una de ellas.
+
 ### Un TODO que caducó el día del despliegue (#89)
 
 En `orchestrator.py` había esto desde #85, cuando se escribió la orquestación:
