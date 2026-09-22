@@ -1268,6 +1268,16 @@ La cadena tiene tres eslabones, y los tres hacían falta:
 
 Con un único presupuesto habría que elegir entre proteger `/analyze` y dejar navegar por el historial, y cualquiera de las dos elecciones es mala. Los números viven en `settings.py` —`RATE_LIMIT_ANALYZE` y compañía— para poder ajustarlos sin reconstruir la imagen, y `RATE_LIMIT_ENABLED=false` lo apaga entero.
 
+#### El prefijo que volvía, y los 48 tests en verde
+
+La primera versión clasificaba comparando `request.url.path` con `/analyze` y `/health`. La suite lo daba por bueno. **En el despliegue no limitaba nada de lo que decía limitar**, y se vio a la primera medida desde fuera: 21 peticiones seguidas a `/api/health` —con un cupo de 20— devolvieron 21 doscientos.
+
+El motivo, medido en la máquina 1 con la propia versión de uvicorn (0.41.0): Caddy quita `/api` con `handle_path`, pero la API arranca con `--root-path /api` y **uvicorn lo devuelve al `scope`**. Una petición a `/health` llega a la aplicación como `path="/api/health"` con `root_path="/api"`; el enrutado de Starlette le quita el prefijo justo antes de elegir la ruta, pero **un middleware corre antes de eso**. Así que ninguna ruta casaba con su grupo y todas caían en el presupuesto genérico de 60 — el límite existía y estaba mal repartido, que es peor que no tenerlo, porque parece que sí.
+
+El arreglo es quitar el prefijo antes de clasificar, con la misma regla que usa Starlette al enrutar y un tornillo más apretado: sólo se quita si termina donde acaba un segmento, para que `/apidocumentos` no se convierta en `documentos`. Y la prueba que faltaba ya está: un `TestClient` con `root_path="/api"` que pide `/api/analyze`, **escrito antes del arreglo y comprobado en rojo**.
+
+Es la regla de #164 otra vez, y van dos: **un despliegue se comprueba ejecutándolo**. Allí fue una herramienta que cargara un modelo; aquí, pasarse del límite desde fuera. En los dos casos el criterio de aceptación habría dado verde con la suite delante.
+
 #### Lo que un límite por cliente NO arregla
 
 `/health` hace **tres peticiones externas reales** por sondeo, y el indicador de la cabecera lo pide al cargar cualquier pantalla. NYT admite 500 llamadas al día. Con 20 por minuto y cliente, cien clientes distintos agotan la cuota exactamente igual: **el límite reparte el abuso, no lo acota**. Y no es un escenario rebuscado, es lo que ya advertía #165 — el consumo más probable no es un ataque.

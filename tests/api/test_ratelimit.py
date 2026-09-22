@@ -118,6 +118,29 @@ def test_olvida_a_los_clientes_que_dejaron_de_venir():
 
 
 @pytest.mark.parametrize(
+    ("ruta", "raiz", "esperado"),
+    [
+        # Lo que llega en el despliegue: Caddy quita `/api` y uvicorn lo repone
+        # en el `scope` por el `--root-path`.
+        ("/api/health", "/api", "/health"),
+        (
+            "/api/tools/detect_clickbait/execute",
+            "/api",
+            "/tools/detect_clickbait/execute",
+        ),
+        # Sin montar: en desarrollo y en los tests no hay raíz que quitar.
+        ("/health", "", "/health"),
+        # La raíz a secas se queda en algo, no en cadena vacía.
+        ("/api", "/api", "/"),
+        # Y el prefijo sólo cuenta si acaba donde acaba un segmento.
+        ("/apidocumentos", "/api", "/apidocumentos"),
+    ],
+)
+def test_el_prefijo_de_montaje_se_quita_entero_o_nada(ruta, raiz, esperado):
+    assert ratelimit.sin_prefijo_de_montaje(ruta, raiz) == esperado
+
+
+@pytest.mark.parametrize(
     ("metodo", "ruta", "esperado"),
     [
         ("POST", "/analyze", CARAS),
@@ -256,6 +279,30 @@ def test_todas_las_rutas_declaran_el_429():
     assert operaciones
     for operacion in operaciones:
         assert "429" in operacion["responses"], operacion["summary"]
+
+
+# Detrás de Caddy, uvicorn arranca con `--root-path /api`, y ahí pasa algo que
+# no se ve desde la suite: **el prefijo vuelve al `scope`**. Medido en la
+# máquina 1 con uvicorn 0.41.0, una petición a `/health` llega a la aplicación
+# como `path="/api/health"`; el enrutado de Starlette le quita el prefijo
+# después, pero un middleware corre ANTES de eso. La primera versión comparaba
+# con `/analyze` y en el despliegue todo caía en el grupo barato — con los 42
+# tests en verde, porque el `TestClient` no montaba nada.
+cliente_montado = TestClient(app, client=("10.0.0.3", 40000), root_path="/api")
+
+
+def test_el_prefijo_de_montaje_no_despista_al_clasificador(limite, analisis):
+    for _ in range(2):
+        assert (
+            cliente_montado.post(
+                "/api/analyze", json={"headline": "Un titular"}
+            ).status_code
+            == 200
+        )
+
+    agotada = cliente_montado.post("/api/analyze", json={"headline": "Un titular"})
+
+    assert agotada.status_code == 429
 
 
 def test_apagado_no_limita_nada(monkeypatch):

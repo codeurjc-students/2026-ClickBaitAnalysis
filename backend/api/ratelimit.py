@@ -175,6 +175,26 @@ def reiniciar_limitador() -> None:
     _limitador = None
 
 
+def sin_prefijo_de_montaje(ruta: str, raiz: str) -> str:
+    """La ruta como la declara la aplicación, sin el prefijo donde está montada.
+
+    Hace falta porque **un middleware corre antes del enrutado**, y ahí la ruta
+    todavía puede traer el prefijo de montaje. Caddy quita `/api` con
+    `handle_path`, pero uvicorn arranca con `--root-path /api` y —medido en la
+    máquina 1 con uvicorn 0.41.0— **lo devuelve al `scope`**: la aplicación
+    recibe `path="/api/health"` con `root_path="/api"`. Starlette se lo quita
+    después, al enrutar; aquí todavía no.
+
+    Es la regla del enrutado de Starlette, escrita a mano para no depender de
+    una función privada suya, y con un tornillo más apretado: el prefijo se
+    quita sólo si termina donde acaba un segmento. Un `startswith` pelado
+    convertiría `/apidocumentos` en `documentos` con la raíz en `/api`.
+    """
+    if raiz and (ruta == raiz or ruta.startswith(raiz + "/")):
+        return ruta[len(raiz) :] or "/"
+    return ruta
+
+
 def grupo_de(metodo: str, ruta: str) -> str | None:
     """A qué presupuesto pertenece una petición; `None` si está exenta.
 
@@ -184,7 +204,9 @@ def grupo_de(metodo: str, ruta: str) -> str | None:
     navegador lo traduce a un fallo de CORS— y la interfaz diría que no hay API
     al otro lado, que es justo el diagnóstico equivocado.
 
-    La ruta llega SIN el prefijo `/api`, que ya quitó Caddy con `handle_path`.
+    La ruta se compara con la que declara la aplicación, así que quien llame
+    tiene que haberle quitado antes el prefijo de montaje: ver
+    `sin_prefijo_de_montaje`.
     """
     if metodo == "OPTIONS":
         return None
@@ -214,7 +236,8 @@ async def limitar_peticiones(
     if not settings.rate_limit_enabled:
         return await call_next(request)
 
-    grupo = grupo_de(request.method, request.url.path)
+    ruta = sin_prefijo_de_montaje(request.url.path, request.scope.get("root_path", ""))
+    grupo = grupo_de(request.method, ruta)
     if grupo is None:
         return await call_next(request)
 
@@ -231,7 +254,7 @@ async def limitar_peticiones(
         cliente=cliente,
         grupo=grupo,
         metodo=request.method,
-        ruta=request.url.path,
+        ruta=ruta,
         espera_s=segundos,
     )
     return JSONResponse(
