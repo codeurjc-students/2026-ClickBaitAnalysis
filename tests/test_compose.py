@@ -38,6 +38,26 @@ def test_todo_proceso_del_backend_ejecuta_las_senales_en_local():
         assert servicio["environment"].get("NLP_BACKEND") == "local", nombre
 
 
+def test_la_api_no_publica_ningun_puerto():
+    """La condición que sostiene el límite por cliente de #169.
+
+    Detrás de Caddy, quién es el cliente sale de `X-Forwarded-For`, y esa
+    cabecera sólo es creíble porque a la API no se llega si no es por el proxy,
+    que la sobrescribe con la dirección real. Publicar el 8000 —aunque fuera
+    sólo en `127.0.0.1`, como se hizo para probar en #163— devolvería a
+    cualquiera la posibilidad de declararse quien quiera y estrenar cupo en
+    cada petición.
+    """
+    assert "ports" not in _servicios()["api"]
+
+
+def test_la_api_se_fia_de_las_cabeceras_del_proxy():
+    """Sin esto uvicorn IGNORA `X-Forwarded-For` —sólo se fía de `127.0.0.1`—
+    y todas las peticiones parecen venir del contenedor de Caddy: el límite de
+    #169 pasaría a ser uno solo, compartido por todo internet."""
+    assert "--forwarded-allow-ips" in _servicios()["api"]["command"]
+
+
 def test_el_servicio_de_la_api_se_llama_api():
     """Contrato con `docker/Caddyfile`, que reenvía a `api:8000` (#163): dentro
     de compose, el nombre del servicio es su dirección."""

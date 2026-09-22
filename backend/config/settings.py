@@ -154,6 +154,33 @@ class Settings(BaseSettings):
     history_max_entries: int = 1000
     history_max_days: int = 30
 
+    # Limitación de velocidad de las peticiones ENTRANTES (R12.4, #169).
+    #
+    # TRES presupuestos, por lo que cuesta atender cada ruta, y no uno global:
+    # con un límite único habría que elegir entre proteger `/analyze` —que ocupa
+    # la CPU durante segundos— y dejar navegar por el historial, que sólo lee
+    # SQLite. La ventana es común a los tres: lo que cambia es cuántas caben.
+    #
+    # Se apaga entero con `RATE_LIMIT_ENABLED=false`. Lo hacen las pruebas, que
+    # lanzan cientos de peticiones desde el mismo cliente y no van de esto.
+    rate_limit_enabled: bool = True
+    rate_limit_window_s: float = 60.0
+    rate_limit_analyze: int = 10  # `POST /analyze` y `/tools/{name}/execute`
+    rate_limit_health: int = 20  # `/health`: tres peticiones externas por sondeo
+    rate_limit_default: int = 60  # el resto, que sólo lee disco o memoria
+
+    # Cuánto vale un sondeo de salud antes de repetirlo (#169).
+    #
+    # El límite de velocidad reparte el abuso pero NO acota la cuota: cien
+    # clientes distintos, con 20 por minuto cada uno, agotan igual las 500
+    # llamadas diarias que admite NYT. Esto sí la acota pase lo que pase — como
+    # mucho dos sondeos por minuto en todo el proceso, vengan de donde vengan.
+    #
+    # Y no engaña a nadie, porque `Salud` lleva el `timestamp` DEL SONDEO y no
+    # el de la respuesta: quien la lee puede ver que es de hace medio minuto.
+    # `0` desactiva la caché.
+    health_cache_s: float = 30.0
+
 
 # Activa la validación al importar: si falta una clave, el proceso no arranca.
 #

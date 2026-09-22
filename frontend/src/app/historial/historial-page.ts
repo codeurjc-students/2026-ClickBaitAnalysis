@@ -2,7 +2,7 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { Component, computed, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 
-import { SIN_RESPUESTA } from '../api/errores';
+import { mensajeDeLimite, SIN_RESPUESTA } from '../api/errores';
 import { HistoryService } from '../api/history.service';
 import type {
   HistoryEntry,
@@ -42,6 +42,7 @@ const ESTADOS = ['ok', 'error'];
 
 function mensajeDeFallo(fallo: HttpErrorResponse): string {
   if (fallo.status === 0) return SIN_RESPUESTA;
+  if (fallo.status === 429) return mensajeDeLimite(fallo);
   if (fallo.status === 422) {
     return 'Los filtros no son válidos. Prueba a limpiarlos.';
   }

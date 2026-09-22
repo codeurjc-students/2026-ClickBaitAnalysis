@@ -34,6 +34,7 @@ from backend.analysis.orchestrator import analyze, precalentar
 from backend.api import history
 from backend.api.catalog import fetch_catalog
 from backend.api.execute import execute_tool
+from backend.api.ratelimit import RESPUESTA_429, limitar_peticiones
 from backend.api.schemas import (
     AnalyzeResult,
     CatalogResponse,
@@ -103,7 +104,25 @@ app = FastAPI(
     ),
     version="0.3.0-dev",
     lifespan=lifespan,
+    # El 429 del límite de velocidad (#169) se declara UNA vez, aquí, porque el
+    # límite es de la aplicación entera: no hay ruta exenta. FastAPI mezcla
+    # estas respuestas en todas las operaciones —comprobado— y se suman a las
+    # que declare cada una, así que el 404 del historial sigue en su sitio.
+    # Repetirlo ruta por ruta era la otra opción, y envejece mal: la primera
+    # ruta nueva que alguien añada se lo dejaría, y el contrato mentiría por
+    # omisión justo donde se genera el cliente.
+    responses=RESPUESTA_429,
 )
+
+# El limitador de velocidad (R12.4, #169) se registra ANTES que el de CORS, y
+# el orden no es cosmético: en Starlette el último middleware añadido es el de
+# FUERA, así que poniendo CORS después queda envolviendo a éste y un 429 sale
+# con sus cabeceras. Al revés, el navegador recibiría una respuesta sin
+# `Access-Control-Allow-Origin`, la daría por bloqueada y la pantalla diría «no
+# se pudo contactar con la API» en vez del límite — el diagnóstico equivocado.
+# Hoy todo se sirve del mismo origen a través de Caddy y no se notaría; deja de
+# no notarse justo el día que eso cambie.
+app.middleware("http")(limitar_peticiones)
 
 # `allow_credentials` concede permiso para que viajen cookies, autenticación
 # HTTP y certificados de cliente en peticiones de otro origen (por defecto el
@@ -119,6 +138,11 @@ app.add_middleware(
     allow_credentials=False,
     allow_methods=["GET", "POST"],
     allow_headers=["*"],
+    # `Retry-After` hay que EXPONERLO aparte: `allow_headers` habla de las que
+    # el navegador puede mandar, y una cabecera de RESPUESTA no la ve el
+    # JavaScript si no se declara aquí. Sin esto, la pantalla sabría que la
+    # rechazaron pero no cuánto tiene que esperar.
+    expose_headers=["Retry-After"],
 )
 
 

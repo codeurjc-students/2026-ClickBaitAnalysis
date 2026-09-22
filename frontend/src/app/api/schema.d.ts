@@ -840,6 +840,13 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            /** @description Se superó el límite de peticiones. La cabecera `Retry-After` dice cuántos segundos esperar. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
         };
     };
     get_tools_tools_get: {
@@ -859,6 +866,13 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["CatalogResponse"];
                 };
+            };
+            /** @description Se superó el límite de peticiones. La cabecera `Retry-After` dice cuántos segundos esperar. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };
@@ -901,6 +915,13 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
+            };
+            /** @description Se superó el límite de peticiones. La cabecera `Retry-After` dice cuántos segundos esperar. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Se agotó la espera; la herramienta puede haber terminado. */
             504: {
@@ -953,6 +974,13 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            /** @description Se superó el límite de peticiones. La cabecera `Retry-After` dice cuántos segundos esperar. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
         };
     };
     get_history_entry_history__entry_id__get: {
@@ -991,6 +1019,13 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            /** @description Se superó el límite de peticiones. La cabecera `Retry-After` dice cuántos segundos esperar. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
         };
     };
     get_health_health_get: {
@@ -1010,6 +1045,13 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["Salud"];
                 };
+            };
+            /** @description Se superó el límite de peticiones. La cabecera `Retry-After` dice cuántos segundos esperar. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };

@@ -28,7 +28,16 @@ gongarcia.tfg.etsii.urjc.es {
 		# `api` es un contrato: el contenedor de la API tiene que llamarse así,
 		# y también su servicio en el compose de #164. El 8000 es el puerto de
 		# uvicorn DENTRO del contenedor; no hace falta publicarlo.
-		reverse_proxy api:8000
+		reverse_proxy api:8000 {
+			# SOBRESCRIBE la cabecera en vez de añadirse a ella, que es lo que
+			# hace Caddy por defecto. Con el comportamiento de fábrica, quien
+			# mande su propia `X-Forwarded-For` deja `inventada, real` y quien
+			# lea la primera —lo habitual— se traga la mentira: bastaría con
+			# cambiarla en cada petición para tener un cupo nuevo cada vez y el
+			# límite de #169 no valdría nada. Poniendo sólo `{remote_host}`, la
+			# dirección la pone Caddy y no se puede falsificar desde fuera.
+			header_up X-Forwarded-For {remote_host}
+		}
 	}
 
 	# Lo que no es de la API es la SPA. Si la ruta no es un fichero, se sirve

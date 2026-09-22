@@ -184,6 +184,50 @@ describe('IndicadorSalud', () => {
     expect(html.querySelector('.fallo')?.textContent).not.toContain('502');
   });
 
+  // De todos los sitios donde puede aparecer un 429, éste es el más probable
+  // (#169): el indicador sondea al cargar cualquier pantalla, así que es el que
+  // más se acerca al límite de `/health`. Y decir «la API no pudo informar de
+  // su estado» sería falso: pudo, y respondió que se lo están preguntando
+  // demasiado.
+  it('un 429 se lee como límite de velocidad, y dice cuánto esperar', async () => {
+    fixture = TestBed.createComponent(IndicadorSalud);
+    http.expectOne('/api/health').flush(
+      { detail: 'Demasiadas peticiones. Vuelve a intentarlo en 12 s.' },
+      {
+        status: 429,
+        statusText: 'Too Many Requests',
+        headers: { 'Retry-After': '12' },
+      },
+    );
+    await fixture.whenStable();
+
+    const html = fixture.nativeElement as HTMLElement;
+    await desplegar(html);
+
+    expect(html.querySelector('.fallo')?.textContent).toContain(
+      'Demasiadas peticiones',
+    );
+    expect(html.querySelector('.fallo')?.textContent).toContain('12 s');
+  });
+
+  // La cabecera puede no llegar —entre orígenes el navegador sólo deja leerla
+  // si el servidor la expone, y un proxy podría quitarla—, y entonces hay que
+  // decir que espere sin inventarse un número.
+  it('sin `Retry-After` sigue explicando el límite, sin decir cuánto', async () => {
+    fixture = TestBed.createComponent(IndicadorSalud);
+    http
+      .expectOne('/api/health')
+      .flush({ detail: 'Demasiadas peticiones.' }, { status: 429, statusText: 'Too Many Requests' });
+    await fixture.whenStable();
+
+    const html = fixture.nativeElement as HTMLElement;
+    await desplegar(html);
+
+    expect(html.querySelector('.fallo')?.textContent).toContain(
+      'Espera un momento',
+    );
+  });
+
   it('avisa de que no cubre las señales de análisis', async () => {
     const html = await montar(TODO_BIEN);
     await desplegar(html);
