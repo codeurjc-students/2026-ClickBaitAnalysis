@@ -38,7 +38,14 @@ services:
     # documentación pide `/openapi.json` en vez de `/api/openapi.json` y recibe el
     # index.html de la SPA. Medido en #163. Aquí y no en el `CMD` del Dockerfile,
     # que rompería la documentación al llamar a la API sin proxy.
-    command: ["uvicorn", "backend.api.app:app", "--host", "0.0.0.0", "--port", "8000", "--root-path", "/api"]
+    #
+    # `--forwarded-allow-ips`: sin esto uvicorn sólo se fía de `127.0.0.1`, y
+    # Caddy es otro contenedor con otra IP, así que IGNORA su `X-Forwarded-For`
+    # y toda petición parece venir del proxy — el límite de velocidad de #169
+    # castigaría a todos los clientes a la vez. Vale `*` porque a este puerto
+    # sólo llega quien está en la red de compose: la API no se publica, y eso
+    # es lo que hace creíble la cabecera (lo vigila `tests/test_compose.py`).
+    command: ["uvicorn", "backend.api.app:app", "--host", "0.0.0.0", "--port", "8000", "--root-path", "/api", "--forwarded-allow-ips", "*"]
     environment:
       <<: *entorno-backend
       PREHEAT_MODELS: "true" # la carga se paga al arrancar, no en la 1.ª petición (#125)

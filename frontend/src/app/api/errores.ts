@@ -1,3 +1,5 @@
+import type { HttpErrorResponse } from '@angular/common/http';
+
 /**
  * Lo que se puede leer del cuerpo de un error HTTP.
  *
@@ -39,3 +41,23 @@ export function detalleDeValidacion(cuerpo: unknown): string | null {
  */
 export const SIN_RESPUESTA =
   'No se pudo contactar con la API.';
+
+/**
+ * Mensaje de un 429: llegaron demasiadas peticiones seguidas (R12.4, #169).
+ *
+ * Vive aquí, y no en una pantalla, porque el motivo NO es de ninguna: no
+ * depende de lo que se estuviera haciendo sino del RITMO al que se pidió, y el
+ * remedio —esperar— es el mismo en las cuatro. Lo que cambia por pantalla es
+ * dónde se enseña.
+ *
+ * Los segundos salen de `Retry-After`, que el backend pone siempre. Aun así
+ * hay una frase sin número, porque la cabecera puede no llegar: entre orígenes
+ * el navegador sólo deja leerla si el servidor la expone, y un proxy por medio
+ * podría quitarla. Decir «espera 0 s» sería peor que no decir cuánto.
+ */
+export function mensajeDeLimite(fallo: HttpErrorResponse): string {
+  const espera = Number(fallo.headers.get('Retry-After'));
+  return Number.isFinite(espera) && espera > 0
+    ? `Demasiadas peticiones seguidas. Vuelve a intentarlo en ${espera} s.`
+    : 'Demasiadas peticiones seguidas. Espera un momento y vuelve a intentarlo.';
+}

@@ -1236,6 +1236,86 @@ Añadir el registro a `/analyze` convirtió, sin avisar, todos los tests de esa 
 
 `tests/api/test_history.py` cubre los dos lados por separado —el almacén llamando a sus funciones, el endpoint por HTTP— porque responden preguntas distintas: si los datos sobreviven y salen en orden, y si la decisión de «una entrada por análisis» se sostiene de verdad.
 
+### Un límite de velocidad para una aplicación que ya está en internet (#169)
+
+R12.4 pide que la API «implemente una limitación de velocidad para evitar abusos», y hasta ahora el único limitador del proyecto era el de `BaseAPI`, que acota las llamadas que el sistema **hace** a Guardian y a NYT. De las que **recibe** no había ninguna.
+
+Mientras la aplicación escuchaba sólo en `127.0.0.1` eso no era un hueco, era una ausencia sin superficie. Desde #165 está abierta a internet y sin autenticación, y cualquiera puede pedir análisis —que ocupan la CPU durante segundos—, ejecutar herramientas —que gastan cuota de NYT y de Guardian— y recorrer el historial. Lo que hay que proteger no son los datos, que no son sensibles: es **poder enseñarla el día que haga falta enseñarla**.
+
+#### Dónde vive el límite: Caddy o FastAPI
+
+Caddy era la respuesta elegante —rechazar en la puerta, antes de gastar un proceso— y se descartó por dos motivos. El primero es que `caddy-ratelimit` es un módulo de terceros: habría que construir la imagen con `xcaddy` en vez de usar la oficial, justo después de haber fijado la versión 2.11.4 en #163 para poder decir qué se está ejecutando. El segundo pesa más: **un límite en Caddy no se puede probar en el CI**, y el criterio de aceptación pide una prueba que lo fije. Lo que no tiene prueba se rompe en el siguiente cambio sin que nadie se entere.
+
+En FastAPI es un middleware de unas ochenta líneas, se prueba con el `TestClient` que ya existía, y permite lo que de verdad hacía falta: **que el presupuesto dependa de la ruta**. El coste es real y conviene decirlo — la petición rechazada ha llegado a Python—, pero se rechaza antes de leer el cuerpo y antes de que corra ningún modelo.
+
+#### Quién es el cliente, que era la parte difícil
+
+Un límite «por cliente» detrás de un proxy inverso no es evidente: para la API, todas las peticiones vienen de Caddy. Si se cuenta por lo que ve `request.client.host`, el límite es **uno solo para todo internet** y el primero que lo agote deja fuera a los demás.
+
+La cadena tiene tres eslabones, y los tres hacían falta:
+
+1. **Caddy sobrescribe `X-Forwarded-For`** con `header_up X-Forwarded-For {remote_host}`. Por defecto Caddy la *añade* a la que traiga la petición, así que quien mande la suya deja `inventada, real` — y bastaría con cambiarla en cada petición para estrenar cupo cada vez. Sobrescribiéndola, la dirección la pone Caddy.
+2. **uvicorn tiene que fiarse de ella.** Su opción `--forwarded-allow-ips` vale `127.0.0.1` por defecto (comprobado en uvicorn 0.41.0), y Caddy es otro contenedor con otra IP: hoy la cabecera llegaba y se **ignoraba**. Con la opción puesta, `request.client.host` pasa a ser el cliente real en todo el proceso, logs incluidos, y el limitador no necesita saber que hay un proxy delante.
+3. **La API no se publica.** Ése es el eslabón que sostiene a los otros dos: la cabecera sólo es creíble mientras a la API no se llegue si no es por Caddy. Publicar el 8000 —aunque fuera en `127.0.0.1`, como se hizo para probar en #163— devolvería a cualquiera la posibilidad de declararse quien quiera. Como es una condición que se puede romper sin darse cuenta, la vigila `tests/test_compose.py`, que ya guardaba los contratos del despliegue desde #164.
+
+#### Tres presupuestos, no uno
+
+| Grupo | Rutas | Por cliente |
+|---|---|---|
+| Caras | `POST /analyze`, `POST /tools/{name}/execute` | 10/min |
+| Sondeo | `GET /health` | 20/min |
+| Resto | `GET /tools`, `GET /history`, `GET /history/{id}` | 60/min |
+
+Con un único presupuesto habría que elegir entre proteger `/analyze` y dejar navegar por el historial, y cualquiera de las dos elecciones es mala. Los números viven en `settings.py` —`RATE_LIMIT_ANALYZE` y compañía— para poder ajustarlos sin reconstruir la imagen, y `RATE_LIMIT_ENABLED=false` lo apaga entero.
+
+#### Lo que un límite por cliente NO arregla
+
+`/health` hace **tres peticiones externas reales** por sondeo, y el indicador de la cabecera lo pide al cargar cualquier pantalla. NYT admite 500 llamadas al día. Con 20 por minuto y cliente, cien clientes distintos agotan la cuota exactamente igual: **el límite reparte el abuso, no lo acota**. Y no es un escenario rebuscado, es lo que ya advertía #165 — el consumo más probable no es un ataque.
+
+Por eso #169 lleva además una **caché de 30 segundos** en `check_health()`, con un cerrojo para que diez peticiones simultáneas produzcan un sondeo y no diez. Eso sí pone un techo absoluto: dos sondeos por minuto en todo el proceso, vengan de donde vengan.
+
+Dos cosas que hacen que la caché no sea un parche:
+
+- **No enmascara nada.** `Salud` ya llevaba `timestamp` **del sondeo**, no de la respuesta, así que una respuesta cacheada dice su propia edad. No hubo que tocar el contrato para que la interfaz pueda decidir si le vale.
+- **No bloquea lo que venga después.** Si el indicador pasa algún día a consultar a mano o cada cierto intervalo —que es lo razonable—, la caché simplemente deja de importar; no hay que deshacerla para llegar ahí.
+
+La caché es **de cada proceso**: la API y el servidor MCP son dos, así que entre los dos pueden sondear el doble. Sigue siendo un techo, y sigue estando dos órdenes de magnitud por debajo del problema.
+
+#### Dos trampas que sólo aparecen montándolo
+
+**El orden de los middlewares decide qué ve el navegador.** En Starlette el último que se añade es el de fuera. Con el limitador por fuera del de CORS, el 429 sale sin `Access-Control-Allow-Origin`, el navegador lo da por bloqueado y la pantalla dice «no se pudo contactar con la API»: el diagnóstico contrario al verdadero, porque la API contestó y contestó bien. Por eso se registra **antes** que CORS. Y `Retry-After` hay que **exponerla** aparte (`expose_headers`), porque `allow_headers` habla de las que el navegador puede mandar: sin eso, el JavaScript sabría que le han dicho que no, pero no cuánto esperar. Hoy todo se sirve del mismo origen a través de Caddy y nada de esto se notaría — deja de no notarse justo el día que eso cambie.
+
+**`OPTIONS` no gasta presupuesto.** La comprobación previa de CORS la hace el navegador solo y no cuesta nada; si gastara, un 429 ahí llegaría otra vez como un fallo de CORS. En la práctica el middleware de CORS responde al *preflight* antes de que llegue al limitador, así que hay doble red a propósito: la exención deja de ser redundante el día que alguien cambie el orden.
+
+#### Ventana deslizante, y un reloj que se puede adelantar
+
+Se guardan las marcas de tiempo de las peticiones recientes de cada par (cliente, grupo). Un cubo de fichas gasta menos memoria, pero con la ventana el `Retry-After` es **exacto** —el instante en que cae la más vieja, no una estimación del ritmo de recarga— y el límite se explica en una frase: diez en cualquier minuto.
+
+El reloj se inyecta. No es purismo: el criterio de la issue pide una prueba que no dependa de dormir, y una suite que espera un minuto para comprobar que la ventana se vacía es una suite que deja de ejecutarse en cada cambio. Con un reloj de mentira, «pasa un minuto» es una línea.
+
+A cambio hay que **podar**: el diccionario crece con cada IP que pase por delante, y una aplicación expuesta ve muchas. Se recorre sólo cuando hay bastantes claves, así que el coste queda amortizado y hay un test que lo fija.
+
+El estado vive **en memoria del proceso**, lo que vale porque el backend está atado a un solo worker desde #125 — cada proceso carga sus propios modelos. Con varios, los contadores divergirían y el límite efectivo sería el declarado multiplicado por el número de procesos. Es la misma dependencia que ya asumió la decisión del chat de R13.
+
+#### Un apagado, y por qué está en `conftest.py`
+
+El limitador viene **encendido** por defecto, y eso rompía la suite: 60 peticiones por minuto y por cliente, y para el `TestClient` todos los tests son el mismo cliente. Un módulo con muchas peticiones empezaría a recibir 429 por un motivo que no tiene nada que ver con lo que prueba. Es la lección 1 de #158 con otro traje —un guardián puesto en medio secuestra pruebas ajenas— y allí costó cinco tests.
+
+Se apaga en un `autouse` de `tests/conftest.py`, junto al mismo apagado para la caché de salud, y los contadores se reinician siempre: son estado de módulo, así que lo que gasta un test se lo encontraría el siguiente. Los tests de `test_ratelimit.py` lo vuelven a encender con presupuestos diminutos.
+
+#### Qué fijan las pruebas
+
+- **La cuenta**, sin HTTP: que pasan las del presupuesto y la siguiente espera; que la espera es hasta que caduca la más vieja; que al salir de la ventana vuelve a caber; que cada cliente y cada grupo llevan su cuenta; y que la poda olvida a quien dejó de venir.
+- **Por HTTP**: que el 429 llega con `Retry-After` y con un texto que dice qué hacer; que agotar lo caro no deja sin historial; que dos clientes no comparten cupo; y que el 429 sale con las cabeceras de CORS, que es lo que sostiene el orden de los middlewares.
+- **La caché**: que dos sondeos seguidos preguntan una vez y con el mismo `timestamp`; que pasado el plazo vuelve a preguntar; y que diez peticiones a la vez producen un solo sondeo.
+- **El despliegue**: que `api` no publica puertos y que su comando se fía de las cabeceras del proxy.
+
+El contrato OpenAPI crece 18 líneas y el `schema.d.ts` generado 42: el 429 se **declara**, no sólo se lanza. Si no sale en el contrato, el cliente que se genera de él no sabe que ese código existe y quien escribe la pantalla lo descubre leyendo el backend — que es justo lo que #133 quitó de en medio.
+
+Y se declara **una sola vez**, en el constructor de `FastAPI`, que mezcla esas respuestas en todas las operaciones y las suma a las que declare cada una: el 404 del historial sigue en su sitio. La primera versión lo repetía ruta por ruta y producía un contrato idéntico byte a byte, pero envejece mal — la siguiente ruta que se añada se lo dejaría, y el contrato mentiría por omisión justo donde se genera el cliente. **El límite no exime a ninguna ruta, así que la declaración tampoco tiene que acordarse de ninguna.** Lo fija un test que recorre el contrato entero.
+
+En el frontend son **cinco** traductores de error los que aprenden el 429: el del análisis, el del historial, los dos de Sistema y el del indicador de salud. El texto es compartido y vive en `api/errores.ts`, porque el motivo no es de ninguna pantalla: no depende de lo que se estuviera haciendo, sino del ritmo. Donde más se va a ver es en el indicador, que es el que más se acerca al límite de `/health`.
+
 ### Un TODO que caducó el día del despliegue (#89)
 
 En `orchestrator.py` había esto desde #85, cuando se escribió la orquestación:

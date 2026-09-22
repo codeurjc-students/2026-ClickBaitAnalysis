@@ -171,6 +171,31 @@ describe('AnalisisPage', () => {
     expect(html().querySelector('form')).not.toBeNull();
   });
 
+  // R12.4 (#169): la API rechaza con 429 cuando llegan demasiadas seguidas.
+  // Sin este caso la pantalla diría «No se pudo analizar el titular (429)», que
+  // no cuenta ni qué ha pasado ni qué hacer — justo lo que R6.7 quiere evitar.
+  it('explica el límite de velocidad y dice cuánto esperar', async () => {
+    pagina.formulario.controls.headline.setValue('Un titular');
+    await enviar();
+
+    http.expectOne('/api/analyze').flush(
+      { detail: 'Demasiadas peticiones. Vuelve a intentarlo en 42 s.' },
+      {
+        status: 429,
+        statusText: 'Too Many Requests',
+        headers: { 'Retry-After': '42' },
+      },
+    );
+    await fixture.whenStable();
+
+    expect(html().querySelector('.error')?.textContent).toContain(
+      'Demasiadas peticiones',
+    );
+    expect(html().querySelector('.error')?.textContent).toContain('42 s');
+    // Y el formulario sigue ahí: el titular escrito no se pierde por esperar.
+    expect(html().querySelector('form')).not.toBeNull();
+  });
+
   it('«Nuevo análisis» devuelve el formulario vacío', async () => {
     pagina.formulario.controls.headline.setValue('Un titular');
     await enviar();

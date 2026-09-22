@@ -1,7 +1,7 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { Component, computed, inject, signal } from '@angular/core';
 
-import { detalleDeValidacion, SIN_RESPUESTA } from '../api/errores';
+import { detalleDeValidacion, mensajeDeLimite, SIN_RESPUESTA } from '../api/errores';
 import type {
   Argumentos,
   CatalogResult,
@@ -43,6 +43,7 @@ const LIMITES_VISIBLES = 2;
 /** El catálogo no se pudo construir. */
 function mensajeDeCatalogo(fallo: HttpErrorResponse): string {
   if (fallo.status === 0) return SIN_RESPUESTA;
+  if (fallo.status === 429) return mensajeDeLimite(fallo);
   if (fallo.status >= 500) {
     return `La API falló al construir el catálogo (${fallo.status}).`;
   }
@@ -59,6 +60,7 @@ function mensajeDeCatalogo(fallo: HttpErrorResponse): string {
  */
 function mensajeDeEjecucion(fallo: HttpErrorResponse): string {
   if (fallo.status === 0) return SIN_RESPUESTA;
+  if (fallo.status === 429) return mensajeDeLimite(fallo);
   if (fallo.status === 404) {
     return 'Esa herramienta ya no está en el catálogo. Recarga la lista.';
   }
