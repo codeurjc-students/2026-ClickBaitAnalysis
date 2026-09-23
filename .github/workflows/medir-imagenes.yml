@@ -1,0 +1,99 @@
+# Instrumento de medida de #173: ¿cuánto cuesta construir las imágenes en el CI?
+#
+# R8.4 pide que el CI construya las imágenes del backend y del frontend, y R8.5
+# que etiquete las compilaciones correctas. Hoy no se hace ninguna de las dos
+# cosas: las imágenes se construyen a mano en la máquina de despliegue. Antes de
+# decidir si se implementa, cómo, o si se justifica la desviación, se mide lo que
+# costaría donde tendría que ocurrir: en un runner de GitHub, con otra CPU, otra
+# red, el disco contado y la caché vacía.
+#
+# SÓLO construye. No publica nada en ningún registro.
+#
+# Lo que deja escrito en el registro de cada ejecución:
+#   - las condiciones del runner (CPU, núcleos, memoria, versión de Docker);
+#   - el tiempo de cada paso de la construcción, en las líneas `#N DONE X.Ys`
+#     de BuildKit — y entre ellos el de la capa que hornea los modelos, que se
+#     rehace con CUALQUIER cambio de `model_cards.py` (#162);
+#   - el disco libre antes y después: el backend arrastra torch y 1,1 GB de
+#     modelos, y un runner tiene el disco limitado;
+#   - el tamaño de cada imagen.
+#
+# La caché es la de GitHub Actions (`type=gha`), con un ámbito por imagen para
+# que no se pisen. Primera ejecución: vacía, el peor caso. Relanzada sin
+# cambios: el mejor.
+#
+# El runner va FIJADO a `ubuntu-24.04`, no a `ubuntu-latest`: una medida tiene
+# que poder repetirse sobre lo mismo, y `latest` pasa a Ubuntu 26 el 2026-10-19.
+#
+# Se dispara con los push a la rama de #173 SÓLO mientras se mide. Antes de la PR
+# se deja únicamente `workflow_dispatch`: queda versionado y repetible desde la
+# pestaña de Actions, sin volver a gastar minutos por su cuenta.
+name: medir-imagenes
+
+on:
+  push:
+    branches: [docs/173-diagramas-y-auditoria]
+  workflow_dispatch:
+
+jobs:
+  backend:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Condiciones del runner y disco antes
+        run: |
+          lscpu | grep 'Model name'
+          echo "núcleos: $(nproc)"
+          free -h | head -2
+          docker version --format 'docker {{.Server.Version}}'
+          df -h /
+
+      - uses: docker/setup-buildx-action@v3
+
+      # `load: true` para poder medir el tamaño; exportar la imagen al demonio
+      # cuesta tiempo y sale como un paso propio en el registro.
+      - name: Construir la imagen del backend
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: docker/backend.Dockerfile
+          tags: clickbait-backend:medida
+          push: false
+          load: true
+          cache-from: type=gha,scope=backend
+          cache-to: type=gha,mode=max,scope=backend
+
+      - name: Tamaño de la imagen y disco después
+        run: |
+          docker image ls clickbait-backend:medida
+          df -h /
+
+  web:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Condiciones del runner y disco antes
+        run: |
+          lscpu | grep 'Model name'
+          echo "núcleos: $(nproc)"
+          df -h /
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Construir la imagen web
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: docker/web.Dockerfile
+          tags: clickbait-web:medida
+          push: false
+          load: true
+          cache-from: type=gha,scope=web
+          cache-to: type=gha,mode=max,scope=web
+
+      - name: Tamaño de la imagen y disco después
+        run: |
+          docker image ls clickbait-web:medida
+          df -h /

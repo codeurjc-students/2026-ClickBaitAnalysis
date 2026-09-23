@@ -1238,7 +1238,7 @@ Añadir el registro a `/analyze` convirtió, sin avisar, todos los tests de esa 
 
 `tests/api/test_history.py` cubre los dos lados por separado —el almacén llamando a sus funciones, el endpoint por HTTP— porque responden preguntas distintas: si los datos sobreviven y salen en orden, y si la decisión de «una entrada por análisis» se sostiene de verdad.
 
-### El spike del agente, rehecho en la A40 (22–23 sep 2026, trabajo suelto)
+### El spike del agente, rehecho en la A40 (22–23 sep 2026, PR #176)
 
 Las cifras del spike #82 salieron de una GTX 1650 SUPER con 4 GB, donde el modelo entraba **a medias** —17 de 26 capas en la GPU—. Desde el 16 de septiembre hay acceso a la máquina 2, con una A40 de 46 GB, y es ahí donde correrá el agente. Se rehace **antes de planificar H5** por dos razones: aquellos números no describen esta máquina, y los diagramas de #173 van a dibujar el diseño de H5 como guía del hito; un diseño dibujado sobre cifras de otra GPU sería una suposición con forma de plano.
 
