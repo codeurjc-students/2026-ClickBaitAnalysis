@@ -913,6 +913,8 @@ Modelo: `qwen3.5:2b` (2.3B, Q8_0) con Ollama. Se prueban las **descripciones rea
 
 **Lectura:** el modelo discrimina entre las homónimas por el matiz de la petición — «qué pistas léxicas **y dónde**» → `detect_clickbait_lexical`; «dame la **probabilidad**» → `detect_clickbait_linear`. Esa distinción solo puede venir de las descripciones, lo que confirma la premisa de **R13.2**: los *docstrings* son la interfaz con el modelo, y añadir una herramienta no obliga a tocar el agente.
 
+> **Nota (2026-09-23).** Este 20/20 se midió con las descripciones de la fase 2, **copiadas a mano y resumidas**. Con las reales, pedidas al servidor por `list_tools` (fase 5), el mismo modelo daba 7/20 en la ventana de 2048 tokens que imponía la GTX, y 17/20 con 8192 — cifras que sólo quedaron en un paréntesis de la sección de #107. Y la distinción de la «probabilidad» que se destaca aquí es justo la que se pierde con las descripciones reales. La repetición en la A40, con el mecanismo medido, está en «El spike del agente, rehecho en la A40». Lo de arriba se deja como se escribió: registra lo que se midió entonces.
+
 **Modo de fallo detectado (Fase 1):** ante una consulta que debía invocar la herramienta, el modelo **redactó él mismo el análisis** en lugar de llamarla. No admitió no poder: fingió el resultado. Es la justificación empírica de **R13.4** — el veredicto debe proceder de las tools, nunca del modelo.
 
 **La latencia fue el criterio conflictivo, y reveló un problema de infraestructura.** La primera tanda dio **71,7 s de media**: Ollama nunca llegaba a usar la GPU, por dos causas encadenadas —el directorio `cuda_v12` con permisos `700` de root, y por debajo librerías CUDA corruptas (`ldd` → SIGBUS)—, probablemente por una instalación que agotó el espacio en disco. El modelo se cargaba con `offloaded 0/N layers to GPU` **independientemente de su tamaño**: reducirlo de 4B a 2B no cambiaba nada. Reinstalando Ollama se recuperó la GPU (`library=CUDA compute=7.5`, reparto parcial de 17/26 capas por los 3,2 GiB disponibles).
@@ -1235,6 +1237,104 @@ El mínimo de 1 no es cosmético: **en SQLite un `LIMIT` negativo significa «si
 Añadir el registro a `/analyze` convirtió, sin avisar, todos los tests de esa ruta en escritores del historial real: una corrida de la suite dejaba cuatro entradas «Un titular» en `var/history.db`. El aislamiento va en un fixture `autouse` de `tests/conftest.py` y no en el fichero que prueba el historial, porque **quien contamina no es quien lo prueba**: lo hace cualquier test que llame a un endpoint que registre, incluidos los que aún no existen.
 
 `tests/api/test_history.py` cubre los dos lados por separado —el almacén llamando a sus funciones, el endpoint por HTTP— porque responden preguntas distintas: si los datos sobreviven y salen en orden, y si la decisión de «una entrada por análisis» se sostiene de verdad.
+
+### El spike del agente, rehecho en la A40 (22–23 sep 2026, trabajo suelto)
+
+Las cifras del spike #82 salieron de una GTX 1650 SUPER con 4 GB, donde el modelo entraba **a medias** —17 de 26 capas en la GPU—. Desde el 16 de septiembre hay acceso a la máquina 2, con una A40 de 46 GB, y es ahí donde correrá el agente. Se rehace **antes de planificar H5** por dos razones: aquellos números no describen esta máquina, y los diagramas de #173 van a dibujar el diseño de H5 como guía del hito; un diseño dibujado sobre cifras de otra GPU sería una suposición con forma de plano.
+
+No tiene issue a propósito: es medida, no entrega. Se registra aquí, como el spike original, con la fecha del título haciendo de ancla. En el código entran **dos scripts nuevos en `spikes/`** —los que producen las cifras de contexto y de carga que se citan abajo— y `tool_calling_fase1.py` pasa a leer `OLLAMA_HOST` como las otras cuatro fases.
+
+**Condiciones de la medida**, para poder repetirla o contrastarla:
+
+| | |
+|---|---|
+| Fechas | **2026-09-22**: fases 1, 3 y 5, contexto y carga · **2026-09-23**: fase 4, y contexto y carga repetidos con los scripts del repositorio |
+| Máquina | `gserver2.tfg.etsii.urjc.es` (`gpuserver2`) — NVIDIA A40, 46.068 MiB, controlador 580.173.02 |
+| Servidor de modelos | Ollama **0.34.2**, en `~/.local/ollama` |
+| Modelos | `qwen3.5:2b`, ID `324d162be6ca` (2,7 GB) · `qwen3.5:27b`, ID `7653528ba5cb` (17 GB) |
+| Catálogo | las 11 herramientas del servidor MCP en el commit `64c66ef` de `dev` |
+| Cliente | los scripts de `spikes/`, desde WSL, por un túnel SSH al puerto 11500 |
+
+El **ID** de cada modelo es el que da `ollama list`, y es lo que identifica los pesos: la etiqueta `qwen3.5:27b` se puede volver a publicar con otros, y entonces estas cifras dejarían de describirla. El commit importa por lo mismo: el catálogo se mide tal como está en el código, y cada docstring que crece lo cambia.
+
+#### Preparar una máquina compartida sin tocar el sistema
+
+La máquina 2 no es nuestra: sin `sudo`, con otro usuario que tenía sesiones de `tmux` abiertas desde hacía 28 días y la norma del administrador de no dejar la GPU ocupada. Al entrar, la A40 estaba libre (0 MiB en uso), no había ningún Ollama en marcha y el del sistema era la **0.11.10**, demasiado vieja para los modelos de hoy.
+
+- **Ollama 0.34.2 en el `home`**, desde el tarball de las releases oficiales (1,33 GB, 19 s de descarga; 2,1 GB descomprimido en `~/.local/ollama`). Sin `sudo` y sin tocar nada fuera de la cuenta, que en una máquina compartida es la única forma aceptable.
+- **`~/bin/gpu-sesion`**, el guion con `trap` que llevaba propuesto desde septiembre sin crearse: levanta el servidor y lo mata al salir, pase lo que pase — salida normal, Ctrl-C o cierre de la terminal. El riesgo real nunca fue olvidarse, sino que un servidor lanzado desde una terminal remota **sobrevive a cerrarla**, que es exactamente el patrón del otro usuario.
+- **Dos modelos de la misma familia.** `qwen3.5:2b` como **control** —es el modelo del spike, y sin él las cifras nuevas no se comparan con nada— y `qwen3.5:27b` (17 GB) como candidato. Quedarse en la familia deja el tamaño como **única variable**: saltar a otra generación mezclaría dos y no sabríamos a cuál atribuir la diferencia. Y no el más grande que cabe: 17 de 46 GB deja la máquina usable para los demás.
+
+#### Dos formas de medir la máquina equivocada sin enterarse
+
+**WSL tiene su propio Ollama en el 11434**, la 0.32.5 que quedó del spike. El túnel SSH comprobaba «¿hay algo escuchando en el 11434?», la respuesta fue que sí, y la primera fase corrió contra el portátil. Ningún error: sólo cifras de otra máquina. Se arregló con el túnel en el **11500** y preguntando la versión a cada puerto antes de medir —0.32.5 en uno, 0.34.2 en el otro—, y `tool_calling_fase1.py` dejó de cablear `localhost`.
+
+**La primera medida de arranque en frío se descartó.** La ruta del binario se escribió con `~`, que se expandió en WSL y no en la máquina remota; los `ollama stop` no llegaron a ejecutarse y los «tiempos en frío» eran con los modelos ya cargados. Se rehízo con el instrumento correcto: el `load_duration` que devuelve el propio Ollama, que separa la carga de la generación.
+
+#### La ventana: ya se sabía, y ahora se entiende
+
+El efecto no es nuevo. Lo recogió de pasada la sección de #107: con las descripciones reales, el spike daba **7/20 con `num_ctx=2048` y 17/20 con 8192**. El 2048 lo imponía la VRAM de la GTX; el 20/20 que titula el spike se había medido antes, con descripciones resumidas a mano que sí cabían.
+
+En la A40 el mismo modelo da **exactamente 7/20 y 17/20**. En otra GPU, con otra versión de Ollama, las mismas cifras: es la mejor confirmación posible de lo que ya dijo el spike, que el hardware mueve la latencia y no la calidad de la decisión.
+
+Lo que faltaba era el **porqué**, y se mide sin estimar: se manda una petición trivial con el catálogo y otra sin él, y se lee `prompt_eval_count`, que es lo que el modelo dice haber leído con su propio tokenizador ([`spikes/tool_calling_presupuesto_contexto.py`](spikes/tool_calling_presupuesto_contexto.py); repetido el día 23 con el script ya en el repositorio, con el mismo resultado exacto).
+
+| | Tokens |
+|---|---|
+| Petición sin herramientas | 12 |
+| Petición con las 11 herramientas (8.382 caracteres) | 2.450 |
+| **Coste del catálogo** | **2.438** |
+| **Leídos con `num_ctx=2048`** | **1.026** |
+
+**El modelo veía menos de la mitad del catálogo, y nada avisaba.** Ollama recorta en silencio: no hay error, no hay advertencia, sólo un modelo que elige entre las herramientas que le quedaron a la vista. Un catálogo truncado no falla, **elige mal** — y para saberlo hay que mirar `prompt_eval_count`, no el resultado.
+
+| Selección (20 consultas, fase 5) | `num_ctx 2048` | `num_ctx 8192` |
+|---|---|---|
+| `qwen3.5:2b` | 7/20 · parámetros 6/9 | **17/20 · 16/16** |
+| `qwen3.5:27b` | 9/20 · parámetros 3/13 | **18/20 · 21/21** |
+
+**Los fallos que quedan con la ventana entera son los mismos en los dos modelos**, y eso los saca del modelo: «dame la probabilidad de clickbait» y «usa el modelo entrenado» eligen `detect_clickbait` en lugar de `detect_clickbait_linear`. Tiene su ironía: el spike destacó justo ese caso como prueba de que el modelo discriminaba entre homónimas por el matiz, y lo hacía con las descripciones resumidas. Con las reales, más largas, esa distinción se pierde. Es R13.2 en negativo — si los docstrings son la interfaz, **dos docstrings demasiado parecidos son un defecto de la interfaz**.
+
+#### Latencia y memoria
+
+- **Seleccionar herramienta**: mediana de **1,3 s** el pequeño y **8,3 s** el de 27B. El pequeño en la GTX daba 8,8 s: un modelo más de diez veces mayor responde aquí como el pequeño allí.
+- **Memoria**: el 27B ocupa **16 GB, al 100 % en GPU**; los dos modelos a la vez, **20,7 GB de 46**.
+- **Arranque** ([`spikes/tool_calling_carga.py`](spikes/tool_calling_carga.py), que lee `load_duration`): cargar un modelo cuesta **3–7 s**, y no es una cifra fija — el 2B cargó en 6,8 s el día 22 y en 3,1 s el 23; el 27B, en 5,1 y 5,6 s. Un servidor recién arrancado paga además, una sola vez, unos 8 s de calentamiento de CUDA: por eso la primera petición del día 22 tardó **15 s**. En el script esos segundos se los lleva la llamada que saca el modelo de la VRAM, que es lo primero que recibe el servidor, y no aparecen en su tabla. En la GTX la carga en frío eran **150,6 s**. Con una salvedad para todas: la caché de disco estaba caliente, y tras un reinicio real de la máquina costará más; no se ha medido.
+
+#### El bucle y los prompts: el tamaño corrige lo que el prompt sólo desplaza
+
+Con el bucle completo (fase 3), los dos modelos **encadenan** —toman el titular de la noticia y se lo pasan a los detectores— y **usan los números de verdad** de las herramientas. La diferencia está en lo que ponen alrededor, y ahí entra la fase 4: cinco variantes de prompt (ninguno y las cuatro de `spikes/prompts/`) sobre dos consultas, con la ventana a 8192.
+
+| Prompt | `2b` · tiempo · longitud | `27b` · tiempo · longitud | Marcas automáticas |
+|---|---|---|---|
+| sin prompt | 8,6 s · 1.271 car. | 30,7 s · 1.264 car. | 2/2 en los dos |
+| 01-breve | 3,1 s · 298 | 13,7 s · 383 | 0/2 |
+| 02-completo | 3,0 s · 231 | 17,9 s · 362 | 1/2 y 0/2 |
+| 03-estricto | 3,6 s · 346 | 19,9 s · 442 | 0/2 |
+| 04-preciso | 4,3 s · 410 | 20,5 s · 502 | 0/2 |
+
+Cualquier prompt arregla la **forma** en los dos modelos: respuestas cuatro veces más cortas, sin tablas ni emojis, dos o tres veces más rápidas. La tabla parece decir que el problema está resuelto. **Leídas a mano contra la salida de las herramientas, no lo está en el pequeño:**
+
+- Con `04-preciso` —el prompt que el spike eligió como punto de partida— la criba automática marca **0/2** y **las dos respuestas están mal**: una sitúa «this» «al final» cuando ocupa las posiciones 0–4, y otra llama «probabilidad» al *score* del detector léxico.
+- Con `02-completo` afirma que «you» va «antes del verbo principal», cuando es la última palabra del titular.
+
+**El 27B con `02`, `03` y `04` no se equivoca en ninguna de las seis**, y además hace lo que el propio script avisaba que ningún patrón automático puede comprobar: no mezcla lo de un detector con lo del otro — las posiciones al léxico, los pesos al lineal. El único reparo es `01-breve`, que añade una valoración propia («promete un impacto drástico») que ninguna herramienta dijo.
+
+Es la conclusión del spike —**el prompt no quita el error, lo desplaza a formas más sutiles**— confirmada ahora sin la sospecha de una ventana cortada, y con una respuesta que entonces no se podía probar: **un modelo mayor sí lo quita**, al menos aquí.
+
+#### Qué cambia para H5
+
+- **Punto de partida: `qwen3.5:27b` con `04-preciso` o `03-estricto`**, sin elegir entre los dos: son dos consultas por variante y una sola ejecución, y el spike ya vio que la variación entre ejecuciones pesaba más que la diferencia entre prompts. Entre ~4 s con errores que no se ven y ~20 s con respuestas fieles, en un TFG cuyo eje es la explicabilidad, no hay mucho que pensar.
+- **`num_ctx` es configuración explícita del agente, nunca el defecto.** El catálogo ocupa 2.438 tokens hoy y cada herramienta nueva lo agranda sin que nadie lo decida.
+- **`POST /chat` asíncrono sigue siendo lo correcto, pero cambia el argumento.** Ya no son los 150 s de carga —ahora 3–7 s—, sino **13–36 s por bucle** con el 27B más el arranque bajo demanda de la máquina 2, que no se ha medido.
+- **Las descripciones de `detect_clickbait` y `detect_clickbait_linear` hay que separarlas** antes de construir el agente: es el único fallo de selección que queda, y es de los docstrings.
+- **Juzgar las respuestas no se puede hacer con expresiones regulares.** La criba dio 0/2 donde había 2/2 errores. Se lee a mano o hace falta otro modelo que juzgue — lo que queda anotado como trabajo para H5: comparar varios modelos **como jueces** de las respuestas e iterar los prompts de sistema con esa medida delante.
+
+#### Lo que no se midió
+
+- **Cómo empeora la selección al crecer el catálogo.** Cabe de sobra en la ventana, pero un catálogo grande puede elegir peor aunque quepa, y eso —con herramientas señuelo añadidas— queda por medir.
+- **El arranque real de la máquina 2**, con la caché de disco fría.
+- **Repeticiones**: una ejecución por configuración, 20 consultas de selección y dos por variante de prompt. Las diferencias grandes (7 frente a 17, 0 frente a 2 errores) son sólidas; las pequeñas, no.
 
 ### Un límite de velocidad para una aplicación que ya está en internet (#169)
 
