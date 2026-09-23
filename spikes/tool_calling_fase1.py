@@ -17,12 +17,18 @@ inservible (comprobado con qwen3.5:4b -> 5.4 GiB -> 0/33 capas en GPU).
 """
 
 import json
+import os
 import sys
 import time
 import urllib.error
 import urllib.request
 
-OLLAMA_URL = "http://localhost:11434/api/chat"
+# A qué Ollama se pregunta. Se declara igual que en las fases 2-5 y NO se cablea
+# `localhost`: con un Ollama corriendo en la máquina de desarrollo y otro en el
+# servidor de GPU, el valor por defecto mide el equivocado sin avisar de nada —
+# pasó al retomar el spike sobre la A40 (2026-09-22).
+OLLAMA_HOST = os.environ.get("OLLAMA_HOST", "127.0.0.1:11434")
+OLLAMA_URL = f"http://{OLLAMA_HOST}/api/chat"
 MODEL = sys.argv[1] if len(sys.argv) > 1 else "qwen3.5:2b"
 
 # La caché KV crece con el contexto y compite con los pesos por la VRAM. En una
@@ -106,7 +112,7 @@ def _resumen_llamadas(mensaje):
 
 
 if __name__ == "__main__":
-    print(f"Modelo: {MODEL} | num_ctx: {NUM_CTX}\n")
+    print(f"Modelo: {MODEL} | num_ctx: {NUM_CTX} | host: {OLLAMA_HOST}\n")
 
     aciertos = 0
     latencias = []
