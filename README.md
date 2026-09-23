@@ -1286,21 +1286,46 @@ Lo que dicen:
 - **Lo que cuesta no es construir, es mover capas**: bajarlas de la caché, cargarlas o subirlas. En el caso de código, el cambio son 3,2 s y bajar la base 37,5.
 - **Rehornear los modelos cuesta en el CI lo mismo que bajar esa capa de la caché**, 16,6 s frente a 1 min 55 s en la VM de la universidad: la red de GitHub hasta Hugging Face es otra. La decisión de #162 de no aislar la capa de modelos —descartada con un umbral de «≈10 min sí, ≈1 no»— se sostiene también aquí.
 - **El disco no es un límite**: 86 GB libres, y el backend gastó 6.
-- **El peor caso es en frío**, unos 2,5 min sin `load`, y hay que contar con él: GitHub borra una caché que lleva 7 días sin usarse.
+- **El peor caso es en frío**, y esta tanda no lo daba entero: medía construir, pero no *escribir* la caché. Lo dio la primera ejecución real, más abajo.
 
-**Lo que no se midió**: el coste de *escribir* la caché en una PR real —por las proporciones de la tanda 1, unos 2 s para un cambio de código y unos 30 s para uno de fichas; es una estimación—, y un hueco de 38 s del runner, fuera de cualquier paso, en el trabajo de la web, visto una sola vez.
+**Lo que no se midió en las tandas**: el coste de *escribir* la caché en una PR real. Se estimó por proporciones, y la estimación se quedó muy corta (más abajo). También quedó sin explicar un hueco de 38 s del runner, fuera de cualquier paso, en el trabajo de la web, visto una sola vez.
 
 #### Construir sin publicar, en cada PR
 
-Una PR normal añade **como mucho un minuto** al CI, y una de sólo documentación, 22 s. Con eso se eligió **construir sin publicar**: cumple R8.4, y un Dockerfile roto salta en la PR. Publicar en un registro obligaba a decidir dónde viven las imágenes y quién las usa, y hoy nadie las usa fuera de la máquina donde se construyen.
+Con la caché caliente, una PR normal añadía **como mucho un minuto** al CI, y una de sólo documentación, 22 s. Con eso se eligió **construir sin publicar**: cumple R8.4, y un Dockerfile roto salta en la PR. Publicar en un registro obligaba a decidir dónde viven las imágenes y quién las usa, y hoy nadie las usa fuera de la máquina donde se construyen.
 
 El trabajo `imagenes` de [`ci.yml`](.github/workflows/ci.yml) sale directamente de las medidas:
 
 - **Sin `push` y sin `load`**, que era lo que inflaba la primera tanda.
 - **`needs: [test, frontend]`**: sólo se construye si las pruebas pasan. No gasta minutos en una PR que ya está roja, y es la lectura literal de R8.5, «cuando las pruebas se superen». El precio es no correr en paralelo con ellas.
-- **La caché se escribe, y quién la escribe decide si sirve.** Una PR sólo puede leer la caché de su propia rama y la de su rama base, así que son **los push a `dev`** —que ya disparan `ci.yml`— los que la dejan caliente para las PRs siguientes. Sin eso, cada PR empezaría en frío.
+- **Sin caché.** Empezó con ella, y se quitó tras la primera ejecución real (siguiente apartado).
 - **La imagen se nombra con el commit** aunque no se guarde, para que el registro diga qué se construyó.
 - Runner `ubuntu-latest`, como los otros dos trabajos del fichero. Fijarlos es un pendiente aparte, para los tres a la vez.
+
+#### La primera ejecución real, y por qué se quitó la caché
+
+La PR de esta issue (#177) fue la primera vez que corrió el trabajo `imagenes`: todavía con la caché de GitHub Actions, y con la de `dev` vacía (ejecución `35896569121`). Todo salió en verde —las dos imágenes construyen en el runner—, pero con un número que no cuadraba con lo estimado:
+
+| | Construir las capas | Subir la caché | Paso completo |
+|---|---|---|---|
+| backend | ~75 s (dependencias 27, torch 35, modelos 10) | **175 s** | 251 s, en un trabajo de 4 min 31 s |
+| web | ~21 s | **57 s** | 80 s |
+
+La estimación de «unos 2,5 min en frío» salió de la tanda 2, que **no escribía la caché**, así que dejaba fuera justo lo que más cuesta. Y ese coste no es estable: subir las mismas capas tardó 70 s en la tanda 1 y 175 s aquí, dos veces y media más.
+
+Puestos juntos, los números dejaban a la caché sin argumento:
+
+| | Con caché | Sin caché |
+|---|---|---|
+| PR normal, caché caliente | ~42 s construyendo, casi todo bajando capas | ~75 s construyendo, siempre |
+| En frío: la primera vez, al cambiar dependencias o tras 7 días sin uso | ~4 min 30 s | ~75 s |
+| Lo que hay que entender | qué ramas leen la caché de cuál, quién la escribe, cuándo caduca | nada |
+
+Con caché, una PR corriente se ahorraba unos 30 s; a cambio, cada vez que había que rehacerla, el trabajo volvía a los 4 min y medio. En un repositorio público los minutos de Actions no se pagan, así que lo único en juego era el reloj, y **el peor caso sin caché es mejor que el peor caso con ella**. Se quitó.
+
+El instrumento de medida sí la conserva, porque su pregunta es justamente cuánto ahorra. Para que siga siendo repetible se le añadió un trabajo `calentar` delante: sin él, nadie escribiría la caché, y una ejecución manual mediría en frío creyendo medir en caliente, sin que nada lo avisara.
+
+Es la lección de la tanda 1 con otra forma: **se estimaba una parte y se decidía sobre el todo**. Allí sobraba el `load`; aquí faltaba escribir la caché.
 
 #### R8.5, matizado en los requisitos
 

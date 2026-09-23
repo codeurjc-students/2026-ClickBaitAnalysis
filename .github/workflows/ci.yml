@@ -133,10 +133,14 @@ jobs:
   # publicarlas. Hasta #173 un Dockerfile roto sólo se habría notado al
   # desplegar; ahora se ve en la PR.
   #
-  # Decidido con números medidos en runners de GitHub (#173, ver el README): con
-  # la caché caliente, construir el backend cuesta 2 s si la PR no lo toca,
-  # ~42 s si cambia código Python y ~38 s si cambia las fichas de los modelos;
-  # la web, ~22 s. Casi todo es BAJAR capas de la caché, no construir.
+  # SIN caché, a propósito, y decidido con números (#173, ver el README). La
+  # primera ejecución real se hizo con la caché de GitHub Actions y tardó
+  # 4 min 31 s en el backend: ~75 s construyendo y 175 s SUBIENDO la caché. Con
+  # la caché caliente, una PR se ahorra unos 30 s; a cambio, cada vez que hay que
+  # rehacerla —la primera vez, al cambiar dependencias o tras 7 días sin uso—
+  # vuelven los 4 min y medio, y hay que entender qué ramas pueden leer la de
+  # cuál. Sin caché, el backend tarda ~75 s siempre y la web ~20 s: el peor caso
+  # es mejor que el peor caso con caché, y no hay nada que explicar.
   #
   # `needs`: sólo se construye si las pruebas pasan. Es la lectura literal de
   # R8.5 —«cuando las pruebas se superen»— y no gasta minutos en una PR que ya
@@ -156,13 +160,6 @@ jobs:
       # Sin `push` y sin `load`: comprobar que la imagen construye no necesita
       # sacarla de BuildKit, y cargarla en Docker costaba 72-87 s medidos.
       #
-      # La caché de GitHub Actions se ESCRIBE aquí, y quién la escribe importa:
-      # una PR sólo puede leer la caché de su propia rama y la de su rama base.
-      # Son los push a `dev` —que también disparan este fichero— los que la dejan
-      # caliente para las PRs siguientes. Un ámbito por imagen para que no se
-      # pisen, y GitHub borra la que lleva 7 días sin usarse: después de una
-      # semana sin actividad, la primera construcción vuelve a ser en frío.
-      #
       # La etiqueta lleva el commit aunque la imagen no se guarde, para que el
       # registro de la ejecución diga qué se construyó.
       - name: Construyendo la imagen ${{ matrix.imagen }}...
@@ -172,5 +169,3 @@ jobs:
           file: docker/${{ matrix.imagen }}.Dockerfile
           tags: clickbait-${{ matrix.imagen }}:${{ github.sha }}
           push: false
-          cache-from: type=gha,scope=${{ matrix.imagen }}
-          cache-to: type=gha,mode=max,scope=${{ matrix.imagen }}

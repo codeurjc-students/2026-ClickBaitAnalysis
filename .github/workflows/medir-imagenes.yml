@@ -8,14 +8,20 @@
 #
 # SÓLO construye. No publica nada en ningún registro.
 #
-# Historia del instrumento, porque las cifras del README salen de dos versiones:
+# Historia del instrumento, porque las cifras del README salen de más de una
+# versión:
 #
 #   1. Commit 4676904: dos trabajos fijos, con `load: true` para poder medir el
 #      TAMAÑO de cada imagen. Dio el frío y el caliente. Pero cargar la imagen
 #      en Docker costaba 72-87 s en el backend, y un CI que sólo comprueba que
 #      la imagen construye no necesita cargarla: esas cifras estaban infladas
 #      por la propia medida.
-#   2. Esta versión: los casos REALES de una PR, sin `load`.
+#   2. Commit 833ed15: los casos REALES de una PR, sin `load`, contra la caché
+#      que había dejado la versión 1.
+#   3. Esta versión: la misma, con un trabajo `calentar` delante. Hace falta
+#      desde que `ci.yml` dejó de usar caché (ver abajo): sin él, nadie la
+#      escribe, y una ejecución manual mediría en frío creyendo medir en
+#      caliente, sin que nada avisara.
 #
 # Cada escenario simula su cambio DENTRO del runner, añadiendo una línea a un
 # fichero justo antes de construir. No se commitea nada, y el escenario queda
@@ -27,10 +33,14 @@
 #     con CUALQUIER cambio de las fichas: 9 de cada 15 PRs según #162.
 #
 # Los escenarios LEEN la caché del ámbito de cada imagen y no escriben en ella,
-# para que no se contaminen entre sí ni cambien lo que lee el siguiente. En la
-# medida de #173 esa caché la dejó la primera versión del instrumento; desde
-# entonces la escribe el trabajo `imagenes` de `ci.yml`, con los mismos ámbitos,
-# así que una ejecución manual mide contra la caché que ve una PR de verdad.
+# para que no se contaminen entre sí ni cambien lo que lee el siguiente. La deja
+# caliente el trabajo `calentar`, que construye cada imagen escribiéndola, y los
+# escenarios esperan a que termine (`needs`).
+#
+# `ci.yml` NO usa caché, y la decisión salió de aquí mismo: su primera ejecución
+# real, con caché, tardó 4 min 31 s en el backend, de los que 175 s fueron
+# subirla. Este instrumento la conserva porque su pregunta es otra: medir cuánto
+# ahorra la caché caliente frente a no tenerla.
 #
 # El runner va FIJADO a `ubuntu-24.04`, no a `ubuntu-latest`: una medida tiene
 # que poder repetirse sobre lo mismo, y `latest` pasa a Ubuntu 26 el 2026-10-19.
@@ -43,15 +53,38 @@
 # Ejecuciones de las que salen las cifras del README (GitHub borra los registros
 # a los 90 días, por eso las cifras están escritas allí y no sólo enlazadas):
 #   - 35875658283, intentos 1 (frío) y 2 (caché caliente), commit 4676904;
-#   - 35889059568, los cuatro escenarios, commit 833ed15.
+#   - 35889059568, los cuatro escenarios, commit 833ed15;
+#   - y 35896569121, que NO es de este fichero: la primera ejecución real del
+#     trabajo `imagenes` de `ci.yml`, todavía con caché, en la PR 177.
 name: medir-imagenes
 
 on:
   workflow_dispatch:
 
 jobs:
+  # Deja la caché caliente para los escenarios: construye cada imagen tal cual y
+  # la ESCRIBE. En la medida de #173 hizo este papel la versión 1.
+  calentar:
+    name: calentar · ${{ matrix.imagen }}
+    runs-on: ubuntu-24.04
+    strategy:
+      matrix:
+        imagen: [backend, web]
+    steps:
+      - uses: actions/checkout@v5
+      - uses: docker/setup-buildx-action@v3
+      - name: Construir escribiendo la caché
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: docker/${{ matrix.imagen }}.Dockerfile
+          push: false
+          cache-from: type=gha,scope=${{ matrix.imagen }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.imagen }}
+
   construir:
     name: ${{ matrix.imagen }} · ${{ matrix.escenario }}
+    needs: calentar
     runs-on: ubuntu-24.04
     strategy:
       # Que un escenario falle no debe tapar las cifras de los demás.
