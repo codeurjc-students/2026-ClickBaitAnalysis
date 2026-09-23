@@ -440,7 +440,7 @@ Tres decisiones que el diagrama no puede enseñar solo:
 ## 10 · Despliegue
 
 ```mermaid
-flowchart LR
+flowchart TB
     NAV["Navegador"]
     EXT["APIs de noticias<br/>NYT · Guardian · weather.gov"]
 
@@ -607,7 +607,8 @@ sequenceDiagram
   mensaje de rol `tool` en la vuelta siguiente, para que pueda narrarlo; y a la
   **traza del trabajo**, que es lo que lee la SPA. Las tarjetas salen de la
   traza (R13.3, R6.13), así que **el veredicto nunca pasa por el texto del
-  modelo** (R13.4) — que es justo lo que el spike vio inventarse detalles.
+  modelo** (R13.4) — que es justo donde el spike vio al modelo inventarse
+  detalles.
 - **La SPA sondea mientras el agente trabaja**, no cuando termina: la traza crece
   entre sondeo y sondeo, y por eso es «acumulada». Cada herramienta que acaba se
   puede enseñar antes de que el modelo haya escrito una palabra.
