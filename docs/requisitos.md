@@ -148,7 +148,7 @@ Este documento define los requisitos para un Trabajo de Fin de Grado (TFG) que i
 2. CUANDO se envía el código al repositorio, EL CI_Pipeline DEBERÁ ejecutar pruebas automatizadas.
 3. DONDE se considere beneficioso, EL CI_Pipeline PODRÁ realizar comprobaciones de linting y calidad del código en Python y JavaScript.
 4. EL CI_Pipeline DEBERÁ crear imágenes Docker tanto para el backend como para el frontend.
-5. CUANDO las pruebas se superen, EL CI_Pipeline DEBERÁ etiquetar las compilaciones correctas.
+5. CUANDO las pruebas se superen, EL CI_Pipeline DEBERÁ construir las imágenes y dejar la compilación marcada como correcta en el estado del commit; las versiones publicadas se identifican por su tag `vX.Y.Z`. _(Matizado en #173: las imágenes se construyen para comprobarlas, no se publican en un registro —se construyen en la máquina de despliegue—, así que no queda una imagen que etiquetar. Justificado en el README.)_
 6. EL CI_Pipeline DEBERÁ incluir flujos de trabajo separados para pull requests y commits de la rama main.
 7. SI falla algún paso, ENTONCES EL CI_Pipeline DEBERÁ informar del fallo con registros detallados.
 

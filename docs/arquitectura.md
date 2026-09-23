@@ -434,7 +434,7 @@ como componente aunque ya no sea el sistema entero.
 | **R5** Catálogo y transparencia | ✅ catálogo por handshake MCP, con procedencia y ficha de modelo |
 | **R6** Interfaz web | ◑ las tres pantallas del camino determinista ✅ (127–130): análisis, catálogo e historial, con errores entendibles (R6.7), escritorio y tabletas (R6.8) y sin controles que no funcionen (R6.14). Pendiente lo que depende del asistente: R6.10, R6.12 y R6.13 llegan con R13 |
 | **R7** Docker | ⬜ H4 |
-| **R8** CI/CD | ◑ integración continua ✅ (Python y frontend); despliegue continuo ⬜ |
+| **R8** CI/CD | ◑ integración continua ✅ (Python y frontend), y **las dos imágenes construidas en cada PR sin publicarlas** (R8.4, #173); R8.5 **matizado** —la compilación correcta la marcan el check del commit y el tag de la release, porque no se publica ninguna imagen—; R8.6 **a revisar**: pull requests y `main` comparten `ci.yml`; despliegue continuo ⬜ |
 | **R9** Persistencia e historial | ✅ SQLite con filtros y retención configurable |
 | **R10** Errores y logging | ✅ logging estructurado, invocaciones y health check |
 | **R11** Configuración | ✅ `pydantic-settings`, *fail-fast*, sin secretos en logs |

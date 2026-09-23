@@ -1238,6 +1238,78 @@ Añadir el registro a `/analyze` convirtió, sin avisar, todos los tests de esa 
 
 `tests/api/test_history.py` cubre los dos lados por separado —el almacén llamando a sus funciones, el endpoint por HTTP— porque responden preguntas distintas: si los datos sobreviven y salen en orden, y si la decisión de «una entrada por análisis» se sostiene de verdad.
 
+### Auditoría de la documentación tras H4, y las imágenes en el CI (#173)
+
+H4 cambió el sistema entero —contenedores, proxy, TLS, volúmenes— y la documentación de arquitectura se quedó en H2. Esta issue la pone al día y, al revisarla, apareció algo que no era de documentación: **R8.4 y R8.5 no se cumplían**, y nadie lo había anotado.
+
+#### Lo que pedían y lo que había
+
+R8.4 pide que el CI **construya las imágenes** del backend y del frontend, y R8.5 que **etiquete las compilaciones correctas**. El CI tenía dos trabajos, `test` y `frontend`, y ninguno construía imágenes: se hacían a mano en la máquina de despliegue. La consecuencia práctica era concreta — **un Dockerfile roto sólo se habría notado al desplegar**, no en la PR que lo rompiera.
+
+Había tres salidas: construir y publicar en un registro, construir sin publicar, o justificar la desviación. Se decidió **con números, y antes de diseñar nada**.
+
+#### Medir donde tendría que ocurrir
+
+En un runner de GitHub, no en la VM ni en el portátil: otra CPU, otra red, el disco contado y la caché vacía. El instrumento es [`.github/workflows/medir-imagenes.yml`](.github/workflows/medir-imagenes.yml), que sólo construye y no publica nada, y que ahora queda para lanzarse a mano.
+
+| Condiciones | |
+|---|---|
+| Fecha | 2026-09-23 |
+| Runner | `ubuntu-24.04` fijado (no `latest`, que pasa a Ubuntu 26 el 2026-10-19) · AMD EPYC 7763, 4 núcleos, 15 GiB · Docker 28.0.4 · 145 GB de disco, 86 libres |
+| Acciones | `docker/setup-buildx-action@v3` (`8d2750c`) · `docker/build-push-action@v6` (`10e90e3`) · caché `type=gha`, un ámbito por imagen |
+| Tanda 1 | ejecución `35875658283`, intentos 1 y 2 · commit `4676904` |
+| Tanda 2 | ejecución `35889059568` · commit `833ed15` |
+
+GitHub borra los registros a los 90 días; por eso las cifras van escritas aquí y no sólo enlazadas.
+
+**Tanda 1, con `load` para poder medir el tamaño de cada imagen:**
+
+| | Backend | Web |
+|---|---|---|
+| En frío | **3 min 48 s**: 72 s construyendo capas (23 s de dependencias, 33 s de torch, **13 s horneando modelos**), 72 s cargando la imagen en Docker, 70 s subiéndola a la caché | 60 s |
+| Con caché, sin cambios | 2 min 2 s: 43 s bajando capas de la caché, 87 s cargándola en Docker | 17 s |
+| Tamaño | 2,57 GB | 63 MB |
+
+Pero esos números estaban **inflados por la propia medida**. Cargar la imagen en Docker costaba entre 72 y 87 s, y un CI que sólo comprueba que la imagen construye no necesita cargarla. Decidir con ellos habría sido decidir sobre un artefacto del instrumento.
+
+**Tanda 2, los casos reales de una PR, sin `load`.** Cada escenario simula su cambio dentro del runner, añadiendo una línea a un fichero elegido por la capa que rompe, y lee la caché caliente sin escribir en ella para no contaminar a los demás:
+
+| Escenario | Construir | Trabajo completo | En qué se va |
+|---|---|---|---|
+| backend · sin cambios | **2 s** | 22 s | nada: BuildKit lo resuelve con el manifiesto de la caché, sin bajar capas |
+| backend · código (`api/app.py`) | **42 s** | 59 s | 37,5 s bajando capas, 3,2 s el cambio |
+| backend · fichas (`model_cards.py`) | **38 s** | 56 s | 17,6 s bajando capas, **16,6 s rehorneando** desde Hugging Face |
+| web · código (`app.ts`) | **22 s** | 68 s | 11,5 s de `node_modules` en caché, 6,7 s de `ng build` |
+
+Lo que dicen:
+
+- **Lo que cuesta no es construir, es mover capas**: bajarlas de la caché, cargarlas o subirlas. En el caso de código, el cambio son 3,2 s y bajar la base 37,5.
+- **Rehornear los modelos cuesta en el CI lo mismo que bajar esa capa de la caché**, 16,6 s frente a 1 min 55 s en la VM de la universidad: la red de GitHub hasta Hugging Face es otra. La decisión de #162 de no aislar la capa de modelos —descartada con un umbral de «≈10 min sí, ≈1 no»— se sostiene también aquí.
+- **El disco no es un límite**: 86 GB libres, y el backend gastó 6.
+- **El peor caso es en frío**, unos 2,5 min sin `load`, y hay que contar con él: GitHub borra una caché que lleva 7 días sin usarse.
+
+**Lo que no se midió**: el coste de *escribir* la caché en una PR real —por las proporciones de la tanda 1, unos 2 s para un cambio de código y unos 30 s para uno de fichas; es una estimación—, y un hueco de 38 s del runner, fuera de cualquier paso, en el trabajo de la web, visto una sola vez.
+
+#### Construir sin publicar, en cada PR
+
+Una PR normal añade **como mucho un minuto** al CI, y una de sólo documentación, 22 s. Con eso se eligió **construir sin publicar**: cumple R8.4, y un Dockerfile roto salta en la PR. Publicar en un registro obligaba a decidir dónde viven las imágenes y quién las usa, y hoy nadie las usa fuera de la máquina donde se construyen.
+
+El trabajo `imagenes` de [`ci.yml`](.github/workflows/ci.yml) sale directamente de las medidas:
+
+- **Sin `push` y sin `load`**, que era lo que inflaba la primera tanda.
+- **`needs: [test, frontend]`**: sólo se construye si las pruebas pasan. No gasta minutos en una PR que ya está roja, y es la lectura literal de R8.5, «cuando las pruebas se superen». El precio es no correr en paralelo con ellas.
+- **La caché se escribe, y quién la escribe decide si sirve.** Una PR sólo puede leer la caché de su propia rama y la de su rama base, así que son **los push a `dev`** —que ya disparan `ci.yml`— los que la dejan caliente para las PRs siguientes. Sin eso, cada PR empezaría en frío.
+- **La imagen se nombra con el commit** aunque no se guarde, para que el registro diga qué se construyó.
+- Runner `ubuntu-latest`, como los otros dos trabajos del fichero. Fijarlos es un pendiente aparte, para los tres a la vez.
+
+#### R8.5, matizado en los requisitos
+
+R8.5 está escrito suponiendo un registro: «etiquetar las compilaciones correctas» presupone una imagen que se guarda. **Sin publicar, no queda ninguna imagen que etiquetar**: se construye, se comprueba y se descarta.
+
+Había dos formas de tratarlo. Darlo por cumplido —las imágenes sólo se construyen tras pasar las pruebas y llevan el commit en el nombre— habría puesto un ✅ en la tabla sobre un requisito cuya letra no se cumple, que es justo lo que esta auditoría viene a quitar. Así que se **matiza el requisito** en [`docs/requisitos.md`](docs/requisitos.md): cuando las pruebas pasan, el CI construye las imágenes y **deja la compilación marcada como correcta en el estado del commit**, y las versiones publicadas se identifican **por su tag `vX.Y.Z`**. Es lo que de verdad identifica una compilación correcta en este proyecto.
+
+**R8.6 queda a revisar**, sin decidir: pide flujos separados para pull requests y para `main`, y hoy los dos pasan por el mismo `ci.yml`.
+
 ### El spike del agente, rehecho en la A40 (22–23 sep 2026, PR #176)
 
 Las cifras del spike #82 salieron de una GTX 1650 SUPER con 4 GB, donde el modelo entraba **a medias** —17 de 26 capas en la GPU—. Desde el 16 de septiembre hay acceso a la máquina 2, con una A40 de 46 GB, y es ahí donde correrá el agente. Se rehace **antes de planificar H5** por dos razones: aquellos números no describen esta máquina, y los diagramas de #173 van a dibujar el diseño de H5 como guía del hito; un diseño dibujado sobre cifras de otra GPU sería una suposición con forma de plano.

@@ -26,20 +26,27 @@
 #   - `model_cards.py` entra en la capa que hornea los modelos, que se rehace
 #     con CUALQUIER cambio de las fichas: 9 de cada 15 PRs según #162.
 #
-# Los escenarios LEEN la caché que dejó la primera versión y no escriben en
-# ella, para que no se contaminen entre sí ni cambien lo que lee el siguiente.
+# Los escenarios LEEN la caché del ámbito de cada imagen y no escriben en ella,
+# para que no se contaminen entre sí ni cambien lo que lee el siguiente. En la
+# medida de #173 esa caché la dejó la primera versión del instrumento; desde
+# entonces la escribe el trabajo `imagenes` de `ci.yml`, con los mismos ámbitos,
+# así que una ejecución manual mide contra la caché que ve una PR de verdad.
 #
 # El runner va FIJADO a `ubuntu-24.04`, no a `ubuntu-latest`: una medida tiene
 # que poder repetirse sobre lo mismo, y `latest` pasa a Ubuntu 26 el 2026-10-19.
 #
-# Se dispara con los push a la rama de #173 SÓLO mientras se mide. Antes de la PR
-# se deja únicamente `workflow_dispatch`: queda versionado y repetible desde la
-# pestaña de Actions, sin volver a gastar minutos por su cuenta.
+# Sólo se lanza A MANO (`workflow_dispatch`, desde la pestaña de Actions). Mientras
+# se midió se disparaba con los push a la rama de #173; ahora queda versionado y
+# repetible sin gastar minutos por su cuenta. Lo que corre en cada PR es el
+# trabajo `imagenes` de `ci.yml`, que salió de estas medidas.
+#
+# Ejecuciones de las que salen las cifras del README (GitHub borra los registros
+# a los 90 días, por eso las cifras están escritas allí y no sólo enlazadas):
+#   - 35875658283, intentos 1 (frío) y 2 (caché caliente), commit 4676904;
+#   - 35889059568, los cuatro escenarios, commit 833ed15.
 name: medir-imagenes
 
 on:
-  push:
-    branches: [docs/173-diagramas-y-auditoria]
   workflow_dispatch:
 
 jobs:
