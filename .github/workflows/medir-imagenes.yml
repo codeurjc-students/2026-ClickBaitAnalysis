@@ -4,23 +4,30 @@
 # que etiquete las compilaciones correctas. Hoy no se hace ninguna de las dos
 # cosas: las imágenes se construyen a mano en la máquina de despliegue. Antes de
 # decidir si se implementa, cómo, o si se justifica la desviación, se mide lo que
-# costaría donde tendría que ocurrir: en un runner de GitHub, con otra CPU, otra
-# red, el disco contado y la caché vacía.
+# costaría donde tendría que ocurrir: en un runner de GitHub.
 #
 # SÓLO construye. No publica nada en ningún registro.
 #
-# Lo que deja escrito en el registro de cada ejecución:
-#   - las condiciones del runner (CPU, núcleos, memoria, versión de Docker);
-#   - el tiempo de cada paso de la construcción, en las líneas `#N DONE X.Ys`
-#     de BuildKit — y entre ellos el de la capa que hornea los modelos, que se
-#     rehace con CUALQUIER cambio de `model_cards.py` (#162);
-#   - el disco libre antes y después: el backend arrastra torch y 1,1 GB de
-#     modelos, y un runner tiene el disco limitado;
-#   - el tamaño de cada imagen.
+# Historia del instrumento, porque las cifras del README salen de dos versiones:
 #
-# La caché es la de GitHub Actions (`type=gha`), con un ámbito por imagen para
-# que no se pisen. Primera ejecución: vacía, el peor caso. Relanzada sin
-# cambios: el mejor.
+#   1. Commit 4676904: dos trabajos fijos, con `load: true` para poder medir el
+#      TAMAÑO de cada imagen. Dio el frío y el caliente. Pero cargar la imagen
+#      en Docker costaba 72-87 s en el backend, y un CI que sólo comprueba que
+#      la imagen construye no necesita cargarla: esas cifras estaban infladas
+#      por la propia medida.
+#   2. Esta versión: los casos REALES de una PR, sin `load`.
+#
+# Cada escenario simula su cambio DENTRO del runner, añadiendo una línea a un
+# fichero justo antes de construir. No se commitea nada, y el escenario queda
+# escrito aquí, así que se puede repetir. Los ficheros están elegidos por la
+# capa que rompen:
+#   - `backend/api/app.py` sólo entra en la ÚLTIMA capa (`COPY backend/`).
+#     Uno como `backend/__init__.py` se copia antes y rehornearía los modelos.
+#   - `model_cards.py` entra en la capa que hornea los modelos, que se rehace
+#     con CUALQUIER cambio de las fichas: 9 de cada 15 PRs según #162.
+#
+# Los escenarios LEEN la caché que dejó la primera versión y no escriben en
+# ella, para que no se contaminen entre sí ni cambien lo que lee el siguiente.
 #
 # El runner va FIJADO a `ubuntu-24.04`, no a `ubuntu-latest`: una medida tiene
 # que poder repetirse sobre lo mismo, y `latest` pasa a Ubuntu 26 el 2026-10-19.
@@ -36,64 +43,58 @@ on:
   workflow_dispatch:
 
 jobs:
-  backend:
+  construir:
+    name: ${{ matrix.imagen }} · ${{ matrix.escenario }}
     runs-on: ubuntu-24.04
+    strategy:
+      # Que un escenario falle no debe tapar las cifras de los demás.
+      fail-fast: false
+      matrix:
+        include:
+          - imagen: backend
+            escenario: sin-cambios
+            dockerfile: docker/backend.Dockerfile
+            fichero: ""
+            linea: ""
+          - imagen: backend
+            escenario: codigo
+            dockerfile: docker/backend.Dockerfile
+            fichero: backend/api/app.py
+            linea: "# medida de #173: cambio simulado en el runner"
+          - imagen: backend
+            escenario: fichas
+            dockerfile: docker/backend.Dockerfile
+            fichero: backend/integrations/nlp/model_cards.py
+            linea: "# medida de #173: cambio simulado en el runner"
+          - imagen: web
+            escenario: codigo
+            dockerfile: docker/web.Dockerfile
+            fichero: frontend/src/app/app.ts
+            linea: "// medida de #173: cambio simulado en el runner"
+
     steps:
       - uses: actions/checkout@v5
 
-      - name: Condiciones del runner y disco antes
-        run: |
-          lscpu | grep 'Model name'
-          echo "núcleos: $(nproc)"
-          free -h | head -2
-          docker version --format 'docker {{.Server.Version}}'
-          df -h /
-
-      - uses: docker/setup-buildx-action@v3
-
-      # `load: true` para poder medir el tamaño; exportar la imagen al demonio
-      # cuesta tiempo y sale como un paso propio en el registro.
-      - name: Construir la imagen del backend
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          file: docker/backend.Dockerfile
-          tags: clickbait-backend:medida
-          push: false
-          load: true
-          cache-from: type=gha,scope=backend
-          cache-to: type=gha,mode=max,scope=backend
-
-      - name: Tamaño de la imagen y disco después
-        run: |
-          docker image ls clickbait-backend:medida
-          df -h /
-
-  web:
-    runs-on: ubuntu-24.04
-    steps:
-      - uses: actions/checkout@v5
-
-      - name: Condiciones del runner y disco antes
+      - name: Condiciones del runner
         run: |
           lscpu | grep 'Model name'
           echo "núcleos: $(nproc)"
           df -h /
 
+      - name: Simular el cambio de la PR
+        if: matrix.fichero != ''
+        run: |
+          echo '${{ matrix.linea }}' >> '${{ matrix.fichero }}'
+          git diff --stat
+
       - uses: docker/setup-buildx-action@v3
 
-      - name: Construir la imagen web
+      # Sin `load` y sin `push`: comprobar que la imagen construye no necesita
+      # sacarla de BuildKit. Y sin `cache-to`: sólo se lee la caché.
+      - name: Construir
         uses: docker/build-push-action@v6
         with:
           context: .
-          file: docker/web.Dockerfile
-          tags: clickbait-web:medida
+          file: ${{ matrix.dockerfile }}
           push: false
-          load: true
-          cache-from: type=gha,scope=web
-          cache-to: type=gha,mode=max,scope=web
-
-      - name: Tamaño de la imagen y disco después
-        run: |
-          docker image ls clickbait-web:medida
-          df -h /
+          cache-from: type=gha,scope=${{ matrix.imagen }}
