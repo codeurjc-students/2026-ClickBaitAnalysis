@@ -4,6 +4,10 @@
 > cualifica a una pieza para vivir en ella**. Para la arquitectura en ejecución
 > ver [`arquitectura.md`](arquitectura.md); para los criterios de aceptación,
 > [`requisitos.md`](requisitos.md).
+>
+> **Revisado entero contra el árbol en #173 (2026-09-23)**: cada fichero nombrado
+> existe, cada fichero de las carpetas descritas está nombrado, y las
+> afirmaciones sobre el código —bugs, tensiones, deuda— se han vuelto a comprobar.
 
 ## Por qué criterios y no descripciones
 
@@ -75,6 +79,7 @@ de historia, no una propiedad suya.
 | `execute.py` | **Traduce** una invocación a su código de estado — `POST /tools/{name}/execute` |
 | `history.py` | Almacén del historial sobre SQLite — ⚠️ [tensión 2](#2--el-almacén-del-historial-en-api) |
 | `ratelimit.py` | Cuántas peticiones admite cada cliente y qué se le responde si se pasa (R12.4, #169). Está aquí, y no en `core/`, porque todo lo suyo es HTTP: códigos de estado, cabeceras y rutas. El MCP no lo usa |
+| `export_openapi.py` | Vuelca el contrato OpenAPI a `frontend/openapi.json`, del que se genera el cliente tipado del frontend (`npm run gen:api`). Importa la app en vez de pedirle `/openapi.json` a un servidor, y el JSON **se commitea** para que una PR enseñe qué cambió del contrato; `test_el_contrato_commiteado_esta_al_dia` vigila que no se quede atrás. Está aquí porque sin HTTP no existiría |
 
 Desde #137 `catalog.py` y `execute.py` son **traductores**: descubrir e invocar
 viven en `core/mcp/`, porque el agente de R13 necesita ese mecanismo y no puede
@@ -157,6 +162,7 @@ El paquete más grande, porque contiene **las señales** — el núcleo del dete
 | `lexical.py` | Señal **interpretable**. Busca tres tipos de pista —palabras, frases y patrones regex— y devuelve cada coincidencia **con su posición** (`span`), que es lo que permite resaltar los cues sobre el titular. Clickbait si el recuento llega a `THRESHOLD` |
 | `linear.py` | Señal **interpretable**: regresión logística sobre los cues, con los pesos visibles y las contribuciones de cada rasgo en la salida. Carga los pesos de `linear_clickbait.json` — ⚠️ [bug 1](#1--linearpy-lee-el-fichero-de-pesos-al-importar) · [bug 2](#2--dos-señales-de-forma-comparten-extracción-de-rasgos) |
 | `incoherence.py` | Señal **híbrida**: decisión transparente (umbral sobre la similitud) con rasgo opaco (embeddings). Codifica titular y cuerpo con `all-MiniLM-L6-v2` y los compara por **similitud coseno**: incoherente si baja de 0,3. El modelo se carga una sola vez y de forma perezosa, de ahí los ~20 s de la primera llamada |
+| `dedicated.py` | Señal **opaca**: el RoBERTa dedicado (`Stremie/roberta-base-clickbait`, #115), que sustituyó al zero-shot elegido por eliminación en E3-02 y que acertaba el 63,7 % (#109). Tiene módulo propio porque sin él su id y sus etiquetas se duplicaban entre las dos fachadas (#116). Recibe el backend y el id en vez de resolverlos (#119) |
 | `model_cards.py` | Ficha de cada señal: tipo, dimensión que mide y límites medidos |
 | `outputs.py` | Los `TypedDict` de retorno, para que MCP publique el `outputSchema` |
 | `tool.py` | Registra las señales como herramientas MCP |
@@ -187,12 +193,22 @@ Si un endpoint o una tool lo necesita, es que no era evaluación.
 | `eval_lexical.py` | Baseline del léxico: carga, puntúa, matriz de confusión, barrido de umbral |
 | `linear_model.py` | **Entrena** el modelo lineal y serializa los pesos a `linear_clickbait.json`, que es lo que consume la señal en ejecución; compara además contra el baseline de reglas. El nombre engaña: no contiene el modelo, lo produce — ver [renombrados](#renombrados-propuestos). Arrastra además un `featurize()` **sin ningún llamante** |
 | `eval_external.py` | Validación externa sobre Webis-17 (#76) — la que destapó el sesgo de fuente |
+| `eval_acoplamiento.py` | Cuánto vale que el léxico y el lineal coincidan, si comparten los rasgos (#109) |
+| `eval_featurizado.py` | Por qué coinciden: qué ve, y qué no puede ver, el vector de rasgos que comparten (#109) |
+| `eval_transferencia.py` | Qué señal de forma sobrevive fuera de su dominio, con el zero-shot y un modelo dedicado de terceros (#109, #115) |
+| `eval_candidatos.py` | Candidatos para sustituir al zero-shot en `forma`, con tres criterios y no sólo el acierto (#115) |
+| `eval_ambiguedad.py` | El techo realista: cuánto acierta una persona contra el consenso de las demás en Webis-17 (#121) |
+| `eval_incoherencia.py` | Calibra el umbral de incoherencia con método, separando cuánta información tiene la señal (AUC) de dónde se corta (#92) |
+| `webis_extract.py` | Saca de los 937 MB de Webis-17 lo que sirve: los titulares, versionados en `data/external/`, y los cuerpos, regenerables, en `var/` (#121) |
 
 ## `backend/main.py`
 
-Punto de entrada del **servidor MCP**. Registra las integraciones descubiertas
-más el chequeo de salud, y arranca con el transporte configurado. No contiene
-lógica: si algo se le añadiera, pertenece a otro sitio.
+Punto de entrada del **servidor MCP**. Registra las integraciones descubiertas y,
+a mano, lo que no es una integración —el chequeo de salud y, desde #107,
+`analyze_headline` (tensión 4)—; ajusta la protección contra DNS rebinding al
+host en que escucha (`configurar_red`, #164: FastMCP la decide al construirse, y
+dentro de compose rechazaba a la propia API); y arranca con el transporte
+configurado. No contiene lógica: si algo se le añadiera, pertenece a otro sitio.
 
 ---
 
@@ -200,7 +216,9 @@ lógica: si algo se le añadiera, pertenece a otro sitio.
 
 | Carpeta | Criterio |
 |---|---|
-| `tests/` | Espeja `backend/`: un fichero por módulo, misma ruta relativa |
+| `tests/` | Espeja `backend/`: un fichero por módulo, misma ruta relativa. Las dos excepciones prueban el repositorio en sí, no un módulo: `test_arquitectura.py` (las reglas de importación) y `test_compose.py` (los contratos del despliegue) |
+| `.github/` | ¿Lo ejecuta **GitHub**, no el sistema? `workflows/ci.yml` corre las pruebas de Python y del frontend y, desde #173, construye las dos imágenes sin publicarlas; `protect-main.yml` impide llegar a `main` si no es desde `dev`; y `medir-imagenes.yml` es el instrumento de medida de #173, que sólo se lanza a mano |
+| Ficheros de la raíz | La configuración de las herramientas, en la raíz porque ahí la encuentran sin argumentos: `ruff.toml`, `pyrightconfig.json`, `pytest.ini`. Y las dependencias: `requirements.in` es lo que se declara y `requirements.txt` el lockfile que genera `pip-compile` —no se edita a mano—; `requirements-dev.txt` trae lo pesado, que el CI no instala |
 | `spikes/` | ¿Es código **desechable**, escrito para responder **una** pregunta? Lleva sus resultados en la cabecera y está excluido de ruff a propósito |
 | `docs/` | Documentación y sus fuentes (`.drawio`, `img/`) |
 | `data/` | **Versionado e inmutable**: datasets y splits congelados. Si algo cambia en ejecución, no va aquí |
@@ -217,6 +235,7 @@ lógica: si algo se le añadiera, pertenece a otro sitio.
 
 | Carpeta | Criterio |
 |---|---|
+| la raíz de `app/` | La **cáscara**, que no es de ninguna pantalla: el componente con la cabecera, la navegación y el indicador de salud (`app.ts`, `app.html` y `app.scss`, con su `app.spec.ts`), las rutas —cada pantalla se descarga perezosa con `loadComponent`— (`app.routes.ts`) y la configuración (`app.config.ts`, con `withComponentInputBinding`, que es lo que hace llegar el `:id` como `input()`) |
 | `api/` | Lo que habla el contrato: el cliente generado (`schema.d.ts`), los alias con nombre corto (`models.ts`), **un servicio por familia de rutas** y lo que se lee del cuerpo de un error HTTP. No conoce el dominio: aquí no se decide qué es clickbait |
 | `analisis/` | Analizar un titular y ver el resultado —también uno guardado—, con lo que sólo esa vista usa: los guardianes del `data`, el resaltado del titular, la tarjeta de señal y el vocabulario |
 | `historial/` | La lista de lo anterior: filtros, paginación y el aviso de retención |
@@ -321,6 +340,9 @@ hoy **un solo fichero dentro**, y una carpeta de un elemento suele ser una
 decisión tomada antes de tiempo. El momento de moverlo es cuando aparezca el
 segundo, y ya se sabe cuál: el chat de R13 va a querer los mismos nombres.
 
+*(Comprobado el 2026-09-23: la importan `historial-page.ts` y `sistema-page.ts`.
+H5 es lo siguiente, así que ese momento llega al abrir el chat, no antes.)*
+
 ---
 
 ## Bugs detectados
@@ -345,7 +367,10 @@ sea para inspeccionarla, paga esa lectura y hereda ese modo de fallo.
 Arreglo: carga perezosa, como ya hacen `local.py` con `transformers` e
 `incoherence.py` con el modelo de embeddings. El patrón ya está en la casa.
 
-### 2 · Dos señales de **forma** comparten extracción de rasgos
+**Sigue abierto**, recogido en **#108** (comprobado el 2026-09-23: la lectura
+está en las líneas 14–15 de `linear.py`).
+
+### 2 · Dos señales de **forma** comparten extracción de rasgos — ✅ MEDIDO (#109)
 
 `featurize_cues()` en `linear.py` llama a `lexical.detect()` y reutiliza sus
 listas: la señal lineal está construida sobre la léxica.
@@ -373,9 +398,14 @@ forma. La dependencia vive dentro de una sola dimensión, y el docstring de
 `model_cards.py` ya avisa de lo relacionado: *«tres señales de forma de acuerdo
 no significan que el titular engañe»*.
 
-No es un arreglo de código. Es **medirlo y añadir la consecuencia a la ficha**:
-la correlación entre las dos señales sobre el split de dev convierte «comparten
-rasgos» en un número, que es lo que el proyecto hace con el resto de sus límites.
+No era un arreglo de código, sino **medirlo y añadir la consecuencia a la
+ficha** — y se hizo en **#109**, con `eval_acoplamiento.py` y
+`eval_featurizado.py`. Salió peor que una correlación: el acoplamiento es **por
+construcción**, porque el veredicto del léxico es una función determinista del
+vector que usa el lineal. En Chakraborty dev dan kappa 0,880, pero en el 50 % de
+los titulares el vector sale vacío y las dos responden «no» sin mirar; donde
+tiene contenido, el acuerdo baja al 88,0 %, y al 59,1 % en Webis-17. **La ficha
+del lineal lo publica así**, y viaja al frontend por `describe_models`.
 
 ## Renombrados propuestos
 
@@ -393,11 +423,17 @@ No se renombran `base.py`, `models.py`, `outputs.py` ni `nlp/linear.py`: son
 escuetos pero no engañan, y al renombrar `linear_model.py` desaparece la única
 colisión real.
 
-## Deuda: 19 módulos sin docstring
+Los tres están recogidos en **#108**, sin hacer (comprobado el 2026-09-23).
 
-De los 30 módulos reales de `backend/`, **19 no declaran qué hacen**, y se
-concentran en el código de Fase A: todo `core/`, todos los `client.py` y casi
-todo `nlp/`. Lo escrito en Fase B sí está documentado.
+## Deuda: 16 módulos sin docstring
+
+De los **40 módulos de `backend/`** —sin contar `evaluation/` ni los
+`__init__.py`—, **16 no declaran qué hacen** (contado el 2026-09-23 con
+`ast.get_docstring` sobre cada uno; al escribir esta sección eran 19 de 30). Se
+concentran en el código de Fase A: casi todo el `core/` de entonces —`base_api`,
+`health`, `logging`, `models`, `observability`—, `config/settings.py`, todos los
+`client.py` y casi todo `nlp/`. Lo añadido después, como `core/errores.py` o
+`core/mcp/`, sí está documentado. Recogido en **#108**.
 
 Las descripciones de las tablas de arriba se han sacado leyendo sus definiciones,
 no sus docstrings. **Lo correcto sería lo contrario**: que cada módulo declare su

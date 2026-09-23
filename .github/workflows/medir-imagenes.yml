@@ -1,0 +1,140 @@
+# Instrumento de medida de #173: ¿cuánto cuesta construir las imágenes en el CI?
+#
+# R8.4 pide que el CI construya las imágenes del backend y del frontend, y R8.5
+# que etiquete las compilaciones correctas. Hoy no se hace ninguna de las dos
+# cosas: las imágenes se construyen a mano en la máquina de despliegue. Antes de
+# decidir si se implementa, cómo, o si se justifica la desviación, se mide lo que
+# costaría donde tendría que ocurrir: en un runner de GitHub.
+#
+# SÓLO construye. No publica nada en ningún registro.
+#
+# Historia del instrumento, porque las cifras del README salen de más de una
+# versión:
+#
+#   1. Commit 4676904: dos trabajos fijos, con `load: true` para poder medir el
+#      TAMAÑO de cada imagen. Dio el frío y el caliente. Pero cargar la imagen
+#      en Docker costaba 72-87 s en el backend, y un CI que sólo comprueba que
+#      la imagen construye no necesita cargarla: esas cifras estaban infladas
+#      por la propia medida.
+#   2. Commit 833ed15: los casos REALES de una PR, sin `load`, contra la caché
+#      que había dejado la versión 1.
+#   3. Esta versión: la misma, con un trabajo `calentar` delante. Hace falta
+#      desde que `ci.yml` dejó de usar caché (ver abajo): sin él, nadie la
+#      escribe, y una ejecución manual mediría en frío creyendo medir en
+#      caliente, sin que nada avisara.
+#
+# Cada escenario simula su cambio DENTRO del runner, añadiendo una línea a un
+# fichero justo antes de construir. No se commitea nada, y el escenario queda
+# escrito aquí, así que se puede repetir. Los ficheros están elegidos por la
+# capa que rompen:
+#   - `backend/api/app.py` sólo entra en la ÚLTIMA capa (`COPY backend/`).
+#     Uno como `backend/__init__.py` se copia antes y rehornearía los modelos.
+#   - `model_cards.py` entra en la capa que hornea los modelos, que se rehace
+#     con CUALQUIER cambio de las fichas: 9 de cada 15 PRs según #162.
+#
+# Los escenarios LEEN la caché del ámbito de cada imagen y no escriben en ella,
+# para que no se contaminen entre sí ni cambien lo que lee el siguiente. La deja
+# caliente el trabajo `calentar`, que construye cada imagen escribiéndola, y los
+# escenarios esperan a que termine (`needs`).
+#
+# `ci.yml` NO usa caché, y la decisión salió de aquí mismo: su primera ejecución
+# real, con caché, tardó 4 min 31 s en el backend, de los que 175 s fueron
+# subirla. Este instrumento la conserva porque su pregunta es otra: medir cuánto
+# ahorra la caché caliente frente a no tenerla.
+#
+# El runner va FIJADO a `ubuntu-24.04`, no a `ubuntu-latest`: una medida tiene
+# que poder repetirse sobre lo mismo, y `latest` pasa a Ubuntu 26 el 2026-10-19.
+#
+# Sólo se lanza A MANO (`workflow_dispatch`, desde la pestaña de Actions). Mientras
+# se midió se disparaba con los push a la rama de #173; ahora queda versionado y
+# repetible sin gastar minutos por su cuenta. Lo que corre en cada PR es el
+# trabajo `imagenes` de `ci.yml`, que salió de estas medidas.
+#
+# Ejecuciones de las que salen las cifras del README (GitHub borra los registros
+# a los 90 días, por eso las cifras están escritas allí y no sólo enlazadas):
+#   - 35875658283, intentos 1 (frío) y 2 (caché caliente), commit 4676904;
+#   - 35889059568, los cuatro escenarios, commit 833ed15;
+#   - y 35896569121, que NO es de este fichero: la primera ejecución real del
+#     trabajo `imagenes` de `ci.yml`, todavía con caché, en la PR 177.
+name: medir-imagenes
+
+on:
+  workflow_dispatch:
+
+jobs:
+  # Deja la caché caliente para los escenarios: construye cada imagen tal cual y
+  # la ESCRIBE. En la medida de #173 hizo este papel la versión 1.
+  calentar:
+    name: calentar · ${{ matrix.imagen }}
+    runs-on: ubuntu-24.04
+    strategy:
+      matrix:
+        imagen: [backend, web]
+    steps:
+      - uses: actions/checkout@v5
+      - uses: docker/setup-buildx-action@v3
+      - name: Construir escribiendo la caché
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: docker/${{ matrix.imagen }}.Dockerfile
+          push: false
+          cache-from: type=gha,scope=${{ matrix.imagen }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.imagen }}
+
+  construir:
+    name: ${{ matrix.imagen }} · ${{ matrix.escenario }}
+    needs: calentar
+    runs-on: ubuntu-24.04
+    strategy:
+      # Que un escenario falle no debe tapar las cifras de los demás.
+      fail-fast: false
+      matrix:
+        include:
+          - imagen: backend
+            escenario: sin-cambios
+            dockerfile: docker/backend.Dockerfile
+            fichero: ""
+            linea: ""
+          - imagen: backend
+            escenario: codigo
+            dockerfile: docker/backend.Dockerfile
+            fichero: backend/api/app.py
+            linea: "# medida de #173: cambio simulado en el runner"
+          - imagen: backend
+            escenario: fichas
+            dockerfile: docker/backend.Dockerfile
+            fichero: backend/integrations/nlp/model_cards.py
+            linea: "# medida de #173: cambio simulado en el runner"
+          - imagen: web
+            escenario: codigo
+            dockerfile: docker/web.Dockerfile
+            fichero: frontend/src/app/app.ts
+            linea: "// medida de #173: cambio simulado en el runner"
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Condiciones del runner
+        run: |
+          lscpu | grep 'Model name'
+          echo "núcleos: $(nproc)"
+          df -h /
+
+      - name: Simular el cambio de la PR
+        if: matrix.fichero != ''
+        run: |
+          echo '${{ matrix.linea }}' >> '${{ matrix.fichero }}'
+          git diff --stat
+
+      - uses: docker/setup-buildx-action@v3
+
+      # Sin `load` y sin `push`: comprobar que la imagen construye no necesita
+      # sacarla de BuildKit. Y sin `cache-to`: sólo se lee la caché.
+      - name: Construir
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ${{ matrix.dockerfile }}
+          push: false
+          cache-from: type=gha,scope=${{ matrix.imagen }}

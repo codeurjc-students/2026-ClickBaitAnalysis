@@ -1238,7 +1238,156 @@ Añadir el registro a `/analyze` convirtió, sin avisar, todos los tests de esa 
 
 `tests/api/test_history.py` cubre los dos lados por separado —el almacén llamando a sus funciones, el endpoint por HTTP— porque responden preguntas distintas: si los datos sobreviven y salen en orden, y si la decisión de «una entrada por análisis» se sostiene de verdad.
 
-### El spike del agente, rehecho en la A40 (22–23 sep 2026, trabajo suelto)
+### Diagramas del despliegue, plano de H5 y auditoría de la documentación (#173)
+
+H4 cambió el sistema entero —contenedores, proxy, TLS, volúmenes— y la documentación de arquitectura se quedó en H2. Esta issue la pone al día en tres frentes: **los diagramas que faltaban**, más uno que no describe el sistema sino el que se va a construir; **una auditoría de `estructura.md`** contra el árbol real; y algo que apareció al revisar la tabla de requisitos y que no era de documentación: **R8.4 y R8.5 no se cumplían**, y nadie lo había anotado.
+
+#### Lo que pedían y lo que había
+
+R8.4 pide que el CI **construya las imágenes** del backend y del frontend, y R8.5 que **etiquete las compilaciones correctas**. El CI tenía dos trabajos, `test` y `frontend`, y ninguno construía imágenes: se hacían a mano en la máquina de despliegue. La consecuencia práctica era concreta — **un Dockerfile roto sólo se habría notado al desplegar**, no en la PR que lo rompiera.
+
+Había tres salidas: construir y publicar en un registro, construir sin publicar, o justificar la desviación. Se decidió **con números, y antes de diseñar nada**.
+
+#### Medir donde tendría que ocurrir
+
+En un runner de GitHub, no en la VM ni en el portátil: otra CPU, otra red, el disco contado y la caché vacía. El instrumento es [`.github/workflows/medir-imagenes.yml`](.github/workflows/medir-imagenes.yml), que sólo construye y no publica nada, y que ahora queda para lanzarse a mano.
+
+| Condiciones | |
+|---|---|
+| Fecha | 2026-09-23 |
+| Runner | `ubuntu-24.04` fijado (no `latest`, que pasa a Ubuntu 26 el 2026-10-19) · AMD EPYC 7763, 4 núcleos, 15 GiB · Docker 28.0.4 · 145 GB de disco, 86 libres |
+| Acciones | `docker/setup-buildx-action@v3` (`8d2750c`) · `docker/build-push-action@v6` (`10e90e3`) · caché `type=gha`, un ámbito por imagen |
+| Tanda 1 | ejecución `35875658283`, intentos 1 y 2 · commit `4676904` |
+| Tanda 2 | ejecución `35889059568` · commit `833ed15` |
+
+GitHub borra los registros a los 90 días; por eso las cifras van escritas aquí y no sólo enlazadas.
+
+**Tanda 1, con `load` para poder medir el tamaño de cada imagen:**
+
+| | Backend | Web |
+|---|---|---|
+| En frío | **3 min 48 s**: 72 s construyendo capas (23 s de dependencias, 33 s de torch, **13 s horneando modelos**), 72 s cargando la imagen en Docker, 70 s subiéndola a la caché | 60 s |
+| Con caché, sin cambios | 2 min 2 s: 43 s bajando capas de la caché, 87 s cargándola en Docker | 17 s |
+| Tamaño | 2,57 GB | 63 MB |
+
+Pero esos números estaban **inflados por la propia medida**. Cargar la imagen en Docker costaba entre 72 y 87 s, y un CI que sólo comprueba que la imagen construye no necesita cargarla. Decidir con ellos habría sido decidir sobre un artefacto del instrumento.
+
+**Tanda 2, los casos reales de una PR, sin `load`.** Cada escenario simula su cambio dentro del runner, añadiendo una línea a un fichero elegido por la capa que rompe, y lee la caché caliente sin escribir en ella para no contaminar a los demás:
+
+| Escenario | Construir | Trabajo completo | En qué se va |
+|---|---|---|---|
+| backend · sin cambios | **2 s** | 22 s | nada: BuildKit lo resuelve con el manifiesto de la caché, sin bajar capas |
+| backend · código (`api/app.py`) | **42 s** | 59 s | 37,5 s bajando capas, 3,2 s el cambio |
+| backend · fichas (`model_cards.py`) | **38 s** | 56 s | 17,6 s bajando capas, **16,6 s rehorneando** desde Hugging Face |
+| web · código (`app.ts`) | **22 s** | 68 s | 11,5 s de `node_modules` en caché, 6,7 s de `ng build` |
+
+Lo que dicen:
+
+- **Lo que cuesta no es construir, es mover capas**: bajarlas de la caché, cargarlas o subirlas. En el caso de código, el cambio son 3,2 s y bajar la base 37,5.
+- **Rehornear los modelos cuesta en el CI lo mismo que bajar esa capa de la caché**, 16,6 s frente a 1 min 55 s en la VM de la universidad: la red de GitHub hasta Hugging Face es otra. La decisión de #162 de no aislar la capa de modelos —descartada con un umbral de «≈10 min sí, ≈1 no»— se sostiene también aquí.
+- **El disco no es un límite**: 86 GB libres, y el backend gastó 6.
+- **El peor caso es en frío**, y esta tanda no lo daba entero: medía construir, pero no *escribir* la caché. Lo dio la primera ejecución real, más abajo.
+
+**Lo que no se midió en las tandas**: el coste de *escribir* la caché en una PR real. Se estimó por proporciones, y la estimación se quedó muy corta (más abajo). También quedó sin explicar un hueco de 38 s del runner, fuera de cualquier paso, en el trabajo de la web, visto una sola vez.
+
+#### Construir sin publicar, en cada PR
+
+Con la caché caliente, una PR normal añadía **como mucho un minuto** al CI, y una de sólo documentación, 22 s. Con eso se eligió **construir sin publicar**: cumple R8.4, y un Dockerfile roto salta en la PR. Publicar en un registro obligaba a decidir dónde viven las imágenes y quién las usa, y hoy nadie las usa fuera de la máquina donde se construyen.
+
+El trabajo `imagenes` de [`ci.yml`](.github/workflows/ci.yml) sale directamente de las medidas:
+
+- **Sin `push` y sin `load`**, que era lo que inflaba la primera tanda.
+- **`needs: [test, frontend]`**: sólo se construye si las pruebas pasan. No gasta minutos en una PR que ya está roja, y es la lectura literal de R8.5, «cuando las pruebas se superen». El precio es no correr en paralelo con ellas.
+- **Sin caché.** Empezó con ella, y se quitó tras la primera ejecución real (siguiente apartado).
+- **La imagen se nombra con el commit** aunque no se guarde, para que el registro diga qué se construyó.
+- Runner `ubuntu-latest`, como los otros dos trabajos del fichero. Fijarlos es un pendiente aparte, para los tres a la vez.
+
+#### La primera ejecución real, y por qué se quitó la caché
+
+La PR de esta issue (#177) fue la primera vez que corrió el trabajo `imagenes`: todavía con la caché de GitHub Actions, y con la de `dev` vacía (ejecución `35896569121`). Todo salió en verde —las dos imágenes construyen en el runner—, pero con un número que no cuadraba con lo estimado:
+
+| | Construir las capas | Subir la caché | Paso completo |
+|---|---|---|---|
+| backend | ~75 s (dependencias 27, torch 35, modelos 10) | **175 s** | 251 s, en un trabajo de 4 min 31 s |
+| web | ~21 s | **57 s** | 80 s |
+
+La estimación de «unos 2,5 min en frío» salió de la tanda 2, que **no escribía la caché**, así que dejaba fuera justo lo que más cuesta. Y ese coste no es estable: subir las mismas capas tardó 70 s en la tanda 1 y 175 s aquí, dos veces y media más.
+
+Puestos juntos, los números dejaban a la caché sin argumento:
+
+| | Con caché | Sin caché |
+|---|---|---|
+| PR normal, caché caliente | ~42 s construyendo, casi todo bajando capas | ~75 s construyendo, siempre |
+| En frío: la primera vez, al cambiar dependencias o tras 7 días sin uso | ~4 min 30 s | ~75 s |
+| Lo que hay que entender | qué ramas leen la caché de cuál, quién la escribe, cuándo caduca | nada |
+
+Con caché, una PR corriente se ahorraba unos 30 s; a cambio, cada vez que había que rehacerla, el trabajo volvía a los 4 min y medio. En un repositorio público los minutos de Actions no se pagan, así que lo único en juego era el reloj, y **el peor caso sin caché es mejor que el peor caso con ella**. Se quitó.
+
+El instrumento de medida sí la conserva, porque su pregunta es justamente cuánto ahorra. Para que siga siendo repetible se le añadió un trabajo `calentar` delante: sin él, nadie escribiría la caché, y una ejecución manual mediría en frío creyendo medir en caliente, sin que nada lo avisara.
+
+Es la lección de la tanda 1 con otra forma: **se estimaba una parte y se decidía sobre el todo**. Allí sobraba el `load`; aquí faltaba escribir la caché.
+
+#### R8.5, matizado en los requisitos
+
+R8.5 está escrito suponiendo un registro: «etiquetar las compilaciones correctas» presupone una imagen que se guarda. **Sin publicar, no queda ninguna imagen que etiquetar**: se construye, se comprueba y se descarta.
+
+Había dos formas de tratarlo. Darlo por cumplido —las imágenes sólo se construyen tras pasar las pruebas y llevan el commit en el nombre— habría puesto un ✅ en la tabla sobre un requisito cuya letra no se cumple, que es justo lo que esta auditoría viene a quitar. Así que se **matiza el requisito** en [`docs/requisitos.md`](docs/requisitos.md): cuando las pruebas pasan, el CI construye las imágenes y **deja la compilación marcada como correcta en el estado del commit**, y las versiones publicadas se identifican **por su tag `vX.Y.Z`**. Es lo que de verdad identifica una compilación correcta en este proyecto.
+
+**R8.6 queda a revisar**, sin decidir: pide flujos separados para pull requests y para `main`, y hoy los dos pasan por el mismo `ci.yml`.
+
+#### Los diagramas que faltaban, y uno que es un plano
+
+[`docs/arquitectura.md`](docs/arquitectura.md) decía reflejar «el estado tras cerrar H2 y la primera pantalla de H3», y sus nueve diagramas describían el sistema corriendo en un portátil: ni contenedores, ni Caddy, ni volúmenes, ni TLS. Todo lo de H4 vivía sólo en la prosa de este README. Entran tres secciones y se amplía una:
+
+- **§10 · Despliegue.** Los tres contenedores, qué publica cada uno y qué se queda en la red interna, el volumen del historial y el certificado fuera de la imagen. Y por qué no hay `depends_on`: ningún servicio necesita a otro para arrancar.
+- **§11 · El camino de una petición en despliegue.** Del navegador al orquestador, pasando por Caddy, uvicorn y el limitador. **Es el diagrama que habría evitado el fallo de #169**: dibuja el prefijo `/api` viajando —Caddy lo quita, uvicorn lo vuelve a poner, Starlette lo quita al enrutar— y un middleware que corre justo en medio.
+- **§12 · Plano de H5.** El agente: `POST /chat`, el bucle contra Ollama, las herramientas por MCP y el sondeo. Lista lo decidido, con la medida de la que sale cada cosa, y **lo que todavía no está decidido**: cómo llega la API a la A40, quién arranca Ollama y cuándo suelta la GPU, las dos descripciones que se confunden y la ficha de modelo del agente.
+- **§7 · Capas** gana `agent/` e `integrations/llm/`, para que se vea la regla que el agente tiene que respetar: hablar con las herramientas por MCP, importando `core/mcp/`, nunca a través de `api/`.
+
+**Lo punteado es plano, no sistema.** La convención va en la cabecera del documento: lo que tiene el borde o la flecha discontinuos es el diseño de H5 declarado el 2026-09-23, y se contrastará con lo construido al cerrar el hito. El orden no fue casual: se decidió **medir primero** —el spike rehecho en la A40, PR #176— para que el plano no se dibujara sobre cifras de otra GPU, y dibujarlo **antes** de construir para que sirva de guía mientras se construye. Lo que salga distinto al cerrar H5 será tan informativo como lo que salga igual.
+
+#### Dos cosas que sólo aparecieron al verlos dibujados
+
+**Al plano de H5 le faltaba la flecha que más importa.** En la primera versión de §12, el resultado estructurado de una herramienta llegaba al agente y, sin que nada lo llevara, aparecía en la respuesta a la SPA. Lo cazó una pregunta mirando el dibujo: *¿el resultado se queda en el agente?* En la prosa el hueco no se veía, porque «`GET /chat/{id}` da estado y traza acumulada» suena completo. El diagrama corregido añade el **trabajo en memoria** como participante, y hace explícito que el resultado va a **dos sitios**: de vuelta al modelo, para que narre, y a la traza, que es lo que lee la SPA. De ahí salen las tarjetas (R13.3, R6.13), así que **el veredicto nunca pasa por el texto del modelo** (R13.4), que es justo donde el spike vio al modelo inventarse detalles. De paso, el sondeo pasó a dibujarse **a la vez** que el bucle (`par`), que es como funciona: la traza crece entre sondeo y sondeo.
+
+**El despliegue salía ilegible en GitHub.** Con `flowchart LR` y subgrafos anidados ocupaba demasiadas columnas, y GitHub lo encoge hasta que cabe en los ~846 px de ancho de la página, así que el texto quedaba diminuto. Pasándolo a `TB` las columnas se vuelven filas. Se decidió dibujando las dos versiones a ese mismo ancho.
+
+**Cómo se comprobaron.** Primero con Mermaid 11 —la misma versión principal que usa GitHub—, dibujando los cuatro diagramas nuevos y sacando el código del propio fichero para no copiar diferencias. Después en GitHub: reconoce los doce bloques, crea el iframe de cada uno y no muestra ningún aviso de error. El navegador integrado no llega a dibujar esos iframes con su panel oculto, así que el vistazo final a §11 y §12 en GitHub se hace desde un navegador normal. Y una trampa del propio documento que vale para cualquier diagrama nuevo: **en una etiqueta de Mermaid, `#` y `;` rompen el bloque**. Por eso dentro de los dibujos se escribe «issue 169» y no «#169».
+
+#### La auditoría de `estructura.md`
+
+[`docs/estructura.md`](docs/estructura.md) se había ido actualizando por partes en #162, #163 y #164. Aquí se repasa entero, en dos pasadas: una contra el árbol —qué nombra que no existe y qué existe sin nombrar— y otra contra el código, porque sus secciones de bugs, tensiones y deuda son **afirmaciones** que caducan sin avisar.
+
+**Lo que faltaba:** `api/export_openapi.py`, que exporta el contrato del que sale el cliente Angular; `nlp/dedicated.py`, la señal opaca, cuando la tabla recogía las otras tres; **siete de los once guiones de `evaluation/`**, cada uno con su issue; `.github/`, con sus tres workflows; los ficheros de configuración de la raíz; y la cáscara del frontend.
+
+**Lo que se había quedado viejo:**
+
+- **El bug 2 decía que faltaba medir** el acoplamiento entre el léxico y el lineal y añadirlo a la ficha. **Se hizo en #109**, y el resultado era peor que una correlación: el acoplamiento es por construcción. Kappa 0,880 en Chakraborty dev, pero en el 50 % de los titulares el vector sale vacío y las dos señales responden «no» sin mirar; con contenido, el acuerdo baja al 88,0 %, y al 59,1 % en Webis-17. La ficha lo publicaba desde entonces; el documento no se había enterado.
+- **La deuda de docstrings decía «19 de 30»**, y hoy son **16 de 40**. Se reproduce con:
+
+  ```bash
+  .venv/bin/python -c "import ast, pathlib; modulos = [modulo for modulo in pathlib.Path('backend').rglob('*.py') if modulo.name != '__init__.py' and 'evaluation' not in modulo.parts]; print(sum(ast.get_docstring(ast.parse(modulo.read_text())) is None for modulo in modulos), 'de', len(modulos))"
+  ```
+
+- `main.py` no mencionaba `analyze_headline` (#107) ni `configurar_red` (#164), y la fila de `tests/` no nombraba sus dos excepciones, que prueban el repositorio en sí: `test_arquitectura.py` y `test_compose.py`.
+
+**Lo que sigue siendo cierto se ha comprobado de nuevo, y se ha enlazado.** El bug 1 —`linear.py` lee su JSON al importar— sigue ahí, igual que los tres renombrados propuestos. Los dos están recogidos en **#108**, que el documento no mencionaba ni una vez. La tensión 5 (`vocabulario.ts`, que usan tres pantallas desde `analisis/`) gana una nota: el momento de moverla que ella misma señalaba llega con el chat de H5.
+
+La cabecera lo deja fechado: *revisado entero contra el árbol en #173*. La segunda pasada contra el árbol ya sólo encuentra falsos positivos conocidos.
+
+#### La tabla de requisitos, al día
+
+| | Antes | Ahora |
+|---|---|---|
+| **R3** | ◑ «sólo inglés, y R3.9 a medias» | ✅ R3.9 se cumple entero desde #119 y #87, y «sólo inglés» no es un hueco: **R3.4 pide expresamente inglés** y deja el español como mejora futura |
+| **R7** | ⬜ H4 | ✅ compose, red interna, volumen, puertos y configuración por entorno |
+| **R8** | ◑ | ◑ R8.4 cumplido, R8.5 matizado, R8.6 a revisar (ver arriba) |
+| **R12** | ◑ faltaba sanear el texto de excepción | ✅ con #89, #165 y #169, y el matiz de que un límite por IP no para el abuso desde muchas IPs |
+| **R13** | ⬜ | ⬜ sin construir, con el spike rehecho y el diseño declarado como plano en §12 |
+
+**R7.4 merece una nota.** Pide arrancar los servicios «en el orden correcto», y el compose no tiene `depends_on`, a propósito desde #164: con la API caída la web sigue sirviendo y el indicador de salud explica el 502, y con el MCP caído sólo se degrada la pantalla de Sistema. Se da por cumplido con una lectura que conviene dejar escrita: **si ningún servicio depende de otro para arrancar, cualquier orden es el correcto**, y `up --wait` deja sanos a los tres. No es el caso de R8.5: allí la letra no se podía cumplir; aquí sí se cumple, sólo que con una lectura.
+
+### El spike del agente, rehecho en la A40 (22–23 sep 2026, PR #176)
 
 Las cifras del spike #82 salieron de una GTX 1650 SUPER con 4 GB, donde el modelo entraba **a medias** —17 de 26 capas en la GPU—. Desde el 16 de septiembre hay acceso a la máquina 2, con una A40 de 46 GB, y es ahí donde correrá el agente. Se rehace **antes de planificar H5** por dos razones: aquellos números no describen esta máquina, y los diagramas de #173 van a dibujar el diseño de H5 como guía del hito; un diseño dibujado sobre cifras de otra GPU sería una suposición con forma de plano.
 
