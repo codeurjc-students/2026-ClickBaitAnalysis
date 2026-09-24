@@ -7,8 +7,10 @@ on:
     branches: [main]
 
 jobs:
+  # El nombre del trabajo NO se cambia: la protección de main exige el check
+  # `only-from-dev` por su nombre. El runner, fijado como en ci.yml (#178).
   only-from-dev:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - name: Verificar que el PR viene de dev
         run: |

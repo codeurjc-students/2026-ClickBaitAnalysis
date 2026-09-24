@@ -18,10 +18,14 @@
 #      por la propia medida.
 #   2. Commit 833ed15: los casos REALES de una PR, sin `load`, contra la caché
 #      que había dejado la versión 1.
-#   3. Esta versión: la misma, con un trabajo `calentar` delante. Hace falta
-#      desde que `ci.yml` dejó de usar caché (ver abajo): sin él, nadie la
-#      escribe, y una ejecución manual mediría en frío creyendo medir en
-#      caliente, sin que nada avisara.
+#   3. Commit 0ba35a3 (el merge de #173): la misma, con un trabajo `calentar`
+#      delante. Hace falta desde que `ci.yml` dejó de usar caché (ver abajo):
+#      sin él, nadie la escribe, y una ejecución manual mediría en frío
+#      creyendo medir en caliente, sin que nada avisara.
+#   4. Esta versión (#178): la misma, con `setup-buildx-action@v4` y
+#      `build-push-action@v7` en vez de v3 y v6, que corrían sobre Node 20,
+#      deprecado en los runners. Las cifras del README son de las versiones
+#      1 a 3: una ejecución nueva no se compara con ellas sin decirlo.
 #
 # Cada escenario simula su cambio DENTRO del runner, añadiendo una línea a un
 # fichero justo antes de construir. No se commitea nada, y el escenario queda
@@ -72,9 +76,9 @@ jobs:
         imagen: [backend, web]
     steps:
       - uses: actions/checkout@v5
-      - uses: docker/setup-buildx-action@v3
+      - uses: docker/setup-buildx-action@v4
       - name: Construir escribiendo la caché
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: .
           file: docker/${{ matrix.imagen }}.Dockerfile
@@ -127,12 +131,12 @@ jobs:
           echo '${{ matrix.linea }}' >> '${{ matrix.fichero }}'
           git diff --stat
 
-      - uses: docker/setup-buildx-action@v3
+      - uses: docker/setup-buildx-action@v4
 
       # Sin `load` y sin `push`: comprobar que la imagen construye no necesita
       # sacarla de BuildKit. Y sin `cache-to`: sólo se lee la caché.
       - name: Construir
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: .
           file: ${{ matrix.dockerfile }}
