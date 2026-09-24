@@ -1238,6 +1238,61 @@ Añadir el registro a `/analyze` convirtió, sin avisar, todos los tests de esa 
 
 `tests/api/test_history.py` cubre los dos lados por separado —el almacén llamando a sus funciones, el endpoint por HTTP— porque responden preguntas distintas: si los datos sobreviven y salen en orden, y si la decisión de «una entrada por análisis» se sostiene de verdad.
 
+### El CI, fijado a su sistema y fuera de Node 20 (#178)
+
+El CI llevaba desde `v0.5.0` avisando de dos caducidades. Ninguna rompía nada, y las dos iban a romperlo **sin que nadie tocara el repositorio**: una por fecha y la otra por retirada. Es la clase de fallo que no aparece en ninguna PR, porque no lo trae ningún cambio.
+
+#### Lo que avisaba
+
+| Aviso | Nivel | Trabajos |
+|---|---|---|
+| `ubuntu-latest` pasa a Ubuntu 26 a partir del **2026-10-19** ([runner-images#14748](https://github.com/actions/runner-images/issues/14748)) | aviso | los cuatro que usaban `latest`: `test`, `frontend` e `imagenes` en `ci.yml`, y `only-from-dev` en `protect-main.yml` |
+| Node 20 está deprecado: las acciones que lo piden ya se ejecutan **forzadas sobre Node 24** | advertencia | `frontend` (`setup-node@v4`) e `imagenes` (`setup-buildx-action@v3` y `build-push-action@v6`), y las mismas dos de Docker en `medir-imagenes.yml` |
+
+Leídos en las anotaciones de cada trabajo de la ejecución `35899720335` (push a `dev`, 2026-09-23). El pendiente que dejó #173 hablaba de «los tres trabajos» en `latest`, y eran cuatro: `protect-main.yml` sólo corre en las PRs a `main`, así que no aparece en ninguna ejecución del día a día.
+
+#### `ubuntu-24.04`, y no 26.04
+
+Fijar el runner no es elegir el sistema más nuevo, es **dejar de heredar el cambio por fecha**. `ubuntu-24.04` es:
+
+- lo que había detrás de `latest` al fijarlo (Ubuntu 24.04.5, imagen `ubuntu24/20260907.300`), así que el CI sigue exactamente igual;
+- el sistema de la máquina 1 (24.04.4);
+- y el que ya usaba `medir-imagenes.yml` desde #173, fijado por la misma razón.
+
+Pasar a 26.04 será una decisión con su propia ejecución —por ejemplo, cuando la máquina 1 cambie de versión—, no un efecto del calendario.
+
+**Lo que fija la etiqueta y lo que no.** Fija el **sistema**, no el software del runner: GitHub renueva la imagen a menudo, y con ella Docker, git o el propio runner. Por eso las condiciones de una medida llevan la **versión de la imagen**, que sale en el log de cada trabajo («Runner Image»), y no sólo la etiqueta. Python y Node sí quedan fijos, pero no por el runner: los instalan `setup-python` y `setup-node` en la versión que se les pide.
+
+#### Las acciones, a su última versión principal
+
+| Acción | Antes | Ahora | Cambios incompatibles | Por qué no nos afectan |
+|---|---|---|---|---|
+| `actions/setup-node` | v4 (`49933ea`) | **v7** (`8207627`, v7.0.0) | v5 activa la caché sola si `package.json` declara `packageManager`, y v6 la limita a npm | el nuestro lo declara (`npm@10.9.8`), pero el trabajo ya pedía `cache: npm` a mano: el comportamiento es el mismo |
+| `docker/setup-buildx-action` | v3 (`8d2750c`) | **v4** (`f87e599`, v4.4.1) | quita entradas y salidas deprecadas | no le pasamos ninguna |
+| `docker/build-push-action` | v6 (`10e90e3`) | **v7** (`c3c9e26`, v7.4.0) | quita variables de entorno deprecadas y el exportador antiguo del resumen | no usamos ninguno |
+
+Los commits son aquellos a los que apuntaba cada etiqueta el 2026-09-24. Las tres versiones nuevas declaran `node24`. Se sube a la **última** principal y no a la primera con Node 24 (v5, en `setup-node`), porque los cambios incompatibles de por medio se asumen igual, y quedarse en una intermedia sólo adelanta la próxima subida. Se leyeron las notas de cada versión principal entre medias, y ninguna toca algo que usemos.
+
+`actions/checkout@v5` y `actions/setup-python@v6` **no se tocan**: ya corren sobre Node 24 y no avisan. Subirlas sería un cambio sin motivo.
+
+**El instrumento de medida sube con ellas.** `medir-imagenes.yml` usa las mismas dos acciones de Docker, y su cabecera anota una cuarta versión: las cifras de #173 salieron de v3 y v6, y una ejecución nueva no se compara con ellas sin decirlo.
+
+**La misma pregunta, un nivel más abajo.** `@v7` tampoco es fijo: una etiqueta principal se mueve con cada versión menor, y por eso la tabla da el commit del día. Fijar las acciones por commit lo cerraría —es además lo que se recomienda contra una acción comprometida—, a cambio de actualizarlas a mano. No se hace aquí: es otra decisión, y esta issue era la de las caducidades.
+
+#### Cómo se comprobó
+
+El objetivo era que **no cambiara nada**, así que la prueba no es una cifra, sino una ejecución sin avisos y en verde:
+
+| Condiciones | |
+|---|---|
+| Fecha | 2026-09-24 |
+| Ejecución | **[PENDIENTE: ejecución del CI de la PR]** |
+| Runner | `ubuntu-24.04` · imagen **[PENDIENTE: versión de «Runner Image»]** |
+| Avisos | **[PENDIENTE: anotaciones de los tres trabajos]** |
+| Acciones descargadas | **[PENDIENTE: commits que registra el log, contra los de la tabla]** |
+
+`only-from-dev` no corre en una PR a `dev`: su cambio de runner se comprobará en la PR de la release `v0.6`, que es la primera a `main`.
+
 ### Diagramas del despliegue, plano de H5 y auditoría de la documentación (#173)
 
 H4 cambió el sistema entero —contenedores, proxy, TLS, volúmenes— y la documentación de arquitectura se quedó en H2. Esta issue la pone al día en tres frentes: **los diagramas que faltaban**, más uno que no describe el sistema sino el que se va a construir; **una auditoría de `estructura.md`** contra el árbol real; y algo que apareció al revisar la tabla de requisitos y que no era de documentación: **R8.4 y R8.5 no se cumplían**, y nadie lo había anotado.
@@ -1300,7 +1355,7 @@ El trabajo `imagenes` de [`ci.yml`](.github/workflows/ci.yml) sale directamente 
 - **`needs: [test, frontend]`**: sólo se construye si las pruebas pasan. No gasta minutos en una PR que ya está roja, y es la lectura literal de R8.5, «cuando las pruebas se superen». El precio es no correr en paralelo con ellas.
 - **Sin caché.** Empezó con ella, y se quitó tras la primera ejecución real (siguiente apartado).
 - **La imagen se nombra con el commit** aunque no se guarde, para que el registro diga qué se construyó.
-- Runner `ubuntu-latest`, como los otros dos trabajos del fichero. Fijarlos es un pendiente aparte, para los tres a la vez.
+- Runner `ubuntu-latest`, como los otros dos trabajos del fichero. Fijarlos es un pendiente aparte, para los tres a la vez. *(Hecho en #178, y eran cuatro: faltaba `only-from-dev`, de `protect-main.yml`.)*
 
 #### La primera ejecución real, y por qué se quitó la caché
 
@@ -1322,6 +1377,8 @@ Puestos juntos, los números dejaban a la caché sin argumento:
 | Lo que hay que entender | qué ramas leen la caché de cuál, quién la escribe, cuándo caduca | nada |
 
 Con caché, una PR corriente se ahorraba unos 30 s; a cambio, cada vez que había que rehacerla, el trabajo volvía a los 4 min y medio. En un repositorio público los minutos de Actions no se pagan, así que lo único en juego era el reloj, y **el peor caso sin caché es mejor que el peor caso con ella**. Se quitó.
+
+**La previsión se comprobó en la misma PR.** Sin caché (ejecución `35898359645`), el backend tardó **67 s** en construir, en un trabajo de 96 s, y la web **22 s**, en uno de 37 s: lo previsto era ~75 s y ~20 s. Con `test` en 52 s y `frontend` en 29 s, el CI entero de una PR se queda en unos 2,5 min de reloj. El push a `dev` tras el merge (ejecución `35899720335`) dio lo mismo: 82 s y 36 s los dos trabajos de imágenes, y 2 min 22 s el CI entero. *(Este párrafo llegó con #178: la PR de #173 se mergeó antes de añadirlo.)*
 
 El instrumento de medida sí la conserva, porque su pregunta es justamente cuánto ahorra. Para que siga siendo repetible se le añadió un trabajo `calentar` delante: sin él, nadie escribiría la caché, y una ejecución manual mediría en frío creyendo medir en caliente, sin que nada lo avisara.
 
