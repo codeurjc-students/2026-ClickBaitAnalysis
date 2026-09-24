@@ -1238,6 +1238,100 @@ Añadir el registro a `/analyze` convirtió, sin avisar, todos los tests de esa 
 
 `tests/api/test_history.py` cubre los dos lados por separado —el almacén llamando a sus funciones, el endpoint por HTTP— porque responden preguntas distintas: si los datos sobreviven y salen en orden, y si la decisión de «una entrada por análisis» se sostiene de verdad.
 
+### Cómo llega la API a la A40: la red, el túnel y lo que cuesta arrancar Ollama (#181)
+
+§12 de [`docs/arquitectura.md`](docs/arquitectura.md), el plano de H5, dejaba sin decidir dos cosas que condicionan todo lo demás: **cómo llega la API, en la máquina 1, a Ollama, en la máquina 2**, y **quién arranca Ollama y cuándo suelta la GPU**, en una máquina compartida cuya norma es no dejarla bloqueada. Esta issue, la primera de H5, las mide antes de diseñar nada. No construye nada: en el código entran tres guiones en `spikes/`.
+
+**Condiciones de la medida:**
+
+| | |
+|---|---|
+| Fecha | 2026-09-24. Por la mañana, un reconocimiento y dos medidas desde una carpeta temporal; por la tarde, las tres repetidas con los guiones del repositorio, que son las que se citan |
+| Máquina 1 | `gongarcia.tfg.etsii.urjc.es` — Ubuntu 24.04.4, Docker 29.8.1, OpenSSH 9.6p1 · pública `193.147.60.40`, privada `192.168.116.96` |
+| Máquina 2 | `gserver2.tfg.etsii.urjc.es` (`gpuserver2`) — NVIDIA A40 de 46.068 MiB en *pass-through*, controlador 580.173.02, **modo persistente desactivado** · pública `193.147.60.32`, privada `192.168.116.87` |
+| Servidor de modelos | Ollama 0.34.2, en `~/.local/ollama` |
+| Modelo | `qwen3.5:27b`, ID `7653528ba5cb`, pesos `sha256:d4b8b4f4c350…` (16,2 GiB), con `num_ctx` 8192 |
+| Guiones | [`spikes/red_entre_maquinas.sh`](spikes/red_entre_maquinas.sh), [`spikes/ciclo_ollama.sh`](spikes/ciclo_ollama.sh) y [`spikes/contenedor_a_host.sh`](spikes/contenedor_a_host.sh), lanzados desde WSL |
+
+#### Lo que deja pasar la red
+
+Cada sondeo abre una conexión TCP y distingue tres respuestas, porque no significan lo mismo: **abierto**, hay alguien escuchando; **rechazado**, el paquete llega y la máquina contesta que no hay nadie, así que abrir el puerto bastaría; y **sin respuesta**, algo lo descarta por el camino, así que además habría que tocar un filtro.
+
+| Desde → hacia | 22 | Otros puertos | Ida y vuelta |
+|---|---|---|---|
+| fuera de la universidad → máquina 2 | abierto | 11434 y 11435, sin respuesta | — |
+| máquina 1 → máquina 2, por la IP pública | abierto | 11434 y 11435, sin respuesta | 1,5 ms |
+| máquina 1 → máquina 2, por la privada | abierto | 11434 y 11435, sin respuesta | 1,0 ms |
+| máquina 2 → máquina 1, por las dos | abierto | 443 abierto; 8000 y 11435, rechazados | 0,9 ms |
+
+Lo que dicen:
+
+- **Las dos máquinas comparten una red privada** (`192.168.116.0/24`), a un milisegundo. La red no es el problema: un bucle del agente tarda 13–36 s.
+- **La máquina 2 sólo acepta el 22, venga de donde venga.** Sin `sudo` allí, abrir un puerto es cosa del administrador, y aun abierto dejaría Ollama —que no tiene autenticación— al alcance de cualquiera en la red de una máquina compartida. De las dos opciones de §12, una queda fuera.
+- **La máquina 1 acepta de la 2 cualquier puerto**, y no tiene ninguna clave para salir por SSH.
+
+#### Un túnel, y en sentido inverso
+
+Sin el administrador el único camino es SSH, y queda decidir el sentido. §12 decía «un túnel SSH desde la máquina 1»; se decide **al revés: lo abre la máquina 2 hacia la 1** (`ssh -R`).
+
+| | Desde la máquina 1 (`-L`) | Desde la máquina 2 (`-R`) |
+|---|---|---|
+| Qué clave se autoriza, y dónde | una de la máquina 1, en la cuenta de la 2 | una de la máquina 2, en la máquina 1, que es nuestra |
+| Si se compromete la máquina 1, que está en internet | tiene una llave de la máquina compartida | no obtiene nada de la 2 |
+| Cuándo existe el túnel | lo decide la máquina 1, que tiene que saber si Ollama está arriba | mientras Ollama está arriba: lo abre quien lo arranca |
+
+Es una **desviación del plano**: ninguna de sus dos opciones era ésta. Queda escrita aquí para contrastarla al cerrar H5, y §12 no se corrige.
+
+Cómo se montaría, **pendiente de consultarlo con el tutor** porque la máquina 2 es compartida: un usuario **sin privilegios** en la máquina 1 (`tunel`, no `vmuser`, que tiene `sudo` sin contraseña), una clave dedicada en la 2, y en el `authorized_keys` de ese usuario la opción `restrict` con el reenvío como única excepción, y a una sola dirección. Si la clave se filtrara desde la máquina compartida, lo único que daría es escuchar en ese puerto.
+
+#### Adónde tiene que llegar el túnel: el contenedor no ve el `127.0.0.1` del host
+
+Un `ssh -R` escucha en el host de la máquina 1, y con `gatewayports no` —lo que tiene su `sshd`— sólo en `127.0.0.1`. Pero quien tiene que llegar a él es la API, que corre en un contenedor, y para un contenedor `127.0.0.1` es él mismo. Se probó sin túnel y sin claves: tres escuchas falsas en el 11434 del host, cada una contestando en qué dirección está, y un contenedor desechable con la imagen del backend, en la red del compose.
+
+| Dónde escucha, en el host | Desde el contenedor |
+|---|---|
+| `127.0.0.1`, lo que haría un `ssh -R` con la configuración de hoy | **rechazado**: esa dirección es el propio contenedor |
+| `172.17.0.1`, puerta de enlace de la red por defecto de Docker | **llega**, y también por nombre: `host.docker.internal` con `host-gateway` resuelve ahí |
+| `172.18.0.1`, puerta de enlace de la red del compose | llega, pero esa dirección depende del orden en que se crean las redes |
+
+De ahí sale lo que necesitará el túnel: **escuchar en `172.17.0.1:11434`**. En el `sshd` de la máquina 1 eso exige `GatewayPorts clientspecified`, que se puede acotar al usuario del túnel con un `Match User`, y `permitlisten="172.17.0.1:11434"` en su clave; en el compose, `extra_hosts: host.docker.internal:host-gateway` para la API. Nada de eso se ha aplicado todavía.
+
+#### Lo que ocupa Ollama, y lo que tarda en estar listo
+
+Dos modos, por lo que explica la segunda columna: **la máquina tal cual** y **con la GPU sostenida abierta** por un `nvidia-smi -l 1`, que no ocupa memoria ni cómputo.
+
+| | Tal cual | GPU sostenida abierta |
+|---|---|---|
+| Abrir la GPU (un `nvidia-smi`) | 2,04 s | 0,08 s |
+| `ollama serve` hasta que responde, sin modelo | **27,04 s** | **4,19 s** |
+| Primera petición: carga del 27B y respuesta | 9,18 s (`load_duration` 8,89) | 6,43 s (6,14) |
+| **De cero a la primera respuesta** | **~36 s** | **~11 s** |
+| Segunda petición, con el modelo cargado | 0,22 s | 0,23 s |
+| GPU con el servidor arrancado y sin modelo | **0 MiB**, ningún proceso | 0 MiB |
+| GPU con el 27B cargado | 17.311 MiB | 17.311 MiB |
+| Descargado tras un `keep_alive` de 15 s | a los 16,0 s (la GPU, confirmada en 0 MiB a los 17,8: lo que tarda el propio `nvidia-smi`) | a los 15,4 s, y en 0 MiB a los 15,5 |
+
+Los pesos estaban enteros en la caché de disco en las dos tandas (100 % de 16,2 GiB, medido con `mincore`). Por la mañana, desde la carpeta temporal, salió lo mismo: 27,16 s y 9,16 s tal cual; 4,23 s y 6,56 s con la GPU abierta. Y en todas, al terminar, la GPU quedó en 0 MiB y sin ningún proceso propio, que es la norma de la máquina.
+
+Lo que dicen:
+
+- **Un Ollama arrancado sin modelo no ocupa la GPU**: ni memoria, ni un proceso en `nvidia-smi`. Lo que la ocupa es el modelo, y sólo hasta que vence el `keep_alive`; entonces se descarga entero y la GPU vuelve a 0. **Cuándo suelta la GPU** ya tiene respuesta: cuando se le configure.
+- **El arranque lento no es de Ollama, es de la máquina.** La A40 está en *pass-through* con el **modo persistente desactivado**: cuando nadie la tiene abierta, el controlador la desinicializa, y el siguiente que la abre paga ~2 s, hasta un `nvidia-smi`. Ollama la abre muchas veces —al arrancar, para descubrir qué GPU hay; antes de cada carga, para ver la memoria libre; al descargar—, y en su registro se ven vigilantes que vencen esperando. Sostenida abierta, que es lo que haría el modo persistente, el arranque pasa de 27 a 4 s. Curiosamente, el servicio `nvidia-persistenced` figura como activo y aun así el modo sale desactivado.
+- **Eso corrige una lectura del spike rehecho en la A40**, que atribuía a un «calentamiento de CUDA» los ~8 s de más de la primera petición. Era esto.
+- **El `num_ctx` por defecto de Ollama 0.34.2 depende de la VRAM**: el registro dice `default_num_ctx=32768` en la A40. El defecto no es un número, cambia de máquina en máquina, y es otra razón para lo que ya estaba decidido: el agente fija `num_ctx`.
+
+**Quién arranca Ollama queda pendiente, pero ya con los números para decidirlo.** Dejar el servidor arrancado no ocupa la GPU, y arrancarlo bajo demanda cuesta ~36 s, o ~11 s si se activa el modo persistente. Las dos cosas se consultaron al tutor el 2026-09-24: si se puede dejar arrancado y, si no, si el administrador puede activar el modo persistente. Si se puede dejar arrancado, el modo persistente casi deja de importar: sólo recortaría unos 3 s a cada primera carga.
+
+#### Trampas del instrumento
+
+- **A la máquina 2, por SSH y por nombre.** Su huella está en `known_hosts` por nombre, y por IP SSH se queda esperando a que alguien la confirme, sin error y sin salir. El primer reconocimiento se colgó así; los guiones entran por nombre y con `BatchMode`, que falla en vez de esperar.
+- **`nvidia-smi` no sirve para sondear allí**: con 2 s por llamada, marca la resolución de lo que se mida. La espera del `keep_alive` sondea la API de Ollama cada medio segundo y deja `nvidia-smi` para confirmar al final.
+
+#### Lo que queda
+
+- **Montar el túnel y medir cuánto añade a una petición**, cuando conteste el tutor. Por eso la PR dice `Refs #181` y no cierra la issue.
+- **El arranque con la caché de disco fría**: sin `sudo` no se puede vaciar, y en todas las medidas los pesos estaban enteros en memoria.
+
 ### El CI, fijado a su sistema y fuera de Node 20 (#178)
 
 El CI llevaba desde `v0.5.0` avisando de dos caducidades. Ninguna rompía nada, y las dos iban a romperlo **sin que nadie tocara el repositorio**: una por fecha y la otra por retirada. Es la clase de fallo que no aparece en ninguna PR, porque no lo trae ningún cambio.
@@ -1511,7 +1605,7 @@ Lo que faltaba era el **porqué**, y se mide sin estimar: se manda una petición
 
 - **Seleccionar herramienta**: mediana de **1,3 s** el pequeño y **8,3 s** el de 27B. El pequeño en la GTX daba 8,8 s: un modelo más de diez veces mayor responde aquí como el pequeño allí.
 - **Memoria**: el 27B ocupa **16 GB, al 100 % en GPU**; los dos modelos a la vez, **20,7 GB de 46**.
-- **Arranque** ([`spikes/tool_calling_carga.py`](spikes/tool_calling_carga.py), que lee `load_duration`): cargar un modelo cuesta **3–7 s**, y no es una cifra fija — el 2B cargó en 6,8 s el día 22 y en 3,1 s el 23; el 27B, en 5,1 y 5,6 s. Un servidor recién arrancado paga además, una sola vez, unos 8 s de calentamiento de CUDA: por eso la primera petición del día 22 tardó **15 s**. En el script esos segundos se los lleva la llamada que saca el modelo de la VRAM, que es lo primero que recibe el servidor, y no aparecen en su tabla. En la GTX la carga en frío eran **150,6 s**. Con una salvedad para todas: la caché de disco estaba caliente, y tras un reinicio real de la máquina costará más; no se ha medido.
+- **Arranque** ([`spikes/tool_calling_carga.py`](spikes/tool_calling_carga.py), que lee `load_duration`): cargar un modelo cuesta **3–7 s**, y no es una cifra fija — el 2B cargó en 6,8 s el día 22 y en 3,1 s el 23; el 27B, en 5,1 y 5,6 s. Un servidor recién arrancado paga además, una sola vez, unos 8 s de calentamiento de CUDA: por eso la primera petición del día 22 tardó **15 s**. *(Revisado en #181: no era un calentamiento de CUDA, sino la GPU volviéndose a inicializar, porque tiene el modo persistente desactivado. Ver «Cómo llega la API a la A40».)* En el script esos segundos se los lleva la llamada que saca el modelo de la VRAM, que es lo primero que recibe el servidor, y no aparecen en su tabla. En la GTX la carga en frío eran **150,6 s**. Con una salvedad para todas: la caché de disco estaba caliente, y tras un reinicio real de la máquina costará más; no se ha medido.
 
 #### El bucle y los prompts: el tamaño corrige lo que el prompt sólo desplaza
 
@@ -1538,7 +1632,7 @@ Es la conclusión del spike —**el prompt no quita el error, lo desplaza a form
 
 - **Punto de partida: `qwen3.5:27b` con `04-preciso` o `03-estricto`**, sin elegir entre los dos: son dos consultas por variante y una sola ejecución, y el spike ya vio que la variación entre ejecuciones pesaba más que la diferencia entre prompts. Entre ~4 s con errores que no se ven y ~20 s con respuestas fieles, en un TFG cuyo eje es la explicabilidad, no hay mucho que pensar.
 - **`num_ctx` es configuración explícita del agente, nunca el defecto.** El catálogo ocupa 2.438 tokens hoy y cada herramienta nueva lo agranda sin que nadie lo decida.
-- **`POST /chat` asíncrono sigue siendo lo correcto, pero cambia el argumento.** Ya no son los 150 s de carga —ahora 3–7 s—, sino **13–36 s por bucle** con el 27B más el arranque bajo demanda de la máquina 2, que no se ha medido.
+- **`POST /chat` asíncrono sigue siendo lo correcto, pero cambia el argumento.** Ya no son los 150 s de carga —ahora 3–7 s—, sino **13–36 s por bucle** con el 27B más el arranque bajo demanda de la máquina 2, que no se ha medido. *(Medido en #181: ~36 s de cero a la primera respuesta, o ~11 s con la GPU sostenida abierta.)*
 - **Las descripciones de `detect_clickbait` y `detect_clickbait_linear` hay que separarlas** antes de construir el agente: es el único fallo de selección que queda, y es de los docstrings.
 - **Juzgar las respuestas no se puede hacer con expresiones regulares.** La criba dio 0/2 donde había 2/2 errores. Se lee a mano o hace falta otro modelo que juzgue — lo que queda anotado como trabajo para H5: comparar varios modelos **como jueces** de las respuestas e iterar los prompts de sistema con esa medida delante.
 
