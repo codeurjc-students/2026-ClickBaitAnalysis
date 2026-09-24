@@ -1,3 +1,12 @@
+"""`ToolResult`: el sobre que devuelven los clientes y los detectores.
+
+`success` y, según el caso, `data` o `error`: un fallo de una API o de un modelo
+viaja entre capas como valor, no como excepción. **No es lo que devuelven las
+tools MCP**: desde #100 cada tool declara su propio tipo de salida y LANZA al
+fallar, porque con `-> ToolResult` el protocolo publicaría el sobre y habría
+dos formas de decir «falló» a la vez. La tool desenvuelve con `unwrap()`.
+"""
+
 from typing import Any
 
 # Usado para validación de campos.

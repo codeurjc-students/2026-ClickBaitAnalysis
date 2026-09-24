@@ -1,3 +1,16 @@
+"""Backend NLP remoto: la Inference API de Hugging Face (`HFClient`).
+
+Implementa `NLPBackend` sobre `BaseAPI`, con tres reintentos ante un timeout o
+un 503 (E4-02). Es, con `factory.py`, **el único módulo de la capa NLP que lee
+`settings`**, porque necesita el token. Se llamaba `client.py` hasta #108, que
+lo renombró para que el par `remote.py` / `local.py` diga lo que es: dos
+implementaciones de la misma interfaz.
+
+Ojo: `hf-inference` NO sirve ningún modelo de clickbait. El dedicado responde
+`400 Model not supported by provider`, y es permanente, así que en despliegue
+va `nlp_backend=local` (#156).
+"""
+
 from backend.config.settings import settings
 from backend.core.base_api import BaseAPI
 from backend.core.models import ToolResult

@@ -1,3 +1,16 @@
+"""Señal interpretable: una regresión logística sobre las pistas del léxico.
+
+Inferencia en Python puro —`sigmoid(w·x + b)`, sin sklearn ni torch— con los
+pesos de `linear_clickbait.json`, que entrena y serializa
+`evaluation/train_linear.py` sobre el split de entrenamiento de Chakraborty
+(#72). Devuelve la probabilidad de clickbait y los cues que más la empujaron,
+que son su explicación (R3.8).
+
+Está ACOPLADA al léxico por construcción: `featurize_cues` llama a
+`lexical.detect`, así que donde el léxico no ve nada, el vector sale vacío
+(#109; lo cuenta la ficha).
+"""
+
 import json
 import math
 from collections import Counter

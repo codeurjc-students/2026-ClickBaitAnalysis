@@ -1,3 +1,15 @@
+"""Señal híbrida: la incoherencia entre titular y cuerpo (`IncoherenceDetector`).
+
+Embeddings de los dos textos con sentence-transformers y similitud del coseno:
+por debajo de `THRESHOLD` (0,3, calibrado en #92), el titular no se corresponde
+con lo que cuenta la noticia. El rasgo es opaco, pero la decisión es un corte
+legible, y por eso el umbral viaja con el resultado (#133).
+
+No tiene vía remota: corre siempre en local, y sin `sentence-transformers`
+falla con cualquier `nlp_backend`, diciendo qué falta (#158). El id del modelo
+lo RECIBE, con la ficha como defecto (#119).
+"""
+
 import asyncio
 
 import structlog

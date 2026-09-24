@@ -1,3 +1,18 @@
+"""La base de los clientes HTTP de las integraciones: `BaseAPI`.
+
+Cada cliente (Guardian, NYT, el tiempo, Hugging Face) hereda de aquí y declara
+sólo lo suyo como atributos de clase: URL, autenticación y límites. Lo común lo
+pone `make_request`: el límite de peticiones de cada instancia (`aiolimiter`),
+los reintentos —sólo ante un timeout o un 503, y sólo si `MAX_RETRIES` los
+pide: Guardian y NYT no reintentan—, la cuenta de llamadas y la cuota restante.
+
+Devuelve siempre un `ToolResult`: un fallo viaja como valor, no como excepción.
+Sus mensajes de error SON públicos —salen por `/analyze`, por
+`/tools/.../execute` y por las tools MCP—, así que dicen qué pasó con las
+palabras de `core/errores.py`, y el detalle (el cuerpo del proveedor, el texto
+de la excepción) va al log (#89).
+"""
+
 import asyncio
 
 import httpx

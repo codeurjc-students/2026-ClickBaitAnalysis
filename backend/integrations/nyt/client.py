@@ -1,3 +1,11 @@
+"""Cliente de la Article Search API de The New York Times.
+
+Con tema, ordena por relevancia; sin él, por fecha. Con `sort=newest`, `q` deja
+de filtrar y devuelve lo último publicado, sea de lo que sea (#47). La clave va
+en la URL, y la cuota es de **500 llamadas al día** (`DAILY_LIMIT`), que es lo
+que obliga a cachear `/health` (#169).
+"""
+
 from datetime import UTC, datetime, timedelta
 
 from backend.config.settings import settings
