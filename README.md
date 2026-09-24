@@ -1291,6 +1291,8 @@ El objetivo era que **no cambiara nada**, así que la prueba no es una cifra, si
 | Avisos | **ninguno** en los cuatro trabajos (`test`, `frontend` y las dos imágenes), y ninguna mención a Node 20 en sus logs |
 | Acciones descargadas | `setup-node@v7` → `8207627`, `setup-buildx-action@v4` → `f87e599` y `build-push-action@v7` → `c3c9e26`: los mismos commits de la tabla |
 
+*(La tabla se rellenó en una PR aparte, posterior a #179: aquella se mergeó antes del commit que sustituía las marcas.)*
+
 Los tiempos no se movieron: `test` 65 s, `frontend` 33 s, las imágenes 38 s (web) y 83 s (backend), y el CI entero 2 min 31 s de reloj, en la línea de las ejecuciones de #173.
 
 **Y la ejecución misma ilustra lo que la etiqueta no fija.** La del push a `dev` de la tarde anterior (`35899720335`) corrió sobre la imagen `20260907.300.1`; ésta, quince horas después, sobre la `20260920.314.1`. Mismo sistema, 24.04.5, y otra imagen, sin que nadie cambiara nada. Por eso la versión de la imagen va en las condiciones, y no sólo la etiqueta.
