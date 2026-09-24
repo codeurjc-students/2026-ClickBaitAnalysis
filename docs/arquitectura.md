@@ -324,8 +324,9 @@ sostiene el diseño es la inversa, y no se dibuja porque no existe:
   cualquier paquete nuevo, y `backend/agent/` llega con R13 siendo justo el caso
   donde reutilizar `api/` tienta.
 - **Los detectores no conocen la configuración.** `lexical`, `linear`,
-  `incoherence` y `dedicated` no importan `settings`; sólo lo hacen `client.py`,
-  que necesita el token, y `factory.py`, cuyo trabajo es leer configuración. Eso
+  `incoherence` y `dedicated` no importan `settings`; sólo lo hacen `remote.py`
+  (`client.py` hasta la issue 108), que necesita el token, y `factory.py`, cuyo
+  trabajo es leer configuración. Eso
   es lo que permite probarlos sin montar nada, y lo que hay que preservar al
   parametrizar sus umbrales.
 

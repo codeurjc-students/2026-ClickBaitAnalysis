@@ -1,3 +1,18 @@
+"""La salud de las integraciones: ¿responden las APIs de noticias?
+
+Sondea `weather`, `guardian` y `nyt` en paralelo, con una petición ligera a
+cada una, y lo publica por dos fachadas que comparten `check_health`: `GET
+/health` de la API REST y la tool MCP `health_check`, que se registra aquí.
+
+Dos límites que el nombre no dice:
+
+- **No cubre las señales NLP** (#147). Un verde aquí no dice nada de
+  `detect_clickbait`; la sonda útil sería por modelo, y no existe.
+- **Cada sondeo son tres peticiones externas reales**, con NYT limitado a 500
+  al día. Por eso se cachea `health_cache_s` (#169), y por eso el healthcheck
+  de compose no usa `/health` (#164).
+"""
+
 import asyncio
 import time
 from datetime import UTC, datetime

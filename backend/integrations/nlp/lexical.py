@@ -1,3 +1,15 @@
+"""Señal interpretable: las pistas léxicas y estructurales del clickbait.
+
+Busca en el titular cues de hipérbole y de referencia vaga —listas de
+Chakraborty, en `cues/`—, frases gancho y patrones de estructura (número
+inicial, interrogación final, mayúsculas, elipsis), y devuelve cada coincidencia
+con su posición. La evidencia ES la explicación: no hay ningún modelo detrás.
+
+`THRESHOLD = 1` —una pista basta— es el de mejor F1 (E4-03); con `2` es el modo
+conservador, de precisión ≈0,97, y #93 propone hacerlo configurable. Los tokens
+son de dos letras o más desde #69, para que la «I» de «A.I.» no cuente.
+"""
+
 import ast
 import re
 from pathlib import Path
@@ -36,14 +48,11 @@ PATTERNS = {
     "ellipsis": re.compile(r"\.\.\.|…"),  # ... o …
 }
 
-CATEGORIES = (
-    list(WORD_CUES) + list(PHRASE_CUES) + list(PATTERNS)
-)  # Usado para featurizar en el modelo linear
-
 # Pistas necesarias para considerarse clickbait.
 # Default t=1 (mejor F1≈0.85, P≈R). Modo conservador: t=2 (precisión≈0.97). TODO: Parametrizar
 
-# Creamos un orden para reutilizar en linear_model (igual que CATEGORIES).
+# Orden fijo de los cues, que es el de los rasgos del modelo lineal: lo usan
+# `linear.featurize_cues` y `evaluation/train_linear.py`.
 # No aplica PATTERNS (no se pueden determinar, son reglas)
 
 # Orden alfabético por defecto.

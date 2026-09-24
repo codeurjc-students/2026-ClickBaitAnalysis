@@ -1,3 +1,10 @@
+"""Cliente de la API del National Weather Service: alertas y previsión, en EE. UU.
+
+Es herencia del tutorial de MCP con el que empezó el proyecto (Épica 0): no
+tiene relación con el clickbait, se conserva por tradición y queda fuera de la
+cobertura a propósito (`.coveragerc`). No necesita clave de API.
+"""
+
 from backend.core.base_api import BaseAPI
 from backend.core.models import ToolResult
 

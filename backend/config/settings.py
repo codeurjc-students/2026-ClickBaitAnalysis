@@ -1,6 +1,18 @@
-# Base Settings: Base class for settings, allowing values to be overridden by environment variables.
+"""La configuración del sistema, leída del entorno o del `.env`.
 
-# This is useful in production for secrets you do not wish to save in code, it plays nicely with docker(-compose),
+Una clase, `Settings`, y una instancia, `settings`, que se valida AL IMPORTAR:
+si falta una clave de API, el proceso no arranca. Que se lea del entorno es lo
+que permite dar los secretos en despliegue sin escribirlos en el código ni en
+la imagen (con compose, por `env_file`).
+
+Las claves son campos obligatorios, y eso tiene una consecuencia fuera de este
+fichero: los detectores NLP no pueden importarlo, porque dejarían de poder
+importarse sin un `.env`. Lo vigila `tests/test_arquitectura.py`.
+
+Cada campo lleva al lado el motivo de su valor por defecto. Desde el entorno,
+las listas y los diccionarios se pasan como JSON.
+"""
+
 from typing import Literal
 
 from pydantic_settings import BaseSettings, SettingsConfigDict

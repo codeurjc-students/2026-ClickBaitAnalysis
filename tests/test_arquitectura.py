@@ -44,13 +44,15 @@ FACHADAS = ("backend.api", "backend.main")
 FUERA_DEL_NUCLEO = {"api", "main.py"}
 
 # Únicos módulos de la capa NLP a los que se les permite leer configuración:
-# `client.py` necesita el token y el trabajo de `factory.py` ES leer settings.
+# `remote.py` necesita el token y el trabajo de `factory.py` ES leer settings.
+# (`remote.py` se llamaba `client.py` hasta #108: la excepción va por NOMBRE de
+# fichero, así que un renombrado tiene que traerla consigo o este test falla.)
 #
 # La lista es de EXCEPCIONES, no de detectores, y eso es deliberado: un detector
 # nuevo queda cubierto sin tocar nada, y meter `settings` en un módulo nuevo
 # obliga a editar esta línea a mano — que es la decisión consciente que se quiere
 # forzar cuando llegue la parametrización de umbrales.
-LEEN_CONFIGURACION = {"client.py", "factory.py"}
+LEEN_CONFIGURACION = {"remote.py", "factory.py"}
 
 CONFIGURACION = "backend.config.settings"
 

@@ -1,4 +1,11 @@
-# Constants
+"""Cliente de la Open Platform de The Guardian (búsqueda de artículos).
+
+Un tema se busca primero como **tag** (`/tags`), y sólo si no hay ninguno como
+texto libre `q`: la búsqueda libre casa palabras sueltas —«intelligence» traía
+espías y música— (#47). La clave va en la URL (`api-key`), y la cuota diaria
+que queda se lee de la cabecera `x-ratelimit-remaining-day`.
+"""
+
 from datetime import UTC, datetime, timedelta
 
 from backend.config.settings import settings

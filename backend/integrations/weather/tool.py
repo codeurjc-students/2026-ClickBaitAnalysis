@@ -1,13 +1,17 @@
+"""Las tools MCP del tiempo: `get_alerts` y `get_forecast`.
+
+Vienen del tutorial de MCP de la Épica 0 (ver `client.py`). Se quedan
+devolviendo `str`, y NO es una carencia: producen prosa formateada para leer,
+no datos con estructura, y declararles un tipo estructurado obligaría a
+inventar campos que la salida no tiene.
+"""
+
 from mcp.server.fastmcp import FastMCP
 from mcp.server.fastmcp.exceptions import ToolError
 
 from backend.core.observability import log_tool_invocation
 from backend.integrations.metadata import tool_meta
 from backend.integrations.weather.client import WeatherAPI
-
-# Estas dos tools se quedan devolviendo `str`, y NO es una carencia: producen
-# prosa formateada para leer, no datos con estructura. Declararles un tipo
-# estructurado obligaría a inventar campos que la salida no tiene.
 
 
 def register(mcp: FastMCP):

@@ -1,3 +1,14 @@
+"""Backend NLP local: `transformers` en el propio proceso (`LocalNLPClient`).
+
+Implementa `NLPBackend` con `pipeline()`, cacheado por `(tarea, modelo)` y
+cargado la primera vez que se pide, o al arrancar con `preheat_models` (#125).
+Corre en CPU: no pasa `device`, y la imagen lleva torch sin CUDA (#162).
+
+Lo que falla sin ser una avería se dice con claridad (#158, #162): que falte
+torch, o que un modelo no esté descargado con la descarga desactivada. El resto
+se registra entero y sale con la frase pública de `core/errores.py` (#89).
+"""
+
 import asyncio
 from collections.abc import Callable
 from typing import Any

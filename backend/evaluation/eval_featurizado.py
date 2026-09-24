@@ -166,7 +166,7 @@ def _informe(nombre: str, pares: list[tuple[str, int]]) -> None:
 
 
 if __name__ == "__main__":
-    pesos = linear.JSON
+    pesos = linear.pesos()
     intercepto = pesos["intercept"]
     print("EL MODELO LINEAL, POR DENTRO")
     print(f"  rasgos                        {len(pesos['weights'])}")
