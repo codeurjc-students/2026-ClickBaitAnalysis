@@ -9,12 +9,41 @@ implementaciones de la misma interfaz.
 Ojo: `hf-inference` NO sirve ningún modelo de clickbait. El dedicado responde
 `400 Model not supported by provider`, y es permanente, así que en despliegue
 va `nlp_backend=local` (#156).
+
+Una respuesta con forma inesperada se registra entera y NO se publica: hasta el
+2026-09-24 el mensaje de fallo llevaba la respuesta cruda del proveedor, y salía
+por `/analyze`, por `/tools/.../execute` y por MCP. Era una quinta puerta de #89,
+que se escapó al tapar las cuatro de entonces.
 """
+
+import structlog
 
 from backend.config.settings import settings
 from backend.core.base_api import BaseAPI
+from backend.core.errores import mensaje_publico
 from backend.core.models import ToolResult
 from backend.integrations.nlp.base import NLPBackend
+
+log = structlog.get_logger()
+
+
+def _fallo(tarea: str, model: str, error: Exception, respuesta: object) -> ToolResult:
+    """Registra la respuesta que no se esperaba y devuelve lo que puede salir.
+
+    La frase pública es la misma que da `local.py` para lo mismo, así que quien
+    lee la tarjeta de una señal caída ve lo mismo sea cual sea el backend. La
+    respuesta va al log recortada, como hace `base_api.py` con los cuerpos de
+    error: sirve para diagnosticar y no tiene por qué caber entera.
+    """
+    log.warning(
+        "nlp.remoto.fallo",
+        tarea=tarea,
+        modelo=model,
+        tipo=type(error).__name__,
+        detalle=str(error),
+        respuesta=str(respuesta)[:1000],
+    )
+    return ToolResult.fail(f"El modelo `{model}` {mensaje_publico(error)}.")
 
 
 class HFClient(BaseAPI, NLPBackend):
@@ -37,8 +66,8 @@ class HFClient(BaseAPI, NLPBackend):
             return ToolResult.ok(result.unwrap()[0][0])
         # `ValueError` lo aporta `unwrap()`: un éxito sin datos es otra forma de
         # respuesta inesperada, y se informa igual que las demás en vez de subir.
-        except (IndexError, KeyError, TypeError, ValueError):
-            return ToolResult.fail(f"Respuesta inesperada de HF: {result.data}")
+        except (IndexError, KeyError, TypeError, ValueError) as error:
+            return _fallo("text-classification", model, error, result.data)
 
     async def zero_shot(self, text: str, model: str, labels: list[str]) -> ToolResult:
         # Método creado para satisfacer nueva lógica de zero-shots y poder correr NLP con llamadas API.
@@ -55,5 +84,5 @@ class HFClient(BaseAPI, NLPBackend):
             return result
         try:
             return ToolResult.ok(result.unwrap()[0])
-        except (IndexError, KeyError, TypeError, ValueError):
-            return ToolResult.fail(f"Respuesta inesperada de HF: {result.data}")
+        except (IndexError, KeyError, TypeError, ValueError) as error:
+            return _fallo("zero-shot-classification", model, error, result.data)

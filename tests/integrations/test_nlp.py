@@ -10,6 +10,7 @@ import respx  # Usamos en vez de htttp, ya que no hacemos llamadas de verdad, mo
 from httpx import Response, TimeoutException
 from huggingface_hub.errors import LocalEntryNotFoundError
 from mcp.server.fastmcp import FastMCP
+from structlog.testing import capture_logs
 
 from backend.config.settings import settings
 from backend.integrations.nlp import dependencias, lexical, linear, model_cards
@@ -59,6 +60,42 @@ async def test_classify_unexpected_shape_returns_fail():
 
     assert not result.success
     assert result.error
+
+
+# Una respuesta con forma inesperada NO se publica: sale por `/analyze`, por
+# `/tools/.../execute` y por MCP, que leerá el LLM del agente. Era la quinta
+# puerta de #89, y el test de arriba no la veía: sólo pedía que hubiera error.
+MARCA_DEL_PROVEEDOR = "detalle-interno-del-proveedor"
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "llamar",
+    [
+        lambda cliente, modelo: cliente.classify("text", modelo),
+        lambda cliente, modelo: cliente.zero_shot(
+            "text", modelo, ["clickbait", "factual news"]
+        ),
+    ],
+    ids=["classify", "zero_shot"],
+)
+async def test_una_respuesta_inesperada_de_hf_no_se_publica(llamar):
+    modelo = "some/model"
+    with respx.mock, capture_logs() as registrado:
+        respx.post(f"{MODELS_URL}{modelo}").mock(
+            return_value=Response(200, json={"inesperado": MARCA_DEL_PROVEEDOR})
+        )
+        result = await llamar(HFClient(), modelo)
+
+    assert not result.success
+    assert MARCA_DEL_PROVEEDOR not in result.error
+    assert modelo in result.error
+    assert "no previsto" in result.error
+    # Y lo que no se publica se registra: sanear sin registrar ciega la
+    # depuración (#89).
+    fallo = next(linea for linea in registrado if linea["event"] == "nlp.remoto.fallo")
+    assert fallo["modelo"] == modelo
+    assert MARCA_DEL_PROVEEDOR in fallo["respuesta"]
 
 
 @pytest.mark.asyncio
