@@ -1238,6 +1238,88 @@ Añadir el registro a `/analyze` convirtió, sin avisar, todos los tests de esa 
 
 `tests/api/test_history.py` cubre los dos lados por separado —el almacén llamando a sus funciones, el endpoint por HTTP— porque responden preguntas distintas: si los datos sobreviven y salen en orden, y si la decisión de «una entrada por análisis» se sostiene de verdad.
 
+### Las dos descripciones que se confundían (24 sep 2026, PR #183)
+
+El spike rehecho en la A40 dejó un único fallo de selección con la ventana entera, igual en los dos modelos: «dame la **probabilidad** de clickbait…» y «usa el **modelo entrenado** para puntuar…» elegían `detect_clickbait` en vez de `detect_clickbait_linear`. Venía marcado como de los docstrings y como previo al agente, y §12 lo lista entre lo que H5 tiene que resolver. Es trabajo suelto, sin issue: sólo cambian cuatro docstrings de [`backend/integrations/nlp/tool.py`](backend/integrations/nlp/tool.py), y entra un guion en `spikes/`.
+
+#### Por qué se confundían: el modelo no se equivocaba del todo
+
+Leídos los docstrings como los lee el modelo, las dos herramientas eran **dos modelos entrenados que devuelven un número entre 0 y 1**. `detect_clickbait` decía usar «un modelo afinado… sobre anotaciones humanas» y devolver «su confianza (0-1)»; la lineal, «una regresión logística entrenada» que devuelve `probability`, y ni siquiera tenía la palabra «probabilidad» en la descripción. Lo que de verdad las separa —la primera es de **caja negra** y da la confianza en su etiqueta, sin explicar nada; la segunda es **interpretable**, la entrenó este proyecto y explica su probabilidad con el peso de cada pista— no estaba en la primera línea de ninguna.
+
+**Y dos docstrings mentían.** El del léxico decía «complementaria a `detect_clickbait` (zero-shot)» y el de la lineal, «cuarta señal contrastable frente a zero-shot». `detect_clickbait` dejó de ser zero-shot en #115, al pasar al modelo dedicado. Desde entonces, el modelo del agente leía una descripción falsa de esa herramienta, y ningún test lo podía cazar: los docstrings no se comprueban, se leen.
+
+#### Qué cambia
+
+Cuatro docstrings, sin tocar código, con tres criterios:
+
+- **La primera línea dice lo que distingue a cada una.** `detect_clickbait`: «con un modelo de caja negra». La lineal: «da la probabilidad de que un titular sea clickbait y las pistas que la explican».
+- **Cada una remite a la otra para lo que no hace.** `detect_clickbait` avisa de que su `score` no es una probabilidad de clickbait —con `factual news` y 0,9, lo que afirma es que NO lo es— y manda a la lineal a quien la pida.
+- **No se nombra el modelo.** El hueco de `detect_clickbait` se cambia por configuración (#119), así que el docstring describe el tipo, caja negra, y no a su ocupante de hoy.
+
+Las otras dos sólo corrigen referencias: el léxico ya no dice «zero-shot» y nombra a la lineal, que pondera sus mismas pistas; la incoherencia se presenta frente a las tres señales que sólo miran el titular.
+
+#### El riesgo de enseñar el examen
+
+Las dos consultas que fallaban dicen «probabilidad» y «modelo entrenado», y el docstring nuevo de la lineal contiene las dos cosas. Es legítimo —el campo que devuelve se llama `probability`, y que la entrenó este proyecto es un hecho—, pero medir sólo con esas consultas no distinguiría entre arreglar la interfaz y aprenderse las preguntas. Tampoco diría si ahora el modelo lo manda **todo** a la lineal.
+
+Para eso está [`spikes/tool_calling_descripciones_contraste.py`](spikes/tool_calling_descripciones_contraste.py): **seis consultas nuevas** que no dicen ni «probabilidad» ni «entrenado» —«¿cuántas papeletas tiene… de ser clickbait, en porcentaje?», «¿con qué peso contribuye cada palabra…?», «quiero la opinión de un modelo de caja negra…»—, **tres para la lineal y tres para `detect_clickbait`**, que cazan el fallo contrario. Reutiliza la fase 5 tal cual y sólo cambia la lista. Con un límite que no se puede quitar: las consultas y los docstrings los escribió el mismo autor el mismo día. **No es una prueba ciega.**
+
+#### Condiciones
+
+| | |
+|---|---|
+| Fecha | 2026-09-24 · «antes», de 18:53 a 19:21 · «después», de 19:25 a 19:42 |
+| Máquina | la A40 de la máquina 2, con Ollama 0.34.2, por un túnel SSH al 11500 de WSL (el 11434 local es el Ollama 0.32.5 del portátil: se comprobó la versión en cada puerto) |
+| Modelos | `qwen3.5:27b`, ID `7653528ba5cb` · `qwen3.5:2b`, ID `324d162be6ca` · los dos con `num_ctx` 8192 |
+| Catálogo | «antes», el commit `f52d60e` de `dev` · «después», el `35edde8` de esta rama |
+| Guiones | [`spikes/tool_calling_fase5_descripciones_reales.py`](spikes/tool_calling_fase5_descripciones_reales.py), el de contraste y [`spikes/tool_calling_presupuesto_contexto.py`](spikes/tool_calling_presupuesto_contexto.py) |
+| Repeticiones | tres tandas por modelo y por guion: la diferencia buscada eran dos consultas, y el spike ya vio que la variación entre ejecuciones pesa |
+
+Ejecutado así, antes y después:
+
+```bash
+export OLLAMA_HOST=127.0.0.1:11500
+.venv/bin/python spikes/tool_calling_presupuesto_contexto.py qwen3.5:27b
+for modelo in qwen3.5:27b qwen3.5:2b; do
+  for tanda in 1 2 3; do
+    .venv/bin/python spikes/tool_calling_fase5_descripciones_reales.py "$modelo" 8192
+  done
+done
+for modelo in qwen3.5:27b qwen3.5:2b; do
+  for tanda in 1 2 3; do
+    .venv/bin/python spikes/tool_calling_descripciones_contraste.py "$modelo" 8192
+  done
+done
+```
+
+#### Resultados
+
+**Fase 5**, las 20 consultas de siempre:
+
+| | Antes | Después |
+|---|---|---|
+| `qwen3.5:27b` | 18 · 18 · 18 | **20 · 20 · 20** |
+| `qwen3.5:2b` | 17 · 18 · 19 | **20 · 20 · 20** |
+
+En el 27B el fallo de antes era **determinista**: las dos mismas consultas, las tres veces y siempre hacia `detect_clickbait`. En el 2B, «probabilidad» fallaba siempre y «modelo entrenado», una vez de tres, con otros dos fallos sueltos sin relación que después tampoco aparecen. Los parámetros de las llamadas, válidos en todas las tandas menos una llamada del 2B después (18 de 19).
+
+**Contraste**, las seis consultas nuevas:
+
+| | Las 3 de la lineal, en 3 tandas | Las 3 de caja negra, en 3 tandas |
+|---|---|---|
+| `qwen3.5:27b` | 6/9 → **9/9** | 9/9 → **9/9** |
+| `qwen3.5:2b` | 1/9 → **5/9** | 9/9 → **9/9** |
+
+Lo que dicen:
+
+- **En el 27B, el modelo de H5, está resuelto, y no por haberse aprendido las preguntas**: acierta también con redacciones que no estaban en la prueba, y **no se pasa al otro lado** — las de caja negra siguen yendo a `detect_clickbait` las nueve veces.
+- **En el 2B mejora, pero la frontera débil se mueve.** «Puntúa… y dime qué pistas pesan más» y «¿con qué peso contribuye cada palabra…?» siguen yendo al **léxico** en dos tandas de tres: ya no confunde la lineal con la caja negra, sino con el léxico, que habla de las mismas pistas. Como H5 usará el 27B, se deja anotado y no se persigue.
+- **El catálogo pasa de 2.438 a 2.629 tokens** (+191, un 8 %). Sigue cabiendo de sobra en 8.192, pero es el recordatorio de que cada frase de un docstring la paga cada petición del agente.
+
+#### Una trampa del instrumento: cortar SSH no para lo remoto
+
+La sesión en la A40 se abre con un `ssh -L` que levanta el servidor al otro lado con un `trap` para pararlo. Al cerrarla, matando el `ssh` local, **el servidor siguió vivo con 20,7 GB en la GPU**: sin terminal asignada, cortar la conexión no manda `HUP` a lo remoto, y el guion dormía en un `sleep`. Se paró a mano un par de minutos después, y el guion de sesión pasó a vigilar a su `sshd` padre, que sí muere con la conexión. Después de cerrar se comprueba siempre con `nvidia-smi`: la GPU acabó en 0 MiB y sin procesos, tanto al terminar el «antes» como el «después».
+
 ### Cómo llega la API a la A40: la red, el túnel y lo que cuesta arrancar Ollama (#181)
 
 §12 de [`docs/arquitectura.md`](docs/arquitectura.md), el plano de H5, dejaba sin decidir dos cosas que condicionan todo lo demás: **cómo llega la API, en la máquina 1, a Ollama, en la máquina 2**, y **quién arranca Ollama y cuándo suelta la GPU**, en una máquina compartida cuya norma es no dejarla bloqueada. Esta issue, la primera de H5, las mide antes de diseñar nada. No construye nada: en el código entran tres guiones en `spikes/`.
@@ -1633,7 +1715,7 @@ Es la conclusión del spike —**el prompt no quita el error, lo desplaza a form
 - **Punto de partida: `qwen3.5:27b` con `04-preciso` o `03-estricto`**, sin elegir entre los dos: son dos consultas por variante y una sola ejecución, y el spike ya vio que la variación entre ejecuciones pesaba más que la diferencia entre prompts. Entre ~4 s con errores que no se ven y ~20 s con respuestas fieles, en un TFG cuyo eje es la explicabilidad, no hay mucho que pensar.
 - **`num_ctx` es configuración explícita del agente, nunca el defecto.** El catálogo ocupa 2.438 tokens hoy y cada herramienta nueva lo agranda sin que nadie lo decida.
 - **`POST /chat` asíncrono sigue siendo lo correcto, pero cambia el argumento.** Ya no son los 150 s de carga —ahora 3–7 s—, sino **13–36 s por bucle** con el 27B más el arranque bajo demanda de la máquina 2, que no se ha medido. *(Medido en #181: ~36 s de cero a la primera respuesta, o ~11 s con la GPU sostenida abierta.)*
-- **Las descripciones de `detect_clickbait` y `detect_clickbait_linear` hay que separarlas** antes de construir el agente: es el único fallo de selección que queda, y es de los docstrings.
+- **Las descripciones de `detect_clickbait` y `detect_clickbait_linear` hay que separarlas** antes de construir el agente: es el único fallo de selección que queda, y es de los docstrings. *(Hecho el 24 sep: 20/20 en las tres tandas con los dos modelos, y el catálogo pasa a costar 2.629 tokens. Ver «Las dos descripciones que se confundían».)*
 - **Juzgar las respuestas no se puede hacer con expresiones regulares.** La criba dio 0/2 donde había 2/2 errores. Se lee a mano o hace falta otro modelo que juzgue — lo que queda anotado como trabajo para H5: comparar varios modelos **como jueces** de las respuestas e iterar los prompts de sistema con esa medida delante.
 
 #### Lo que no se midió

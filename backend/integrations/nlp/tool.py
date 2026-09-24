@@ -43,12 +43,15 @@ def register(mcp: FastMCP):
     @mcp.tool(meta=tool_meta("Señales de análisis", __name__))
     @log_tool_invocation
     async def detect_clickbait(headline: str) -> Etiqueta:
-        """Detecta si un titular de noticia es clickbait o informativo (factual).
+        """Clasifica un titular como clickbait o noticia factual con un modelo de caja negra.
 
-        Usa un modelo afinado específicamente para esta tarea sobre anotaciones
-        humanas, no una clasificación genérica. Complementaria a
-        `detect_clickbait_lexical` y `detect_clickbait_linear`, que miran pistas
-        de superficie y sí explican su veredicto. Pensada para inglés.
+        Es un clasificador neuronal afinado para esta tarea sobre titulares
+        anotados por personas, fuera de este proyecto. Devuelve una etiqueta y
+        la confianza del modelo en ESA etiqueta, sin explicar por qué: no es una
+        probabilidad de clickbait (con "factual news" y 0.9, lo que afirma es
+        que NO lo es). Si hace falta una probabilidad de clickbait o saber qué
+        la explica, lo da `detect_clickbait_linear`; qué pistas aparecen y
+        dónde, `detect_clickbait_lexical`. Pensada para inglés.
 
         Args:
             headline (str): titular a evaluar (en inglés).
@@ -104,9 +107,10 @@ def register(mcp: FastMCP):
         Genera embeddings del titular y del contenido con un modelo de
         sentence-transformers y calcula su similitud del coseno. Una similitud
         baja indica que el titular no se corresponde con lo que cuenta la
-        noticia → señal de clickbait. Es complementaria a `detect_clickbait`
-        (que solo mira el estilo del titular): esta necesita además el cuerpo
-        o teaser. Pensada para texto en inglés.
+        noticia → señal de clickbait. Es complementaria a las señales que sólo
+        miran el titular (`detect_clickbait`, `detect_clickbait_lexical` y
+        `detect_clickbait_linear`): esta necesita además el cuerpo o teaser.
+        Pensada para texto en inglés.
 
         Args:
             headline (str): titular a evaluar (en inglés).
@@ -137,7 +141,8 @@ def register(mcp: FastMCP):
         Busca marcas típicas de clickbait —hipérbole, referencias vagas (this/these),
         frases gancho, número inicial (listicle), interrogación, mayúsculas, elipsis—
         y devuelve qué pistas dispararon y dónde. Señal white-box (la evidencia ES la
-        explicación), complementaria a `detect_clickbait` (zero-shot) y
+        explicación), complementaria a `detect_clickbait` (caja negra), a
+        `detect_clickbait_linear` (que pondera estas mismas pistas) y a
         `detect_clickbait_incoherence`. Pensada para titulares en inglés.
 
         Args:
@@ -158,17 +163,21 @@ def register(mcp: FastMCP):
     @mcp.tool(meta=tool_meta("Señales de análisis", __name__))
     @log_tool_invocation
     async def detect_clickbait_linear(headline: str) -> SalidaLineal:
-        """Detecta clickbait con un modelo lineal interpretable (regresión logística
-        entrenada sobre pistas léxicas).
+        """Da la probabilidad de que un titular sea clickbait y las pistas que la explican.
+
+        Es el modelo entrenado en este proyecto: una regresión logística sobre
+        pistas léxicas (hipérbole, referencias vagas, listas numeradas…), en la
+        que cada pista tiene un peso visible. El veredicto se explica con las
+        pistas que más pesaron. Para la opinión de un modelo que no parte de
+        esas pistas, `detect_clickbait` (caja negra). Pensada para inglés.
 
         Args:
-            headline: el titular a analizar.
+            headline (str): titular a evaluar (en inglés).
 
         Returns:
-            `is_clickbait`, `probability` y `top_cues` — los cues que más
-            empujaron el veredicto (peso × frecuencia), como explicación
-            intrínseca (R3.8). Cuarta señal contrastable frente a zero-shot,
-            incoherencia y léxico.
+            `is_clickbait`, `probability` (0-1, de que sea clickbait), `top_cues`
+            —las pistas que más empujaron el veredicto (peso × frecuencia), que
+            son su explicación intrínseca (R3.8)— y `headline`.
 
         Raises:
             Si el titular está vacío.
