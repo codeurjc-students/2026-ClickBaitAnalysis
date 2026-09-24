@@ -1,4 +1,6 @@
 import asyncio
+import builtins
+import importlib
 import json
 import sys
 import types
@@ -12,7 +14,6 @@ from mcp.server.fastmcp import FastMCP
 from backend.config.settings import settings
 from backend.integrations.nlp import dependencias, lexical, linear, model_cards
 from backend.integrations.nlp import tool as nlp_tool
-from backend.integrations.nlp.client import HFClient
 from backend.integrations.nlp.factory import (
     ficha_efectiva,
     get_incoherence_detector,
@@ -21,6 +22,7 @@ from backend.integrations.nlp.factory import (
 )
 from backend.integrations.nlp.incoherence import IncoherenceDetector
 from backend.integrations.nlp.local import LocalNLPClient
+from backend.integrations.nlp.remote import HFClient
 
 MODELS_URL = "https://router.huggingface.co/hf-inference/models/"
 
@@ -476,6 +478,22 @@ def test_linear_detector_no_headline():
     result1 = linear.predict(" ")
     result2 = linear.predict("")
     assert not result1.success and not result2.success
+
+
+def test_importar_la_senal_lineal_no_lee_los_pesos(monkeypatch):
+    """Importar `linear` no abre ningún fichero: los pesos se leen en el primer
+    uso (#108). Antes se leían a nivel de módulo, y cualquier import —aunque
+    fuera para inspeccionar la señal— dependía de que el JSON estuviera."""
+
+    def abrir_prohibido(*argumentos, **opciones):
+        raise AssertionError("importar la señal lineal ha abierto un fichero")
+
+    monkeypatch.setattr(builtins, "open", abrir_prohibido)
+    importlib.reload(linear)
+    monkeypatch.undo()
+
+    # Y la carga perezosa funciona: el primer uso lee los pesos.
+    assert linear.predict("10 amazing things you won't believe").success
 
 
 # --Model cards (R3.9, divulgación de modelos)

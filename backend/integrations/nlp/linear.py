@@ -1,6 +1,7 @@
 import json
 import math
 from collections import Counter
+from functools import cache
 from pathlib import Path
 
 from backend.core.models import ToolResult
@@ -8,11 +9,17 @@ from backend.integrations.nlp import lexical
 
 JSON_FILE = Path(__file__).resolve().parent / "linear_clickbait.json"
 
-# print(str(JSON_FILE))
 
-
-with open(JSON_FILE, encoding="utf-8") as f:
-    JSON = json.load(f)
+# Los pesos se leen en el PRIMER USO, no al importar (#108). Leerlos a nivel de
+# módulo hacía que importar la señal —aunque fuera para inspeccionarla— abriera
+# y parseara el fichero, y fallara si no estaba. Es el patrón de `local.py` y
+# `incoherence.py` con sus modelos; aquí basta una lectura cacheada.
+@cache
+def pesos() -> dict:
+    """Pesos, intercepto y nombres de rasgos del modelo, tal como los serializó
+    `evaluation/train_linear.py`."""
+    with open(JSON_FILE, encoding="utf-8") as fichero:
+        return json.load(fichero)
 
 
 def featurize_cues(headline) -> list[int]:  # -> vector
@@ -39,9 +46,12 @@ def predict(headline):
     if not headline or not headline.strip():
         return ToolResult.fail("El titular está vacío o no es válido")
 
+    modelo = pesos()
     vector = featurize_cues(headline)
     contribs = []
-    for w, name, x in zip(JSON["weights"], JSON["feature_names"], vector, strict=True):
+    for w, name, x in zip(
+        modelo["weights"], modelo["feature_names"], vector, strict=True
+    ):
         if x != 0:
             contr = w * x
             contribs.append((name, contr))
@@ -52,7 +62,7 @@ def predict(headline):
         reverse=True,
     )
 
-    z = sum(contr for _, contr in s_contribs) + JSON["intercept"]  # w * x
+    z = sum(contr for _, contr in s_contribs) + modelo["intercept"]  # w * x
     p = _sigmoid(z)
     is_clickbait = p >= 0.5
     return ToolResult.ok(

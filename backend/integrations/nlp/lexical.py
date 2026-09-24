@@ -36,14 +36,11 @@ PATTERNS = {
     "ellipsis": re.compile(r"\.\.\.|…"),  # ... o …
 }
 
-CATEGORIES = (
-    list(WORD_CUES) + list(PHRASE_CUES) + list(PATTERNS)
-)  # Usado para featurizar en el modelo linear
-
 # Pistas necesarias para considerarse clickbait.
 # Default t=1 (mejor F1≈0.85, P≈R). Modo conservador: t=2 (precisión≈0.97). TODO: Parametrizar
 
-# Creamos un orden para reutilizar en linear_model (igual que CATEGORIES).
+# Orden fijo de los cues, que es el de los rasgos del modelo lineal: lo usan
+# `linear.featurize_cues` y `evaluation/train_linear.py`.
 # No aplica PATTERNS (no se pueden determinar, son reglas)
 
 # Orden alfabético por defecto.

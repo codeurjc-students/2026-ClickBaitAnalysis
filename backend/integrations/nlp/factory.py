@@ -1,7 +1,7 @@
 # factory.py
 """Qué hay configurado de verdad: qué backend, qué modelo y qué ficha.
 
-Este módulo es —con `client.py`, que necesita el token— **el único de la capa NLP
+Este módulo es —con `remote.py`, que necesita el token— **el único de la capa NLP
 al que se le permite leer `settings`**, y `tests/test_arquitectura.py` lo vigila.
 Esa restricción es la que decide la forma de todo lo de abajo: los detectores no
 resuelven su configuración, la **reciben**. Si `incoherence.py` llamara aquí para
@@ -16,11 +16,11 @@ from functools import lru_cache
 
 from backend.config.settings import settings
 from backend.integrations.nlp.base import NLPBackend
-from backend.integrations.nlp.client import HFClient  # client.py
 from backend.integrations.nlp.incoherence import IncoherenceDetector
 from backend.integrations.nlp.local import LocalNLPClient  # local.py
 from backend.integrations.nlp.model_cards import cards_by_signal, model_id_de
 from backend.integrations.nlp.outputs import FichaModelo
+from backend.integrations.nlp.remote import HFClient  # remote.py
 
 
 @lru_cache(maxsize=2)
