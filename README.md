@@ -1238,6 +1238,39 @@ Añadir el registro a `/analyze` convirtió, sin avisar, todos los tests de esa 
 
 `tests/api/test_history.py` cubre los dos lados por separado —el almacén llamando a sus funciones, el endpoint por HTTP— porque responden preguntas distintas: si los datos sobreviven y salen en orden, y si la decisión de «una entrada por análisis» se sostiene de verdad.
 
+### La respuesta cruda de Hugging Face, una quinta puerta de #89 (24 sep 2026, PR #185)
+
+Al escribir el docstring de `nlp/remote.py` en #108 apareció un mensaje de fallo que interpolaba la respuesta entera del proveedor: ante una respuesta con forma inesperada, `HFClient` devolvía `Respuesta inesperada de HF: {result.data}`. Trabajo suelto, sin issue: un cambio en un solo módulo, con su test.
+
+#### Por dónde salía
+
+Por las tres salidas públicas, y sin que nada lo interceptara:
+
+- **`/analyze`**: el orquestador publica el `error` de un `ToolResult` fallido tal cual, como `detail` de la señal. Sólo sanea las **excepciones**; un fallo que llega como valor se da por redactado ya por quien lo creó.
+- **La tool MCP y `/tools/.../execute`**: la tool relanza ese mismo texto como `ToolError`, y ése es el resultado que leerá el LLM del agente.
+
+Sólo pasa con `nlp_backend=remote` —el defecto de `settings`; el despliegue usa `local`— y con un 200 cuya forma no se esperaba. No lleva la clave, que viaja en una cabecera. Pero es contenido del proveedor, sin acotar de tamaño, en una salida pública, y **dentro de poco en el contexto de un modelo**: por eso se arregla antes de H5 y no después.
+
+#### Contar las puertas, no sólo tapar ésta
+
+La regla que dejó #89 es contar cuántas salidas hay al tocar una. Se revisaron **todos** los mensajes de fallo de `backend/` que interpolan algo:
+
+| Dónde | Qué interpola | ¿Sale algo de fuera sin sanear? |
+|---|---|---|
+| `core/base_api.py` | `mensaje_publico` / `describir_error`; el método HTTP y `MAX_RETRIES` | no |
+| `weather/client.py` | el `error` de `base_api`, ya saneado | no |
+| `nlp/local.py`, `nlp/incoherence.py` | `mensaje_publico` | no |
+| `nlp/dedicated.py` | la etiqueta que devolvió el modelo | es deliberado (#119): una etiqueta corta, para quien configura otro modelo |
+| **`nlp/remote.py`**, en `classify` y en `zero_shot` | **la respuesta entera del proveedor** | **sí** |
+
+Era la única. **Por qué #89 no la vio**: tapó las cuatro puertas por las que salían textos de **excepciones**, y ésta sale por un fallo construido a mano con datos. Y el test que había, `test_classify_unexpected_shape_returns_fail`, sólo pedía que hubiera un error: pasaba igual con la respuesta cruda dentro. **Un test de una salida pública tiene que afirmar lo que NO está en ella.**
+
+#### El arreglo, con el test primero
+
+El test nuevo, parametrizado para `classify` y `zero_shot`, hace que Hugging Face responda 200 con una forma inesperada que lleva una marca reconocible. Comprueba que el mensaje no la contiene, que dice qué modelo falló, y **que el log sí la conserva**: sanear sin registrar ciega la depuración, que es la otra mitad de #89. Se ejecutó **antes** del arreglo, y los dos casos fallaron justo en la aserción de la marca.
+
+El arreglo registra la respuesta —recortada a 1.000 caracteres, como `base_api.py` hace con los cuerpos de error— y devuelve la misma frase que `local.py` para lo mismo: *«El modelo `X` falló por un motivo no previsto; el detalle técnico queda en el log del servidor.»* La tarjeta de una señal caída dice lo mismo sea cual sea el backend. **295 tests** en verde, dos más que antes.
+
 ### La limpieza que dejó pendiente el repaso de estructura (#108)
 
 La issue es del 15 de agosto: al escribir `docs/estructura.md` y correr el E2E salieron un puñado de cosas pequeñas —código muerto, un import con efecto colateral, dos nombres que engañaban y dieciséis módulos sin docstring— que se agruparon porque ninguna estorbaba a las demás y varias tocaban los mismos imports. Ninguna cambia lo que el sistema responde.
