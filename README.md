@@ -724,7 +724,7 @@ Issue #65. Primer modelo **entrenado** del proyecto: una **regresión logística
 - **Featurización — dos granularidades:**
   - **Opción A (por categoría):** `featurize` cuenta los `matches` por categoría → vector de **7** enteros en el orden de `lexical.CATEGORIES`.
   - **Opción B (por cue):** `featurize_cues` cuenta **cada cue individual** (clave `match["cue"]`) → vector de **~390** en el orden de `lexical.ALL_CUES`; los `PATTERNS` se quedan por categoría (su texto casado varía → híbrido). Es un bag-of-words restringido al vocabulario de pistas.
-- **Tubería** (`backend/evaluation/linear_model.py`): `load_dataset` (reusa E4-03) → `featurize` → **split train/test estratificado** (`test_size=0.2`, semilla fija → corrige el **sesgo optimista**) → `LogisticRegression.fit` (minimiza **log-loss**) → `predict` → métricas + pesos.
+- **Tubería** (`backend/evaluation/linear_model.py`): `load_dataset` (reusa E4-03) → `featurize` → **split train/test estratificado** (`test_size=0.2`, semilla fija → corrige el **sesgo optimista**) → `LogisticRegression.fit` (minimiza **log-loss**) → `predict` → métricas + pesos. *(Desde #108 el guion se llama `backend/evaluation/train_linear.py`, y la opción A —`featurize` y `lexical.CATEGORIES`— ya no existe: nadie la usaba desde que ganó la B.)*
 
 **Resultado (todos sobre el mismo held-out test, `random_state=24`):**
 
@@ -1237,6 +1237,42 @@ El mínimo de 1 no es cosmético: **en SQLite un `LIMIT` negativo significa «si
 Añadir el registro a `/analyze` convirtió, sin avisar, todos los tests de esa ruta en escritores del historial real: una corrida de la suite dejaba cuatro entradas «Un titular» en `var/history.db`. El aislamiento va en un fixture `autouse` de `tests/conftest.py` y no en el fichero que prueba el historial, porque **quien contamina no es quien lo prueba**: lo hace cualquier test que llame a un endpoint que registre, incluidos los que aún no existen.
 
 `tests/api/test_history.py` cubre los dos lados por separado —el almacén llamando a sus funciones, el endpoint por HTTP— porque responden preguntas distintas: si los datos sobreviven y salen en orden, y si la decisión de «una entrada por análisis» se sostiene de verdad.
+
+### La limpieza que dejó pendiente el repaso de estructura (#108)
+
+La issue es del 15 de agosto: al escribir `docs/estructura.md` y correr el E2E salieron un puñado de cosas pequeñas —código muerto, un import con efecto colateral, dos nombres que engañaban y dieciséis módulos sin docstring— que se agruparon porque ninguna estorbaba a las demás y varias tocaban los mismos imports. Ninguna cambia lo que el sistema responde.
+
+Se hace ahora, antes de H5, por una razón concreta: el agente traerá `integrations/llm/`, decidido «con cliente y factoría igual que `nlp/`». Construirlo antes habría copiado al paquete nuevo el par `client.py` / `local.py`, que ya se sabía engañoso, y el renombrado habría tenido que hacerse en dos sitios.
+
+#### Lo que se hizo
+
+| | Antes | Después |
+|---|---|---|
+| Código muerto | `featurize()`, la featurización por categorías de la opción A de E5-06, sin ningún llamante | borrada, y con ella `lexical.CATEGORIES` (ver abajo) |
+| Efecto al importar | `nlp/linear.py` abría y parseaba `linear_clickbait.json` a nivel de módulo | `pesos()`, cacheada, lo lee en el primer uso |
+| Nombres que mentían | `evaluation/linear_model.py`, que no contiene el modelo: lo entrena · `nlp/client.py`, que no decía ser una de dos implementaciones de la misma interfaz | `train_linear.py` · `remote.py` |
+| Docstrings de módulo | 16 de 40 sin ninguno, casi todos de la Fase A | **0 de 40** |
+
+El tercer renombrado propuesto, `integrations/metadata.py` → `tool_metadata.py`, **se descartó** por el criterio de la propia issue: se renombra cuando el nombre hace una predicción falsa, y `metadata.py` es vago, pero no miente.
+
+#### Lo que la issue no decía
+
+- **El JSON tenía un consumidor de fuera.** `evaluation/eval_featurizado.py` leía `linear.JSON`, y la issue no lo mencionaba. La carga perezosa necesitaba un acceso público, y por eso los pesos se piden con una función, `pesos()`, y no con un atributo privado.
+- **Borrar código muerto dejó código muerto.** `lexical.CATEGORIES` sólo lo usaba la `featurize()` borrada, y su comentario («usado para featurizar en el modelo linear») pasó a ser falso en el mismo momento. Se borró en el mismo commit: dejarlo habría sido meter código muerto nuevo en la PR que limpia el código muerto.
+- **Un renombrado arrastra lo que nombre el fichero por su nombre, no sólo los imports.** `tests/test_arquitectura.py` exceptúa de la invariante de configuración a los módulos por nombre de fichero. Renombrar `client.py` sin tocarlo hace fallar el test, porque `remote.py` lee `settings`: la invariante se protege sola, pero hay que saberlo.
+- **Los renombrados se hicieron moviendo los ficheros, no con `git mv`**, y se añadieron juntos la ruta vieja y la nueva. Git los reconoce como renombrados, y `git log --follow` conserva su historia.
+
+#### El test del import
+
+Un test nuevo en `tests/integrations/test_nlp.py` recarga `linear.py` con `open` saboteado, y falla si importar el módulo abre algún fichero. **Se comprobó que habría cazado el código de antes**: cargado el `linear.py` de `dev` con el mismo sabotaje, falla con «abrió un fichero al importar». Un test que pasa con el código viejo y con el nuevo no protege nada.
+
+#### Los docstrings
+
+Cada módulo declara para qué existe y **lo que no se deduce leyéndolo**, con la issue de la que sale: que `settings` se valida al importar, y por eso los detectores no pueden importarlo; que `/health` no cubre las señales NLP (#147); que `ToolResult` no es lo que devuelven las tools MCP (#100); que `hf-inference` no sirve ningún modelo de clickbait (#156). Donde había un comentario suelto en cabecera haciendo ese papel, el docstring lo sustituye en vez de duplicarlo. Cada dato citado se comprobó contra el código antes de escribirlo.
+
+La deuda se cuenta con el comando de la sección de #173, que ahora da `0 de 40`. `docs/estructura.md` dice desde el principio que lo correcto era esto —que cada módulo declare su propósito y el documento central se limite a los criterios—; ahora que los docstrings existen, sus tablas podrían adelgazar, y queda anotado sin hacer.
+
+**Comprobado**: los 293 tests (uno más que antes), `ruff` y el recuento de docstrings. En la rama, antes del squash, fueron dos commits que la PR conserva: `10170de` (código muerto, carga perezosa y renombrados) y `837b027` (docstrings).
 
 ### Las dos descripciones que se confundían (24 sep 2026, PR #183)
 
@@ -4758,7 +4794,8 @@ dos resultaron ciertas… y sostenidas por nada:
 1. Ninguna capa del núcleo importa de las fachadas.
 2. Los detectores —`lexical`, `linear`, `incoherence`, `dedicated`— no importan
    `settings`; sólo lo hacen `client.py`, que necesita el token, y `factory.py`,
-   cuyo trabajo es leer configuración.
+   cuyo trabajo es leer configuración. *(`client.py` pasó a llamarse `remote.py`
+   en #108.)*
 
 Publicar un diagrama que dibuja una regla que nada defiende es repetir el error
 de la cabecera. Así que `tests/test_arquitectura.py` entra en una issue de
