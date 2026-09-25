@@ -1433,7 +1433,7 @@ Sin el administrador el único camino es SSH, y queda decidir el sentido. §12 d
 
 Es una **desviación del plano**: ninguna de sus dos opciones era ésta. Queda escrita aquí para contrastarla al cerrar H5, y §12 no se corrige.
 
-Cómo se montaría, **pendiente de consultarlo con el tutor** porque la máquina 2 es compartida: un usuario **sin privilegios** en la máquina 1 (`tunel`, no `vmuser`, que tiene `sudo` sin contraseña), una clave dedicada en la 2, y en el `authorized_keys` de ese usuario la opción `restrict` con el reenvío como única excepción, y a una sola dirección. Si la clave se filtrara desde la máquina compartida, lo único que daría es escuchar en ese puerto.
+Cómo se montaría, **pendiente de consultarlo con el tutor** porque la máquina 2 es compartida: un usuario **sin privilegios** en la máquina 1 (`tunel`, no `vmuser`, que tiene `sudo` sin contraseña), una clave dedicada en la 2, y en el `authorized_keys` de ese usuario la opción `restrict` con el reenvío como única excepción, y a una sola dirección. Si la clave se filtrara desde la máquina compartida, lo único que daría es escuchar en ese puerto. *(Consultado y montado el 25 sep: ver «El túnel, montado», al final de esta sección.)*
 
 #### Adónde tiene que llegar el túnel: el contenedor no ve el `127.0.0.1` del host
 
@@ -1445,7 +1445,7 @@ Un `ssh -R` escucha en el host de la máquina 1, y con `gatewayports no` —lo q
 | `172.17.0.1`, puerta de enlace de la red por defecto de Docker | **llega**, y también por nombre: `host.docker.internal` con `host-gateway` resuelve ahí |
 | `172.18.0.1`, puerta de enlace de la red del compose | llega, pero esa dirección depende del orden en que se crean las redes |
 
-De ahí sale lo que necesitará el túnel: **escuchar en `172.17.0.1:11434`**. En el `sshd` de la máquina 1 eso exige `GatewayPorts clientspecified`, que se puede acotar al usuario del túnel con un `Match User`, y `permitlisten="172.17.0.1:11434"` en su clave; en el compose, `extra_hosts: host.docker.internal:host-gateway` para la API. Nada de eso se ha aplicado todavía.
+De ahí sale lo que necesitará el túnel: **escuchar en `172.17.0.1:11434`**. En el `sshd` de la máquina 1 eso exige `GatewayPorts clientspecified`, que se puede acotar al usuario del túnel con un `Match User`, y `permitlisten="172.17.0.1:11434"` en su clave; en el compose, `extra_hosts: host.docker.internal:host-gateway` para la API. Nada de eso se ha aplicado todavía. *(El túnel se aplicó el 25 sep; el `extra_hosts` del compose queda para la issue del cliente de Ollama.)*
 
 #### Lo que ocupa Ollama, y lo que tarda en estar listo
 
@@ -1471,7 +1471,7 @@ Lo que dicen:
 - **Eso corrige una lectura del spike rehecho en la A40**, que atribuía a un «calentamiento de CUDA» los ~8 s de más de la primera petición. Era esto.
 - **El `num_ctx` por defecto de Ollama 0.34.2 depende de la VRAM**: el registro dice `default_num_ctx=32768` en la A40. El defecto no es un número, cambia de máquina en máquina, y es otra razón para lo que ya estaba decidido: el agente fija `num_ctx`.
 
-**Quién arranca Ollama queda pendiente, pero ya con los números para decidirlo.** Dejar el servidor arrancado no ocupa la GPU, y arrancarlo bajo demanda cuesta ~36 s, o ~11 s si se activa el modo persistente. Las dos cosas se consultaron al tutor el 2026-09-24: si se puede dejar arrancado y, si no, si el administrador puede activar el modo persistente. Si se puede dejar arrancado, el modo persistente casi deja de importar: sólo recortaría unos 3 s a cada primera carga.
+**Quién arranca Ollama queda pendiente, pero ya con los números para decidirlo.** Dejar el servidor arrancado no ocupa la GPU, y arrancarlo bajo demanda cuesta ~36 s, o ~11 s si se activa el modo persistente. Las dos cosas se consultaron al tutor el 2026-09-24: si se puede dejar arrancado y, si no, si el administrador puede activar el modo persistente. Si se puede dejar arrancado, el modo persistente casi deja de importar: sólo recortaría unos 3 s a cada primera carga. *(Decidido el 25 sep: sólo bajo demanda. Ver «El túnel, montado».)*
 
 #### Trampas del instrumento
 
@@ -1480,8 +1480,72 @@ Lo que dicen:
 
 #### Lo que queda
 
-- **Montar el túnel y medir cuánto añade a una petición**, cuando conteste el tutor. Por eso la PR dice `Refs #181` y no cierra la issue.
+- **Montar el túnel y medir cuánto añade a una petición**, cuando conteste el tutor. Por eso la PR dice `Refs #181` y no cierra la issue. *(Hecho el 25 sep, en la subsección siguiente.)*
 - **El arranque con la caché de disco fría**: sin `sudo` no se puede vaciar, y en todas las medidas los pesos estaban enteros en memoria.
+
+#### El túnel, montado (2026-09-25, PR #186)
+
+El tutor contestó el 25: **el túnel SSH es asumible**. El propio administrador lo había sugerido, y es más una restricción de la universidad que una decisión del proyecto. Con eso se monta el túnel inverso, se mide y se cierra la issue.
+
+**Y se decide lo otro: Ollama se arranca SÓLO bajo demanda**, nunca se deja corriendo, aunque un servidor sin modelo ocupe 0 MiB. Un proceso arrancado permanentemente en una máquina compartida es justo lo que le parecería raro a su responsable. De ahí sale la respuesta a la segunda pregunta de §12, *quién arranca Ollama y cuándo suelta la GPU*: **lo arranca una persona**, con `gpu-sesion`; el túnel vive lo que vive esa sesión; el modelo suelta la GPU al vencer su `keep_alive`, y el servidor, al acabar la sesión. La API sólo **detecta** si hay agente, que es lo que pide R6.14.
+
+El coste es el arranque en frío, **~36 s** hasta la primera respuesta, de los que 27 son el modo persistente desactivado. **Esa pregunta al administrador quedó sin respuesta**, y con el arranque bajo demanda es la que más importa. No bloquea nada: `POST /chat` ya es asíncrono, y la espera la absorbe el sondeo.
+
+| Condiciones | |
+|---|---|
+| Fecha | 2026-09-25 |
+| Máquinas | las de arriba; OpenSSH 9.6p1 en las dos |
+| Modelo | `qwen3.5:27b`, ID `7653528ba5cb`, con `num_ctx` 8192 |
+| Sesión | [`despliegue/maquina2/gpu-sesion`](despliegue/maquina2/gpu-sesion), sha256 `6ad6a751d636…`, instalado en `~/bin` de la máquina 2 |
+| Código | el commit `7721f20` de `dev`, más los ficheros de esta PR |
+| Guiones | [`spikes/tunel_restricciones.sh`](spikes/tunel_restricciones.sh) y [`spikes/latencia_tunel.sh`](spikes/latencia_tunel.sh), lanzados desde WSL |
+
+**El montaje.** En la máquina 2, una clave ed25519 dedicada, `tunel_ollama`, sin frase de paso porque la usa `gpu-sesion`. En la máquina 1, un usuario de sistema, `tunel`, con shell `nologin` y contraseña `*`: sin contraseña válida, pero no bloqueada, porque una cuenta bloqueada (`!`, lo que pone `useradd`) puede rechazar también las claves según PAM. Lo que puede hacer está acotado **en dos sitios**:
+
+- en su `authorized_keys`: `restrict,port-forwarding,permitlisten="172.17.0.1:11434"`;
+- en `sshd`, con un bloque `Match User tunel` en [`despliegue/maquina1/70-tunel.conf`](despliegue/maquina1/70-tunel.conf): sólo reenvío remoto, `GatewayPorts clientspecified`, escucha limitada a esa dirección, `PermitOpen none`, sin TTY y con `ForceCommand /usr/sbin/nologin`.
+
+No es redundancia de adorno. Si alguien quita una de las dos, la otra sigue cerrando; y cada una alcanza lo que la otra no: `GatewayPorts` sólo se puede dar en `sshd`, y `restrict` quita de un golpe todo lo que la clave no nombre. El riesgo que queda es el de una clave sin frase de paso en una máquina compartida: quien entrara en la cuenta de la máquina 2 podría, **mientras el túnel verdadero está cerrado**, hacerse pasar por Ollama ante la API. Está acotado por diseño: el veredicto nunca sale del texto del modelo (R13.4). La cuenta y la configuración de `sshd` las creó el autor a mano; el procedimiento completo, con sus comprobaciones, está en [`despliegue/README.md`](despliegue/README.md).
+
+**Lo que no se veía: el `Match` de un fichero incluido acaba donde acaba el fichero.** `sshd_config` incluye `sshd_config.d/*.conf` en su línea 12, **antes** del resto de su configuración, y un bloque `Match` abarca todo lo que viene detrás hasta el siguiente. Si se hubiera extendido más allá del fichero incluido, `UsePAM` y `Subsystem` habrían quedado dentro del bloque —`sshd -t` habría fallado— y `vmuser` habría heredado las restricciones. Se comprobó **antes de recargar**: `sshd -t` válido y, con `sshd -T -C`, la configuración efectiva de cada usuario. `tunel` sale con las restricciones y `vmuser` exactamente como antes: `gatewayports no`, `permitlisten any`, `x11forwarding yes`, `forcecommand none`. Recargar sin mirarlo habría sido apostar el acceso a la máquina.
+
+**La aceptación** ([`spikes/tunel_restricciones.sh`](spikes/tunel_restricciones.sh)). No usa la GPU: el túnel apunta a un servidor HTTP de prueba en la máquina 2.
+
+| | Intento | Resultado |
+|---|---|---|
+| Prohibido | una shell | rechazado: «This account is currently not available.» |
+| | `-R` en `172.17.0.1:11435`, otro puerto | rechazado |
+| | `-R` en `127.0.0.1:11434`, `0.0.0.0:11434` y `172.18.0.1:11434` | rechazados, los tres |
+| | `-L` hacia el 22 de la propia máquina 1 | el canal se rechaza: «administratively prohibited» |
+| Permitido | `-R` en `172.17.0.1:11434` | llegan el host y un contenedor de la red del compose, por `host.docker.internal` y por `172.17.0.1` |
+| Al terminar | | nada escuchando en ninguna de las dos máquinas, ni sesiones de `tunel` |
+
+**Lo que añade el túnel** ([`spikes/latencia_tunel.sh`](spikes/latencia_tunel.sh)). Una sesión real, con el 27B cargado —8,6 s de carga, en línea con ayer—, y el mismo medidor en los tres sitios: 20 `GET /api/version` y 10 respuestas cortas, cada una por una conexión nueva, que es el peor caso para el túnel. «Fuera de Ollama» es el tiempo de reloj menos el `total_duration` que da el propio Ollama.
+
+| | `GET /api/version` | `POST /api/chat` | Fuera de Ollama |
+|---|---|---|---|
+| Máquina 2, sin túnel | 0,3 ms | 207,9 ms | 1,0 ms |
+| Máquina 1, host | 1,8 ms | 209,9 ms | 3,2 ms |
+| Máquina 1, contenedor (como la API) | 1,8 ms | 211,1 ms | 3,3 ms |
+
+Medianas; los p90 quedan a menos de 2 ms de ellas. **El túnel añade unos 2 ms por petición**, y un bucle del agente con el 27B tarda 13–36 s: menos de una diezmilésima. El contenedor no añade nada apreciable sobre el host.
+
+**Y saber que NO hay agente es inmediato.** Cerrada la sesión, la conexión a `172.17.0.1:11434` se rechaza en **0,1–0,2 ms** de mediana (`ConnectionRefusedError`), desde el host y desde el contenedor: la máquina 1 no descarta el paquete, contesta que ahí no escucha nadie. Para R6.14 significa que la API puede preguntar si el agente está disponible cada vez que haga falta, sin coste y sin caché, al revés que `/health`.
+
+**Una carpeta nueva, `despliegue/`**, con su criterio escrito en `docs/estructura.md`: *¿se instala o se ejecuta directamente en una máquina de despliegue, fuera de toda imagen?* Guarda `70-tunel.conf`, idéntico byte a byte al instalado, y `gpu-sesion`, que hasta hoy sólo existía en `~/bin` de la máquina 2 sin versionar; la versión anterior se conserva allí como `gpu-sesion.antes-181`. Ahora que el agente va a depender de las dos piezas, no podían quedar fuera del repositorio. `gpu-sesion` cambia en cuatro cosas:
+
+- **abre el túnel** en cuanto Ollama responde, y cierra la sesión si no puede, porque un Ollama que la API no ve sólo ocuparía la GPU;
+- **tiene una duración máxima**, 2 h por defecto. Es la consecuencia del arranque bajo demanda, y cubre además el caso que ningún `trap` ve: una sesión SSH sin terminal no recibe ninguna señal cuando se corta la conexión (pasó el 24);
+- **arregla un fallo de la versión anterior**: su `trap` limpiaba al recibir Ctrl-C y el guion **seguía ejecutándose** después. Ahora la limpieza va en la salida, y las señales sólo la provocan;
+- **espera 60 s a Ollama, no 30**: con los 27 s medidos arriba, el tope anterior iba demasiado justo.
+
+**Lo que queda, para las issues de H5:**
+
+- **`extra_hosts: host.docker.internal:host-gateway`** en el servicio de la API del compose, con el cliente de Ollama.
+- **La comprobación de disponibilidad** para R6.14, que las cifras de arriba dejan barata.
+- **El túnel no se reconecta si se cae** a mitad de sesión: `ServerAliveInterval` lo detecta en 90 s como mucho y ssh termina, pero Ollama sigue hasta que acaba la sesión. Para un uso bajo demanda y atendido basta; si no, que la sesión se cierre también al morir el túnel.
+- **El modo persistente**, como petición al administrador, y **el arranque con la caché de disco fría**, que sigue sin medirse.
+- `docs/arquitectura.md` no se toca: el túnel inverso y el arranque por una persona son lo que se contrastará con §12 al cerrar H5.
 
 ### El CI, fijado a su sistema y fuera de Node 20 (#178)
 
