@@ -54,6 +54,16 @@ services:
       # petición entre orígenes—, pero el requisito lo pide y el valor por
       # defecto, `localhost:4200`, sería falso en despliegue.
       CORS_ORIGINS: '["https://gongarcia.tfg.etsii.urjc.es"]'
+      # El agente (#187). Ollama vive en la máquina de la GPU y llega por el
+      # túnel inverso que abre `gpu-sesion` (#181), escuchando en 172.17.0.1:11434
+      # del host. Sólo en la API: el agente corre aquí, no en el MCP.
+      LLM_BACKEND: ollama
+      LLM_URL: http://host.docker.internal:11434
+    # Para un contenedor, `127.0.0.1` es él mismo: el host se alcanza con este
+    # nombre, que `host-gateway` resuelve a la puerta de enlace de la red por
+    # defecto de Docker, 172.17.0.1 (medido en #181).
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     volumes:
       # El historial es /app/var/history.db. Sin volumen se pierde al RECREAR el
       # contenedor —no al reiniciarlo—, y `up --build` recrea: medido en #163.

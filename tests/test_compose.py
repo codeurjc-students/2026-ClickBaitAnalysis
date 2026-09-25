@@ -62,3 +62,18 @@ def test_el_servicio_de_la_api_se_llama_api():
     """Contrato con `docker/Caddyfile`, que reenvía a `api:8000` (#163): dentro
     de compose, el nombre del servicio es su dirección."""
     assert "api" in _servicios()
+
+
+def test_la_api_alcanza_el_tunel_del_agente():
+    """Contrato con el túnel inverso de #181, que escucha en 172.17.0.1:11434
+    del host (`despliegue/maquina1/70-tunel.conf`).
+
+    Para un contenedor, `127.0.0.1` es él mismo: el host se alcanza como
+    `host.docker.internal`, y ese nombre sólo existe con `host-gateway`. Sin él,
+    el agente daría «no pudo contactar» con la sesión abierta y el túnel bien.
+    """
+    api = _servicios()["api"]
+
+    assert "host.docker.internal:host-gateway" in api.get("extra_hosts", [])
+    assert api["environment"]["LLM_BACKEND"] == "ollama"
+    assert api["environment"]["LLM_URL"].startswith("http://host.docker.internal:")
