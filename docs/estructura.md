@@ -143,9 +143,14 @@ estructura predecible y es lo que permite el descubrimiento automático.
 | `<nombre>/client.py` | La lógica de la API. Hereda `BaseAPI` |
 | `<nombre>/tool.py` | Capa fina que declara la herramienta MCP y delega en el cliente |
 
+**Una integración puede no publicar herramientas.** `llm/` envuelve el servidor
+de modelos y lo consume el agente por dentro, sin ofrecerlo al catálogo, así que
+no tiene `tool.py` (#187). El patrón de arriba es el de las integraciones que
+**se sirven**; las que sólo **se usan** no lo necesitan.
+
 | Fichero | Qué hace |
 |---|---|
-| `discovery.py` | Recorre el paquete y registra lo que encuentra — ⚠️ [tensión 3](#3--discovery-y-metadata-no-envuelven-nada) |
+| `discovery.py` | Recorre el paquete y registra lo que encuentra. Un paquete sin módulo `tool` va a `without_tools`, no a `failed`: no publicar herramientas no es estar roto, y lo que cae en `failed` se anuncia al arrancar como integración rota (#187) — ⚠️ [tensión 3](#3--discovery-y-metadata-no-envuelven-nada) |
 | `metadata.py` | La categoría y procedencia que cada tool declara, para el catálogo — ⚠️ [tensión 3](#3--discovery-y-metadata-no-envuelven-nada) |
 | `guardian/`, `nyt/` | Fuentes de noticias |
 | `weather/` | Fuente meteorológica. Sobrevive de la Épica 0 y sirve de contraste: es la única que no tiene nada que ver con el clickbait |
@@ -169,6 +174,20 @@ El paquete más grande, porque contiene **las señales** — el núcleo del dete
 | `outputs.py` | Los `TypedDict` de retorno, para que MCP publique el `outputSchema` |
 | `tool.py` | Registra las señales como herramientas MCP |
 | `cues/` | Las listas de *cues* léxicos, en ficheros de datos |
+
+### `backend/integrations/llm/`
+
+El modelo de lenguaje del agente (#187, R13.6). Sigue el patrón de `nlp/` —una
+interfaz, sus implementaciones y una factoría que es la única que lee `settings`,
+lo que vigila `tests/test_arquitectura.py`—, y no publica herramientas: lo
+consume el agente.
+
+| Fichero | Qué hace |
+|---|---|
+| `base.py` | `LLMBackend` (ABC), con `chat()` y `disponibilidad()`, y los tipos **neutrales** de la conversación: mensaje, herramienta, llamada, respuesta con sus medidas. No son el formato de Ollama, para que otro proveedor no toque el agente; las claves van en inglés, como las del dominio (#134) |
+| `ollama.py` | `OllamaClient(BaseAPI, LLMBackend)`. El chat pasa por `make_request`, sin reintentos; la disponibilidad va con `httpx` directo, porque necesita el TIPO de fallo: sólo una conexión **rechazada** es «apagado» |
+| `model_card.py` | La ficha del modelo (R13.7): opaco, qué hace y qué no —el veredicto no es suyo, R13.4— y sus limitaciones medidas, cada una con su PR |
+| `factory.py` | Qué hay configurado: `get_llm_backend()` —`None` si no hay agente—, `disponibilidad()` con los cuatro estados de R6.14, y `ficha_efectiva()`, que deja de publicar las medidas si se configura otro modelo (#119) |
 
 ## `backend/config/`
 

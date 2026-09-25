@@ -1238,6 +1238,81 @@ Añadir el registro a `/analyze` convirtió, sin avisar, todos los tests de esa 
 
 `tests/api/test_history.py` cubre los dos lados por separado —el almacén llamando a sus funciones, el endpoint por HTTP— porque responden preguntas distintas: si los datos sobreviven y salen en orden, y si la decisión de «una entrada por análisis» se sostiene de verdad.
 
+### El cliente del modelo de lenguaje (#187, 25 sep 2026)
+
+La primera issue de H5 que construye algo. §12 de [`docs/arquitectura.md`](docs/arquitectura.md) dibujaba un paquete `integrations/llm/` que no existía, y #181 dejó medido cómo se llega a él: por el túnel inverso, en `172.17.0.1:11434` de la máquina 1, con Ollama arrancado bajo demanda. Esta issue construye el cliente y nada del agente, que es #188.
+
+#### Qué hay
+
+- **[`integrations/llm/`](backend/integrations/llm/)**, con el patrón de `nlp/`:
+  - `base.py`: la interfaz `LLMBackend`, con `chat()` y `disponibilidad()`, y los tipos de la conversación. **Son neutrales**, no el formato de Ollama: R13.6 pide poder cambiar de proveedor, y con ellos el agente no se enteraría;
+  - `ollama.py`: la única implementación;
+  - `model_card.py`: la ficha del modelo (R13.7);
+  - `factory.py`: la única que lee `settings`, y cachea el cliente por el valor de la configuración (#119).
+- **Seis ajustes `llm_*`**, cada uno con su motivo escrito al lado:
+
+  | Ajuste | Valor | Por qué |
+  |---|---|---|
+  | `llm_backend` | `None` | Sin agente por defecto: el estado «sin configurar» de R6.10. El compose lo enciende en despliegue |
+  | `llm_url` | `127.0.0.1:11434`; en despliegue, `host.docker.internal:11434` | Lo que ve el contenedor del túnel de #181 |
+  | `llm_model` | `qwen3.5:27b` | El punto de partida del spike rehecho en la A40 |
+  | `llm_num_ctx` | 8192 | **Nunca el defecto**: la 0.34.2 lo elige según la VRAM, y con 2048 el catálogo se recortaba en silencio |
+  | `llm_keep_alive` | `10m` | A los diez minutos sin uso el modelo suelta la GPU, aunque la sesión siga abierta |
+  | `llm_timeout` | 120 s | Por llamada al modelo, no por conversación |
+
+- **El compose**: la API gana `LLM_BACKEND`, `LLM_URL` y `extra_hosts: host.docker.internal:host-gateway`. El MCP no los necesita: el agente corre en la API. `tests/test_compose.py` vigila ese contrato con el túnel.
+
+#### Dos caminos hasta Ollama, a propósito
+
+- **El chat pasa por `BaseAPI.make_request`**, como el backend remoto de las señales. Hereda así los mensajes públicos de #89 y el log `api.call`. **Sin reintentos**: una llamada al modelo cuesta segundos de GPU, y repetirla tras un timeout la duplicaría. Una respuesta con forma inesperada se registra y no se publica, por la regla de #185.
+- **La disponibilidad no.** `make_request` convierte cualquier fallo en una frase, y aquí hace falta saber **qué** pasó. Va con `httpx` directamente: `/api/version` dice si hay alguien, y `/api/tags` si tiene el modelo. Con un corte de 2 s, porque #181 midió que un rechazo se sabe en 0,1 ms: si en dos segundos no contesta, para quien espera es lo mismo que apagado.
+
+#### Cuatro estados, y por qué «apagado» es sólo el rechazo
+
+R6.14 pide explicar por qué no está el asistente, y hay cuatro motivos distintos: `not_configured`, `unreachable`, `model_missing` y `available`.
+
+**«Apagado» sólo se dice ante una conexión rechazada**, que es lo que significa «la máquina contesta, pero no hay ningún Ollama»: la sesión está cerrada, que es el estado normal. Se reconoce buscando un `ConnectionRefusedError` en la cadena de causas. Un nombre que no resuelve también da `ConnectError`, y decir entonces «está apagado» sería mentir, porque es un fallo de configuración: ese caso recibe la frase genérica de `core/errores.py`. Es la regla de #162: traducir el error de una librería sólo con condiciones medidas.
+
+#### La ficha del modelo
+
+Opaco, y con la tarea escrita de forma que el veredicto no es suyo (R13.4): narra lo que devuelven las herramientas, y las tarjetas se pintan con su resultado. Sus limitaciones son las medidas en los spikes, cada una con su PR: 20/20 al elegir herramienta con la ventana de 8192 (#183) y 9/20 con 2048 (#176); 0 errores en 6 respuestas leídas a mano, con una muestra pequeña (#176); 13–36 s por consulta, más ~36 s en frío (#181). Como en las señales, si se configura otro modelo las medidas dejan de publicarse, porque eran de éste (#119). La tarea sobrevive al cambio, porque describe el hueco y no a su ocupante.
+
+#### Dos cosas que no se veían
+
+**El descubrimiento habría dado una falsa alarma en cada arranque.** `discovery.py` importa el `tool.py` de cada paquete de `integrations/` para registrar sus herramientas, y un paquete sin él caía en `failed`. `llm/` es la primera integración que no publica herramientas —la consume el agente—, así que el servidor MCP la habría anunciado como rota cada vez que arrancara, que es justo el aviso que sirve para ver un sistema degradado. Ahora `discovery` pregunta con `find_spec` si el módulo existe antes de importarlo: sin `tool.py`, el paquete va a una lista aparte, `without_tools`; con un `tool.py` que falla, sigue siendo un fallo.
+
+**`respx` borraba justo lo que había que probar.** El test de «conexión rechazada es sesión cerrada» construía un `ConnectError` con el rechazo en su causa, y fallaba: al lanzar un efecto simulado, `respx` **sustituye la causa** por su propio `SideEffectError`. El código estaba bien. Contra un puerto real, la cadena que da httpx es `ConnectError → ConnectError → OSError → ConnectionRefusedError`, y el test usa ahora eso: un puerto local sin nadie, que se rechaza al instante también en el CI. Un doble que reescribe lo que se prueba no prueba nada.
+
+#### La aceptación contra la A40
+
+[`spikes/llm_disponibilidad.sh`](spikes/llm_disponibilidad.sh) ejecuta el código del commit en un contenedor desechable de la máquina 1, en la red del compose y con `host-gateway`, que es como lo verá la API: copia `backend/` a una carpeta temporal y la monta sobre la imagen, sin tocar los servicios desplegados.
+
+| Condiciones | |
+|---|---|
+| Fecha | 2026-09-25 |
+| Código | commit `8ce7120` de la rama, montado sobre la imagen `clickbait-backend` desplegada |
+| Servidor | Ollama 0.34.2 en la A40, `qwen3.5:27b` (ID `7653528ba5cb`), por el túnel inverso |
+| Sesión | `gpu-sesion` (`6ad6a751d636…`), 10 min como máximo |
+
+| Caso | Estado | Lo que dice |
+|---|---|---|
+| `LLM_BACKEND` sin poner | `not_configured` | «El asistente no está configurado en este despliegue.» |
+| Configurado, sin sesión | `unreachable` | «El asistente está apagado: el servidor del modelo se arranca bajo demanda y ahora no está en marcha.» |
+| Sesión abierta, `qwen3.5:no-existe` | `model_missing` | «El servidor del modelo está en marcha, pero no tiene `qwen3.5:no-existe`.» |
+| Sesión abierta, `qwen3.5:27b` | `available` | «El asistente está disponible.» |
+
+Con el último, **un chat real con una herramienta**: el modelo pidió `detect_clickbait_lexical` con el titular exacto como argumento, y se leyeron bien las medidas: 322 tokens de prompt, 38 de salida y 21,2 s en total, de los que 19,1 fueron cargar el modelo. El texto salió vacío, que es lo esperado en una vuelta en la que sólo pide la herramienta. Al terminar, la GPU volvió a 0 MiB, no quedó nada escuchando en el 11434 de la máquina 1, y la carpeta temporal se borró.
+
+**Un dato sin explicar: esa carga de 19,1 s.** En #181 fueron 8,6–8,9 s, con los pesos enteros en la caché de disco. Aquí no se midió la caché ni la carga de la máquina, así que queda como observado y se cruzará con el arranque en frío, que sigue sin medirse.
+
+#### Lo que se lleva #188
+
+- **Qué mide `prompt_tokens`.** Es lo que el servidor evaluó en esa llamada. Si Ollama reutiliza lo evaluado en una vuelta anterior, podría contar menos que la conversación entera, y hay que medirlo antes de usarlo como tamaño de la ventana.
+- **El presupuesto de la ventana**: 8.192 tokens, de los que el catálogo ocupa 2.629, más el prompt, los turnos anteriores y lo que devuelvan las herramientas.
+- **`think`**: la interfaz lo admite, y el cliente lo manda desactivado mientras #188 no mida qué cuesta.
+
+**Comprobado**: 315 tests, veinte más que antes; `ruff`; y `pyright` a cero. La regla de `tests/test_arquitectura.py` —que sólo la factoría lee la configuración— pasa a aplicarse paquete a paquete, y cubre ya `llm/`.
+
 ### La respuesta cruda de Hugging Face, una quinta puerta de #89 (24 sep 2026, PR #185)
 
 Al escribir el docstring de `nlp/remote.py` en #108 apareció un mensaje de fallo que interpolaba la respuesta entera del proveedor: ante una respuesta con forma inesperada, `HFClient` devolvía `Respuesta inesperada de HF: {result.data}`. Trabajo suelto, sin issue: un cambio en un solo módulo, con su test.
