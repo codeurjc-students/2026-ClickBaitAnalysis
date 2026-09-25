@@ -4,10 +4,14 @@ Aquí se recorre ``backend/integrations/``, se importa el ``tool`` de cada
 paquete y se llama a su ``register(mcp)``. Añadir una integración pasa a ser
 crear el paquete; nadie toca ``main.py``.
 
-
+Un paquete **sin módulo ``tool``** no es un fallo: es una integración que el
+sistema consume por dentro y no publica herramientas. El primero es ``llm/``,
+que usa el agente (#187). Se anota aparte, en ``without_tools``, porque lo que
+cae en ``failed`` se anuncia al arrancar como integración rota.
 """
 
 import importlib
+import importlib.util
 import pkgutil
 from dataclasses import dataclass, field
 
@@ -26,6 +30,8 @@ class DiscoveryResult:
 
     registered: tuple[str, ...] = ()
     failed: dict[str, str] = field(default_factory=dict)  # paquete -> motivo
+    # Integraciones sin módulo `tool`: existen, pero no publican herramientas.
+    without_tools: tuple[str, ...] = ()
 
     # field y default factory para inmutabilidad y no compartir entre instancias.
 
@@ -50,6 +56,7 @@ def discover_and_register(mcp: FastMCP) -> DiscoveryResult:
     paquete = importlib.import_module(__package__)
     registrados: list[str] = []
     fallidos: dict[str, str] = {}
+    sin_herramientas: list[str] = []
 
     # Orden alfabético, no el del sistema de ficheros: el catálogo y los tests
     # dependen de que sea siempre el mismo.
@@ -60,8 +67,22 @@ def discover_and_register(mcp: FastMCP) -> DiscoveryResult:
     )
 
     for nombre in nombres:
+        ruta_tool = f"{__package__}.{nombre}.{MODULO_TOOL}"
         try:
-            modulo = importlib.import_module(f"{__package__}.{nombre}.{MODULO_TOOL}")
+            # `find_spec` pregunta si el módulo existe sin ejecutarlo (sí importa
+            # el paquete que lo contiene). Distingue «no tiene `tool`», que no es
+            # un fallo, de «tiene `tool` y no carga», que sí lo es.
+            tiene_tool = importlib.util.find_spec(ruta_tool) is not None
+        except ImportError as exc:  # el propio paquete no se puede importar
+            fallidos[nombre] = f"{type(exc).__name__}: {exc}"
+            log.warning("integracion.omitida", integracion=nombre, motivo=str(exc))
+            continue
+        if not tiene_tool:
+            sin_herramientas.append(nombre)
+            continue
+
+        try:
+            modulo = importlib.import_module(ruta_tool)
             registrar = modulo.register
         except (ImportError, AttributeError) as exc:
             # Sin `tool.register` no es una integración registrable: puede ser un
@@ -79,4 +100,8 @@ def discover_and_register(mcp: FastMCP) -> DiscoveryResult:
 
         registrados.append(nombre)
 
-    return DiscoveryResult(registered=tuple(registrados), failed=fallidos)
+    return DiscoveryResult(
+        registered=tuple(registrados),
+        failed=fallidos,
+        without_tools=tuple(sin_herramientas),
+    )

@@ -193,6 +193,31 @@ class Settings(BaseSettings):
     # `0` desactiva la caché.
     health_cache_s: float = 30.0
 
+    # El modelo de lenguaje del agente (#187, R13.6).
+    #
+    # `None` por defecto: SIN AGENTE. Es el estado «sin configurar» de R6.10 y
+    # R6.14, y el de cualquier entorno que no lo pida; el compose lo enciende en
+    # despliegue. No confundirlo con «apagado»: configurado, pero sin nadie con
+    # una sesión abierta en la máquina de la GPU, que es lo normal (#181).
+    llm_backend: Literal["ollama"] | None = None
+    # En despliegue, `http://host.docker.internal:11434`: el túnel inverso de
+    # #181 escucha en 172.17.0.1:11434 del host, que es lo que ve el contenedor.
+    llm_url: str = "http://127.0.0.1:11434"
+    # El punto de partida del spike rehecho en la A40 (PR #176). Su ficha, con
+    # las medidas, en `integrations/llm/model_card.py`.
+    llm_model: str = "qwen3.5:27b"
+    # SIEMPRE explícito, nunca el defecto de Ollama: la 0.34.2 lo elige según la
+    # VRAM (32.768 en la A40), y con 2048 el catálogo —2.629 tokens desde #183—
+    # se recortaba en silencio y el modelo elegía mal (9/20 frente a 20/20).
+    llm_num_ctx: int = 8192
+    # Cuánto sigue el modelo en la GPU tras la última petición. Pasado ese
+    # tiempo la suelta, aunque la sesión siga abierta: el servidor sin modelo
+    # ocupa 0 MiB (#181). Diez minutos cubren una conversación con pausas.
+    llm_keep_alive: str = "10m"
+    # Por LLAMADA al modelo, no por conversación: la primera de una sesión paga
+    # además la carga (~9 s, #181), y un bucle entero son 13–36 s.
+    llm_timeout: float = 120.0
+
 
 # Activa la validación al importar: si falta una clave, el proceso no arranca.
 #

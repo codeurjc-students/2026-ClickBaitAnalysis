@@ -24,6 +24,8 @@ día hay cinco contratos de capas, se reconsidera.
 import ast
 from pathlib import Path
 
+import pytest
+
 BACKEND = Path(__file__).resolve().parents[1] / "backend"
 
 # Las fachadas: saben que están sirviendo a alguien. El núcleo no debe conocerlas.
@@ -52,7 +54,14 @@ FUERA_DEL_NUCLEO = {"api", "main.py"}
 # nuevo queda cubierto sin tocar nada, y meter `settings` en un módulo nuevo
 # obliga a editar esta línea a mano — que es la decisión consciente que se quiere
 # forzar cuando llegue la parametrización de umbrales.
-LEEN_CONFIGURACION = {"remote.py", "factory.py"}
+#
+# Por paquete, desde #187: el cliente del modelo de lenguaje sigue la misma
+# regla, y ahí sólo lee la configuración su factoría. El cliente de Ollama la
+# recibe.
+LEEN_CONFIGURACION = {
+    "nlp": {"remote.py", "factory.py"},
+    "llm": {"factory.py"},
+}
 
 CONFIGURACION = "backend.config.settings"
 
@@ -103,23 +112,24 @@ def test_el_nucleo_no_importa_de_las_fachadas():
     )
 
 
-def test_los_detectores_no_conocen_la_configuracion():
-    """Los detectores son lógica pura: se prueban sin montar nada.
+@pytest.mark.parametrize("paquete", sorted(LEEN_CONFIGURACION))
+def test_los_detectores_no_conocen_la_configuracion(paquete):
+    """Los detectores y los clientes de modelos se prueban sin montar nada.
 
     En cuanto uno lea `settings`, probarlo exige un entorno con las claves
     puestas y deja de poder usarse como biblioteca suelta.
     """
-    nlp = BACKEND / "integrations" / "nlp"
+    carpeta = BACKEND / "integrations" / paquete
 
     infracciones = [
-        f"{fichero.name} importa {CONFIGURACION}"
-        for fichero in sorted(nlp.glob("*.py"))
-        if fichero.name not in LEEN_CONFIGURACION
+        f"{paquete}/{fichero.name} importa {CONFIGURACION}"
+        for fichero in sorted(carpeta.glob("*.py"))
+        if fichero.name not in LEEN_CONFIGURACION[paquete]
         and any(modulo.startswith(CONFIGURACION) for modulo in _importes(fichero))
     ]
 
     assert not infracciones, (
-        "Un módulo de la capa NLP que no debería lee la configuración:\n"
+        f"Un módulo de `{paquete}/` que no debería lee la configuración:\n"
         + "\n".join(infracciones)
         + "\n\nSi es deliberado, añádelo a LEEN_CONFIGURACION y explica por qué."
     )

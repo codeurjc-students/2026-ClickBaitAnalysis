@@ -19,6 +19,8 @@ from backend import integrations
 from backend.integrations import discovery
 
 INTEGRACIONES_REALES = ("guardian", "nlp", "nyt", "weather")
+# Integraciones que el sistema consume por dentro y que no publican herramientas.
+INTEGRACIONES_SIN_HERRAMIENTAS = ("llm",)
 
 _TOOL_OK = """
 def register(mcp):
@@ -43,11 +45,13 @@ def integracion_falsa(tmp_path, monkeypatch):
     """Crea un paquete de integración temporal y lo hace descubrible."""
     creados: list[str] = []
 
-    def crear(nombre: str, cuerpo: str = _TOOL_OK):
+    def crear(nombre: str, cuerpo: str | None = _TOOL_OK):
         paquete = tmp_path / nombre
         paquete.mkdir()
         (paquete / "__init__.py").write_text("", encoding="utf-8")
-        (paquete / "tool.py").write_text(cuerpo, encoding="utf-8")
+        # `None`: un paquete sin módulo `tool`.
+        if cuerpo is not None:
+            (paquete / "tool.py").write_text(cuerpo, encoding="utf-8")
         creados.append(nombre)
         # `__path__` es la lista donde Python busca submódulos del paquete:
         # ampliarla hace que `backend.integrations.<nombre>` sea importable.
@@ -70,6 +74,7 @@ def test_descubre_las_integraciones_reales():
     resultado = discovery.discover_and_register(FastMCP("test"))
 
     assert resultado.registered == INTEGRACIONES_REALES
+    assert resultado.without_tools == INTEGRACIONES_SIN_HERRAMIENTAS
     assert not resultado.failed
     assert not resultado.degraded
 
@@ -143,3 +148,23 @@ def test_un_paquete_sin_register_se_omite_sin_romper(integracion_falsa):
     assert "paquete_de_apoyo" in resultado.failed
     assert "paquete_de_apoyo" not in resultado.registered
     assert set(INTEGRACIONES_REALES) <= set(resultado.registered)
+
+
+def test_un_paquete_sin_modulo_tool_no_es_un_fallo(integracion_falsa):
+    """No publicar herramientas no es estar roto (#187).
+
+    `llm/` es una integración —envuelve el servidor de modelos— que el sistema
+    consume por dentro: la usa el agente y no se ofrece al catálogo. Antes caía
+    en `failed`, y el servidor MCP la habría anunciado como integración rota en
+    cada arranque, que es justo el aviso que sirve para ver un sistema
+    degradado. Un `tool.py` que existe y falla sigue siendo un fallo (el test
+    de arriba).
+    """
+    integracion_falsa("sin_herramientas", None)
+
+    resultado = discovery.discover_and_register(FastMCP("test"))
+
+    assert "sin_herramientas" in resultado.without_tools
+    assert "sin_herramientas" not in resultado.failed
+    assert "sin_herramientas" not in resultado.registered
+    assert not resultado.degraded
