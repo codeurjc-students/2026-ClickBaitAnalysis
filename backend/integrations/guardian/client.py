@@ -1,9 +1,11 @@
 """Cliente de la Open Platform de The Guardian (búsqueda de artículos).
 
-Un tema se busca primero como **tag** (`/tags`), y sólo si no hay ninguno como
-texto libre `q`: la búsqueda libre casa palabras sueltas —«intelligence» traía
-espías y música— (#47). La clave va en la URL (`api-key`), y la cuota diaria
-que queda se lee de la cabecera `x-ratelimit-remaining-day`.
+Un tema se busca primero como **tag** (`/tags`), porque la búsqueda libre `q`
+casa palabras sueltas —«intelligence» traía espías y música— (#47). Pero una
+etiqueta puede estar muerta: si no hay ninguna, o si la elegida no trae nada en
+la ventana, se busca como texto libre (#196, donde le pasaba a 5 de 8 temas).
+La clave va en la URL (`api-key`), y la cuota diaria que queda se lee de la
+cabecera `x-ratelimit-remaining-day`.
 """
 
 from datetime import UTC, datetime, timedelta
@@ -30,9 +32,9 @@ class GuardianAPI(BaseAPI):
 
         Args:
             topic (str, optional): tema a buscar. Se resuelve a un tag de The Guardian
-                (vía /tags) para filtrar con precisión; si no hay tag, se usa como
-                búsqueda libre `q` (fallback). Si se omite, devuelve lo más reciente.
-                Defaults to None.
+                (vía /tags) para filtrar con precisión; si no hay tag, o si el suyo no
+                trae nada, se usa como búsqueda libre `q` (fallback). Si se omite,
+                devuelve lo más reciente. Defaults to None.
 
             days (int, optional): número de días hacia atrás desde hoy para acotar la
                 búsqueda. Defaults to 7.
@@ -40,6 +42,7 @@ class GuardianAPI(BaseAPI):
         Params enviados:
             - from-date: YYYY-MM-DD
             - tag: <id> si /tags encuentra uno para `topic`; si no, q: <topic> (fallback)
+            - q: <topic> en una segunda búsqueda, si con el tag no hubo resultados
 
         Respuesta de llamada a endpoint (campos consumidos):
             response.results[].webUrl    → url
@@ -50,6 +53,7 @@ class GuardianAPI(BaseAPI):
         Returns:
             ToolResult.ok([{title, url, date, content}, ...]) si hay artículos.
             ToolResult.fail("No articles found") si results está vacío o ausente.
+            El error de `make_request`, tal cual, si la petición falla.
         """
         # UTC explícito, no la zona de la máquina: en Docker el contenedor va en
         # UTC y el equipo de desarrollo no, así que `date.today()` desplazaría la
@@ -57,6 +61,7 @@ class GuardianAPI(BaseAPI):
         today = datetime.now(UTC).date()
         new_date = today - timedelta(days=days)
         params = {"from-date": new_date, "show-fields": "trailText"}
+        tag_id = None
         if topic:  # Usa buscador de tags
             tag_id = await self._find_tag(topic)
             if tag_id:
@@ -67,10 +72,21 @@ class GuardianAPI(BaseAPI):
         endpoint = "search"
         response = await self.make_request(endpoint, "get", params)
 
-        if not response.success or not response.has_content():
-            return ToolResult.fail("No articles found")
+        # Con tema, con etiqueta y sin nada: la etiqueta está muerta —una serie
+        # cerrada, una sección vacía esa semana— y se repite con la búsqueda
+        # libre, menos precisa (#47) pero con noticias (#196).
+        if topic and tag_id and response.success and not self._results(response):
+            params.pop("tag")
+            params["q"] = topic
+            response = await self.make_request(endpoint, "get", params)
 
-        results = response.unwrap().get("response", {}).get("results")
+        # Un fallo NO es «no hay noticias». El mensaje de `make_request` ya es
+        # público (#89), y el agente decide con él: creyendo que no hay nada,
+        # gastaría cuota probando otros temas (#196).
+        if not response.success:
+            return response
+
+        results = self._results(response)
 
         if not results:
             return ToolResult.fail("No articles found")
@@ -87,9 +103,18 @@ class GuardianAPI(BaseAPI):
 
         return ToolResult.ok(articles)
 
+    @staticmethod
+    def _results(response: ToolResult) -> list:
+        """Los artículos de una respuesta de `/search`; vacía si no trae ninguno."""
+        if not response.has_content():
+            return []
+        return response.unwrap().get("response", {}).get("results") or []
+
     # Busqueda por tags especifica de The guardian
 
     # Fix: No coger tags[0] ya que suelen ser niches, para tema principal sistema X/X
+    # (#196: ninguna de las dos garantiza noticias —`weather/weather` no tenía
+    # ninguna en una semana—; de eso se ocupa la vuelta a `q=` de arriba.)
     async def _find_tag(self, topic: str) -> str | None:
         result = await self.make_request("tags", "get", {"q": topic, "page-size": 10})
         # `has_content()` y no `success`: un éxito sin cuerpo llegaba hasta el
