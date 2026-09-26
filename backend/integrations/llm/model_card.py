@@ -29,9 +29,10 @@ FICHA: FichaLLM = {
     "type": "opaque",
     "limitations": [
         "Caja negra: no explica por qué elige una herramienta ni por qué redacta lo que redacta. Lo que sí se puede comprobar es lo que hace —la traza de herramientas y sus resultados—, y se enseña aparte.",
-        "Elegir herramienta: 20/20 consultas en tres tandas con `num_ctx` 8192, tras separar las descripciones de `detect_clickbait` y `detect_clickbait_linear` (PR #183). Con la ventana a 2048 el catálogo se recortaba en silencio, y acertaba 9/20 (spike rehecho en la A40, PR #176).",
-        "Fidelidad al narrar: 0 errores en 6 respuestas leídas a mano con los prompts `02` a `04` (PR #176). Es una muestra pequeña y sin ranking entre prompts. El modelo de 2B, con el mismo prompt, se inventó detalles en las dos respuestas que se leyeron.",
-        "Lento: 13–36 s por consulta completa en la A40, más ~36 s si el servidor arranca en frío (#181). Y sólo está disponible mientras hay una sesión abierta en la máquina de la GPU.",
+        "Sin razonar, se inventa el resultado de las herramientas. Con `think: false` eligió bien 13 de 26 consultas, y en 11 de los 13 fallos atribuyó a herramientas que no había llamado resultados que no existen, 8 de ellos con cifras o posiciones inventadas (#188). Por eso el agente le pide razonar siempre.",
+        "Elegir herramienta, razonando, con el catálogo real de 12 herramientas y `num_ctx` 8192: 25/26 y 24/26 en dos tandas (#188). Los fallos piden una herramienta real que sobraba, o `analyze_headline` en vez de la señal concreta. El 20/20 de #183 se midió también razonando, sin saberlo, y con 11 herramientas. Con la ventana a 2048 el catálogo se recortaba en silencio, y acertaba 9/20 (spike rehecho en la A40, PR #176).",
+        "Fidelidad al narrar: razonando, 9 de 9 consultas completas cuentan lo que devolvieron las herramientas, cotejadas a mano con sus datos (#188), y 0 errores en 6 respuestas del spike (PR #176). Es una muestra pequeña. Copia los decimales enteros, y una vez rellenó un parámetro opcional con la cadena «None», que la herramienta tomó como texto (#188). El modelo de 2B se inventó detalles en las dos respuestas que se leyeron (PR #176).",
+        "Lento: razonando, 6–24 s por consulta completa en la A40 (mediana 17,8 s en seis, #188), aunque una llegó a 94 s porque una sola vuelta generó 2.812 tokens; más ~36 s si el servidor arranca en frío (#181). Y sólo está disponible mientras hay una sesión abierta en la máquina de la GPU.",
         "Las herramientas de clickbait están pensadas para titulares en inglés. La conversación se ha probado en castellano, que es como se escribieron las consultas de los spikes.",
     ],
 }
