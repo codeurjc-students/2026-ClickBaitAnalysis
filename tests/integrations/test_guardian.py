@@ -119,6 +119,49 @@ async def test_no_tag_falls_back_to_q(fake_payload):
 
 
 @pytest.mark.asyncio
+async def test_una_etiqueta_sin_noticias_vuelve_a_la_busqueda_libre(fake_payload):
+    """#196: `_find_tag` elige a veces una etiqueta muerta —una serie cerrada,
+    una sección sin nada en la semana— y la búsqueda se quedaba en «No articles
+    found» aunque `q=` trajera noticias (medido: 5 de 8 temas)."""
+
+    def por_parametros(request):
+        if "tag" in request.url.params:
+            return Response(200, json={"response": {"results": []}})
+        return Response(200, json={"response": {"results": [fake_payload]}})
+
+    with respx.mock:
+        _mock_tags("climate-summit/climate-summit")
+        search = respx.get(SEARCH_URL).mock(side_effect=por_parametros)
+        api = GuardianAPI()
+        result = await api.search_articles("climate")
+
+    assert result.success
+    assert result.data[0]["title"] == fake_payload["webTitle"]
+    primera, segunda = (llamada.request.url.params for llamada in search.calls)
+    assert primera["tag"] == "climate-summit/climate-summit"
+    assert segunda["q"] == "climate"
+    assert "tag" not in segunda
+    assert segunda["from-date"] == primera["from-date"]
+
+
+@pytest.mark.asyncio
+async def test_un_fallo_de_la_api_no_se_disfraza_de_sin_noticias():
+    """#196: con un 429 —o un 401, o un timeout— el cliente decía «No articles
+    found», y el agente, creyéndolo, gastaría cuota probando otros temas. El
+    mensaje de `make_request` ya es público (#89): se devuelve ése."""
+    with respx.mock:
+        _mock_tags("climate/climate")
+        search = respx.get(SEARCH_URL).mock(return_value=Response(429))
+        api = GuardianAPI()
+        result = await api.search_articles("climate")
+
+    assert not result.success
+    assert "No articles found" not in result.error
+    assert "429" in result.error
+    assert search.call_count == 1  # un fallo no se repite con `q=`
+
+
+@pytest.mark.asyncio
 async def test_tracking_and_quota_from_header(fake_payload):
     with respx.mock:
         _mock_tags("technology/test")
