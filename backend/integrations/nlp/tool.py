@@ -12,6 +12,7 @@ from mcp.server.fastmcp import FastMCP
 from mcp.server.fastmcp.exceptions import ToolError
 
 from backend.core.observability import log_tool_invocation
+from backend.core.texto import es_ausente
 from backend.integrations.metadata import tool_meta
 from backend.integrations.nlp import dedicated, lexical, linear, model_cards
 from backend.integrations.nlp.factory import (
@@ -125,6 +126,14 @@ def register(mcp: FastMCP):
         Raises:
             Si el cálculo de los embeddings falla.
         """
+        # Un cuerpo que sólo dice «None» no es un cuerpo (#197): medir la
+        # similitud contra esa palabra daría un «incoherente» inventado. El
+        # error vuelve al modelo del agente para que lo corrija.
+        if es_ausente(content):
+            raise ToolError(
+                "Hace falta el cuerpo o el teaser de la noticia para medir la "
+                "incoherencia; sin él, esta señal no se puede aplicar."
+            )
         response = await get_incoherence_detector().detect(headline, content)
         if not response.has_content():
             raise ToolError(

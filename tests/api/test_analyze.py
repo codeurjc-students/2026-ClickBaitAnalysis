@@ -351,6 +351,27 @@ async def test_cuerpo_en_blanco_equivale_a_no_tenerlo(señales, cuerpo):
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize("ausente", ["None", "none", " None ", "null"])
+async def test_un_cuerpo_que_solo_dice_none_no_es_un_cuerpo(señales, ausente):
+    """#197: el modelo del agente mandó `content="None"`, la incoherencia comparó
+    el titular con esa palabra y el veredicto salió `deceptive`. La similitud
+    baja del doble es la que habría salido: si la señal llegara a medirse, lo
+    marcaría como engaño."""
+    señales(similarity=0.12)
+
+    resultado = await orchestrator.analyze(
+        AnalyzeRequest(
+            headline="You Won't Believe What This Dog Did Next", content=ausente
+        )
+    )
+
+    signals = {s.name: s for s in resultado.signals}
+    assert signals["detect_clickbait_incoherence"].status == SignalStatus.NOT_APPLICABLE
+    assert resultado.verdict != OverallVerdict.DECEPTIVE
+    assert resultado.content is None
+
+
+@pytest.mark.asyncio
 async def test_una_señal_que_revienta_no_tumba_a_las_demas(señales, monkeypatch):
     dobles = señales()
 

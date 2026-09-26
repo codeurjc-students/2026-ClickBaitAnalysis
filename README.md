@@ -6820,7 +6820,7 @@ Mediana de 17,8 s, y como mucho 5.765 tokens. **Las seis narraciones cuentan lo 
 #### Lo que destapó alrededor
 
 - **[#196](https://github.com/codeurjc-students/2026-ClickBaitAnalysis/issues/196): Guardian no encuentra nada con ningún tema**, y sin tema sí. La hipótesis, leyendo el código, es que busca sólo por la etiqueta que encuentra y no vuelve a la búsqueda libre si no da nada.
-- **[#197](https://github.com/codeurjc-students/2026-ClickBaitAnalysis/issues/197): un veredicto falso de engaño por un argumento.** En la segunda sesión, el modelo llamó a `analyze_headline` con `"content": "None"` —la cadena—, la incoherencia comparó el titular con la palabra «None» y el veredicto salió `deceptive`. La narración fue fiel a los datos; el error estaba en la entrada, y **la traza lo delata**, que es para lo que está.
+- **[#197](https://github.com/codeurjc-students/2026-ClickBaitAnalysis/issues/197): un veredicto falso de engaño por un argumento.** En la segunda sesión, el modelo llamó a `analyze_headline` con `"content": "None"` —la cadena—, la incoherencia comparó el titular con la palabra «None» y el veredicto salió `deceptive`. La narración fue fiel a los datos; el error estaba en la entrada, y **la traza lo delata**, que es para lo que está. *(Resuelto en #197: el modelo escribe «None» en 7 de cada 15 llamadas sin cuerpo, y ahora se trata como ausencia. Ver la sección de #197.)*
 - **FastMCP antepone «Error executing tool …:»** al mensaje de una herramienta que falla, en inglés. `/tools/{name}/execute` ya lo publicaba así, y la traza también. Queda para #191, que lo pintará.
 - **Una respuesta sin herramientas no se puede bloquear** —«¿qué es el clickbait?» se contesta legítimamente sin ellas—, pero la traza dice si hubo algún paso de herramienta, y #191 puede marcar que esa respuesta no se apoya en ninguna.
 
@@ -6829,6 +6829,57 @@ Mediana de 17,8 s, y como mucho 5.765 tokens. **Las seis narraciones cuentan lo 
 Lo que se aparta del plano de §12: el catálogo cuesta 2.846 tokens, no «unos 2.438»; y el agente **razona**, algo que el plano no contemplaba y que resultó ser la condición para que no invente.
 
 **Comprobado**: 339 tests, 24 más que antes; `ruff`; y `pyright` a cero. Las dos sesiones terminaron con la GPU a 0 MiB y sin procesos propios.
+
+### «None» no es un cuerpo (#197, 26 sep 2026)
+
+Lo destapó la aceptación de #188: con «Analiza a fondo el titular 'You Won't Believe What This Dog Did Next' con todas las señales», el modelo llamó a `analyze_headline` con `"content": "None"`, la cadena de texto, que es como Python escribe «nada». La herramienta lo tomó como el cuerpo de la noticia, la incoherencia comparó el titular con la palabra «None», dio una similitud de 0,125, y el veredicto global salió **`deceptive`**. La narración fue fiel a los datos; el error estaba en la entrada, y la traza lo enseñaba.
+
+#### Dónde se corta
+
+En un tipo, **`TextoOpcional`**, en [`core/texto.py`](backend/core/texto.py): un `str | None` que convierte en `None` un texto vacío, en blanco o que sea **sólo** «None» o «null», sin distinguir mayúsculas. Todo lo demás pasa intacto: «None of Us Knew» es un titular. Se usa en cuatro sitios, y por eso es uno y no cuatro copias:
+
+- **`AnalyzeRequest.content`**, en el dominio: por ahí pasan las dos fachadas, `POST /analyze` y `analyze_headline`, así que se corta una vez para las dos;
+- el **`topic`** de `get_nyt_news` y `get_guardian_news`, que con «None» buscaban noticias sobre la palabra;
+- y **`detect_clickbait_incoherence`**, que exige el cuerpo: con «None» ahora se niega con un error que vuelve al modelo para que se corrija, en vez de medir una similitud sin sentido. No era un parámetro opcional, pero es el mismo fallo por otra puerta.
+
+Tres decisiones:
+
+- **Sólo «None» y «null»**: «None» porque se vio llegar, y «null» porque es la otra forma de escribir la ausencia, la de JSON. Nada de «N/A» ni «undefined» sin haberlas visto.
+- **El esquema no cambia.** Es un `BeforeValidator`: corrige lo que llega sin cambiar lo que se pide, así que el contrato REST y lo que lee el modelo siguen diciendo «texto o nada». Lo vigilan el test del contrato commiteado y uno del propio tipo.
+- **Los docstrings no se tocan.** La issue dejaba abierto pedirle al modelo que omitiera el parámetro, pero con el tipo el daño desaparece pase lo que pase, y los docstrings son la interfaz con la que elige herramienta: se tocan con las 26 consultas de #188 como examen, y eso es #192.
+
+#### El test primero
+
+Once tests de comportamiento, escritos antes del arreglo y ejecutados contra el código de entonces, **fallaron los once por el fallo**: la incoherencia salía `ok` en vez de `not_applicable` con el cuerpo «None», «none», « None » o «null»; `'None'` llegaba como cuerpo por REST y por la herramienta; la incoherencia no se negaba; y `['None']` llegaba como tema a Guardian y a NYT. Con el arreglo pasan, más los quince del tipo: **365 tests**, 26 más que antes.
+
+Antes de la sesión de GPU se comprobó el camino real en seco —el servidor MCP de producción y las señales cargadas de verdad, sin el modelo de lenguaje—: con «None», «null» o `""`, la incoherencia queda en `not_applicable` y el veredicto es `stylistic_clickbait`; con un cuerpo de verdad, se mide.
+
+#### Contra la A40
+
+La parte `cuerpo` de [`spikes/agente_a40.py`](spikes/agente_a40.py): las cuatro consultas genéricas de la fase 5 y la del análisis completo —ninguna trae cuerpo—, **tres veces cada una**, razonando y cortadas en la primera decisión, anotando qué `content` manda el modelo y cómo queda la incoherencia.
+
+| Condiciones | |
+|---|---|
+| Fecha | 2026-09-26, 10:27, sobre el commit `da9f383` |
+| Máquina | `gpuserver2`, NVIDIA A40, con `gpu-sesion` (`6ad6a751d636…`) sin su túnel; el modelo, por el túnel propio desde WSL |
+| Modelo | Ollama 0.34.2, `qwen3.5:27b` (ID `7653528ba5cb`), `num_ctx` 8192, `think=True`, prompt `04-preciso` |
+| Herramientas | el `mcp` de `backend.main` en proceso, con `NLP_BACKEND=local` |
+
+```bash
+AGENTE_A40_JSON=/tmp/agente_a40_cuerpo.json setsid nohup bash spikes/agente_a40.sh cuerpo > /tmp/agente_a40_cuerpo.log 2>&1 < /dev/null & disown
+```
+
+| Consulta | `content` en las tres |
+|---|---|
+| «¿Es clickbait este titular? '10 Amazing Things You Won't Believe'» | «None», sin él, «None» |
+| «Analiza si esto es clickbait: 'Scientists Discover New Species'» | «None», «None», «None» |
+| «'You Won't Believe What Happened Next' — ¿es un titular engañoso?» | sin él, sin él, «None» |
+| «Evalúa este titular: 'Top 5 Secrets Finally Revealed'» | «None», sin él, `""` |
+| «Analiza a fondo el titular 'You Won't Believe What This Dog Did Next'…» | sin él, sin él, sin él |
+
+**El modelo escribe «None» en 7 de 15 llamadas**, casi la mitad; en 7 omite el parámetro, y en una manda la cadena vacía. No era un caso raro: en #188 se había visto 1 vez en 2, y la consulta que lo destapó, esta vez, lo omitió las tres. **La incoherencia quedó en `not_applicable` en las 15**, y ningún veredicto salió `deceptive` (9 `stylistic_clickbait`, 3 `factual`, 3 `ambiguous`). Sin el arreglo, esas 7 habrían medido la incoherencia contra la palabra. La sesión terminó con la GPU a 0 MiB.
+
+**No se midió la narración**: las consultas se cortaron en la primera decisión, que es donde se elige el argumento. Y desde esta issue la selección del guion guarda los argumentos de cada llamada, que antes no guardaba; por eso en #188 no se pudo contar esto desde los datos que ya había.
 
 
 

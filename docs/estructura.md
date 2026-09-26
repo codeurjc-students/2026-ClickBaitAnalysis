@@ -141,6 +141,7 @@ mismo que genérico.
 | `observability.py` | `log_tool_invocation`, el decorador que registra cada invocación con parámetros y duración |
 | `health.py` | `check_health()` y su registro como tool MCP — ⚠️ [tensión 4](#4--health-conoce-mcp-desde-core) |
 | `errores.py` | `describir_error()`: cómo se describe un error en una **salida pública** —código HTTP o nombre del tipo, nunca el texto de la librería, que llegó a publicar una clave de API (#163)—. Abre los `ExceptionGroup` del cliente MCP (#164). La usan `health.py` y `api/catalog.py`: dos capas, y ningún conocimiento del clickbait. Desde #188 también el agente, que publica los errores de las herramientas en la traza |
+| `texto.py` | `TextoOpcional`: un `str \| None` que convierte en `None` la ausencia escrita como texto —vacío, en blanco, o sólo «None» o «null»— sin cambiar el esquema publicado (#197). Existe porque un modelo de lenguaje escribe la ausencia en vez de omitir el parámetro: el agente mandó `content="None"` y la incoherencia lo comparó con el titular. Lo usan `analysis/domain.py` y las herramientas de noticias; `es_ausente`, además, la de incoherencia, que exige el cuerpo |
 | `mcp/session.py` | Abre sesiones MCP. Es donde el sistema actúa como **cliente**, no como servidor |
 | `mcp/tools.py` | Descubre e invoca herramientas, devolviendo un resultado neutro |
 

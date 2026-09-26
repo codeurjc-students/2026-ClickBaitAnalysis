@@ -1,7 +1,10 @@
 import pytest
 import respx
 from httpx import Response
+from mcp.server.fastmcp import FastMCP
 
+from backend.core.models import ToolResult
+from backend.integrations.nyt import tool as nyt_tool
 from backend.integrations.nyt.client import NYTAPI
 
 
@@ -157,3 +160,22 @@ async def test_search_articles_invalid_topic():
     assert not result.success
     assert result.error
     assert "No articles found" in result.error
+
+
+@pytest.mark.asyncio
+async def test_un_tema_que_solo_dice_none_es_buscar_sin_tema(monkeypatch):
+    """#197: el `topic` es opcional, y el modelo del agente puede escribir su
+    ausencia como «None». Buscarlo como tema traería noticias sobre la palabra."""
+    recibido = []
+
+    async def buscar(self, topic=None, days=7):
+        recibido.append(topic)
+        return ToolResult.ok([])
+
+    monkeypatch.setattr(NYTAPI, "search_articles", buscar)
+    mcp = FastMCP("test")
+    nyt_tool.register(mcp)
+
+    await mcp.call_tool("get_nyt_news", {"topic": "None"})
+
+    assert recibido == [None]

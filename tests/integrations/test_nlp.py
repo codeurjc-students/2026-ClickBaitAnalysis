@@ -10,9 +10,11 @@ import respx  # Usamos en vez de htttp, ya que no hacemos llamadas de verdad, mo
 from httpx import Response, TimeoutException
 from huggingface_hub.errors import LocalEntryNotFoundError
 from mcp.server.fastmcp import FastMCP
+from mcp.server.fastmcp.exceptions import ToolError
 from structlog.testing import capture_logs
 
 from backend.config.settings import settings
+from backend.core.models import ToolResult
 from backend.integrations.nlp import dependencias, lexical, linear, model_cards
 from backend.integrations.nlp import tool as nlp_tool
 from backend.integrations.nlp.factory import (
@@ -652,6 +654,46 @@ async def test_las_dos_fachadas_usan_el_id_de_la_ficha(monkeypatch):
         == get_model_id("detect_clickbait_incoherence")
         == fichas["detect_clickbait_incoherence"]["model_id"]
     )
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("ausente", ["None", "null", "   "])
+async def test_la_incoherencia_sin_cuerpo_se_niega_en_vez_de_medir(
+    monkeypatch, ausente
+):
+    """#197, por otra puerta: esta herramienta EXIGE el cuerpo, y con «None»
+    medía la similitud del titular contra esa palabra, que da un «incoherente»
+    inventado. Ahora se niega, y el error vuelve al modelo del agente para que
+    lo corrija, sin llegar al detector."""
+    llamadas = []
+
+    class _Detector:
+        async def detect(self, headline, content):
+            llamadas.append(content)
+            return ToolResult.ok(
+                {
+                    "similarity": 0.1,
+                    "incoherent": True,
+                    "threshold": 0.3,
+                    "headline": headline,
+                    "content": content,
+                }
+            )
+
+    monkeypatch.setattr(nlp_tool, "get_incoherence_detector", lambda: _Detector())
+    mcp = FastMCP("test")
+    nlp_tool.register(mcp)
+
+    # `capture_logs`: el decorador de la herramienta registra el fallo con su
+    # traza, y con la configuración de structlog por defecto eso avisa.
+    with capture_logs() as registrado, pytest.raises(ToolError, match="cuerpo"):
+        await mcp.call_tool(
+            "detect_clickbait_incoherence",
+            {"headline": "Miracle Cure Discovered", "content": ausente},
+        )
+    assert llamadas == []
+    # El rechazo queda registrado como cualquier fallo de una herramienta.
+    assert any(linea["event"] == "tool.invoke.failed" for linea in registrado)
 
 
 def test_model_cards_serializable_and_cover_signals():

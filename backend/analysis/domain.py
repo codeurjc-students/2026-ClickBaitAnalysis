@@ -47,6 +47,8 @@ from typing import Annotated, Any
 
 from pydantic import BaseModel, Field, StringConstraints
 
+from backend.core.texto import TextoOpcional
+
 # Recorta antes de medir. Con un simple `min_length=1`, un titular de un solo
 # espacio pasa la validación —mide 1 carácter— y llega hasta las señales, que
 # fallan una a una: la respuesta sería un 200 con veredicto `no_data` en vez
@@ -169,7 +171,10 @@ class OverallVerdict(str, Enum):
 
 class AnalyzeRequest(BaseModel):
     headline: NonBlankStr = Field(description="Titular a analizar (en inglés).")
-    content: str | None = Field(
+    # «None» o «null» escritos como texto son la AUSENCIA de cuerpo, no un
+    # cuerpo (#197): el modelo del agente mandó «None», y la incoherencia lo
+    # comparó con el titular. Por aquí pasan las dos fachadas.
+    content: TextoOpcional = Field(
         default=None,
         description=(
             "Cuerpo o teaser. Opcional: sin él, la señal de incoherencia queda "
