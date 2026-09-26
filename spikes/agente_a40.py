@@ -27,6 +27,14 @@ La cuarta parte mide eso, la configuración que se queda:
 4. `definitiva`: el contexto otra vez —cuánto ahorra quitar la sangría—, las 26
    consultas razonando, y los seis bucles razonando con los resultados enteros.
 
+Y una quinta, de #197 (2026-09-26), sobre el cuerpo que se escribe «None»:
+
+5. `cuerpo`: las cuatro consultas genéricas y la del análisis completo —ninguna
+   trae cuerpo—, tres veces cada una y cortadas en la primera decisión,
+   anotando qué `content` manda el modelo a `analyze_headline` y cómo queda la
+   incoherencia. Desde entonces, la selección guarda además los argumentos de
+   cada llamada, que antes no guardaba y por eso no se pudo contar desde aquí.
+
 El servidor MCP es el `mcp` de `backend.main` —el mismo objeto que arranca en
 producción— servido en proceso, como en la fase 5: las herramientas se ejecutan
 aquí de verdad, con NLP_BACKEND=local, y las de noticias llaman a NYT y a
@@ -244,6 +252,11 @@ async def seleccion(registro: dict, condiciones: dict | None = None) -> None:
                 "detalle": resultado["detail"],
                 "argumentos_mal": argumentos_mal,
                 "llamadas": sum(paso["kind"] == "tool" for paso in resultado["steps"]),
+                "argumentos": [
+                    {"name": paso["name"], "arguments": paso["arguments"]}
+                    for paso in resultado["steps"]
+                    if paso["kind"] == "tool"
+                ],
                 "metricas": vuelta["metrics"] if vuelta else None,
                 "texto": vuelta["content"] if vuelta else "",
             }
@@ -392,11 +405,67 @@ async def definitiva(registro: dict) -> None:
     )
 
 
+REPETICIONES_SIN_CUERPO = 3
+
+
+async def cuerpo(registro: dict) -> None:
+    """#197: sin cuerpo, ¿qué `content` manda el modelo, y queda la incoherencia fuera?"""
+    consultas = [
+        consulta for categoria, consulta, _ in PRUEBAS if categoria == "GENERICA"
+    ] + [consulta for nombre, consulta, _ in BUCLES if nombre == "analisis-completo"]
+    print(
+        f"\n== sin cuerpo: {len(consultas)} consultas × {REPETICIONES_SIN_CUERPO}, "
+        "razonando, max_rounds=1"
+    )
+    filas = []
+    for consulta in consultas:
+        for repeticion in range(1, REPETICIONES_SIN_CUERPO + 1):
+            resultado = await responder(consulta, [], _config(True, max_rounds=1))
+            llamadas = [paso for paso in resultado["steps"] if paso["kind"] == "tool"]
+            analisis = [paso for paso in llamadas if paso["name"] == "analyze_headline"]
+            if not analisis:
+                fila = {
+                    "consulta": consulta,
+                    "repeticion": repeticion,
+                    "herramientas": [paso["name"] for paso in llamadas],
+                }
+                print(f"  {repeticion} · sin analyze_headline: {fila['herramientas'] or '-'}")
+                filas.append(fila)
+                continue
+            for paso in analisis:
+                datos = paso["data"] or {}
+                senales = {senal["name"]: senal for senal in datos.get("signals", [])}
+                fila = {
+                    "consulta": consulta,
+                    "repeticion": repeticion,
+                    "content": paso["arguments"].get("content", "(sin el parámetro)"),
+                    "incoherencia": senales.get("detect_clickbait_incoherence", {}).get("status"),
+                    "veredicto": datos.get("verdict"),
+                    "error": paso["error"],
+                }
+                print(
+                    f"  {repeticion} · content={fila['content']!r:24} → incoherencia "
+                    f"{fila['incoherencia']} · veredicto {fila['veredicto']}"
+                    + (f" · {fila['error']}" if fila["error"] else "")
+                )
+                filas.append(fila)
+        _guardar(registro | {"cuerpo": filas})
+
+    con_analisis = [fila for fila in filas if "content" in fila]
+    print(f"\n  llamadas a analyze_headline: {len(con_analisis)} de {len(filas)} intentos")
+    print(f"  content enviado: {dict(Counter(repr(fila['content']) for fila in con_analisis))}")
+    print(f"  incoherencia: {dict(Counter(fila['incoherencia'] for fila in con_analisis))}")
+    print(f"  veredicto: {dict(Counter(fila['veredicto'] for fila in con_analisis))}")
+    registro["cuerpo"] = filas
+    _guardar(registro)
+
+
 PARTES = {
     "contexto": contexto,
     "seleccion": seleccion,
     "bucles": bucles,
     "definitiva": definitiva,
+    "cuerpo": cuerpo,
 }
 PRIMERA_SESION = ["contexto", "seleccion", "bucles"]
 

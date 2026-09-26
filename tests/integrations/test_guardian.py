@@ -3,7 +3,10 @@ from datetime import date, timedelta
 import pytest
 import respx
 from httpx import Response
+from mcp.server.fastmcp import FastMCP
 
+from backend.core.models import ToolResult
+from backend.integrations.guardian import tool as guardian_tool
 from backend.integrations.guardian.client import GuardianAPI
 
 TAGS_URL = "https://content.guardianapis.com/tags"
@@ -220,3 +223,22 @@ async def test_get_news_invalid_topic():
     assert not result.success
     assert result.error
     assert "No articles found" in result.error
+
+
+@pytest.mark.asyncio
+async def test_un_tema_que_solo_dice_none_es_buscar_sin_tema(monkeypatch):
+    """#197: el `topic` es opcional, y el modelo del agente puede escribir su
+    ausencia como «None». Buscarlo como tema traería noticias sobre la palabra."""
+    recibido = []
+
+    async def buscar(self, topic=None, days=7):
+        recibido.append(topic)
+        return ToolResult.ok([])
+
+    monkeypatch.setattr(GuardianAPI, "search_articles", buscar)
+    mcp = FastMCP("test")
+    guardian_tool.register(mcp)
+
+    await mcp.call_tool("get_guardian_news", {"topic": "None"})
+
+    assert recibido == [None]

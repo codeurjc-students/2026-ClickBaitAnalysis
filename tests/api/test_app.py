@@ -92,6 +92,13 @@ def test_analyze_pasa_el_cuerpo_a_la_orquestacion(analisis):
     assert analisis["request"].content == "El cuerpo"
 
 
+def test_un_cuerpo_que_solo_dice_none_llega_como_ausencia(analisis):
+    """#197, por la fachada REST: la misma `AnalyzeRequest` que usa la
+    herramienta, así que se corta en un sitio para las dos."""
+    client.post("/analyze", json={"headline": "Un titular", "content": "None"})
+    assert analisis["request"].content is None
+
+
 def test_sin_content_la_peticion_es_valida(analisis):
     # El cuerpo es opcional: sin él sólo se pierde la dimensión de engaño.
     assert client.post("/analyze", json={"headline": "Un titular"}).status_code == 200
