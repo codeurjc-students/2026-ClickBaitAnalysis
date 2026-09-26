@@ -6052,6 +6052,8 @@ No tiene issue a propósito: es medida, no entrega. Se registra aquí, como el s
 
 El **ID** de cada modelo es el que da `ollama list`, y es lo que identifica los pesos: la etiqueta `qwen3.5:27b` se puede volver a publicar con otros, y entonces estas cifras dejarían de describirla. El commit importa por lo mismo: el catálogo se mide tal como está en el código, y cada docstring que crece lo cambia.
 
+*(Revisado en #188, 26 sep 2026: dos condiciones de esta sección no eran las del agente. El servidor de producción publica **12** herramientas —`analyze_headline` se registra aparte en `main.py`, y los guiones montaban el suyo sin ella—, con un catálogo de 2.929 tokens. Y ningún guion mandaba `think`, así que todo se midió con lo que Ollama hace por defecto, que con este modelo es razonar; sin razonar, se inventa los resultados de las herramientas. Lo medido aquí se deja como está: ver «El agente, y por qué razona antes de contestar».)*
+
 #### Preparar una máquina compartida sin tocar el sistema
 
 La máquina 2 no es nuestra: sin `sudo`, con otro usuario que tenía sesiones de `tmux` abiertas desde hacía 28 días y la norma del administrador de no dejar la GPU ocupada. Al entrar, la A40 estaba libre (0 MiB en uso), no había ningún Ollama en marcha y el del sistema era la **0.11.10**, demasiado vieja para los modelos de hoy.
@@ -6579,6 +6581,8 @@ Lo que dicen:
 - **En el 2B mejora, pero la frontera débil se mueve.** «Puntúa… y dime qué pistas pesan más» y «¿con qué peso contribuye cada palabra…?» siguen yendo al **léxico** en dos tandas de tres: ya no confunde la lineal con la caja negra, sino con el léxico, que habla de las mismas pistas. Como H5 usará el 27B, se deja anotado y no se persigue.
 - **El catálogo pasa de 2.438 a 2.629 tokens** (+191, un 8 %). Sigue cabiendo de sobra en 8.192, pero es el recordatorio de que cada frase de un docstring la paga cada petición del agente.
 
+*(Revisado en #188: estas tandas se midieron razonando sin saberlo —los guiones no mandaban `think`— y con 11 herramientas. Con el agente real, las 12 herramientas y razonando, 25/26 y 24/26; sin razonar, 13/26. Ver la sección de #188.)*
+
 #### Una trampa del instrumento: cortar SSH no para lo remoto
 
 La sesión en la A40 se abre con un `ssh -L` que levanta el servidor al otro lado con un `trap` para pararlo. Al cerrarla, matando el `ssh` local, **el servidor siguió vivo con 20,7 GB en la GPU**: sin terminal asignada, cortar la conexión no manda `HUP` a lo remoto, y el guion dormía en un `sleep`. Se paró a mano un par de minutos después, y el guion de sesión pasó a vigilar a su `sshd` padre, que sí muere con la conexión. Después de cerrar se comprueba siempre con `nvidia-smi`: la GPU acabó en 0 MiB y sin procesos, tanto al terminar el «antes» como el «después».
@@ -6725,7 +6729,106 @@ Con el último, **un chat real con una herramienta**: el modelo pidió `detect_c
 - **El presupuesto de la ventana**: 8.192 tokens, de los que el catálogo ocupa 2.629, más el prompt, los turnos anteriores y lo que devuelvan las herramientas.
 - **`think`**: la interfaz lo admite, y el cliente lo manda desactivado mientras #188 no mida qué cuesta.
 
+*(Revisado en #188: `prompt_tokens` cuenta la conversación entera también cuando Ollama reutiliza lo evaluado; el catálogo real ocupa 2.846 tokens con las 12 herramientas, no 2.629; `think` pasa a ir **activado** en el agente, porque sin razonar el modelo se inventa los resultados; y `llm_timeout` sube de 120 a 300 s, porque razonando una vuelta tardó 96 s.)*
+
 **Comprobado**: 315 tests, veinte más que antes; `ruff`; y `pyright` a cero. La regla de `tests/test_arquitectura.py` —que sólo la factoría lee la configuración— pasa a aplicarse paquete a paquete, y cubre ya `llm/`.
+
+### El agente, y por qué razona antes de contestar (#188, 26 sep 2026)
+
+La segunda issue de H5, y el núcleo de R13: [`backend/agent/`](backend/agent/), el bucle que deja a un modelo de lenguaje elegir herramientas, las ejecuta por MCP y le devuelve lo que responden. El esqueleto es el de la fase 3 del spike, y el plano, §12 de [`docs/arquitectura.md`](docs/arquitectura.md). La aceptación contra la A40 destapó que el modelo, sin razonar, se inventa lo que devolverían las herramientas, y de ahí el título.
+
+#### Qué hay
+
+- **[`agente.py`](backend/agent/agente.py)**, con `responder(consulta, historial, config, al_paso)`:
+  - **Recibe su configuración** —backend, servidores, prompt, dos cortes, seis vueltas y `think`— y no lee `settings`, por la regla de #119. `tests/test_arquitectura.py` lo vigila: la regla pasa a ir por ruta, con `agent` sin ninguna excepción. La montará la API en #189, y con ella llegará el ajuste que elige el prompt; añadirlo ahora habría sido un ajuste sin nadie que lo leyera.
+  - **Descubre el catálogo una vez por consulta y ejecuta cada herramienta en el servidor que la publicó.** Buscarla en todos no sirve: `execute_tool` los recorre en orden, y un servidor caído delante lo hace fallar antes de llegar al bueno. Está comprobado —sale un `ExceptionGroup` con `McpError` dentro— y un test lo deja escrito.
+  - **Un error de una herramienta vuelve al modelo** como resultado, para que corrija los argumentos o lo cuente, y va a la traza como mensaje público. Lo imprevisto se registra entero antes de publicar la frase (#89), y un test afirma que el texto de la excepción no está ni en la traza ni en lo que lee el modelo.
+  - **Como mucho seis vueltas**, como el spike. Agotadas, termina con la traza entera y sin narración, y las tarjetas salen igual (R6.13).
+- **[`traza.py`](backend/agent/traza.py)**: cada vuelta del modelo, con sus medidas, y cada llamada, con su resultado **entero**, que es de donde salen las tarjetas y no del texto del modelo (R13.4). `al_paso` avisa de cada paso según ocurre y no sabe quién escucha: la API lo usará para que la traza crezca mientras la interfaz sondea.
+- **[`prompts/`](backend/agent/prompts/)**: `03-estricto` y `04-preciso`, versionados (R13.5), copiados del spike con **una corrección**: los dos llamaban «zero-shot» a `detect_clickbait`, que dejó de serlo en #115. Es el error que #183 arregló en los docstrings, pero en el texto que el modelo lee primero. Un test afirma que ningún prompt lo dice, y con los del spike habría fallado.
+
+#### La aceptación, en dos sesiones
+
+[`spikes/agente_a40.py`](spikes/agente_a40.py) pasa las preguntas del spike por el agente real, y [`spikes/agente_a40.sh`](spikes/agente_a40.sh) abre la sesión de GPU a su alrededor. El servidor MCP es el `mcp` de `backend.main` —el mismo objeto que arranca en producción—, servido en proceso: las herramientas se ejecutan de verdad, y las de noticias llaman a NYT y a Guardian.
+
+| Condiciones | |
+|---|---|
+| Fecha | 2026-09-26: primera sesión a las 08:41, sobre el commit `a414899`; segunda a las 09:20, sobre `a111190` |
+| Máquina | `gpuserver2`, NVIDIA A40, con `gpu-sesion` (`6ad6a751d636…`) sin su túnel y 45 min como máximo; el modelo, por un túnel propio desde WSL en el 11500 |
+| Modelo | Ollama 0.34.2, `qwen3.5:27b` (ID `7653528ba5cb`), `num_ctx` 8192, prompt `04-preciso` |
+| Herramientas | en WSL, con `NLP_BACKEND=local`: torch 2.12.1, transformers 5.12.0, sentence-transformers 5.6.0, mcp 1.26.0 |
+| Consultas | las 20 de la fase 5 y las 6 de contraste de #183, cortadas en la primera decisión (`max_rounds=1`); y seis bucles completos: encadenar con NYT, dos señales, el análisis completo, la incoherencia, encadenar con Guardian y un segundo turno con historial |
+
+La primera sesión corrió el guion antes de commitearlo; sus tres partes son las del commit sin cambios, que sólo añadió la cuarta, `definitiva`. Para repetir la primera tal cual hay que estar en `a414899`: con el agente de después, el catálogo ya sale sin sangría.
+
+```bash
+setsid nohup bash spikes/agente_a40.sh > /tmp/agente_a40.log 2>&1 < /dev/null & disown
+AGENTE_A40_JSON=/tmp/agente_a40_definitiva.json setsid nohup bash spikes/agente_a40.sh definitiva > /tmp/agente_a40_definitiva.log 2>&1 < /dev/null & disown
+```
+
+#### Sin razonar, se inventa lo que devolverían las herramientas
+
+`think` es el parámetro de Ollama que deja al modelo escribir un razonamiento antes de contestar. Cuesta tiempo, y #187 lo dejó desactivado por defecto a la espera de medirlo. Ningún guion del spike lo mandaba, así que la primera sesión midió tres condiciones:
+
+| `think` | Aciertos | Genéricas · específicas · otro dominio · sin herramienta · contraste | Vuelta del modelo (mediana) | Salida (mediana) |
+|---|---|---|---|---|
+| sin el campo, como el spike | **25/26** | 4/4 · 8/8 · 3/3 · 5/5 · 5/6 | 6,6 s | 164 tokens |
+| `false` | **13/26** | 0/4 · 3/8 · 3/3 · 5/5 · 2/6 | 3,6 s | 74 |
+| `true` | **25/26** | 4/4 · 8/8 · 3/3 · 4/5 · 6/6 | 6,1 s | 150 |
+
+**Los 13 fallos sin razonar no llaman a ninguna herramienta, y contestan como si lo hubieran hecho.** Leídos uno a uno: 11 atribuyen a herramientas que no se llamaron resultados que no existen —8 con cifras o posiciones inventadas, 3 de palabra—, uno mezcla eso con el aviso de que sin llamar no hay cifras, y uno se limita a decir qué haría. A «Evalúa este titular: 'Top 5 Secrets Finally Revealed'» contestó que el detector léxico encontraba `leading_number` en [0,3], `hyperbole` en [4,9] y `forward_reference` en [10,17], que el lineal daba 0,82 y la caja negra 0,76. Nada de eso se ejecutó. **La regla ya estaba en el prompt** —«si no has llamado a ninguna herramienta, di que no tienes el análisis»— y la ignoró. Es el modo de fallo que el spike #82 vio de pasada, y el que R13.4 existe para impedir.
+
+En los bucles completos, lo mismo: sin razonar, 4 de 6 contestaron sin herramientas, y los cuatro inventando. El segundo turno dijo que la caja negra daba «factual news» con 0,95 a 'Scientists Discover New Species'; razonando, en la segunda sesión, la llamó, y devolvió 0,7177.
+
+**Por qué el spike no lo vio:** sin el campo, el modelo acierta lo mismo que razonando, y con una salida parecida (164 tokens frente a 150). Todo indica que Ollama hace razonar a este modelo por defecto, y que el 20/20 de #183 y el resto del spike se midieron así sin saberlo. El `think=False` que el cliente de #187 manda por defecto era justo la condición mala.
+
+**Decidido:** el agente pide razonar siempre (`think=True`), y lo escribe explícito, como `num_ctx`, para no depender del defecto de Ollama. El cliente conserva el suyo, porque el agente es su único consumidor y lo pasa siempre. Cuesta tiempo —la mediana de una vuelta pasa de 3,6 a 6,1 s—, y la ficha del modelo (`llm/model_card.py`) lo dice, porque es su limitación más importante.
+
+#### La ventana, medida
+
+- **`prompt_tokens` cuenta la conversación entera, siempre.** La misma petición dos veces seguidas dio 3.784 tokens las dos veces, aunque la segunda tardó 4,81 s frente a 8,28: Ollama reutiliza lo ya evaluado, pero no lo descuenta. Sirve, por tanto, como tamaño de la ventana, que era lo que #187 dejó en duda.
+- **El catálogo real son 12 herramientas y 2.929 tokens**, no las 11 y 2.629 de la A40: la fase 5 montaba su servidor sin `analyze_headline`, que `main.py` registra a mano. El prompt `04-preciso` cuesta 828 tokens, y la primera petición ya ocupa 3.784 de 8.192.
+- **El bucle más largo llegó a 5.842 tokens**: una noticia de NYT y su análisis completo, con los resultados enteros. Cabe, con margen.
+- **Recortar hace daño.** Recortando cada resultado a 1.500 caracteres, como el spike, el corte cayó en mitad de un valor —el modelo leyó `"incoherent": fa`—, dejó fuera el umbral y el veredicto global, y el modelo llamó «incoherente» a una similitud de 0,311 con umbral 0,3. **Los resultados van enteros**; el parámetro se conserva para poder reproducir esto.
+
+**¿Y recortar los docstrings de las herramientas?** Se midió dónde se va el catálogo con [`spikes/catalogo_peso.py`](spikes/catalogo_peso.py), sin GPU. De los 7.763 caracteres de las descripciones, el 14 % es la sangría del docstring, que FastMCP manda tal cual; `Returns:` es el 22 %, `Args:` el 15 % y `Raises:` el 6 %. Por herramienta, lo que más pesa son la incoherencia, `detect_clickbait` y `analyze_headline`, entre 336 y 372 tokens cada una (estimados en proporción a sus caracteres), y las dos del tiempo, andamiaje del MVP, suman un 9 %.
+
+Sólo se quitó la sangría, y en el agente (`inspect.cleandoc`), porque no cambia lo que dicen ni lo que enseña la pantalla de Sistema: **83 tokens menos** (2.846), un 2,8 %, mucho menos que el 14 % en caracteres porque el tokenizador ya agrupa los espacios seguidos. Lo demás no se tocó. La ventana no aprieta; el tiempo que cuesta el catálogo se reutiliza entre peticiones; y los docstrings son la interfaz con la que el modelo elige, como enseñó #183, que pasó de 18 a 20 **añadiendo** palabras. Si se recortan, que sea con estas 26 consultas como examen (#192).
+
+#### Razonando: lo que queda
+
+La segunda sesión mide la configuración que se queda: razonando, con los resultados enteros y el catálogo sin sangría.
+
+**Selección: 24/26.** Los dos fallos son de los mismos tipos que en la primera sesión: `describe_models` en «¿por qué es difícil detectar clickbait en español?», que no la necesitaba, y `analyze_headline` en vez de la lineal para «¿con qué peso contribuye cada palabra…?». Ninguno inventa. Con una tanda por condición, 24 frente a 25 no distingue nada.
+
+**Bucles completos:**
+
+| Consulta | Vueltas | De punta a punta | Herramientas |
+|---|---|---|---|
+| encadenar con NYT | 3 | 22,2 s | `get_nyt_news` → `analyze_headline` |
+| dos señales | 2 | 16,2 s | léxico y lineal |
+| análisis completo | 2 | 23,6 s | `analyze_headline` |
+| incoherencia | 2 | 11,3 s | incoherencia |
+| encadenar con Guardian | 5 | 19,3 s | `get_guardian_news`, cuatro veces |
+| segundo turno | 2 | 5,9 s | `detect_clickbait` |
+
+Mediana de 17,8 s, y como mucho 5.765 tokens. **Las seis narraciones cuentan lo que devolvieron las herramientas**, cotejadas a mano contra sus datos, y las tres de la primera sesión con `true` también: 9 de 9. Es una muestra pequeña, y la leyó quien escribió el guion. Copia los decimales enteros («0,9996088089831324»), que es cosa del prompt (#192).
+
+- **Una vuelta puede dispararse.** En la primera sesión, el análisis completo razonando tardó 94,4 s, porque una sola vuelta generó 2.812 tokens en 96 s; en la segunda, la misma consulta tardó 23,6. Con el corte de #187, 120 s por llamada, se habría quedado a 24 s de perder la conversación entera: **`llm_timeout` sube a 300 s**, y el diseño asíncrono de `/chat` (#189) absorbe la espera.
+- **Devolver los errores al modelo funciona.** Guardian respondió «No articles found» a «climate»; razonando, el modelo probó sin tema, con «weather» y con «extreme weather», y acabó diciendo con honestidad que no había noticias. Sin razonar, al primer error lo dijo y paró.
+
+#### Lo que destapó alrededor
+
+- **[#196](https://github.com/codeurjc-students/2026-ClickBaitAnalysis/issues/196): Guardian no encuentra nada con ningún tema**, y sin tema sí. La hipótesis, leyendo el código, es que busca sólo por la etiqueta que encuentra y no vuelve a la búsqueda libre si no da nada.
+- **[#197](https://github.com/codeurjc-students/2026-ClickBaitAnalysis/issues/197): un veredicto falso de engaño por un argumento.** En la segunda sesión, el modelo llamó a `analyze_headline` con `"content": "None"` —la cadena—, la incoherencia comparó el titular con la palabra «None» y el veredicto salió `deceptive`. La narración fue fiel a los datos; el error estaba en la entrada, y **la traza lo delata**, que es para lo que está.
+- **FastMCP antepone «Error executing tool …:»** al mensaje de una herramienta que falla, en inglés. `/tools/{name}/execute` ya lo publicaba así, y la traza también. Queda para #191, que lo pintará.
+- **Una respuesta sin herramientas no se puede bloquear** —«¿qué es el clickbait?» se contesta legítimamente sin ellas—, pero la traza dice si hubo algún paso de herramienta, y #191 puede marcar que esa respuesta no se apoya en ninguna.
+
+#### Para el cierre de H5
+
+Lo que se aparta del plano de §12: el catálogo cuesta 2.846 tokens, no «unos 2.438»; y el agente **razona**, algo que el plano no contemplaba y que resultó ser la condición para que no invente.
+
+**Comprobado**: 339 tests, 24 más que antes; `ruff`; y `pyright` a cero. Las dos sesiones terminaron con la GPU a 0 MiB y sin procesos propios.
 
 
 

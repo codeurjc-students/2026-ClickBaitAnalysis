@@ -9,7 +9,8 @@
 > existe, cada fichero de las carpetas descritas está nombrado, y las
 > afirmaciones sobre el código —bugs, tensiones, deuda— se han vuelto a comprobar.
 > **Puesto al día en #108 (2026-09-24)**: los dos renombrados hechos, el bug 1
-> cerrado y la deuda de docstrings saldada.
+> cerrado y la deuda de docstrings saldada. **Y en #188 (2026-09-26)**: el
+> paquete del agente, `backend/agent/`.
 
 ## Por qué criterios y no descripciones
 
@@ -60,6 +61,32 @@ señales, así que **el agente conversacional no podía reproducir el veredicto 
 formulario**. Ninguna carpeta existente lo admitía, y sus propios criterios lo
 decían: `api/` sí existiría sin HTTP, `core/` no puede saber de clickbait,
 `integrations/` no envuelve nada. Los criterios pidieron un paquete nuevo.
+
+## `backend/agent/`
+
+**Contiene** — el agente conversacional (R13, #188): el bucle que deja a un
+modelo de lenguaje elegir herramientas, las ejecuta por MCP y le devuelve lo que
+responden; la traza que produce, y los prompts de sistema versionados.
+
+**Criterio** — *¿existe para que un modelo de lenguaje elija herramientas, las
+ejecute y cuente lo que devuelven?* Si la respuesta es **sí**, va aquí.
+
+**No va aquí aunque lo parezca** — los trabajos en memoria y el sondeo de
+`/chat`, que son de `api/` porque sin HTTP no existirían (#189); el cliente del
+modelo, que envuelve algo externo y vive en `integrations/llm/`; y el veredicto,
+que es de `analysis/`: el agente no decide nada, narra lo que deciden las
+herramientas (R13.4).
+
+| Fichero | Qué hace |
+|---|---|
+| `agente.py` | `responder()`, el bucle, con una `Configuracion` —backend, servidores, prompt, cortes, seis vueltas y `think`— que **recibe** en vez de leer `settings` (#119; lo vigila `tests/test_arquitectura.py`, sin ninguna excepción). Descubre el catálogo una vez por consulta, ejecuta cada herramienta en el servidor que la publicó, y un error de una herramienta vuelve al modelo como resultado. Razona siempre (`think=True`): sin razonar, el 27B se inventaba los resultados de las herramientas (#188) |
+| `traza.py` | Los tipos de lo que produce: cada vuelta del modelo, con sus medidas, y cada llamada, con su resultado **entero**, que es de donde salen las tarjetas; y cómo terminó. Aparte del bucle para que la API los importe sin él, y con las claves en inglés porque irán al contrato (#189) |
+| `prompts.py` y `prompts/` | Los prompts de sistema versionados (R13.5). Salen del spike #82 con una corrección: los dos llamaban «zero-shot» a `detect_clickbait` |
+
+Es un paquete de **primer nivel**, hermano de `analysis/`, porque los criterios
+de las otras carpetas lo rechazan: **conoce el dominio** —el prompt dice qué es
+cada señal—, así que no cabe en `core/`; y **no envuelve nada externo**, así que
+no es una integración. Como `analysis/`, no importa de `api/`.
 
 ## `backend/api/`
 
@@ -113,7 +140,7 @@ mismo que genérico.
 | `logging.py` | `configure_logging()` — structlog, en consola o JSON |
 | `observability.py` | `log_tool_invocation`, el decorador que registra cada invocación con parámetros y duración |
 | `health.py` | `check_health()` y su registro como tool MCP — ⚠️ [tensión 4](#4--health-conoce-mcp-desde-core) |
-| `errores.py` | `describir_error()`: cómo se describe un error en una **salida pública** —código HTTP o nombre del tipo, nunca el texto de la librería, que llegó a publicar una clave de API (#163)—. Abre los `ExceptionGroup` del cliente MCP (#164). La usan `health.py` y `api/catalog.py`: dos capas, y ningún conocimiento del clickbait |
+| `errores.py` | `describir_error()`: cómo se describe un error en una **salida pública** —código HTTP o nombre del tipo, nunca el texto de la librería, que llegó a publicar una clave de API (#163)—. Abre los `ExceptionGroup` del cliente MCP (#164). La usan `health.py` y `api/catalog.py`: dos capas, y ningún conocimiento del clickbait. Desde #188 también el agente, que publica los errores de las herramientas en la traza |
 | `mcp/session.py` | Abre sesiones MCP. Es donde el sistema actúa como **cliente**, no como servidor |
 | `mcp/tools.py` | Descubre e invoca herramientas, devolviendo un resultado neutro |
 

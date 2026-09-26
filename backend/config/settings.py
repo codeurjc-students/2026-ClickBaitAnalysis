@@ -215,8 +215,11 @@ class Settings(BaseSettings):
     # ocupa 0 MiB (#181). Diez minutos cubren una conversación con pausas.
     llm_keep_alive: str = "10m"
     # Por LLAMADA al modelo, no por conversación: la primera de una sesión paga
-    # además la carga (~9 s, #181), y un bucle entero son 13–36 s.
-    llm_timeout: float = 120.0
+    # además la carga (~9 s, #181). Era 120 s hasta #188: razonando, que es
+    # como tiene que ir el agente, una sola vuelta generó 2.812 tokens en 96 s
+    # (A40, 2026-09-26), y si el corte salta se pierde la conversación entera.
+    # El diseño asíncrono de `/chat` (#189) absorbe la espera.
+    llm_timeout: float = 300.0
 
 
 # Activa la validación al importar: si falta una clave, el proceso no arranca.

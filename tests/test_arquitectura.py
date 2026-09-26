@@ -58,9 +58,14 @@ FUERA_DEL_NUCLEO = {"api", "main.py"}
 # Por paquete, desde #187: el cliente del modelo de lenguaje sigue la misma
 # regla, y ahí sólo lee la configuración su factoría. El cliente de Ollama la
 # recibe.
+#
+# Por RUTA dentro de `backend/`, desde #188: el agente tampoco la lee —recibe
+# backend, servidores, prompt y cortes, y lo monta la API (#189)—, y sin
+# ninguna excepción. Es la misma regla fuera de `integrations/`.
 LEEN_CONFIGURACION = {
-    "nlp": {"remote.py", "factory.py"},
-    "llm": {"factory.py"},
+    "integrations/nlp": {"remote.py", "factory.py"},
+    "integrations/llm": {"factory.py"},
+    "agent": set(),
 }
 
 CONFIGURACION = "backend.config.settings"
@@ -113,17 +118,24 @@ def test_el_nucleo_no_importa_de_las_fachadas():
 
 
 @pytest.mark.parametrize("paquete", sorted(LEEN_CONFIGURACION))
-def test_los_detectores_no_conocen_la_configuracion(paquete):
-    """Los detectores y los clientes de modelos se prueban sin montar nada.
+def test_reciben_su_configuracion_y_no_la_leen(paquete):
+    """Los detectores, los clientes de modelos y el agente se prueban sin montar
+    nada.
 
     En cuanto uno lea `settings`, probarlo exige un entorno con las claves
     puestas y deja de poder usarse como biblioteca suelta.
     """
-    carpeta = BACKEND / "integrations" / paquete
+    ficheros = sorted((BACKEND / paquete).glob("*.py"))
+
+    # Una ruta mal escrita en la lista daría una carpeta vacía, y la prueba
+    # pasaría sin comprobar nada.
+    assert ficheros, (
+        f"`backend/{paquete}/` no tiene módulos: la regla no comprueba nada."
+    )
 
     infracciones = [
         f"{paquete}/{fichero.name} importa {CONFIGURACION}"
-        for fichero in sorted(carpeta.glob("*.py"))
+        for fichero in ficheros
         if fichero.name not in LEEN_CONFIGURACION[paquete]
         and any(modulo.startswith(CONFIGURACION) for modulo in _importes(fichero))
     ]
