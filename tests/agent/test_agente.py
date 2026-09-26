@@ -65,7 +65,10 @@ def _servidor() -> FastMCP:
 
     @mcp.tool()
     def eco(texto: str) -> Eco:
-        """Devuelve el texto recibido y su longitud."""
+        """Devuelve el texto recibido y su longitud.
+
+        Sirve para probar el bucle sin depender de ninguna señal.
+        """
         return {"texto": texto, "longitud": len(texto)}
 
     @mcp.tool()
@@ -101,6 +104,7 @@ class ModeloGuionado(LLMBackend):
         self.respuestas = list(respuestas)
         self.conversaciones: list[list[Mensaje]] = []
         self.catalogos: list[list[Herramienta]] = []
+        self.razonar: list[bool] = []
 
     async def chat(
         self,
@@ -112,6 +116,7 @@ class ModeloGuionado(LLMBackend):
         # Una copia: el agente sigue añadiendo mensajes a la misma lista.
         self.conversaciones.append(copy.deepcopy(messages))
         self.catalogos.append(tools)
+        self.razonar.append(think)
         return self.respuestas.pop(0)
 
     async def disponibilidad(self) -> Disponibilidad:
@@ -208,8 +213,26 @@ async def test_el_catalogo_llega_al_modelo_con_su_esquema(monkeypatch):
 
     catalogo = {herramienta["name"]: herramienta for herramienta in modelo.catalogos[0]}
     assert set(catalogo) == {"eco", "rota"}
-    assert catalogo["eco"]["description"] == "Devuelve el texto recibido y su longitud."
+    # Sin la sangría del docstring, que FastMCP manda tal cual y el modelo
+    # pagaría en cada petición.
+    assert catalogo["eco"]["description"] == (
+        "Devuelve el texto recibido y su longitud.\n\n"
+        "Sirve para probar el bucle sin depender de ninguna señal."
+    )
     assert "texto" in catalogo["eco"]["parameters"]["properties"]
+
+
+@pytest.mark.asyncio
+async def test_el_modelo_razona_por_defecto(monkeypatch):
+    """Sin razonar, el 27B se inventó el resultado de las herramientas sin
+    llamarlas (A40, 2026-09-26): el agente lo pide siempre, sin depender del
+    defecto de Ollama."""
+    modelo = ModeloGuionado(_pide(("eco", {"texto": "hola"})), _responde("Hecho."))
+
+    async with mcp_en_proceso(monkeypatch):
+        await responder("Repite hola", [], _config(modelo))
+
+    assert modelo.razonar == [True, True]
 
 
 @pytest.mark.asyncio

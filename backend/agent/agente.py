@@ -26,8 +26,20 @@ Lo que no se deduce leyendo el bucle:
   consulta y guarda de dónde vino cada herramienta.
 - **Como mucho seis vueltas**, como en el spike. Agotadas, termina con la traza
   entera y sin narración, y las tarjetas salen igual (R6.13).
+- **El modelo razona antes de contestar (`think=True`), y es explícito.**
+  Medido en la A40 el 2026-09-26 (`spikes/agente_a40.py`): sin razonar, el 27B
+  eligió bien 13 de 26 consultas y en los fallos **se inventó el resultado de
+  las herramientas sin llamarlas**, con posiciones y probabilidades falsas.
+  Razonando, 25/26. Sin mandar el campo, como el spike, también 25/26 y con
+  una salida parecida: todo indica que Ollama razona por defecto con este
+  modelo, y que el spike se midió así sin saberlo. Se escribe igualmente, como
+  `num_ctx`, para no depender del defecto.
+- **Las descripciones se envían sin la sangría del docstring**, que FastMCP
+  manda tal cual: son espacios que el modelo paga en cada petición y no dicen
+  nada. Lo que enseña la pantalla de Sistema no cambia.
 """
 
+import inspect
 import json
 import time
 import traceback
@@ -71,8 +83,14 @@ class Configuracion:
 
     Dos cortes y no uno, como en la API: descubrir tarda milésimas, y ejecutar
     puede tener que cargar un modelo la primera vez (`mcp_execute_timeout`).
-    `max_result_chars` acota lo que el MODELO lee de cada resultado; `None` es
-    entero. Qué valor conviene se decide midiendo en la A40.
+
+    `max_result_chars` acota lo que el MODELO lee de cada resultado, y va
+    `None`, entero, por lo medido en la A40: el bucle más largo (una noticia y
+    su análisis completo) llegó a 5.842 de 8.192 tokens; y recortando a 1.500
+    caracteres, como el spike, el corte cayó en mitad de un valor —el modelo
+    leyó `"incoherent": fa`— y dejó fuera el umbral y el veredicto global, y
+    el modelo llamó «incoherente» a una similitud de 0,311 con umbral 0,3. Se
+    conserva para poder reproducir esa medida.
     """
 
     backend: LLMBackend
@@ -81,7 +99,7 @@ class Configuracion:
     discovery_timeout: float
     execute_timeout: float
     max_rounds: int = MAX_VUELTAS
-    think: bool = False
+    think: bool = True
     max_result_chars: int | None = None
 
 
@@ -207,7 +225,7 @@ async def _descubrir(config: Configuracion) -> Catalogo:
         for tool in catalogo.tools:
             herramienta: Herramienta = {
                 "name": tool.name,
-                "description": tool.description or "",
+                "description": inspect.cleandoc(tool.description or ""),
                 "parameters": tool.inputSchema,
             }
             encontradas.setdefault(tool.name, (herramienta, url))
