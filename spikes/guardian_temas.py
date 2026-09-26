@@ -23,7 +23,12 @@ anota lo que pasa por `make_request`, sin cambiar nada de lo que hace—:
 - y los tres primeros titulares de cada variante, para juzgar el criterio de
   #47 («intelligence» traía espías y música).
 
-Cuesta 4 llamadas por tema, 32 en total, de las 500 diarias de la clave. La
+La columna de producción da lo que devolvió `search_articles` y el camino de
+búsquedas que hizo: `ok, 10 (tag 0 → q 391)` es que la etiqueta no trajo nada
+y volvió a `q=`, que es el arreglo de #196.
+
+Cuesta 4 llamadas por tema —5 si vuelve a `q=`—, de 32 a 40 en total, de las
+500 diarias de la clave. La
 clave no se imprime: se tapa en todo lo que se escribe, y el registro de
 `make_request` se captura en vez de salir por pantalla.
 
@@ -120,6 +125,19 @@ def _celda(peticion: dict[str, Any] | None) -> str:
     return f"ERROR {peticion['error']}"
 
 
+def _camino(produccion: dict[str, Any]) -> str:
+    """Lo que devolvió `search_articles` y las búsquedas que hizo para ello:
+    `ok, 10 (tag 0 → q 391)` es que la etiqueta no trajo nada y volvió a `q=`."""
+    pasos = " → ".join(
+        ("tag" if "tag" in busqueda["params"] else "q") + f" {busqueda['total']}"
+        if busqueda["ok"]
+        else "ERROR"
+        for busqueda in produccion["busquedas"]
+    )
+    estado = f"ok, {produccion['articulos']}" if produccion["ok"] else "FALLA"
+    return f"{estado} ({pasos})"
+
+
 async def _buscar(api: GuardianAnotado, **filtro: str) -> dict[str, Any]:
     """Una búsqueda con la misma ventana y los mismos campos que la de producción."""
     desde = datetime.now(UTC).date() - timedelta(days=DIAS)
@@ -133,8 +151,8 @@ async def _medir(api: GuardianAnotado, tema: str) -> dict[str, Any]:
     resultado = await api.search_articles(tema, DIAS)
     produccion = api.peticiones[inicio:]
     etiquetas = next((p["ids"] for p in produccion if p["endpoint"] == "tags"), None)
-    busqueda = next((p for p in produccion if p["endpoint"] == "search"), None)
-    elegida = busqueda["params"].get("tag") if busqueda else None
+    busquedas = [p for p in produccion if p["endpoint"] == "search"]
+    elegida = busquedas[0]["params"].get("tag") if busquedas else None
 
     fila: dict[str, Any] = {
         "tema": tema,
@@ -143,7 +161,9 @@ async def _medir(api: GuardianAnotado, tema: str) -> dict[str, Any]:
         "produccion": {
             "ok": resultado.success,
             "error": resultado.error,
-            "busqueda": busqueda,
+            "articulos": len(resultado.unwrap()) if resultado.success else 0,
+            # Todas las búsquedas, en orden: la última es la que devuelve.
+            "busquedas": busquedas,
         },
         "etiqueta_con_pausa": None,
     }
@@ -187,24 +207,20 @@ async def main() -> dict[str, Any]:
         f"llamadas: {api.call_count} · cuota diaria restante: {api.remaining_quota}\n"
     )
     print(
-        f"{'tema':24} {'etiqueta elegida':40} {'producción':28} {'etiqueta tras pausa':28} q="
+        f"{'tema':24} {'etiqueta elegida':46} {'producción':26} {'etiqueta tras pausa':20} q="
     )
     for fila in filas:
-        produccion = (
-            _celda(fila["produccion"]["busqueda"])
-            if fila["produccion"]["ok"]
-            else f"FALLA · {_celda(fila['produccion']['busqueda'])}"
-        )
         print(
-            f"{fila['tema']:24} {fila['elegida']!s:40} {produccion:28} "
-            f"{_celda(fila['etiqueta_con_pausa']):28} {_celda(fila['libre'])}"
+            f"{fila['tema']:24} {fila['elegida']!s:46} {_camino(fila['produccion']):26} "
+            f"{_celda(fila['etiqueta_con_pausa']):20} {_celda(fila['libre'])}"
         )
 
     for fila in filas:
+        busquedas = fila["produccion"]["busquedas"]
         print(f"\n== {fila['tema']}")
         print(f"  /tags: {(fila['etiquetas'] or [])[:6]}")
         for nombre, peticion in (
-            ("producción", fila["produccion"]["busqueda"]),
+            ("producción", busquedas[-1] if busquedas else None),
             ("etiqueta tras pausa", fila["etiqueta_con_pausa"]),
             ("q=", fila["libre"]),
         ):

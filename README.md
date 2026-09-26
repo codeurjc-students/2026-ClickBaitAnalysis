@@ -595,7 +595,7 @@ Motivo: mejorar la fiabilidad del MVP frente a la *flakiness* del backend remoto
 La validación destapó tres problemas al buscar por tema (p.ej. "artificial intelligence"), todos corregidos:
 
 - **NYT — relevancia:** el cliente forzaba `sort=newest`, que hacía que `q` **no filtrara** (devolvía lo más nuevo sin relación). Ahora `sort = "relevance" if topic else "newest"`. *(Verificado: devuelve IA limpia.)*
-- **Guardian — precisión:** el `q` libre matchea palabras sueltas ("intelligence" arrastraba espías/música). Ahora filtra por **tag** curado: `/tags?q=<topic>` → top tag → `/search?tag=<id>`, con **fallback** a `q` si no hay tag.
+- **Guardian — precisión:** el `q` libre matchea palabras sueltas ("intelligence" arrastraba espías/música). Ahora filtra por **tag** curado: `/tags?q=<topic>` → top tag → `/search?tag=<id>`, con **fallback** a `q` si no hay tag. *(Revisado en #196: también se vuelve a `q` si la etiqueta no trae nada en la ventana, que le pasaba a 5 de 8 temas. Ver la sección de #196.)*
 - **Usabilidad del LLM:** `topic` no tenía `description` en el schema (solo en el docstring), así que el LLM a veces inventaba parámetros (`query`). Ahora usa `Field(description=…)` en ambas tools.
 
 **Lección de la validación:** fueron un bug de **comportamiento de API externa** (NYT `sort`) y uno de **precisión de búsqueda** (Guardian) que un test **mockeado no destapa** — solo la llamada real. La validación garantiza *forma*, no *corrección*; por eso aquí pesa la verificación empírica/integración.
@@ -618,7 +618,7 @@ Tests (`respx`): NYT deriva `DAILY_LIMIT − call_count`; Guardian lee la cuota 
 
 > **Aislamiento de tests:** emitir el log `api.call` destapó un bug latente — `test_logging.py` configuraba structlog **global** apuntando al `stderr` temporal de `capsys`; al cerrarse ese buffer, cualquier test posterior que logueara petaba con `ValueError: I/O operation on closed file`. Se añadió `tests/conftest.py` con un fixture `autouse` que **resetea structlog tras cada test** (un fallo de logging quedaba además enmascarado por el `except Exception` de `make_request` como "No articles found" — doble disfraz).
 
-**Selección de tag de Guardian (afinada en este PR):** `_find_tag` ya no coge `tags[0]` a ciegas. Para temas que son una **sección** ("technology"), Guardian lista antes tags de **nicho** (`sustainable-business/technology`) que, con el filtro `from-date`, daban **0 resultados recientes**, dejando el canónico más abajo. Ahora `_find_tag` prefiere el tag **canónico de sección** (`id` con forma `X/X`, p.ej. `technology/technology`) y cae a `tags[0]` para temas multi-palabra (p.ej. `technology/artificialintelligenceai`, que no es `X/X`). *(Verificado contra la API real.)*
+**Selección de tag de Guardian (afinada en este PR):** `_find_tag` ya no coge `tags[0]` a ciegas. Para temas que son una **sección** ("technology"), Guardian lista antes tags de **nicho** (`sustainable-business/technology`) que, con el filtro `from-date`, daban **0 resultados recientes**, dejando el canónico más abajo. Ahora `_find_tag` prefiere el tag **canónico de sección** (`id` con forma `X/X`, p.ej. `technology/technology`) y cae a `tags[0]` para temas multi-palabra (p.ej. `technology/artificialintelligenceai`, que no es `X/X`). *(Verificado contra la API real.)* *(Revisado en #196: ninguna de las dos reglas garantiza noticias —`weather/weather` y `climate-summit/climate-summit` daban 0 en una semana—; se dejaron, y lo cubre la vuelta a `q`. Ver la sección de #196.)*
 
 ### E4-03 · Evaluación con dataset etiquetado + baseline del léxico
 
@@ -6819,7 +6819,7 @@ Mediana de 17,8 s, y como mucho 5.765 tokens. **Las seis narraciones cuentan lo 
 
 #### Lo que destapó alrededor
 
-- **[#196](https://github.com/codeurjc-students/2026-ClickBaitAnalysis/issues/196): Guardian no encuentra nada con ningún tema**, y sin tema sí. La hipótesis, leyendo el código, es que busca sólo por la etiqueta que encuentra y no vuelve a la búsqueda libre si no da nada.
+- **[#196](https://github.com/codeurjc-students/2026-ClickBaitAnalysis/issues/196): Guardian no encuentra nada con ningún tema**, y sin tema sí. La hipótesis, leyendo el código, es que busca sólo por la etiqueta que encuentra y no vuelve a la búsqueda libre si no da nada. *(Resuelto en #196: era eso —con `q=`, «climate» tenía 134 noticias esa semana—, y un fallo de la petición también salía como «No articles found». Ver la sección de #196.)*
 - **[#197](https://github.com/codeurjc-students/2026-ClickBaitAnalysis/issues/197): un veredicto falso de engaño por un argumento.** En la segunda sesión, el modelo llamó a `analyze_headline` con `"content": "None"` —la cadena—, la incoherencia comparó el titular con la palabra «None» y el veredicto salió `deceptive`. La narración fue fiel a los datos; el error estaba en la entrada, y **la traza lo delata**, que es para lo que está. *(Resuelto en #197: el modelo escribe «None» en 7 de cada 15 llamadas sin cuerpo, y ahora se trata como ausencia. Ver la sección de #197.)*
 - **FastMCP antepone «Error executing tool …:»** al mensaje de una herramienta que falla, en inglés. `/tools/{name}/execute` ya lo publicaba así, y la traza también. Queda para #191, que lo pintará.
 - **Una respuesta sin herramientas no se puede bloquear** —«¿qué es el clickbait?» se contesta legítimamente sin ellas—, pero la traza dice si hubo algún paso de herramienta, y #191 puede marcar que esa respuesta no se apoya en ninguna.
@@ -6880,6 +6880,75 @@ AGENTE_A40_JSON=/tmp/agente_a40_cuerpo.json setsid nohup bash spikes/agente_a40.
 **El modelo escribe «None» en 7 de 15 llamadas**, casi la mitad; en 7 omite el parámetro, y en una manda la cadena vacía. No era un caso raro: en #188 se había visto 1 vez en 2, y la consulta que lo destapó, esta vez, lo omitió las tres. **La incoherencia quedó en `not_applicable` en las 15**, y ningún veredicto salió `deceptive` (9 `stylistic_clickbait`, 3 `factual`, 3 `ambiguous`). Sin el arreglo, esas 7 habrían medido la incoherencia contra la palabra. La sesión terminó con la GPU a 0 MiB.
 
 **No se midió la narración**: las consultas se cortaron en la primera decisión, que es donde se elige el argumento. Y desde esta issue la selección del guion guarda los argumentos de cada llamada, que antes no guardaba; por eso en #188 no se pudo contar esto desde los datos que ya había.
+
+### Guardian: la etiqueta muerta y el fallo disfrazado (#196, 26 sep 2026)
+
+Lo destapó la aceptación de #188: `get_guardian_news` respondió «No articles found» a los cuatro temas que probó el modelo —«climate change», «climate», «weather» y «extreme weather»—, y sin tema sí trajo noticias. Leyendo el código salían dos hipótesis que, desde fuera, dan el mismo mensaje:
+
+- **La etiqueta.** Desde #47, un tema se busca **sólo** por la etiqueta que encuentra `/tags`, y si esa etiqueta no trae nada en la ventana, no se vuelve a la búsqueda libre `q=`.
+- **Un fallo disfrazado.** Si `/search` fallaba por lo que fuera —un 429, un 401, un timeout—, el cliente también decía «No articles found». Con tema son dos peticiones seguidas, así que un límite por segundo cortaría justo la segunda.
+
+#### Medir antes de tocar
+
+[`spikes/guardian_temas.py`](spikes/guardian_temas.py) mide con el `GuardianAPI` de producción: una subclase que sólo anota lo que pasa por `make_request`, sin cambiar nada. Para cada tema hace la búsqueda tal cual la ve el agente, repite la misma etiqueta 2 s después y busca con `q=` en la misma ventana. Son los cuatro temas de #188 y cuatro de control, entre ellos «intelligence», el caso de #47.
+
+| Condiciones | |
+|---|---|
+| Fecha | 2026-09-26: antes del arreglo a las 11:48 UTC, sobre `c6b1b4b`; después a las 12:35 UTC, sobre `2b6bcb1` |
+| Máquina | WSL (Ubuntu) en el portátil, la misma desde la que el agente de #188 llamó a Guardian |
+| API | Open Platform de The Guardian, `/tags` y `/search`, con la ventana del defecto: 7 días, desde el 2026-09-19 |
+| Coste | 32 llamadas antes y 37 después |
+
+```bash
+.venv/bin/python spikes/guardian_temas.py
+```
+
+Antes del arreglo (el número es el `total` que da Guardian para la ventana):
+
+| Tema | Etiqueta que elige `_find_tag` | Con ella | Con `q=` |
+|---|---|---|---|
+| climate change | `climate-change-and-you/climate-change-and-you` | **0** | 389 |
+| climate | `climate-summit/climate-summit` | **0** | 134 |
+| weather | `weather/weather` | **0** | 73 |
+| extreme weather | `weather/weather` | **0** | 147 |
+| intelligence | `sustainable-business/market-intelligence` | **0** | 137 |
+| technology | `technology/technology` | 80 | 129 |
+| artificial intelligence | `technology/artificialintelligenceai` | 66 | 150 |
+| politics | `politics/politics` | 118 | 152 |
+
+- **Es la etiqueta, no el ritmo.** La misma etiqueta, 2 s después, dio exactamente el mismo total en los ocho temas, y no hubo ni un error HTTP.
+- **Fallaban 5 de 8, uno de ellos de control.** Las etiquetas elegidas son series cerradas (`climate-change-and-you`, `climate-summit`) o secciones sin nada esa semana (`weather/weather`). La regla que prefiere la etiqueta canónica `X/X` no garantiza noticias: con «extreme weather» pasa por delante de `world/extreme-weather`, la primera que da `/tags`. Elegir por posición tampoco serviría, porque en «climate change», «climate» e «intelligence» la primera también está muerta: `/tags` no ordena por actividad.
+- **Lo que protegía #47 sigue siendo cierto.** Con «artificial intelligence», la etiqueta trae tres titulares de IA de tres, y `q=` mete uno sobre la demografía de Australia; con «technology», `q=` mete unas piezas de F-35 perdidas. La etiqueta es mejor, **cuando trae algo**.
+
+#### El arreglo
+
+Dos cambios en `search_articles`, con el test primero: dos tests con `respx`, ejecutados contra el código de antes, que **fallaron los dos por el fallo**. Con el arreglo pasan: **367 tests**.
+
+- **Una etiqueta sin noticias vuelve a `q=`**, en la misma ventana: una llamada más, sólo en ese caso. `_find_tag` no se toca: con la vuelta, una etiqueta muerta cuesta una llamada, no una respuesta vacía, y cambiar su criterio pediría medir otro.
+- **Un fallo ya no es «no hay noticias».** Se devuelve el mensaje de `make_request`, que es público desde #89 («La API externa respondió HTTP 429 Too Many Requests.»), y no se repite con `q=`. Aquí no fue la causa, pero el agente decide con ese mensaje: creyendo que no hay nada, gasta cuota probando otros temas, que es lo que hizo en #188 ante el «No articles found» de la etiqueta muerta: probó tres más. El disfraz ya se había visto en #50, con un fallo de registro que salía como «No articles found», y se quedó.
+
+**«intelligence» a secas** cae ahora en `q=` y trae la inteligencia danesa junto a la IA. Se da por bueno: es un significado legítimo de la palabra, y lo que protegía #47, «artificial intelligence», conserva su etiqueta.
+
+#### Después
+
+| Tema | Lo que devuelve la herramienta (y las búsquedas que hizo) |
+|---|---|
+| climate change | 10 artículos (etiqueta 0 → `q=` 391) |
+| climate | 10 artículos (etiqueta 0 → `q=` 134) |
+| weather | 10 artículos (etiqueta 0 → `q=` 74) |
+| extreme weather | 10 artículos (etiqueta 0 → `q=` 148) |
+| intelligence | 10 artículos (etiqueta 0 → `q=` 137) |
+| technology | 10 artículos (etiqueta 80) |
+| artificial intelligence | 10 artículos (etiqueta 66) |
+| politics | 10 artículos (etiqueta 119) |
+
+**Los ocho temas devuelven noticias**, los cuatro de #188 incluidos; 10 es la página que devuelve Guardian. Las 37 llamadas son las 32 de antes más una por cada etiqueta muerta. La tanda de después se repitió una vez: la primera enseñaba en la columna de la herramienta la búsqueda por etiqueta y no la que devolvía, así que se corrigió el guion y lo citado es la repetición.
+
+#### Lo que queda
+
+- **NYT tiene el mismo disfraz**, y un test lo fija: `test_search_articles_http_error` exige que un error HTTP salga como «No articles found». La issue dejaba NYT fuera; queda anotado.
+- **No se repitió con el agente.** La aceptación es el guion contra la API real. El docstring de la herramienta, que es lo que lee el modelo, no cambia.
+- **La cuota que da la cabecera no cuadra con las llamadas**: 480, 477 y 455 restantes tras tandas de 32, 37 y 37. Observado, sin explicar; es lo que publica `remaining_quota` (R2.7).
 
 
 
