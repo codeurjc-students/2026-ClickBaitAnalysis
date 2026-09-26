@@ -14,7 +14,7 @@ Lo que no se deduce leyendo el bucle:
   el modelo se puede recortar (`max_result_chars`); la traza, nunca.
 - **No lee `settings`**: recibe backend, servidores, prompt y cortes en
   `Configuracion` (regla de #119), y `tests/test_arquitectura.py` lo vigila. Lo
-  monta la API (#189).
+  monta la API, en `api/chat.py` (#189).
 - **Avisa de cada paso según ocurre**, con `al_paso`, y no sabe quién escucha:
   la API lo usará para que la traza crezca mientras la interfaz sondea.
 - **Un error de una herramienta vuelve al modelo como resultado**, para que

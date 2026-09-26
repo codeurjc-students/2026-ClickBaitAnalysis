@@ -384,10 +384,173 @@
           }
         }
       }
+    },
+    "/chat": {
+      "post": {
+        "tags": [
+          "asistente"
+        ],
+        "summary": "Post Chat",
+        "description": "Pregunta al asistente. Responde **al instante** con un id, y la\nconversación sigue en segundo plano: se sondea con `GET /chat/{id}`.\n\nNi SSE ni una petición bloqueante (decidido en H1, §12 de\n`docs/arquitectura.md`): SSE dejaría la ruta fuera del contrato generado, y\nun bucle con el 27B tarda 13–36 s, más ~36 s si Ollama arranca en frío.\n\n**Antes de aceptar, pregunta si hay asistente**, y si no, responde 503 con\nel motivo en vez de aceptar una conversación que va a fallar. Cuesta poco:\nque no haya nadie escuchando se sabe en 0,2 ms (#181).\n\n**Una conversación a la vez**, porque la GPU es una: las siguientes esperan\nsu turno en `queued`, y con la cola llena también es 503. No se guarda en\nel historial, que es de `/analyze` (decidido al definir H5).",
+        "operationId": "post_chat_chat_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChatRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChatAccepted"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Se superó el límite de peticiones. La cabecera `Retry-After` dice cuántos segundos esperar."
+          },
+          "503": {
+            "description": "No hay asistente ahora —sin configurar, apagado o sin el modelo—, o está atendiendo otras conversaciones y no caben más en espera. `detail` dice cuál, con una frase que se puede enseñar tal cual."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/chat/{job_id}": {
+      "get": {
+        "tags": [
+          "asistente"
+        ],
+        "summary": "Get Chat",
+        "description": "Una conversación tal como está ahora: su estado, la traza hasta este\nmomento y, al terminar, cómo acabó.\n\nLa traza crece entre sondeo y sondeo, así que cada herramienta que acaba se\npuede enseñar antes de que el modelo escriba nada. Las tarjetas se pintan\ncon el `data` de cada paso de herramienta, nunca con la respuesta del\nmodelo (R13.4).\n\nUna conversación terminada se guarda un rato y después **caduca** (404):\nvive en memoria, no en el historial.",
+        "operationId": "get_chat_chat__job_id__get",
+        "parameters": [
+          {
+            "name": "job_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Job Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChatJob"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Se superó el límite de peticiones. La cabecera `Retry-After` dice cuántos segundos esperar."
+          },
+          "404": {
+            "description": "No hay ninguna conversación con ese id, o caducó."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/agent": {
+      "get": {
+        "tags": [
+          "asistente"
+        ],
+        "summary": "Get Agent",
+        "description": "Si el asistente se puede usar ahora, qué modelo es y qué instrucciones\nrecibe.\n\n- `availability`: uno de los cuatro estados, con una frase que explica por\n  qué no, si no se puede (R6.14: la interfaz no debe ofrecer controles que\n  no puedan funcionar). Se pregunta en el momento, sin caché: un servidor\n  apagado se detecta en 0,2 ms (#181).\n- `model_card`: la ficha del modelo, con sus límites medidos (R13.7). Si se\n  configuró otro modelo, se publica ése y sin las medidas, que eran de otro.\n- `prompt`: el prompt de sistema en uso, entero (R13.5).",
+        "operationId": "get_agent_agent_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentInfo"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Se superó el límite de peticiones. La cabecera `Retry-After` dice cuántos segundos esperar."
+          }
+        }
+      }
     }
   },
   "components": {
     "schemas": {
+      "AgentInfo": {
+        "properties": {
+          "availability": {
+            "$ref": "#/components/schemas/Disponibilidad"
+          },
+          "model_card": {
+            "$ref": "#/components/schemas/FichaLLM"
+          },
+          "prompt": {
+            "$ref": "#/components/schemas/AgentPrompt"
+          }
+        },
+        "type": "object",
+        "required": [
+          "availability",
+          "model_card",
+          "prompt"
+        ],
+        "title": "AgentInfo",
+        "description": "Todo lo que la interfaz necesita saber del asistente antes de usarlo.\n\nSi se puede usar ahora y por qué no (R6.14: sin controles que no puedan\nfuncionar), qué modelo es y sus límites medidos (R13.7), y qué\ninstrucciones recibe (R13.5). No es `describe_models`: ésa la sirve el MCP,\nque no conoce la configuración del agente."
+      },
+      "AgentPrompt": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name",
+            "description": "El fichero de `backend/agent/prompts/`."
+          },
+          "text": {
+            "type": "string",
+            "title": "Text"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "text"
+        ],
+        "title": "AgentPrompt",
+        "description": "El prompt de sistema en uso, versionado y consultable (R13.5)."
+      },
       "AnalyzeRequest": {
         "properties": {
           "headline": {
@@ -516,6 +679,159 @@
         "title": "CatalogResponse",
         "description": "Catálogo completo: qué servidores se consultaron y qué ofrecen."
       },
+      "ChatAccepted": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id",
+            "description": "Imposible de adivinar a propósito: la aplicación no tiene autenticación, y quien tiene el id puede leer la conversación."
+          }
+        },
+        "type": "object",
+        "required": [
+          "id"
+        ],
+        "title": "ChatAccepted",
+        "description": "La conversación, aceptada: con este id se sondea `GET /chat/{id}`."
+      },
+      "ChatJob": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "status": {
+            "$ref": "#/components/schemas/ChatStatus"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "steps": {
+            "items": {
+              "oneOf": [
+                {
+                  "$ref": "#/components/schemas/PasoModelo"
+                },
+                {
+                  "$ref": "#/components/schemas/PasoHerramienta"
+                }
+              ],
+              "discriminator": {
+                "propertyName": "kind",
+                "mapping": {
+                  "model": "#/components/schemas/PasoModelo",
+                  "tool": "#/components/schemas/PasoHerramienta"
+                }
+              }
+            },
+            "type": "array",
+            "title": "Steps"
+          },
+          "result": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ChatOutcome"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "`null` mientras `status` no sea `done`."
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "status",
+          "created_at",
+          "steps"
+        ],
+        "title": "ChatJob",
+        "description": "Una conversación, tal como está AHORA: se sondea mientras trabaja.\n\nLa traza es **acumulada**: crece entre sondeo y sondeo, así que cada\nherramienta que acaba se puede enseñar antes de que el modelo haya escrito\nuna palabra (§12 de `docs/arquitectura.md`). Las tarjetas salen del `data`\nde cada paso de herramienta, nunca de `result.answer` (R13.4)."
+      },
+      "ChatOutcome": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "answered",
+              "empty_answer",
+              "max_rounds",
+              "failed"
+            ],
+            "title": "Status"
+          },
+          "answer": {
+            "type": "string",
+            "title": "Answer"
+          },
+          "detail": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Detail"
+          },
+          "rounds": {
+            "type": "integer",
+            "title": "Rounds"
+          },
+          "total_s": {
+            "type": "number",
+            "title": "Total S"
+          }
+        },
+        "type": "object",
+        "required": [
+          "status",
+          "answer",
+          "rounds",
+          "total_s"
+        ],
+        "title": "ChatOutcome",
+        "description": "Cómo acabó una conversación, sin los pasos, que van en `ChatJob.steps`.\n\n`status` distingue cuatro finales (`agent/traza.py`): `answered`,\n`empty_answer` y `max_rounds` tienen pasos que enseñar aunque no haya texto\n(R6.13); `failed` trae en `detail` una frase que se puede publicar."
+      },
+      "ChatRequest": {
+        "properties": {
+          "message": {
+            "type": "string",
+            "maxLength": 2000,
+            "minLength": 1,
+            "title": "Message",
+            "description": "Lo que se le pregunta al asistente."
+          },
+          "history": {
+            "items": {
+              "$ref": "#/components/schemas/Turno"
+            },
+            "type": "array",
+            "title": "History",
+            "description": "Los turnos anteriores, del más antiguo al más reciente, sólo con su texto. El rol es `user` o `assistant`: el de sistema lo pone el servidor, y un cliente no puede colar otro. Tiene un tope en caracteres que da la configuración; por encima, 422, y hay que quitar los turnos más antiguos."
+          }
+        },
+        "type": "object",
+        "required": [
+          "message"
+        ],
+        "title": "ChatRequest",
+        "description": "Un mensaje al asistente, con el texto de los turnos anteriores.\n\nEl servidor no guarda nada entre turnos: el historial lo manda el cliente,\ny sólo con el texto, sin los resultados de las herramientas (decidido al\ndefinir H5, por la ventana del modelo)."
+      },
+      "ChatStatus": {
+        "type": "string",
+        "enum": [
+          "queued",
+          "running",
+          "done"
+        ],
+        "title": "ChatStatus",
+        "description": "En qué punto está una conversación."
+      },
       "Dimension": {
         "type": "string",
         "enum": [
@@ -558,6 +874,41 @@
         ],
         "title": "DimensionVerdict",
         "description": "Veredicto agregado de las señales que miden lo mismo (principio 3).\n\nSolo aparecen las dimensiones en las que alguna señal llegó a emitir\nveredicto. Si ninguna lo hizo —fallaron, faltaba el cuerpo, o la dimensión\nno vota— la dimensión no se incluye, en vez de añadir un objeto vacío que la\ninterfaz tendría que aprender a ignorar. El motivo no se pierde: está en la\ntarjeta de cada señal, que es donde el usuario lo lee."
+      },
+      "Disponibilidad": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "not_configured",
+              "unreachable",
+              "model_missing",
+              "available"
+            ],
+            "title": "Status"
+          },
+          "detail": {
+            "type": "string",
+            "title": "Detail"
+          },
+          "model": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model"
+          }
+        },
+        "type": "object",
+        "required": [
+          "status",
+          "detail"
+        ],
+        "title": "Disponibilidad"
       },
       "ExecuteRequest": {
         "properties": {
@@ -628,6 +979,44 @@
         ],
         "title": "ExecuteStatus",
         "description": "Cómo acabó la ejecución."
+      },
+      "FichaLLM": {
+        "properties": {
+          "model_id": {
+            "type": "string",
+            "title": "Model Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "task": {
+            "type": "string",
+            "title": "Task"
+          },
+          "type": {
+            "type": "string",
+            "const": "opaque",
+            "title": "Type"
+          },
+          "limitations": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Limitations"
+          }
+        },
+        "type": "object",
+        "required": [
+          "model_id",
+          "name",
+          "task",
+          "type",
+          "limitations"
+        ],
+        "title": "FichaLLM",
+        "description": "La ficha del modelo de lenguaje. No tiene dimensión: no es una señal."
       },
       "HTTPValidationError": {
         "properties": {
@@ -764,6 +1153,49 @@
         "title": "HistoryPage",
         "description": "Una página del historial, en orden cronológico inverso."
       },
+      "Medidas": {
+        "properties": {
+          "prompt_tokens": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Prompt Tokens"
+          },
+          "output_tokens": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Output Tokens"
+          },
+          "load_s": {
+            "type": "number",
+            "title": "Load S"
+          },
+          "total_s": {
+            "type": "number",
+            "title": "Total S"
+          }
+        },
+        "type": "object",
+        "required": [
+          "prompt_tokens",
+          "output_tokens",
+          "load_s",
+          "total_s"
+        ],
+        "title": "Medidas",
+        "description": "Lo que el propio servidor dice que costó una respuesta.\n\n`prompt_tokens` es lo que el servidor EVALUÓ del prompt en esta llamada. Con\nla ventana llena recorta en silencio, y esto es lo único que lo delata\n(spike rehecho en la A40, PR #176). Es `None` si el servidor no lo informa.\nSi reutiliza lo ya evaluado en una vuelta anterior, podría contar menos que\nla conversación entera: medirlo es de #188, antes de usarlo como tamaño."
+      },
       "Origin": {
         "type": "string",
         "enum": [
@@ -785,6 +1217,122 @@
         ],
         "title": "OverallVerdict",
         "description": "Etiqueta única, para listados compactos como el historial.\n\nSe deriva de las dimensiones con una jerarquía explícita —el engaño pesa más\nque la forma— en lugar de por mayoría de señales."
+      },
+      "PasoHerramienta": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "const": "tool",
+            "title": "Kind"
+          },
+          "round": {
+            "type": "integer",
+            "title": "Round"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "arguments": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Arguments"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "ok",
+              "error"
+            ],
+            "title": "Status"
+          },
+          "data": {
+            "anyOf": [
+              {},
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Data"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "server": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Server"
+          },
+          "duration_s": {
+            "type": "number",
+            "title": "Duration S"
+          }
+        },
+        "type": "object",
+        "required": [
+          "kind",
+          "round",
+          "name",
+          "arguments",
+          "status",
+          "data",
+          "error",
+          "server",
+          "duration_s"
+        ],
+        "title": "PasoHerramienta",
+        "description": "Una herramienta que pidió el modelo, con su resultado o su error.\n\n`data` es el resultado estructurado ENTERO, aunque al modelo le llegue\nrecortado. `error` es público: se enseña tal cual (#163, #89). `server` es\n`None` si no se llegó a ejecutar en ningún servidor."
+      },
+      "PasoModelo": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "const": "model",
+            "title": "Kind"
+          },
+          "round": {
+            "type": "integer",
+            "title": "Round"
+          },
+          "content": {
+            "type": "string",
+            "title": "Content"
+          },
+          "tool_calls": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Tool Calls"
+          },
+          "metrics": {
+            "$ref": "#/components/schemas/Medidas"
+          }
+        },
+        "type": "object",
+        "required": [
+          "kind",
+          "round",
+          "content",
+          "tool_calls",
+          "metrics"
+        ],
+        "title": "PasoModelo",
+        "description": "Una vuelta del modelo: lo que escribió, qué pidió y lo que costó."
       },
       "RetentionPolicy": {
         "properties": {
@@ -1134,6 +1682,29 @@
         ],
         "title": "ToolModelCard",
         "description": "Ficha del modelo que hay detrás de una señal de análisis.\n\nEs lo que evita que el catálogo enseñe «detect_clickbait_linear — Señales de\nanálisis» y esconda que es interpretable, que mide forma y que su F1 cae\nfuera de dominio. Reutiliza los enums de las señales en vez de duplicar\ncadenas sueltas.\n\nPublicaba tres de los siete campos de la ficha hasta #128, y con eso la\npantalla no podía enseñar ni cómo se llama el modelo ni qué hace: seguía\ndiciendo «detect_clickbait_linear», que es justo lo que este tipo existe para\nevitar. El dato estaba en ``MODEL_CARDS`` y no salía — la misma forma que los\ncuatro huecos de #133."
+      },
+      "Turno": {
+        "properties": {
+          "role": {
+            "type": "string",
+            "enum": [
+              "user",
+              "assistant"
+            ],
+            "title": "Role"
+          },
+          "content": {
+            "type": "string",
+            "title": "Content"
+          }
+        },
+        "type": "object",
+        "required": [
+          "role",
+          "content"
+        ],
+        "title": "Turno",
+        "description": "Un turno anterior de la conversación, sólo con su texto.\n\nSin los resultados de las herramientas: la ventana es de 8.192 tokens y el\ncatálogo ya ocupa 2.629 (decidido al definir H5). El servidor no guarda nada\nentre turnos; el historial lo manda el cliente."
       },
       "ValidationError": {
         "properties": {

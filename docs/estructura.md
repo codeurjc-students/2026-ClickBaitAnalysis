@@ -80,7 +80,7 @@ herramientas (R13.4).
 | Fichero | Qué hace |
 |---|---|
 | `agente.py` | `responder()`, el bucle, con una `Configuracion` —backend, servidores, prompt, cortes, seis vueltas y `think`— que **recibe** en vez de leer `settings` (#119; lo vigila `tests/test_arquitectura.py`, sin ninguna excepción). Descubre el catálogo una vez por consulta, ejecuta cada herramienta en el servidor que la publicó, y un error de una herramienta vuelve al modelo como resultado. Razona siempre (`think=True`): sin razonar, el 27B se inventaba los resultados de las herramientas (#188) |
-| `traza.py` | Los tipos de lo que produce: cada vuelta del modelo, con sus medidas, y cada llamada, con su resultado **entero**, que es de donde salen las tarjetas; y cómo terminó. Aparte del bucle para que la API los importe sin él, y con las claves en inglés porque irán al contrato (#189) |
+| `traza.py` | Los tipos de lo que produce: cada vuelta del modelo, con sus medidas, y cada llamada, con su resultado **entero**, que es de donde salen las tarjetas; y cómo terminó. Aparte del bucle para que la API los importe sin él, y con las claves en inglés porque van al contrato: `GET /chat/{id}` los publica tal cual, sin copiarlos (#189) |
 | `prompts.py` y `prompts/` | Los prompts de sistema versionados (R13.5). Salen del spike #82 con una corrección: los dos llamaban «zero-shot» a `detect_clickbait` |
 
 Es un paquete de **primer nivel**, hermano de `analysis/`, porque los criterios
@@ -102,7 +102,8 @@ de historia, no una propiedad suya.
 
 | Fichero | Qué hace |
 |---|---|
-| `app.py` | La aplicación y sus seis rutas. Segundo punto de entrada del backend, hermano de `main.py` y no capa sobre él |
+| `app.py` | La aplicación y sus nueve rutas. Segundo punto de entrada del backend, hermano de `main.py` y no capa sobre él |
+| `chat.py` | Las conversaciones del asistente como **trabajos en memoria** (#189): `POST /chat` crea uno y lo lanza en segundo plano, la traza crece con cada paso que avisa el agente, y `GET /chat/{id}` la lee. **Una conversación en ejecución y las demás en cola visible**, porque la GPU es una y en la cola de Ollama la espera sería invisible y se comería el `llm_timeout`. Monta la `Configuracion` del agente desde `settings`, que el agente no lee. Aquí y no en `agent/` porque sin HTTP no existiría; en memoria porque el backend va con un solo worker (#125) |
 | `schemas.py` | El contrato: lo que entra y sale por HTTP, y los enums que lo acompañan |
 | `catalog.py` | **Traduce** el descubrimiento al contrato del catálogo — `GET /tools` |
 | `execute.py` | **Traduce** una invocación a su código de estado — `POST /tools/{name}/execute` |

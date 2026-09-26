@@ -1,8 +1,19 @@
 """Tests de los prompts versionados del agente (#188, R13.5)."""
 
+from typing import get_args
+
 import pytest
 
 from backend.agent import prompts
+from backend.config.settings import Settings
+
+
+def test_el_ajuste_que_elige_el_prompt_ofrece_los_versionados():
+    """`llm_prompt` es un `Literal` para que un nombre mal escrito falle al
+    arrancar (#189). El precio es que un prompt nuevo hay que añadirlo en dos
+    sitios, y esto dice cuándo se ha olvidado uno."""
+    ofrecidos = get_args(Settings.model_fields["llm_prompt"].annotation)
+    assert sorted(ofrecidos) == prompts.disponibles()
 
 
 def test_los_prompts_versionados_se_pueden_cargar():

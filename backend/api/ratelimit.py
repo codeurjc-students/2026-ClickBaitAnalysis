@@ -211,8 +211,10 @@ def grupo_de(metodo: str, ruta: str) -> str | None:
     if metodo == "OPTIONS":
         return None
 
+    # `POST /chat` también es cara: cada conversación ocupa la GPU compartida
+    # hasta un minuto (#189). Sondearla (`GET /chat/{id}`) sólo lee memoria.
     ejecucion_de_herramienta = ruta.startswith("/tools/") and ruta.endswith("/execute")
-    if metodo == "POST" and (ruta == "/analyze" or ejecucion_de_herramienta):
+    if metodo == "POST" and (ruta in ("/analyze", "/chat") or ejecucion_de_herramienta):
         return CARAS
 
     if ruta == "/health":

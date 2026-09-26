@@ -207,6 +207,9 @@ def test_openapi_documenta_las_rutas_y_el_contrato():
         "/history",
         "/history/{entry_id}",
         "/health",
+        "/chat",
+        "/chat/{job_id}",
+        "/agent",
     }
     # Las descripciones de los Field llegan al esquema: son lo que ve quien
     # consume /docs y lo que hereda el cliente TypeScript generado.

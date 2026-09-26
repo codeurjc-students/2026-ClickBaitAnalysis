@@ -1,7 +1,7 @@
 """Lo que produce el agente: la traza, paso a paso, y el resultado (#188, R13.3).
 
-Viven aparte del bucle porque la API los publicará (#189) y tiene que poder
-importarlos sin él. Por lo mismo, las claves van en inglés, como las del dominio
+Viven aparte del bucle porque la API los publica tal cual en `GET /chat/{id}`
+(#189), sin copiarlos, y tiene que poder importarlos sin él. Por lo mismo, las claves van en inglés, como las del dominio
 (#134) y las de `integrations/llm/base.py`.
 
 **La traza es lo que lee la interfaz, no la narración.** Cada herramienta lleva

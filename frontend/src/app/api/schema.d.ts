@@ -218,10 +218,128 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/chat": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Post Chat
+         * @description Pregunta al asistente. Responde **al instante** con un id, y la
+         *     conversación sigue en segundo plano: se sondea con `GET /chat/{id}`.
+         *
+         *     Ni SSE ni una petición bloqueante (decidido en H1, §12 de
+         *     `docs/arquitectura.md`): SSE dejaría la ruta fuera del contrato generado, y
+         *     un bucle con el 27B tarda 13–36 s, más ~36 s si Ollama arranca en frío.
+         *
+         *     **Antes de aceptar, pregunta si hay asistente**, y si no, responde 503 con
+         *     el motivo en vez de aceptar una conversación que va a fallar. Cuesta poco:
+         *     que no haya nadie escuchando se sabe en 0,2 ms (#181).
+         *
+         *     **Una conversación a la vez**, porque la GPU es una: las siguientes esperan
+         *     su turno en `queued`, y con la cola llena también es 503. No se guarda en
+         *     el historial, que es de `/analyze` (decidido al definir H5).
+         */
+        post: operations["post_chat_chat_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/chat/{job_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Chat
+         * @description Una conversación tal como está ahora: su estado, la traza hasta este
+         *     momento y, al terminar, cómo acabó.
+         *
+         *     La traza crece entre sondeo y sondeo, así que cada herramienta que acaba se
+         *     puede enseñar antes de que el modelo escriba nada. Las tarjetas se pintan
+         *     con el `data` de cada paso de herramienta, nunca con la respuesta del
+         *     modelo (R13.4).
+         *
+         *     Una conversación terminada se guarda un rato y después **caduca** (404):
+         *     vive en memoria, no en el historial.
+         */
+        get: operations["get_chat_chat__job_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/agent": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Agent
+         * @description Si el asistente se puede usar ahora, qué modelo es y qué instrucciones
+         *     recibe.
+         *
+         *     - `availability`: uno de los cuatro estados, con una frase que explica por
+         *       qué no, si no se puede (R6.14: la interfaz no debe ofrecer controles que
+         *       no puedan funcionar). Se pregunta en el momento, sin caché: un servidor
+         *       apagado se detecta en 0,2 ms (#181).
+         *     - `model_card`: la ficha del modelo, con sus límites medidos (R13.7). Si se
+         *       configuró otro modelo, se publica ése y sin las medidas, que eran de otro.
+         *     - `prompt`: el prompt de sistema en uso, entero (R13.5).
+         */
+        get: operations["get_agent_agent_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /**
+         * AgentInfo
+         * @description Todo lo que la interfaz necesita saber del asistente antes de usarlo.
+         *
+         *     Si se puede usar ahora y por qué no (R6.14: sin controles que no puedan
+         *     funcionar), qué modelo es y sus límites medidos (R13.7), y qué
+         *     instrucciones recibe (R13.5). No es `describe_models`: ésa la sirve el MCP,
+         *     que no conoce la configuración del agente.
+         */
+        AgentInfo: {
+            availability: components["schemas"]["Disponibilidad"];
+            model_card: components["schemas"]["FichaLLM"];
+            prompt: components["schemas"]["AgentPrompt"];
+        };
+        /**
+         * AgentPrompt
+         * @description El prompt de sistema en uso, versionado y consultable (R13.5).
+         */
+        AgentPrompt: {
+            /**
+             * Name
+             * @description El fichero de `backend/agent/prompts/`.
+             */
+            name: string;
+            /** Text */
+            text: string;
+        };
         /** AnalyzeRequest */
         AnalyzeRequest: {
             /**
@@ -306,6 +424,89 @@ export interface components {
             readonly degraded: boolean;
         };
         /**
+         * ChatAccepted
+         * @description La conversación, aceptada: con este id se sondea `GET /chat/{id}`.
+         */
+        ChatAccepted: {
+            /**
+             * Id
+             * @description Imposible de adivinar a propósito: la aplicación no tiene autenticación, y quien tiene el id puede leer la conversación.
+             */
+            id: string;
+        };
+        /**
+         * ChatJob
+         * @description Una conversación, tal como está AHORA: se sondea mientras trabaja.
+         *
+         *     La traza es **acumulada**: crece entre sondeo y sondeo, así que cada
+         *     herramienta que acaba se puede enseñar antes de que el modelo haya escrito
+         *     una palabra (§12 de `docs/arquitectura.md`). Las tarjetas salen del `data`
+         *     de cada paso de herramienta, nunca de `result.answer` (R13.4).
+         */
+        ChatJob: {
+            /** Id */
+            id: string;
+            status: components["schemas"]["ChatStatus"];
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Steps */
+            steps: (components["schemas"]["PasoModelo"] | components["schemas"]["PasoHerramienta"])[];
+            /** @description `null` mientras `status` no sea `done`. */
+            result?: components["schemas"]["ChatOutcome"] | null;
+        };
+        /**
+         * ChatOutcome
+         * @description Cómo acabó una conversación, sin los pasos, que van en `ChatJob.steps`.
+         *
+         *     `status` distingue cuatro finales (`agent/traza.py`): `answered`,
+         *     `empty_answer` y `max_rounds` tienen pasos que enseñar aunque no haya texto
+         *     (R6.13); `failed` trae en `detail` una frase que se puede publicar.
+         */
+        ChatOutcome: {
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "answered" | "empty_answer" | "max_rounds" | "failed";
+            /** Answer */
+            answer: string;
+            /** Detail */
+            detail?: string | null;
+            /** Rounds */
+            rounds: number;
+            /** Total S */
+            total_s: number;
+        };
+        /**
+         * ChatRequest
+         * @description Un mensaje al asistente, con el texto de los turnos anteriores.
+         *
+         *     El servidor no guarda nada entre turnos: el historial lo manda el cliente,
+         *     y sólo con el texto, sin los resultados de las herramientas (decidido al
+         *     definir H5, por la ventana del modelo).
+         */
+        ChatRequest: {
+            /**
+             * Message
+             * @description Lo que se le pregunta al asistente.
+             */
+            message: string;
+            /**
+             * History
+             * @description Los turnos anteriores, del más antiguo al más reciente, sólo con su texto. El rol es `user` o `assistant`: el de sistema lo pone el servidor, y un cliente no puede colar otro. Tiene un tope en caracteres que da la configuración; por encima, 422, y hay que quitar los turnos más antiguos.
+             */
+            history?: components["schemas"]["Turno"][];
+        };
+        /**
+         * ChatStatus
+         * @description En qué punto está una conversación.
+         * @enum {string}
+         */
+        ChatStatus: "queued" | "running" | "done";
+        /**
          * Dimension
          * @description Qué mide una señal. Determina cómo se agrupan los veredictos.
          * @enum {string}
@@ -333,6 +534,18 @@ export interface components {
              * @description Señales que han contribuido a este veredicto.
              */
             contributing?: string[];
+        };
+        /** Disponibilidad */
+        Disponibilidad: {
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "not_configured" | "unreachable" | "model_missing" | "available";
+            /** Detail */
+            detail: string;
+            /** Model */
+            model?: string | null;
         };
         /**
          * ExecuteRequest
@@ -388,6 +601,25 @@ export interface components {
          * @enum {string}
          */
         ExecuteStatus: "ok" | "error";
+        /**
+         * FichaLLM
+         * @description La ficha del modelo de lenguaje. No tiene dimensión: no es una señal.
+         */
+        FichaLLM: {
+            /** Model Id */
+            model_id: string;
+            /** Name */
+            name: string;
+            /** Task */
+            task: string;
+            /**
+             * Type
+             * @constant
+             */
+            type: "opaque";
+            /** Limitations */
+            limitations: string[];
+        };
         /** HTTPValidationError */
         HTTPValidationError: {
             /** Detail */
@@ -473,6 +705,26 @@ export interface components {
             retention: components["schemas"]["RetentionPolicy"];
         };
         /**
+         * Medidas
+         * @description Lo que el propio servidor dice que costó una respuesta.
+         *
+         *     `prompt_tokens` es lo que el servidor EVALUÓ del prompt en esta llamada. Con
+         *     la ventana llena recorta en silencio, y esto es lo único que lo delata
+         *     (spike rehecho en la A40, PR #176). Es `None` si el servidor no lo informa.
+         *     Si reutiliza lo ya evaluado en una vuelta anterior, podría contar menos que
+         *     la conversación entera: medirlo es de #188, antes de usarlo como tamaño.
+         */
+        Medidas: {
+            /** Prompt Tokens */
+            prompt_tokens: number | null;
+            /** Output Tokens */
+            output_tokens: number | null;
+            /** Load S */
+            load_s: number;
+            /** Total S */
+            total_s: number;
+        };
+        /**
          * Origin
          * @description Desde dónde se pidió la entrada en el historial. El prototipo distingue chat y formulario.
          * @enum {string}
@@ -487,6 +739,60 @@ export interface components {
          * @enum {string}
          */
         OverallVerdict: "deceptive" | "stylistic_clickbait" | "factual" | "ambiguous" | "no_data";
+        /**
+         * PasoHerramienta
+         * @description Una herramienta que pidió el modelo, con su resultado o su error.
+         *
+         *     `data` es el resultado estructurado ENTERO, aunque al modelo le llegue
+         *     recortado. `error` es público: se enseña tal cual (#163, #89). `server` es
+         *     `None` si no se llegó a ejecutar en ningún servidor.
+         */
+        PasoHerramienta: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "tool";
+            /** Round */
+            round: number;
+            /** Name */
+            name: string;
+            /** Arguments */
+            arguments: {
+                [key: string]: unknown;
+            };
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "ok" | "error";
+            /** Data */
+            data: unknown | null;
+            /** Error */
+            error: string | null;
+            /** Server */
+            server: string | null;
+            /** Duration S */
+            duration_s: number;
+        };
+        /**
+         * PasoModelo
+         * @description Una vuelta del modelo: lo que escribió, qué pidió y lo que costó.
+         */
+        PasoModelo: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "model";
+            /** Round */
+            round: number;
+            /** Content */
+            content: string;
+            /** Tool Calls */
+            tool_calls: string[];
+            metrics: components["schemas"]["Medidas"];
+        };
         /**
          * RetentionPolicy
          * @description Política de retención vigente, para que la interfaz no la cablee.
@@ -706,6 +1012,23 @@ export interface components {
             dimension: components["schemas"]["Dimension"];
             /** Limitations */
             limitations: string[];
+        };
+        /**
+         * Turno
+         * @description Un turno anterior de la conversación, sólo con su texto.
+         *
+         *     Sin los resultados de las herramientas: la ventana es de 8.192 tokens y el
+         *     catálogo ya ocupa 2.629 (decidido al definir H5). El servidor no guarda nada
+         *     entre turnos; el historial lo manda el cliente.
+         */
+        Turno: {
+            /**
+             * Role
+             * @enum {string}
+             */
+            role: "user" | "assistant";
+            /** Content */
+            content: string;
         };
         /** ValidationError */
         ValidationError: {
@@ -1044,6 +1367,125 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Salud"];
+                };
+            };
+            /** @description Se superó el límite de peticiones. La cabecera `Retry-After` dice cuántos segundos esperar. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    post_chat_chat_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ChatRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ChatAccepted"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Se superó el límite de peticiones. La cabecera `Retry-After` dice cuántos segundos esperar. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No hay asistente ahora —sin configurar, apagado o sin el modelo—, o está atendiendo otras conversaciones y no caben más en espera. `detail` dice cuál, con una frase que se puede enseñar tal cual. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    get_chat_chat__job_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                job_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ChatJob"];
+                };
+            };
+            /** @description No hay ninguna conversación con ese id, o caducó. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Se superó el límite de peticiones. La cabecera `Retry-After` dice cuántos segundos esperar. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    get_agent_agent_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentInfo"];
                 };
             };
             /** @description Se superó el límite de peticiones. La cabecera `Retry-After` dice cuántos segundos esperar. */

@@ -177,7 +177,7 @@ class Settings(BaseSettings):
     # lanzan cientos de peticiones desde el mismo cliente y no van de esto.
     rate_limit_enabled: bool = True
     rate_limit_window_s: float = 60.0
-    rate_limit_analyze: int = 10  # `POST /analyze` y `/tools/{name}/execute`
+    rate_limit_analyze: int = 10  # `POST /analyze`, `/tools/{name}/execute` y `/chat`
     rate_limit_health: int = 20  # `/health`: tres peticiones externas por sondeo
     rate_limit_default: int = 60  # el resto, que sólo lee disco o memoria
 
@@ -220,6 +220,33 @@ class Settings(BaseSettings):
     # (A40, 2026-09-26), y si el corte salta se pierde la conversación entera.
     # El diseño asíncrono de `/chat` (#189) absorbe la espera.
     llm_timeout: float = 300.0
+    # Qué prompt de sistema usa el agente, de los versionados en
+    # `backend/agent/prompts/` (R13.5). Un `Literal` y no una cadena libre para
+    # que un nombre mal escrito falle AL ARRANCAR y no en la primera
+    # conversación; `tests/agent/test_prompts.py` comprueba que la lista es la
+    # de los ficheros. `04-preciso` es el punto de partida del spike (PR #176) y
+    # con el que se aceptó #188; entre los dos no hay un ranking defendible, e
+    # iterarlos es #192.
+    llm_prompt: Literal["03-estricto", "04-preciso"] = "04-preciso"
+
+    # Los trabajos del chat, en memoria del proceso (#189).
+    #
+    # Una conversación EN EJECUCIÓN y las demás en una cola visible: la GPU es
+    # una, y si la cola la hiciera Ollama, la espera sería invisible para quien
+    # sondea y se comería el `llm_timeout` de cada llamada. Esto es cuántas
+    # esperan como mucho; con la cola llena, `POST /chat` responde 503.
+    chat_queue_size: int = 2
+    # Cuánto se guarda un trabajo TERMINADO antes de olvidarlo, y cuántos se
+    # guardan como mucho. La interfaz sondea cada 2 s, así que quince minutos
+    # sobran para leer el final; lo que caduca da 404.
+    chat_job_ttl_s: float = 900.0
+    chat_max_jobs: int = 20
+    # Tope del historial que manda el cliente, en caracteres (sólo el texto de
+    # los turnos, decidido al definir H5). Un historial que desborde la
+    # ventana (`llm_num_ctx`) lo RECORTA Ollama en silencio, y el modelo elige
+    # mal sin que nada falle (PR #176): por encima, 422, y la interfaz quita los
+    # turnos más antiguos.
+    chat_max_history_chars: int = 4000
 
 
 # Activa la validación al importar: si falta una clave, el proceso no arranca.
