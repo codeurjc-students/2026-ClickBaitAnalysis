@@ -245,7 +245,10 @@ class Settings(BaseSettings):
     # los turnos, decidido al definir H5). Un historial que desborde la
     # ventana (`llm_num_ctx`) lo RECORTA Ollama en silencio, y el modelo elige
     # mal sin que nada falle (PR #176): por encima, 422, y la interfaz quita los
-    # turnos más antiguos.
+    # turnos más antiguos. Medido en la A40 a través de la máquina 1
+    # (`spikes/chat_maquina1.py`, 2026-09-26): la conversación más larga de
+    # #188 llegó a 5.766 tokens sin historial y a 6.907 con 4.000 caracteres,
+    # por debajo del 7.500 fijado antes de medir.
     chat_max_history_chars: int = 4000
 
 
