@@ -6,7 +6,8 @@ hay una implementación, `ollama.py`, y la elige `factory.py`.
 
 Los tipos son NEUTRALES, no el formato de Ollama: con otro proveedor, el agente
 no cambiaría. Las claves van en inglés, como las del dominio (#134), porque
-acabarán en el contrato de la API (#189).
+van al contrato de la API: `Medidas` en cada paso de `GET /chat/{id}` y
+`Disponibilidad` en `GET /agent` (#189).
 """
 
 from abc import ABC, abstractmethod

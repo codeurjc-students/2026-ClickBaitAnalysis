@@ -6950,6 +6950,85 @@ Dos cambios en `search_articles`, con el test primero: dos tests con `respx`, ej
 - **No se repitió con el agente.** La aceptación es el guion contra la API real. El docstring de la herramienta, que es lo que lee el modelo, no cambia.
 - **La cuota que da la cabecera no cuadra con las llamadas**: 480, 477 y 455 restantes tras tandas de 32, 37 y 37. Observado, sin explicar; es lo que publica `remaining_quota` (R2.7).
 
+### La API del chat (#189, 26 sep 2026)
+
+Tres rutas nuevas, y con ellas el agente de #188 se puede usar desde fuera del proceso:
+
+- **`POST /chat`**: un mensaje y el texto de los turnos anteriores. Responde **202 al instante** con un id, y la conversación sigue en segundo plano.
+- **`GET /chat/{id}`**: la conversación tal como está ahora: `queued`, `running` o `done`, la traza hasta ese momento y, al terminar, cómo acabó.
+- **`GET /agent`**: si el asistente se puede usar ahora (los cuatro estados de #187), la ficha del modelo y el prompt en uso, entero. Cubre R6.14, R13.7 y R13.5.
+
+La forma asíncrona se decidió en H1 y está dibujada en §12 de `docs/arquitectura.md`: SSE dejaría la ruta fuera del contrato generado, y una petición bloqueante tendría que aguantar un bucle de 13–36 s.
+
+#### Cinco decisiones
+
+- **La cola va en la API, no en Ollama.** La GPU es una, así que corre **una conversación** y las siguientes esperan, hasta dos, **visibles** como `queued`; con la cola llena, `POST /chat` da 503. Si la cola la hiciera Ollama, la espera sería invisible para quien sondea y además se comería el `llm_timeout` de cada llamada, que el cliente cuenta desde que la envía: una conversación detrás de otra podría caducar sin haber empezado. Con la cola en la API, Ollama nunca recibe dos conversaciones a la vez.
+- **El sondeo, en el presupuesto general.** `GET /chat/{id}` sólo lee memoria y va en el grupo de 60 por minuto, y la pantalla de #191 sondeará **cada 2 s**. `POST /chat` va con las rutas caras, 10 por minuto, porque cada conversación ocupa la GPU compartida.
+- **`/agent` y no `/agente`**, que era como se nombró al definir H5: el resto de rutas y todas las claves del contrato van en inglés desde #134.
+- **Se pregunta antes de aceptar.** Si el asistente no está configurado, no responde o no tiene el modelo, `POST /chat` da 503 con la frase pública de `GET /agent`, en vez de aceptar una conversación que va a fallar. Cuesta poco: #181 midió que un rechazo se sabe en 0,2 ms.
+- **Un tope al historial, en caracteres.** La ventana es de 8.192 tokens, y Ollama recorta en silencio lo que no cabe: el modelo elige mal sin que nada falle (PR #176). Por encima del tope, 422, y la interfaz quitará los turnos más antiguos. La cifra, 4.000 caracteres, sale de la medida de abajo.
+
+#### El contrato
+
+Los pasos de la traza, el historial, la disponibilidad y la ficha del modelo **son los tipos del agente y del cliente del modelo**, no copias: la API los publica tal cual se producen, así que el contrato no puede separarse de lo que hay detrás. Los pasos van como una unión con discriminante (`kind`), y el cliente generado recibe `(PasoModelo | PasoHerramienta)[]` en vez de un objeto libre. `frontend/openapi.json` y `schema.d.ts` están regenerados; el frontend no se toca, eso es #191.
+
+Algunos detalles que no se ven desde fuera:
+
+- **El id no se puede adivinar** (16 bytes aleatorios): la aplicación no tiene autenticación, y quien tiene el id lee la conversación. Con uno secuencial, cualquiera leería las de los demás.
+- **El historial sólo admite los roles `user` y `assistant`.** El de sistema lo pone el servidor, y un cliente no puede colar otras instrucciones como si fueran el prompt.
+- **Las conversaciones terminadas caducan** a los 15 minutos, y se guardan como mucho 20; nunca se olvida una en marcha.
+- **Un fallo imprevisto del agente se registra entero antes de publicar la frase** (#89), y la conversación termina en `failed` en vez de quedarse en `running`.
+- **El prompt se elige con `llm_prompt`**, un `Literal` para que un nombre mal escrito falle al arrancar, con un test que lo compara con los ficheros de `backend/agent/prompts/`.
+- **Las conversaciones no van al historial**, que es de `/analyze` (decidido al definir H5).
+
+24 tests nuevos. Veinte son de las rutas, con el agente simulado para poder pararlo a mitad: la traza que crece mientras trabaja, los cuatro finales, el fallo imprevisto, la cola, la cola llena, los tres 503 de «no hay asistente», la caducidad, el tope, el 422 del historial y el rol de sistema. Los otros cuatro: tres filas del limitador y el del `Literal` de los prompts. **391 tests**.
+
+#### Aceptación en la máquina 1, a través de Caddy
+
+[`spikes/chat_maquina1.py`](spikes/chat_maquina1.py) habla con la API desplegada como lo hará la pantalla —por HTTPS, sondeando cada 2 s— y [`spikes/chat_maquina1.sh`](spikes/chat_maquina1.sh) lo rodea de una sesión de GPU: mide con la sesión cerrada, abre una con `gpu-sesion` y su túnel, mide, la cierra y vuelve a medir cerrada.
+
+| Condiciones | |
+|---|---|
+| Fecha | 2026-09-26, de 14:36 a 14:41 UTC |
+| Código | `7435a3f`, desplegado en la máquina 1 con `sudo docker compose up --build --wait` (23 s) |
+| Camino | WSL, desde casa → `https://gongarcia.tfg.etsii.urjc.es/api` → Caddy → API → túnel inverso de `gpu-sesion` (`6ad6a751d636`) → Ollama 0.34.2 en la A40 (`gpuserver2`) |
+| Modelo | `qwen3.5:27b` (ID `7653528ba5cb`), `num_ctx` 8192, `think=True`, prompt `04-preciso`, cargado antes de empezar (8,7 s) |
+
+```bash
+setsid nohup bash spikes/chat_maquina1.sh > /tmp/chat_maquina1.log 2>&1 < /dev/null & disown
+```
+
+**Sin sesión**, antes y después: `GET /agent` dice `unreachable` y `POST /chat` responde 503 en 0,033 s con la misma frase. Al cerrar, la GPU vuelve a 0 MiB y en la máquina 1 no queda nada escuchando en el 11434.
+
+**Con la sesión**, `GET /agent` dice `available`, y las cinco conversaciones terminan en `answered`, sin ningún 429:
+
+| Conversación | Estados | Agente | Sondeos | `prompt_tokens` por vuelta |
+|---|---|---|---|---|
+| Sencilla (un titular) | running → done | 64,5 s | 33 | 3.702, 4.498 |
+| La más larga de #188 (noticia del NYT y su análisis) | running → done | 29,6 s | 15 | 3.705, 4.983, **5.766** |
+| La misma, con 4.000 caracteres de historial | running → done | 39,8 s | 21 | 4.846, 6.124, **6.907** |
+| Dos a la vez: la primera | running → done | 28,7 s | 15 | 3.702, 4.498 |
+| Dos a la vez: la segunda | **queued** → running → done | 25,3 s (56,4 de reloj) | 28 | 3.698, 4.300 |
+
+- **El tope del historial se queda en 4.000 caracteres.** La regla se fijó antes de medir: por debajo de 7.500 tokens de los 8.192, se queda; si no, se baja en proporción. Llegó a **6.907**: 4.000 caracteres costaron 1.141 tokens, unos 3,5 caracteres por token. Sin historial, la misma conversación dio 5.766, lo mismo que en #188 (5.765).
+- **La cola funciona como se diseñó.** La segunda esperó unos 31 s en `queued`, y el registro de la API la aceptó con `en_espera=1`. Las dos sondearon a la vez, 43 peticiones en menos de un minuto, sin ningún 429.
+- **`POST /chat` responde en 0,04–0,07 s** desde casa, con la pregunta por la disponibilidad dentro.
+- **Los 64,5 s de la primera conversación**, desglosados con el registro de la API (`agent.vuelta` y `agent.herramienta`): 9,1 s de la primera vuelta, **6,8 s de `analyze_headline`** y **48,5 s de la narración**. Los 6,8 s son el MCP en frío: se acababa de recrear y no precalienta, lo que se aceptó en H4 (#164 midió 7,0 s); las siguientes llamadas a `analyze_headline` tardaron entre 0,28 y 0,67 s. La narración, en cambio, tardó 21,5 s con la misma consulta un rato después, y **no se sabe si escribió más o fue más lenta**: el guion no guardaba los tokens de salida. Observado, sin explicar, como la vuelta de 96 s de #188. El guion los guarda desde entonces.
+- **Con historial, la narración imita su forma.** El historial de la prueba son narraciones escritas con una plantilla, y la respuesta la siguió («He consultado cuatro señales sobre…», decimales con coma y a tres cifras). **Las cifras sí son las de las herramientas**: 0,163, 0,601 y 0,444, frente a 0,16315…, 0,60078… y 0,44435… de la misma consulta sin historial. En #191, el historial serán las narraciones del propio modelo.
+
+#### El despliegue
+
+La máquina 1 sirve **esta rama** desde la aceptación, así que ya lleva también #187, #188, #196 y #197. El compose tenía `LLM_BACKEND=ollama` desde #187, de modo que **mientras haya una sesión de GPU abierta, cualquiera puede usar el asistente llamando a la API**; lo acotan los 10 `POST /chat` por minuto y cliente y la conversación única. El clon vuelve a `dev` en cuanto se mergee.
+
+#### Lo que se desvía del plano
+
+§12 de `docs/arquitectura.md` no se toca: es el plano, y se contrasta al cerrar H5. Lo que sale distinto: la **cola en la API**, que el plano no tenía; la ruta **`/agent`**; y el **tope del historial**.
+
+#### Lo que queda
+
+- **Para #191**: sondear cada 2 s, enseñar `queued`, quitar los turnos más antiguos ante el 422, y los dos pendientes de #188 (las respuestas sin herramientas y el prefijo en inglés de FastMCP).
+- **La primera conversación tras un despliegue paga el MCP en frío**, unos 7 s. Se aceptó en H4; si molesta, precalentar el MCP es un ajuste.
+
 
 
 "Aplico Rudin donde puedo —incoherencia(A MEDIAS, YA QUE EL MODELO NO) y léxico son intrínsecamente interpretables— y reservo lo post-hoc (LIME/SHAP), con sus límites de fidelidad, solo para la parte que depende de un transformer preentrenado que no puedo abrir de otro modo." !!!IMPORTANTE (NO MODIFICAR, RECORDAR POSTURA DEFINIDA)

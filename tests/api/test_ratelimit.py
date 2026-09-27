@@ -149,6 +149,10 @@ def test_el_prefijo_de_montaje_se_quita_entero_o_nada(ruta, raiz, esperado):
         ("GET", "/tools", RESTO),
         ("GET", "/history", RESTO),
         ("GET", "/history/7", RESTO),
+        # Cada conversación ocupa la GPU; sondearla sólo lee memoria (#189).
+        ("POST", "/chat", CARAS),
+        ("GET", "/chat/Zk3v9QeLx2Wm8TqRy4Ha", RESTO),
+        ("GET", "/agent", RESTO),
         # Exenta: la comprobación previa de CORS la hace el navegador solo y no
         # cuesta nada. Un 429 ahí llegaría a la pantalla como un fallo de CORS,
         # o sea, como «no hay API» — el diagnóstico equivocado.

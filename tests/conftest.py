@@ -2,7 +2,7 @@ import pytest
 import structlog
 from mcp.server.fastmcp import FastMCP
 
-from backend.api import ratelimit
+from backend.api import chat, ratelimit
 from backend.config.settings import settings
 from backend.core import health
 from backend.integrations.discovery import discover_and_register
@@ -57,6 +57,19 @@ def _sondeo_de_salud_sin_cache(monkeypatch):
     health.olvidar_sondeo()
     yield
     health.olvidar_sondeo()
+
+
+@pytest.fixture(autouse=True)
+def _sin_conversaciones_de_otro_test():
+    """Vacía las conversaciones del asistente (#189) antes y después de cada test.
+
+    También son estado de módulo, y con más motivo: el almacén lleva un
+    semáforo, que se ata al bucle de eventos del primer test que lo usa y
+    fallaría en el siguiente, que corre en otro.
+    """
+    chat.reiniciar_trabajos()
+    yield
+    chat.reiniciar_trabajos()
 
 
 @pytest.fixture

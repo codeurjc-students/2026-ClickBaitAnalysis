@@ -1,9 +1,10 @@
 """Los prompts de sistema del agente, versionados en `prompts/` (R13.5, #188).
 
 Son configuración y no código: un fichero por versión, que se lee tal cual y se
-podrá consultar desde la API (#189), para que se vea qué instrucciones recibe el
-modelo. Cuál se usa lo decide quien monta el agente, y el ajuste que lo elige
-llega con #189, que es quien lo va a leer.
+consulta desde la API (`GET /agent`, #189), para que se vea qué instrucciones
+recibe el modelo. Cuál se usa lo decide quien monta el agente, con el ajuste
+`llm_prompt` (#189); un prompt nuevo se añade también a su `Literal`, y un test
+avisa si se olvida.
 
 Salen de `spikes/prompts/` (#82) con UNA corrección: los dos llamaban
 «zero-shot» a `detect_clickbait`, que dejó de serlo en #115. Es el error que
