@@ -1,11 +1,12 @@
 /**
- * Las formas que la vista de análisis sabe pintar.
+ * Las formas de un análisis que las piezas de `senales/` saben pintar.
  *
- * Son más anchas que las del contrato a propósito, y viven aquí —junto a quien
- * las dibuja— porque esta vista sirve a DOS orígenes: el análisis recién hecho,
- * que llega con el contrato de hoy, y el recuperado del historial, que se
- * guardó cuando el contrato era otro. Si vivieran en `historial/`, dibujar una
- * señal obligaría a `analisis/` a depender de esa pantalla.
+ * Son más anchas que las del contrato a propósito, porque lo que se pinta
+ * llega de DOS orígenes: el análisis recién hecho, que llega con el contrato de
+ * hoy, y el recuperado del historial, que se guardó cuando el contrato era
+ * otro. Viven junto a quien las dibuja, y fuera de cualquier pantalla: en una
+ * pantalla, las demás tendrían que depender de ella para dibujar una señal
+ * (tensión 5 de `docs/estructura.md`, resuelta en #190).
  *
  * `AnalyzeResponse` es asignable a `AnalisisGuardado` —un enum encaja en
  * `string`—, y al revés no. Esa asimetría es la que hace correcto tener un solo
@@ -21,9 +22,9 @@
  *   el vocabulario cae al valor crudo y se lee lo que hay.
  *
  * Aquí vive además `comoAnalisis`, el guardián que lee un análisis de datos sin
- * tipo. Va junto a las formas y no en `historial/` porque quien lo necesita es
- * esta pantalla —la que pinta un análisis guardado—, y al revés `analisis/`
- * acabaría dependiendo de la pantalla del historial para dibujar una señal.
+ * tipo. Va junto a las formas porque lo necesita quien pinta un análisis que
+ * no llega tipado: el guardado en el historial (#129) y, desde el asistente,
+ * el que devuelve `analyze_headline` dentro de la traza (#191).
  */
 
 /** Una señal, venga del análisis de ahora o del historial. */

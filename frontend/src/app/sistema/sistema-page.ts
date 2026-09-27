@@ -9,7 +9,7 @@ import type {
   ToolInfo,
 } from '../api/models';
 import { ToolsService } from '../api/tools.service';
-import { nombreDeDimension } from '../analisis/vocabulario';
+import { nombreDeDimension } from '../senales/vocabulario';
 import { EsquemaForm } from './esquema-form';
 
 /**

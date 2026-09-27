@@ -288,7 +288,8 @@ configurado. No contiene lógica: si algo se le añadiera, pertenece a otro siti
 |---|---|
 | la raíz de `app/` | La **cáscara**, que no es de ninguna pantalla: el componente con la cabecera, la navegación y el indicador de salud (`app.ts`, `app.html` y `app.scss`, con su `app.spec.ts`), las rutas —cada pantalla se descarga perezosa con `loadComponent`— (`app.routes.ts`) y la configuración (`app.config.ts`, con `withComponentInputBinding`, que es lo que hace llegar el `:id` como `input()`) |
 | `api/` | Lo que habla el contrato: el cliente generado (`schema.d.ts`), los alias con nombre corto (`models.ts`), **un servicio por familia de rutas** y lo que se lee del cuerpo de un error HTTP. No conoce el dominio: aquí no se decide qué es clickbait |
-| `analisis/` | Analizar un titular y ver el resultado —también uno guardado—, con lo que sólo esa vista usa: los guardianes del `data`, el resaltado del titular, la tarjeta de señal y el vocabulario |
+| `analisis/` | Analizar un titular y ver el resultado —también uno guardado—: la pantalla y sus mensajes de error, que hablan de «analizar un titular». Lo que pinta el resultado vive en `senales/` desde #190 |
+| `senales/` | ¿**Pinta, lee o nombra un resultado del dominio** —una señal, un veredicto, un análisis— **para más de una pantalla**? Los guardianes del `data` (`datos.ts`) y del análisis sin tipo (`formas.ts`), el vocabulario en castellano, la tarjeta de señal y el titular resaltado con sus segmentos. **No es una pantalla**: no tiene ruta, y existe para que ninguna pantalla dependa de otra —las tres de hoy y el asistente de #191— (#190, tensión 5). Lo que es de una sola pantalla, como sus mensajes de error, se queda en ella |
 | `historial/` | La lista de lo anterior: filtros, paginación y el aviso de retención |
 | `sistema/` | Servidores, catálogo y fichas de modelo, más el lector de esquemas que genera el formulario de cada herramienta |
 | `salud/` | El indicador de salud de la cabecera (#147). **No es una pantalla**: no tiene ruta y se monta en la cáscara, porque la pregunta que responde —«¿esto falla por mí o por un tercero?»— surge desde cualquiera de las tres. Meterlo en la carpeta de una de ellas obligaría a las otras dos a importar de esa pantalla, que es justo la dependencia que la regla de abajo prohíbe |
@@ -313,6 +314,9 @@ pantalla**. Es lo que decidió, en #129, dónde vive `comoAnalisis`: el guardiá
 que lee un análisis del `payload` guardado nació en `historial/`, y desde allí
 obligaba a `senal-card` —que sólo dibuja— a importar tipos de la pantalla del
 historial para existir. Vive en `analisis/formas.ts`, junto a quien los pinta.
+*(Desde #190, en `senales/formas.ts`: lo que pinta un resultado pasó a una
+carpeta que no es de ninguna pantalla, y la regla se cumple ahora sin
+excepciones — ver la tensión 5.)*
 
 ---
 
@@ -379,7 +383,14 @@ Con eso, un módulo puede exponerse como herramienta sin dejar de pertenecer a s
 capa: lo que importa es **quién decide registrarlo**, y esa decisión vive en el
 punto de entrada, no repartida por el árbol.
 
-### 5 · `vocabulario.ts` sirve a tres pantallas desde `analisis/`
+### 5 · `vocabulario.ts` sirve a tres pantallas desde `analisis/` — ✅ RESUELTA (#190)
+
+*Resuelta el 2026-09-27 al preparar el chat, que era el momento previsto: el
+vocabulario, los guardianes, la tarjeta de señal y el titular resaltado
+pasaron a `senales/`, con el criterio de su fila en la tabla de arriba. Son
+trece ficheros, y la carpeta nació con ellos, no con uno solo. Ninguna
+pantalla importa ya de otra (comprobado con `grep`). Lo de abajo es lo que se
+escribió entonces.*
 
 `nombreDeVeredicto` lo usa el historial y `nombreDeDimension` la de Sistema, así
 que **dos pantallas importan de una tercera** — justo lo que el criterio de
