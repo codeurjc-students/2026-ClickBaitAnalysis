@@ -6268,7 +6268,7 @@ Había dos formas de tratarlo. Darlo por cumplido —las imágenes sólo se cons
 
 - `main.py` no mencionaba `analyze_headline` (#107) ni `configurar_red` (#164), y la fila de `tests/` no nombraba sus dos excepciones, que prueban el repositorio en sí: `test_arquitectura.py` y `test_compose.py`.
 
-**Lo que sigue siendo cierto se ha comprobado de nuevo, y se ha enlazado.** El bug 1 —`linear.py` lee su JSON al importar— sigue ahí, igual que los tres renombrados propuestos. Los dos están recogidos en **#108**, que el documento no mencionaba ni una vez. La tensión 5 (`vocabulario.ts`, que usan tres pantallas desde `analisis/`) gana una nota: el momento de moverla que ella misma señalaba llega con el chat de H5.
+**Lo que sigue siendo cierto se ha comprobado de nuevo, y se ha enlazado.** El bug 1 —`linear.py` lee su JSON al importar— sigue ahí, igual que los tres renombrados propuestos. Los dos están recogidos en **#108**, que el documento no mencionaba ni una vez. La tensión 5 (`vocabulario.ts`, que usan tres pantallas desde `analisis/`) gana una nota: el momento de moverla que ella misma señalaba llega con el chat de H5. *(Resuelta en #190: el vocabulario y todo lo que pinta un resultado pasaron a `senales/`. Ver la sección de #190.)*
 
 La cabecera lo deja fechado: *revisado entero contra el árbol en #173*. La segunda pasada contra el árbol ya sólo encuentra falsos positivos conocidos.
 
@@ -7028,6 +7028,23 @@ La máquina 1 sirve **esta rama** desde la aceptación, así que ya lleva tambi�
 
 - **Para #191**: sondear cada 2 s, enseñar `queued`, quitar los turnos más antiguos ante el 422, y los dos pendientes de #188 (las respuestas sin herramientas y el prefijo en inglés de FastMCP).
 - **La primera conversación tras un despliegue paga el MCP en frío**, unos 7 s. Se aceptó en H4; si molesta, precalentar el MCP es un ajuste.
+
+### Lo que pinta una señal, fuera de las pantallas (#190, 27 sep 2026)
+
+La pantalla de análisis tenía dentro las piezas que dibujan un resultado del dominio: la tarjeta de cada señal, el titular con sus pistas marcadas, los guardianes que leen el `data` sin tipo y el vocabulario en castellano. El historial y Sistema ya importaban el vocabulario de allí, contra la regla del frontend de que una pantalla no depende de otra (la tensión 5 de `docs/estructura.md`). Y el asistente de #191 va a necesitar lo mismo, porque pinta las tarjetas con el resultado de cada herramienta (R6.12).
+
+**La carpeta nueva, `frontend/src/app/senales/`**, tiene un criterio: *¿pinta, lee o nombra un resultado del dominio —una señal, un veredicto, un análisis— para más de una pantalla?* Pasaron trece ficheros:
+
+- `vocabulario.ts`, los nombres en castellano de veredictos, dimensiones, categorías y señales;
+- `datos.ts` y `formas.ts` (con su spec): los guardianes del `data` de cada señal y del análisis sin tipo. **`formas.ts` no estaba en la lista de la issue, pero tenía que ir**: la tarjeta de señal depende de su tipo, y dejándolo en `analisis/`, `senales/` habría importado de una pantalla. Además, su `comoAnalisis` es lo que #191 usará para leer el análisis que devuelve `analyze_headline` dentro de la traza;
+- `segmentos.ts` (con su spec) y el componente del titular resaltado;
+- el componente de la tarjeta de señal, con su spec.
+
+**Se quedaron en `analisis/`** la pantalla y sus mensajes de error (`errores.ts`), que hablan de «analizar un titular»: son de esa pantalla y de ninguna otra.
+
+**No cambia nada de lo que se ve.** Sólo cambiaron los imports de las tres pantallas y los comentarios que nombraban las rutas viejas; ningún spec se tocó, ni siquiera sus imports, porque los que se movieron lo hicieron juntos con lo que prueban. Comprobado como en el CI: `npm run build`, `npm test` (los 14 ficheros de tests, 120 tests) y `npm run lint`, en verde. Y con `grep`: ninguna pantalla importa de otra, y `senales/` no importa de ninguna pantalla.
+
+**Lo que no entra, a propósito.** El bloque que pinta un análisis completo —veredicto, titular resaltado, dimensiones y tarjetas— sigue dentro de la plantilla de la pantalla de análisis, no es un componente. El asistente querrá pintarlo cuando el agente llame a `analyze_headline`, pero extraerlo cambiaría la pantalla y su spec, y el criterio de esta issue era no tocar ninguno. Se decide en #191, con la necesidad a la vista.
 
 
 

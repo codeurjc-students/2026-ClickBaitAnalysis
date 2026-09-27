@@ -11,11 +11,10 @@ import { Router } from '@angular/router';
 
 import { AnalyzeService } from '../api/analyze.service';
 import { HistoryService } from '../api/history.service';
-import { comoAnalisis, type AnalisisGuardado } from './formas';
-import { comoLexico, type Pista } from './datos';
-import { mensajeDeError } from './errores';
-import { SenalCard } from './senal-card';
-import { TitularResaltado } from './titular-resaltado';
+import { comoLexico, type Pista } from '../senales/datos';
+import { comoAnalisis, type AnalisisGuardado } from '../senales/formas';
+import { SenalCard } from '../senales/senal-card';
+import { TitularResaltado } from '../senales/titular-resaltado';
 import {
   estadoDeSenal,
   nombreDeDimension,
@@ -24,7 +23,8 @@ import {
   nombreDeSenal,
   nombreDeVeredicto,
   resumenDimension,
-} from './vocabulario';
+} from '../senales/vocabulario';
+import { mensajeDeError } from './errores';
 
 /** Espeja `NonBlankStr` del backend: recorta antes de medir. */
 function noEnBlanco(control: AbstractControl<string>): ValidationErrors | null {

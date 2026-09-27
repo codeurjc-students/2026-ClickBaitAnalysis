@@ -18,7 +18,7 @@ import type { HttpErrorResponse } from '@angular/common/http';
  * resultado también era `any`, y a partir de ahí nada se comprobaba.
  *
  * Se comprueba en vez de castear, que es la regla de esta interfaz — la misma
- * que gobierna los guardianes del `data` en `analisis/datos.ts`. Lo destapó
+ * que gobierna los guardianes del `data` en `senales/datos.ts`. Lo destapó
  * ESLint con información de tipos (#140), como `no-unsafe-member-access`.
  */
 export function detalleDeValidacion(cuerpo: unknown): string | null {

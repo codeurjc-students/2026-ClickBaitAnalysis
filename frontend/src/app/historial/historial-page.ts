@@ -11,7 +11,7 @@ import type {
   OverallVerdict,
   RetentionPolicy,
 } from '../api/models';
-import { nombreDeVeredicto } from '../analisis/vocabulario';
+import { nombreDeVeredicto } from '../senales/vocabulario';
 
 /** Entradas por página. El contrato admite hasta 100. */
 const TAMANO = 20;

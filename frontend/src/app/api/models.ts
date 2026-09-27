@@ -49,7 +49,7 @@ export type DimensionVerdict = Esquemas['DimensionVerdict'];
 //
 // `data` es un diccionario libre en el contrato, así que estos tipos NO se
 // aplican solos: hay que comprobar en ejecución, y de eso se encargan los
-// guardianes de `analisis/datos.ts`. Lo que aportan es que esos guardianes
+// guardianes de `senales/datos.ts`. Lo que aportan es que esos guardianes
 // validen contra una forma DERIVADA del backend en vez de contra una copia
 // escrita a mano, que es lo que había hasta #133.
 export type SalidaLexica = Esquemas['SalidaLexica'];
