@@ -35,8 +35,14 @@ import structlog
 
 from backend.agent import prompts
 from backend.agent.agente import Configuracion, responder
-from backend.agent.traza import Paso, Resultado, Turno
-from backend.api.schemas import ChatJob, ChatOutcome, ChatStatus
+from backend.agent.traza import Paso, PasoModelo, Resultado, Turno
+from backend.analysis.orchestrator import senal_de
+from backend.api.schemas import (
+    ChatJob,
+    ChatOutcome,
+    ChatStatus,
+    PasoHerramientaPublicado,
+)
 from backend.config.settings import settings
 from backend.core.errores import mensaje_publico
 from backend.integrations.llm.factory import get_llm_backend
@@ -181,6 +187,19 @@ def configuracion() -> Configuracion | None:
     )
 
 
+def _publicar(paso: Paso) -> PasoModelo | PasoHerramientaPublicado:
+    """Un paso de la traza, con la tarjeta de su señal si la tiene (#191).
+
+    Se calcula en cada lectura y no al anotar el paso: así el agente no sabe
+    nada de tarjetas, y la ficha es la efectiva del momento, como en el
+    análisis.
+    """
+    if paso["kind"] == "model":
+        return paso
+    senal = senal_de(paso["name"], paso["data"]) if paso["status"] == "ok" else None
+    return {**paso, "signal": senal}
+
+
 def como_respuesta(trabajo: Trabajo) -> ChatJob:
     """Traduce un trabajo al contrato de `GET /chat/{id}`."""
     resultado = trabajo.resultado
@@ -188,7 +207,7 @@ def como_respuesta(trabajo: Trabajo) -> ChatJob:
         id=trabajo.id,
         status=trabajo.status,
         created_at=trabajo.creado,
-        steps=list(trabajo.pasos),
+        steps=[_publicar(paso) for paso in trabajo.pasos],
         result=None
         if resultado is None
         else ChatOutcome(

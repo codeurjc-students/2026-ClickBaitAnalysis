@@ -525,6 +525,8 @@ async def get_agent() -> AgentInfo:
     - `model_card`: la ficha del modelo, con sus límites medidos (R13.7). Si se
       configuró otro modelo, se publica ése y sin las medidas, que eran de otro.
     - `prompt`: el prompt de sistema en uso, entero (R13.5).
+    - `max_history_chars`: el tope del historial de `POST /chat`, para que la
+      interfaz recorte antes de enviar en vez de recibir un 422 (#191).
     """
     return AgentInfo(
         availability=await disponibilidad(),
@@ -532,4 +534,5 @@ async def get_agent() -> AgentInfo:
         prompt=AgentPrompt(
             name=settings.llm_prompt, text=prompts.cargar(settings.llm_prompt)
         ),
+        max_history_chars=settings.chat_max_history_chars,
     )

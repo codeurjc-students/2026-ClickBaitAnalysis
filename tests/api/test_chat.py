@@ -385,6 +385,43 @@ async def test_el_agente_dice_si_esta_disponible_su_ficha_y_su_prompt(
         "name": settings.llm_prompt,
         "text": prompts.cargar(settings.llm_prompt),
     }
+    # El tope del historial, para que la interfaz recorte ANTES de enviar en
+    # vez de esperar el 422 (#191).
+    assert info["max_history_chars"] == settings.chat_max_history_chars
+
+
+@pytest.mark.asyncio
+async def test_una_senal_suelta_llega_con_su_tarjeta_y_lo_demas_sin_ella(agente):
+    """#191: la traza trae sólo el `data` de cada herramienta. Para que una
+    señal suelta se pinte con la misma tarjeta que en el análisis, la API le
+    añade el `SignalResult` que produciría el orquestador; a lo que no es una
+    señal, o falló, no."""
+    noticias = {
+        **PASO_HERRAMIENTA,
+        "name": "get_nyt_news",
+        "arguments": {"topic": "AI"},
+        "data": {"result": [{"title": "A headline"}]},
+    }
+    fallida = {
+        **PASO_HERRAMIENTA,
+        "status": "error",
+        "data": None,
+        "error": "La señal tardó demasiado en responder.",
+    }
+    agente.pasos = [PASO_MODELO, PASO_HERRAMIENTA, noticias, fallida]
+    agente.puede_terminar.set()
+    async with _cliente() as cliente:
+        resultado = await _hasta_que_termine(cliente, await _preguntar(cliente))
+
+    modelo, senal, lista, error = resultado["steps"]
+    assert "signal" not in modelo
+    assert senal["signal"]["name"] == "detect_clickbait"
+    assert senal["signal"]["is_clickbait"] is True
+    assert senal["signal"]["dimension"] == "form"
+    assert senal["signal"]["label"]  # el rótulo de la ficha, no el id
+    assert senal["data"] == PASO_HERRAMIENTA["data"]  # el `data` sigue entero
+    assert lista["signal"] is None
+    assert error["signal"] is None
 
 
 @pytest.mark.asyncio

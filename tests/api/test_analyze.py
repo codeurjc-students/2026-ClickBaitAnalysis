@@ -658,3 +658,58 @@ async def test_la_tarjeta_rotula_el_modelo_que_se_ejecuto(señales, monkeypatch)
     assert "Webis" not in dedicada.label
     # Lo que describe a la señal y no al modelo no cambia.
     assert dedicada.dimension == Dimension.FORM
+
+
+# ----- Una señal suelta, fuera del análisis (#191) -----
+
+
+@pytest.mark.parametrize(
+    ("nombre", "datos", "voto"),
+    [
+        ("detect_clickbait", {"label": "clickbait", "score": 0.97}, True),
+        (
+            "detect_clickbait_lexical",
+            {"score": 0, "is_clickbait": False, "matches": [], "headline": "x"},
+            False,
+        ),
+        (
+            "detect_clickbait_incoherence",
+            {
+                "similarity": 0.12,
+                "incoherent": True,
+                "threshold": 0.3,
+                "headline": "x",
+                "content": "y",
+            },
+            True,
+        ),
+        # El tono no vota, tampoco suelto.
+        ("analyze_sentiment", {"label": "neutral", "score": 0.7}, None),
+    ],
+)
+def test_una_senal_suelta_se_envuelve_con_la_regla_del_analisis(nombre, datos, voto):
+    """El agente llama a veces a una señal sola, y su traza sólo trae el `data`.
+    Para pintarla con la misma tarjeta que el análisis, el voto sale de la MISMA
+    regla (`verdict`) y el rótulo, la dimensión y el tipo, de la misma ficha."""
+    senal = orchestrator.senal_de(nombre, datos)
+
+    assert senal is not None
+    assert senal == _build(
+        _SPECS[nombre], SignalStatus.OK, is_clickbait=voto, data=datos
+    )
+
+
+@pytest.mark.parametrize(
+    ("nombre", "datos"),
+    [
+        ("get_nyt_news", {"result": []}),  # no es una señal
+        ("analyze_headline", {"headline": "x"}),  # es un análisis entero
+        ("detect_clickbait_lexical", {"inesperado": True}),  # forma rota
+        ("detect_clickbait", None),
+    ],
+    ids=["noticias", "analisis", "forma_rota", "sin_datos"],
+)
+def test_lo_que_no_es_una_senal_no_se_envuelve(nombre, datos):
+    """`None` y no una tarjeta a medias: la interfaz lo pinta en crudo, que es
+    degradar, no afirmar un voto que nadie ha calculado."""
+    assert orchestrator.senal_de(nombre, datos) is None
