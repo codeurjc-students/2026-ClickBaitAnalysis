@@ -111,6 +111,23 @@ async def test_un_fallo_de_la_tool_no_es_un_error_http(monkeypatch, servidor_mcp
     assert "vacío" in resultado.detail
 
 
+@pytest.mark.asyncio
+async def test_el_motivo_llega_sin_el_prefijo_en_ingles_de_fastmcp(
+    monkeypatch, servidor_mcp
+):
+    """#191: FastMCP antepone «Error executing tool <nombre>: » al mensaje de
+    una herramienta que falla. El mensaje ya es público y está en castellano;
+    el prefijo sólo repite el nombre en otro idioma, y salía por aquí, por la
+    pantalla de Sistema y por la traza del agente."""
+    resultado = await _ejecutar(
+        monkeypatch, servidor_mcp, "detect_clickbait_lexical", {"headline": "   "}
+    )
+
+    assert resultado.detail is not None
+    assert not resultado.detail.startswith("Error executing tool")
+    assert "vacío" in resultado.detail
+
+
 # ----- Errores de la petición -----
 
 
