@@ -1,6 +1,9 @@
 import type { ChatJob, PasoHerramienta, SignalResult } from '../api/models';
 import {
   comoNoticias,
+  duracionLegible,
+  esperaDe,
+  ESPERA_LARGA_MS,
   historialQueCabe,
   usoHerramientas,
   vistaDePaso,
@@ -42,7 +45,7 @@ function terminado(pregunta: string, respuesta: string): Intercambio {
     steps: [],
     result: { status: 'answered', answer: respuesta, detail: null, rounds: 1, total_s: 3 },
   };
-  return { pregunta, trabajo, error: null };
+  return { pregunta, trabajo, error: null, enviadaEl: 0, leidaEl: 3000 };
 }
 
 describe('vistaDePaso', () => {
@@ -135,7 +138,13 @@ describe('historialQueCabe', () => {
   // Lo que no terminó con respuesta no se manda: el modelo leería una
   // pregunta sin contestar como si siguiera pendiente.
   it('se salta los intercambios sin respuesta', () => {
-    const fallido: Intercambio = { pregunta: '¿Hola?', trabajo: null, error: 'Falló.' };
+    const fallido: Intercambio = {
+      pregunta: '¿Hola?',
+      trabajo: null,
+      error: 'Falló.',
+      enviadaEl: 0,
+      leidaEl: null,
+    };
     expect(historialQueCabe([fallido, terminado('¿Y este?', 'No.')], 4000)).toEqual([
       { role: 'user', content: '¿Y este?' },
       { role: 'assistant', content: 'No.' },
@@ -148,6 +157,67 @@ describe('historialQueCabe', () => {
       15, // la segunda pareja son 13 caracteres; las dos, 26
     );
     expect(historial.map((turno) => turno.content)).toEqual(['dos', 'y'.repeat(10)]);
+  });
+});
+
+describe('esperaDe', () => {
+  /** Una pregunta en marcha, con los pasos y el tiempo que se digan. */
+  function enMarcha(pasos: ChatJob['steps'], transcurrido: number): Intercambio {
+    return {
+      pregunta: '¿Es clickbait?',
+      trabajo: {
+        id: 'abc',
+        status: 'running',
+        created_at: '2026-09-28T10:00:00Z',
+        steps: pasos,
+        result: null,
+      },
+      error: null,
+      enviadaEl: 1_000,
+      leidaEl: 1_000 + transcurrido,
+    };
+  }
+
+  it('sin pasos todavía, está decidiendo qué consultar', () => {
+    expect(esperaDe(enMarcha([], 5_000))).toEqual({
+      fase: 'Decidiendo qué herramientas usar',
+      lleva: '5 s',
+      larga: false,
+    });
+  });
+
+  // El hueco que se leyó como un cuelgue en la aceptación de #191: tras un
+  // resultado, 98,8 s sin nada nuevo mientras el modelo razonaba.
+  it('tras un resultado, está leyéndolo, y pasado el minuto avisa', () => {
+    const espera = esperaDe(
+      enMarcha([herramienta('analyze_headline', {})], ESPERA_LARGA_MS + 20_000),
+    );
+    expect(espera.fase).toContain('Leyendo los resultados');
+    expect(espera.lleva).toBe('1 min 20 s');
+    expect(espera.larga).toBe(true);
+  });
+
+  it('antes de la primera lectura, está enviando', () => {
+    const recienEnviada: Intercambio = {
+      pregunta: '¿Hola?',
+      trabajo: null,
+      error: null,
+      enviadaEl: 1_000,
+      leidaEl: null,
+    };
+    expect(esperaDe(recienEnviada)).toEqual({
+      fase: 'Enviando la pregunta',
+      lleva: '0 s',
+      larga: false,
+    });
+  });
+});
+
+describe('duracionLegible', () => {
+  it('cuenta en segundos y minutos, sin ceros de relleno', () => {
+    expect(duracionLegible(12_400)).toBe('12 s');
+    expect(duracionLegible(60_000)).toBe('1 min');
+    expect(duracionLegible(98_800)).toBe('1 min 38 s');
   });
 });
 

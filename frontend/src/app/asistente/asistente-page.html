@@ -105,13 +105,19 @@
             @if (trabajo.status === 'queued') {
               <p class="espera" role="status">
                 En cola: el asistente está atendiendo otra conversación y empezará
-                con esta en cuanto acabe.
+                con esta en cuanto acabe. (Lleva {{ espera(intercambio).lleva }}.)
               </p>
             } @else if (trabajo.status === 'running') {
+              @let enCurso = espera(intercambio);
+              <!-- Mientras el modelo razona no llega nada nuevo: la fase y el
+                   tiempo dicen que sigue trabajando. Sin ellos, una vuelta de
+                   99 s se leyó como un cuelgue en la aceptación de #191. -->
               <p class="espera" role="status">
-                El asistente está trabajando…
-                @if (herramientasDe(trabajo); as cuantas) {
-                  ({{ cuantas }} {{ cuantas === 1 ? 'herramienta consultada' : 'herramientas consultadas' }})
+                {{ enCurso.fase }}… (lleva {{ enCurso.lleva }})
+                @if (enCurso.larga) {
+                  <br />
+                  A veces una vuelta del modelo tarda hasta un par de minutos:
+                  razona antes de contestar.
                 }
               </p>
             } @else if (trabajo.result; as final) {
@@ -148,7 +154,7 @@
               }
             }
           } @else if (!intercambio.error) {
-            <p class="espera" role="status">Enviando la pregunta…</p>
+            <p class="espera" role="status">{{ espera(intercambio).fase }}…</p>
           }
 
           @if (intercambio.error; as motivo) {

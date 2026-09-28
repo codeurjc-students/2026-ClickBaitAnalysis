@@ -82,10 +82,11 @@ describe('AsistentePage', () => {
   const texto = () => html().textContent ?? '';
 
   beforeEach(async () => {
-    // Sólo el reloj del sondeo (`setInterval`, que es el que usa `timer`).
-    // Angular sin zonas repinta con `setTimeout`, y ése se deja de verdad:
-    // falseado, `whenStable` no terminaría nunca.
-    vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval'] });
+    // Sólo el reloj del sondeo (`setInterval`, que es el que usa `timer`) y
+    // `Date`, que es con lo que se mide cuánto lleva una pregunta. Angular sin
+    // zonas repinta con `setTimeout`, y ése se deja de verdad: falseado,
+    // `whenStable` no terminaría nunca.
+    vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval', 'Date'] });
     await TestBed.configureTestingModule({
       imports: [AsistentePage],
       providers: [provideRouter([]), provideHttpClient(), provideHttpClientTesting()],
@@ -173,7 +174,7 @@ describe('AsistentePage', () => {
     // mandar otra pregunta.
     expect(html().querySelectorAll('app-senal-card').length).toBe(1);
     expect(texto()).toContain('Consulta detect_clickbait_lexical');
-    expect(texto()).toContain('trabajando');
+    expect(texto()).toContain('Leyendo los resultados');
     expect(html().querySelector('.narracion')).toBeNull();
     expect(html().querySelector<HTMLButtonElement>('button[type=submit]')!.disabled).toBe(true);
 
@@ -181,7 +182,7 @@ describe('AsistentePage', () => {
 
     expect(html().querySelector('.narracion')?.textContent).toContain('Es clickbait de forma.');
     expect(html().querySelectorAll('app-senal-card').length).toBe(1);
-    expect(texto()).not.toContain('trabajando');
+    expect(texto()).not.toContain('Leyendo los resultados');
     expect(html().querySelector<HTMLButtonElement>('button[type=submit]')!.disabled).toBe(false);
   });
 
@@ -193,6 +194,29 @@ describe('AsistentePage', () => {
 
     expect(html().querySelector('.traza')?.getAttribute('aria-live')).toBe('polite');
     expect(html().querySelector('.espera')?.getAttribute('role')).toBe('status');
+  });
+
+  // Lo que destapó la aceptación de #191: tras un resultado, una vuelta de
+  // 98,8 s sin nada nuevo en pantalla se leyó como un cuelgue.
+  it('una espera larga dice en qué está y cuánto lleva', async () => {
+    await conAgente('available');
+    await preguntar('¿Es clickbait?');
+    http.expectOne('/api/chat').flush({ id: 'abc' });
+    await sondeo(lectura('running', PASOS), 0);
+
+    expect(html().querySelector('.espera')?.textContent).toContain('lleva 0 s');
+    expect(texto()).not.toContain('un par de minutos');
+
+    // 80 s de razonamiento: los ticks del sondeo se saltan mientras la
+    // lectura sigue en camino, así que sale una sola petición.
+    vi.advanceTimersByTime(80_000);
+    http.expectOne('/api/chat/abc').flush(lectura('running', PASOS));
+    await fixture.whenStable();
+
+    const espera = html().querySelector('.espera')?.textContent ?? '';
+    expect(espera).toContain('Leyendo los resultados y decidiendo el siguiente paso');
+    expect(espera).toContain('lleva 1 min 20 s');
+    expect(espera).toContain('un par de minutos');
   });
 
   it('en cola, lo dice', async () => {

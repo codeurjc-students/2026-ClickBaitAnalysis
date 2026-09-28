@@ -15,6 +15,61 @@ export interface Intercambio {
   trabajo: ChatJob | null;
   /** Por qué no se pudo hacer o seguir la pregunta, ya redactado. */
   error: string | null;
+  /** Cuándo se envió y cuándo llegó la última lectura, en ms del reloj local. */
+  enviadaEl: number;
+  leidaEl: number | null;
+}
+
+/**
+ * A partir de cuánto la espera avisa de que puede ir para largo.
+ *
+ * En la aceptación de #191, una vuelta del modelo tardó 98,8 s en producción
+ * —y 96 s otra en #188— mientras las demás rondaban los 10–20 s. Sin nada
+ * nuevo en pantalla, se leyó como un cuelgue.
+ */
+export const ESPERA_LARGA_MS = 60_000;
+
+/** Cómo va una pregunta que todavía no ha terminado, para la línea de espera. */
+export interface Espera {
+  fase: string;
+  lleva: string;
+  larga: boolean;
+}
+
+/**
+ * La fase y el tiempo de una pregunta en marcha (#191).
+ *
+ * Mientras el modelo razona no llega nada nuevo, y la pantalla tiene que dejar
+ * claro que sigue trabajando: en qué está —decidiendo qué consultar, o leyendo
+ * lo que devolvió una herramienta— y cuánto lleva. El tiempo se mide con el
+ * reloj LOCAL, del envío a la última lectura: con el `created_at` del servidor
+ * se colaría la diferencia entre los dos relojes.
+ */
+export function esperaDe(intercambio: Intercambio): Espera {
+  const pasos = intercambio.trabajo?.steps ?? [];
+  const ultimo = pasos.at(-1);
+  const fase = !intercambio.trabajo
+    ? 'Enviando la pregunta'
+    : ultimo?.kind === 'tool'
+      ? 'Leyendo los resultados y decidiendo el siguiente paso'
+      : ultimo?.kind === 'model'
+        ? 'Consultando las herramientas'
+        : 'Decidiendo qué herramientas usar';
+  const transcurrido = Math.max(0, (intercambio.leidaEl ?? intercambio.enviadaEl) - intercambio.enviadaEl);
+  return {
+    fase,
+    lleva: duracionLegible(transcurrido),
+    larga: transcurrido >= ESPERA_LARGA_MS,
+  };
+}
+
+/** «12 s», «1 min», «1 min 20 s». */
+export function duracionLegible(milisegundos: number): string {
+  const segundos = Math.floor(milisegundos / 1000);
+  const minutos = Math.floor(segundos / 60);
+  const resto = segundos % 60;
+  if (minutos === 0) return `${resto} s`;
+  return resto === 0 ? `${minutos} min` : `${minutos} min ${resto} s`;
 }
 
 /** Una noticia de `get_nyt_news` o `get_guardian_news`. */

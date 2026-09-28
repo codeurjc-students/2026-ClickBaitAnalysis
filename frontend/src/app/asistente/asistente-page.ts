@@ -12,10 +12,11 @@ import { switchMap } from 'rxjs';
 
 import { ChatService } from '../api/chat.service';
 import { SIN_RESPUESTA, mensajeDeLimite } from '../api/errores';
-import type { AgentInfo, ChatJob } from '../api/models';
+import type { AgentInfo } from '../api/models';
 import { ResultadoAnalisis } from '../senales/resultado-analisis';
 import { SenalCard } from '../senales/senal-card';
 import {
+  esperaDe,
   historialQueCabe,
   usoHerramientas,
   vistaDePaso,
@@ -87,6 +88,7 @@ export class AsistentePage {
   // La plantilla sólo ve miembros de la clase, no imports del módulo.
   protected readonly vista = vistaDePaso;
   protected readonly usoHerramientas = usoHerramientas;
+  protected readonly espera = esperaDe;
 
   constructor() {
     this.comprobar();
@@ -134,7 +136,7 @@ export class AsistentePage {
     const indice = this.intercambios().length;
     this.intercambios.update((lista) => [
       ...lista,
-      { pregunta, trabajo: null, error: null },
+      { pregunta, trabajo: null, error: null, enviadaEl: Date.now(), leidaEl: null },
     ]);
     this.mensaje.reset();
 
@@ -145,7 +147,9 @@ export class AsistentePage {
         takeUntilDestroyed(this.destruccion),
       )
       .subscribe({
-        next: (trabajo) => this.actualizar(indice, { trabajo }),
+        // La hora de cada lectura es la que mueve el «lleva…» de la espera: el
+        // sondeo ya lee cada 2 s, así que no hace falta otro temporizador.
+        next: (trabajo) => this.actualizar(indice, { trabajo, leidaEl: Date.now() }),
         error: (fallo: HttpErrorResponse) => {
           this.actualizar(indice, { error: mensajeDelChat(fallo) });
           // Un 503 puede ser que la sesión de GPU se cerró mientras tanto: se
@@ -158,10 +162,6 @@ export class AsistentePage {
   /** La condición se usa dos veces: el mensaje y el `aria-invalid`. */
   errorEnMensaje(): boolean {
     return this.mensaje.touched && this.mensaje.invalid;
-  }
-
-  herramientasDe(trabajo: ChatJob): number {
-    return trabajo.steps.filter((paso) => paso.kind === 'tool').length;
   }
 
   private actualizar(indice: number, cambios: Partial<Intercambio>): void {
