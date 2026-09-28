@@ -1,0 +1,206 @@
+<h1>Asistente</h1>
+<p class="subtitulo">
+  Pregunta en lenguaje natural: el asistente elige qué herramientas usar y
+  cuenta lo que devuelven. El veredicto sale de las herramientas, no de su texto.
+</p>
+
+@if (comprobando() && !agente()) {
+  <p class="cargando" role="status">Comprobando si el asistente está disponible…</p>
+} @else if (errorAgente(); as mensaje) {
+  <p class="error" role="alert">{{ mensaje }}</p>
+  <button type="button" class="secundario" (click)="comprobar()">
+    Volver a comprobar
+  </button>
+} @else if (agente(); as informacion) {
+  @if (informacion.availability.status === 'not_configured') {
+    <section class="sin-asistente" aria-labelledby="sin-asistente">
+      <h2 id="sin-asistente">El asistente no está en este despliegue</h2>
+      <p>{{ informacion.availability.detail }}</p>
+      <p>
+        El análisis de titulares no lo necesita: está en
+        <a routerLink="/analizar">Analizar</a>.
+      </p>
+    </section>
+  } @else if (informacion.availability.status !== 'available') {
+    <section class="sin-asistente" aria-labelledby="sin-asistente">
+      <h2 id="sin-asistente">Ahora mismo no se puede usar</h2>
+      <p>{{ informacion.availability.detail }}</p>
+      <p>
+        El modelo corre en una máquina con GPU compartida que se enciende bajo
+        demanda. Mientras tanto, el análisis de titulares sigue en
+        <a routerLink="/analizar">Analizar</a>.
+      </p>
+      <button
+        type="button"
+        class="secundario"
+        (click)="comprobar()"
+        [disabled]="comprobando()"
+      >
+        {{ comprobando() ? 'Comprobando…' : 'Volver a comprobar' }}
+      </button>
+    </section>
+  }
+
+  @if (intercambios().length) {
+    <ol class="conversacion" aria-label="Conversación">
+      @for (intercambio of intercambios(); track $index) {
+        <li class="intercambio">
+          <p class="pregunta">
+            <span class="quien">Tú</span>
+            {{ intercambio.pregunta }}
+          </p>
+
+          @if (intercambio.trabajo; as trabajo) {
+            @if (trabajo.steps.length) {
+              <!-- `aria-live` educado: cada paso nuevo se anuncia cuando el
+                   lector de pantalla termina lo que estaba diciendo, sin
+                   interrumpir. -->
+              <ol class="traza" aria-live="polite" aria-label="Lo que ha consultado el asistente">
+                @for (paso of trabajo.steps; track $index) {
+                  @let visto = vista(paso);
+                  @if (visto.herramienta === null) {
+                    @if (visto.pide.length) {
+                      <li class="paso paso--modelo">
+                        Consulta <code>{{ visto.pide.join(' · ') }}</code>
+                      </li>
+                    }
+                  } @else {
+                    <li class="paso">
+                      @if (visto.error; as motivo) {
+                        <p class="paso__error">
+                          <code>{{ visto.herramienta }}</code> falló: {{ motivo }}
+                        </p>
+                      } @else if (visto.senal; as senal) {
+                        <app-senal-card [senal]="senal" />
+                      } @else if (visto.analisis; as analisis) {
+                        <app-resultado-analisis [analisis]="analisis" />
+                      } @else if (visto.noticias; as noticias) {
+                        <p class="paso__titulo"><code>{{ visto.herramienta }}</code></p>
+                        <ul class="noticias">
+                          @for (noticia of noticias; track $index) {
+                            <li>
+                              @if (noticia.url) {
+                                <a [href]="noticia.url" lang="en" rel="noopener" target="_blank">{{
+                                  noticia.title
+                                }}</a>
+                              } @else {
+                                <span lang="en">{{ noticia.title }}</span>
+                              }
+                              @if (noticia.date) {
+                                <span class="noticia__fecha">· {{ noticia.date.slice(0, 10) }}</span>
+                              }
+                            </li>
+                          }
+                        </ul>
+                      } @else {
+                        <p class="paso__titulo"><code>{{ visto.herramienta }}</code></p>
+                        <pre class="crudo">{{ visto.crudo }}</pre>
+                      }
+                    </li>
+                  }
+                }
+              </ol>
+            }
+
+            @if (trabajo.status === 'queued') {
+              <p class="espera" role="status">
+                En cola: el asistente está atendiendo otra conversación y empezará
+                con esta en cuanto acabe.
+              </p>
+            } @else if (trabajo.status === 'running') {
+              <p class="espera" role="status">
+                El asistente está trabajando…
+                @if (herramientasDe(trabajo); as cuantas) {
+                  ({{ cuantas }} {{ cuantas === 1 ? 'herramienta consultada' : 'herramientas consultadas' }})
+                }
+              </p>
+            } @else if (trabajo.result; as final) {
+              @switch (final.status) {
+                @case ('answered') {
+                  <div class="narracion">
+                    <span class="quien">Asistente</span>
+                    <p>{{ final.answer }}</p>
+                  </div>
+                  @if (!usoHerramientas(trabajo)) {
+                    <p class="aviso">
+                      Esta respuesta no se apoya en ninguna herramienta: es texto
+                      del modelo, sin resultados que la respalden.
+                    </p>
+                  }
+                }
+                @case ('empty_answer') {
+                  <p class="aviso">
+                    El asistente no escribió un resumen. Lo que cuenta son los
+                    resultados de las herramientas, arriba.
+                  </p>
+                }
+                @case ('max_rounds') {
+                  <p class="aviso">
+                    El asistente agotó sus vueltas sin cerrar la respuesta. Arriba
+                    está lo que llegó a consultar.
+                  </p>
+                }
+                @case ('failed') {
+                  <p class="error" role="alert">
+                    {{ final.detail ?? 'El asistente no pudo responder.' }}
+                  </p>
+                }
+              }
+            }
+          } @else if (!intercambio.error) {
+            <p class="espera" role="status">Enviando la pregunta…</p>
+          }
+
+          @if (intercambio.error; as motivo) {
+            <p class="error" role="alert">{{ motivo }}</p>
+          }
+        </li>
+      }
+    </ol>
+  }
+
+  @if (disponible()) {
+    <form [formGroup]="formulario" (ngSubmit)="enviar()">
+      <label for="mensaje">Tu pregunta</label>
+      <textarea
+        id="mensaje"
+        rows="3"
+        maxlength="2000"
+        formControlName="mensaje"
+        placeholder="¿Es clickbait «You Won't Believe What This Dog Did Next»?"
+        aria-describedby="ayuda-mensaje"
+        [attr.aria-invalid]="errorEnMensaje() ? 'true' : null"
+      ></textarea>
+      @if (errorEnMensaje()) {
+        <p class="error-campo">Escribe una pregunta: no puede estar en blanco.</p>
+      }
+      <p id="ayuda-mensaje" class="ayuda">
+        Pega un titular, pide una noticia o pregunta por una señal. Las
+        herramientas de clickbait están pensadas para titulares en inglés.
+      </p>
+      <button type="submit" [disabled]="ocupado()">
+        {{ ocupado() ? 'Esperando la respuesta…' : 'Enviar' }}
+      </button>
+    </form>
+  }
+
+  <details class="sobre">
+    <summary>Sobre el asistente</summary>
+    <p>
+      <strong>{{ informacion.model_card.name }}</strong>
+      (<code>{{ informacion.model_card.model_id }}</code>) ·
+      {{ informacion.model_card.type }}
+    </p>
+    <p>{{ informacion.model_card.task }}</p>
+    <p class="sobre__titulo">Límites medidos</p>
+    <ul>
+      @for (limite of informacion.model_card.limitations; track $index) {
+        <li>{{ limite }}</li>
+      }
+    </ul>
+    <p class="sobre__titulo">
+      Prompt de sistema en uso: <code>{{ informacion.prompt.name }}</code>
+    </p>
+    <pre class="crudo">{{ informacion.prompt.text }}</pre>
+  </details>
+}

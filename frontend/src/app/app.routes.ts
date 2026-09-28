@@ -37,6 +37,15 @@ export const routes: Routes = [
       import('./analisis/analisis-page').then((modulo) => modulo.AnalisisPage),
   },
   {
+    // Existe aunque no haya asistente configurado: quien llegue por la URL
+    // encuentra la explicación de por qué no está, no un 404 (R6.14). El
+    // enlace de la cabecera, en cambio, sólo aparece si está configurado.
+    path: 'asistente',
+    title: 'Asistente · ClickBait Analysis',
+    loadComponent: () =>
+      import('./asistente/asistente-page').then((modulo) => modulo.AsistentePage),
+  },
+  {
     path: 'historial',
     title: 'Historial · ClickBait Analysis',
     loadComponent: () =>
