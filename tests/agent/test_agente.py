@@ -352,11 +352,9 @@ async def test_el_error_de_una_herramienta_vuelve_al_modelo(monkeypatch):
 
     (paso,) = _herramientas(resultado)
     assert paso["status"] == "error"
-    # FastMCP antepone «Error executing tool rota: », igual que en el `detail`
-    # de `/tools/{name}/execute`: lo que importa es que el motivo llegue entero.
-    assert (paso["error"] or "").endswith(
-        "La herramienta de prueba ha fallado a propósito."
-    )
+    # El motivo, entero y sin el «Error executing tool rota: » que antepone
+    # FastMCP: se quita donde se lee el error (#191).
+    assert paso["error"] == "La herramienta de prueba ha fallado a propósito."
     assert paso["data"] is None
     assert json.loads(modelo.conversaciones[1][-1]["content"]) == {
         "error": paso["error"]

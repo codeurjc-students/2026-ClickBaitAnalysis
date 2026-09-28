@@ -295,6 +295,31 @@ async def analyze(request: AnalyzeRequest) -> AnalyzeResponse:
     )
 
 
+def senal_de(nombre: str, datos: Any) -> SignalResult | None:
+    """El `SignalResult` de UNA señal ejecutada fuera del análisis (#191).
+
+    El agente llama a veces a una señal suelta —`detect_clickbait_lexical`, sin
+    las demás—, y la traza sólo trae su `data`. Para pintarla con la misma
+    tarjeta que el análisis hace falta lo que añade esta capa: el rótulo, la
+    dimensión y el tipo de su ficha, y el voto con la MISMA regla (`verdict`).
+    Se calcula aquí y no en la interfaz para que esa regla —«una similitud por
+    debajo del umbral la leemos como clickbait»— siga viviendo en un solo sitio.
+
+    `None` si la herramienta no es una señal (noticias, fichas, un análisis
+    entero) o si su `data` no tiene la forma que espera la regla: la interfaz
+    lo pinta en crudo, que es degradar, no afirmar un voto que nadie calculó.
+    """
+    spec = next((señal for señal in _SIGNALS if señal.name == nombre), None)
+    if spec is None or not isinstance(datos, dict):
+        return None
+    try:
+        voto = spec.verdict(datos)
+    except (KeyError, TypeError):
+        log.warning("senal_suelta.forma_inesperada", signal=nombre)
+        return None
+    return _build(spec, SignalStatus.OK, is_clickbait=voto, data=datos)
+
+
 async def _run_signals(headline: str, content: str | None) -> list[SignalResult]:
     """Ejecuta en paralelo las señales aplicables y envuelve cada resultado."""
     by_name: dict[str, SignalResult] = {}

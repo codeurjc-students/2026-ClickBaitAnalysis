@@ -33,7 +33,12 @@ from pydantic import (
 )
 
 from backend.agent.traza import EstadoFinal, PasoHerramienta, PasoModelo, Turno
-from backend.analysis.domain import AnalyzeResponse, Dimension, SignalType
+from backend.analysis.domain import (
+    AnalyzeResponse,
+    Dimension,
+    SignalResult,
+    SignalType,
+)
 from backend.config.settings import settings
 from backend.integrations.llm.base import Disponibilidad
 from backend.integrations.llm.model_card import FichaLLM
@@ -460,10 +465,25 @@ class ChatOutcome(BaseModel):
     total_s: float
 
 
+class PasoHerramientaPublicado(PasoHerramienta):
+    """Una herramienta de la traza, tal como la publica la API.
+
+    Es el paso del agente, sin copiarlo, más `signal`: si la herramienta es una
+    señal y funcionó, el `SignalResult` que produciría el orquestador con su
+    `data`, para que la interfaz la pinte con la misma tarjeta que el análisis
+    (#191). La regla del voto se queda en `analysis/`; el agente no la conoce y
+    la interfaz no la repite.
+    """
+
+    signal: SignalResult | None
+
+
 # Cada paso es una vuelta del modelo o una herramienta, y `kind` dice cuál: así
 # el cliente generado recibe una unión con discriminante en vez de un objeto
 # libre.
-PasoDeLaTraza = Annotated[PasoModelo | PasoHerramienta, Field(discriminator="kind")]
+PasoDeLaTraza = Annotated[
+    PasoModelo | PasoHerramientaPublicado, Field(discriminator="kind")
+]
 
 
 class ChatJob(BaseModel):
@@ -503,3 +523,11 @@ class AgentInfo(BaseModel):
     availability: Disponibilidad
     model_card: FichaLLM
     prompt: AgentPrompt
+    max_history_chars: int = Field(
+        description=(
+            "Cuántos caracteres de historial admite `POST /chat`, sumando el "
+            "texto de todos los turnos. Va aquí, y no escrito en la interfaz, "
+            "para que ésta recorte los turnos más antiguos ANTES de enviar y el "
+            "número salga de la configuración real (#191)."
+        )
+    )

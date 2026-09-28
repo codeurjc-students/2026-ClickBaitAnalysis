@@ -6821,8 +6821,8 @@ Mediana de 17,8 s, y como mucho 5.765 tokens. **Las seis narraciones cuentan lo 
 
 - **[#196](https://github.com/codeurjc-students/2026-ClickBaitAnalysis/issues/196): Guardian no encuentra nada con ningún tema**, y sin tema sí. La hipótesis, leyendo el código, es que busca sólo por la etiqueta que encuentra y no vuelve a la búsqueda libre si no da nada. *(Resuelto en #196: era eso —con `q=`, «climate» tenía 134 noticias esa semana—, y un fallo de la petición también salía como «No articles found». Ver la sección de #196.)*
 - **[#197](https://github.com/codeurjc-students/2026-ClickBaitAnalysis/issues/197): un veredicto falso de engaño por un argumento.** En la segunda sesión, el modelo llamó a `analyze_headline` con `"content": "None"` —la cadena—, la incoherencia comparó el titular con la palabra «None» y el veredicto salió `deceptive`. La narración fue fiel a los datos; el error estaba en la entrada, y **la traza lo delata**, que es para lo que está. *(Resuelto en #197: el modelo escribe «None» en 7 de cada 15 llamadas sin cuerpo, y ahora se trata como ausencia. Ver la sección de #197.)*
-- **FastMCP antepone «Error executing tool …:»** al mensaje de una herramienta que falla, en inglés. `/tools/{name}/execute` ya lo publicaba así, y la traza también. Queda para #191, que lo pintará.
-- **Una respuesta sin herramientas no se puede bloquear** —«¿qué es el clickbait?» se contesta legítimamente sin ellas—, pero la traza dice si hubo algún paso de herramienta, y #191 puede marcar que esa respuesta no se apoya en ninguna.
+- **FastMCP antepone «Error executing tool …:»** al mensaje de una herramienta que falla, en inglés. `/tools/{name}/execute` ya lo publicaba así, y la traza también. Queda para #191, que lo pintará. *(Resuelto en #191, en origen: se quita en `core/mcp/tools.py`, donde se lee el error, y deja de verse en las dos salidas. Ver la sección de #191.)*
+- **Una respuesta sin herramientas no se puede bloquear** —«¿qué es el clickbait?» se contesta legítimamente sin ellas—, pero la traza dice si hubo algún paso de herramienta, y #191 puede marcar que esa respuesta no se apoya en ninguna. *(Hecho en #191: la pantalla lo avisa.)*
 
 #### Para el cierre de H5
 
@@ -7026,7 +7026,7 @@ La máquina 1 sirve **esta rama** desde la aceptación, así que ya lleva tambi�
 
 #### Lo que queda
 
-- **Para #191**: sondear cada 2 s, enseñar `queued`, quitar los turnos más antiguos ante el 422, y los dos pendientes de #188 (las respuestas sin herramientas y el prefijo en inglés de FastMCP).
+- **Para #191**: sondear cada 2 s, enseñar `queued`, quitar los turnos más antiguos ante el 422, y los dos pendientes de #188 (las respuestas sin herramientas y el prefijo en inglés de FastMCP). *(Hecho en #191, con un cambio: el tope se publica en `GET /agent` y los turnos se quitan ANTES de enviar, en vez de esperar el 422. Ver la sección de #191.)*
 - **La primera conversación tras un despliegue paga el MCP en frío**, unos 7 s. Se aceptó en H4; si molesta, precalentar el MCP es un ajuste.
 
 ### Lo que pinta una señal, fuera de las pantallas (#190, 27 sep 2026)
@@ -7044,7 +7044,76 @@ La pantalla de análisis tenía dentro las piezas que dibujan un resultado del d
 
 **No cambia nada de lo que se ve.** Sólo cambiaron los imports de las tres pantallas y los comentarios que nombraban las rutas viejas; ningún spec se tocó, ni siquiera sus imports, porque los que se movieron lo hicieron juntos con lo que prueban. Comprobado como en el CI: `npm run build`, `npm test` (los 14 ficheros de tests, 120 tests) y `npm run lint`, en verde. Y con `grep`: ninguna pantalla importa de otra, y `senales/` no importa de ninguna pantalla.
 
-**Lo que no entra, a propósito.** El bloque que pinta un análisis completo —veredicto, titular resaltado, dimensiones y tarjetas— sigue dentro de la plantilla de la pantalla de análisis, no es un componente. El asistente querrá pintarlo cuando el agente llame a `analyze_headline`, pero extraerlo cambiaría la pantalla y su spec, y el criterio de esta issue era no tocar ninguno. Se decide en #191, con la necesidad a la vista.
+**Lo que no entra, a propósito.** El bloque que pinta un análisis completo —veredicto, titular resaltado, dimensiones y tarjetas— sigue dentro de la plantilla de la pantalla de análisis, no es un componente. El asistente querrá pintarlo cuando el agente llame a `analyze_headline`, pero extraerlo cambiaría la pantalla y su spec, y el criterio de esta issue era no tocar ninguno. Se decide en #191, con la necesidad a la vista. *(Decidido en #191: se extrajo a `senales/resultado-analisis`, y el spec de la pantalla de análisis pasó sin tocarlo.)*
+
+### La pantalla del asistente (#191, 28 sep 2026)
+
+La segunda vía de entrada de R6.10: `/asistente`, donde se pregunta en lenguaje natural y el agente de #188 elige las herramientas. Habla con la API de #189 y pinta con las piezas que #190 sacó a `senales/`. La pestaña de la cabecera sólo aparece si el asistente está configurado.
+
+#### Cinco decisiones, tres de ellas en el backend
+
+- **La tarjeta de una señal suelta la calcula el backend.** Cuando el agente llama a una señal sola —`detect_clickbait_lexical`, sin las demás—, la traza trae su `data`, pero no su tipo, su dimensión ni su voto «clickbait / no clickbait», que el orquestador saca con una regla por señal. Calcularlo en la interfaz habría sido una segunda copia de esa regla, el fallo de #116 por otra puerta. La API añade a cada paso de una señal el `SignalResult` que produciría el orquestador (`senal_de`), y la tarjeta del chat es la misma que la del análisis. El paso publicado hereda del del agente, sin copiarlo.
+- **El bloque del análisis completo sale de la pantalla de análisis**, lo que #190 dejó por decidir: `senales/resultado-analisis`, que usan las dos pantallas. El chat lo pinta cuando el agente llama a `analyze_headline`, en su sitio y no como enlace: por MCP ese análisis no queda en el historial, así que no hay un `/analisis/:id` al que llevar.
+- **El prefijo en inglés de FastMCP se quita en origen.** «Error executing tool X: …» iba delante de un mensaje que ya está en castellano. Se quita donde se lee el error, en `core/mcp/tools.py`, y deja de verse a la vez en el chat y en `POST /tools/{name}/execute`, que la pantalla de Sistema ya enseñaba.
+- **El tope del historial se publica en `GET /agent`** (`max_history_chars`), como la retención del historial, y la interfaz quita los intercambios más antiguos ANTES de enviar, por parejas de pregunta y respuesta, en vez de esperar el 422.
+- **La pestaña, sólo si el asistente está configurado** (R6.10). La cáscara pregunta una vez a `GET /agent` al cargar. Configurado pero apagado, sí se ve, y la pantalla explica que se arranca bajo demanda (R6.14).
+
+#### La pantalla
+
+- **Sin asistente, se explica por qué y no hay campo de texto** (R6.14): «no está en este despliegue» o «ahora mismo no se puede usar», con la frase de `GET /agent`, y «Volver a comprobar» sólo en el segundo caso.
+- **Cada pregunta** se manda con el texto de los intercambios anteriores y se sondea cada 2 s hasta que termina. La traza se pinta según crece, dentro de un `aria-live` educado:
+  - cada vuelta del modelo dice qué consulta;
+  - cada herramienta, su resultado: la tarjeta de su señal, el bloque completo para `analyze_headline`, una lista de titulares con `lang="en"` para las noticias, y en crudo lo que no se reconoce;
+  - un error, su frase.
+- **Al terminar**: la narración; si llega vacía o se agotan las vueltas, un aviso discreto, y las tarjetas se ven igual (R6.13); si no se apoyó en ninguna herramienta, un aviso; si falló, el motivo.
+- **«Sobre el asistente»**, plegado: la ficha del modelo y el prompt en uso (R13.7, R13.5).
+- Lo que se decide sin Angular —qué se pinta de cada paso, qué historial cabe y cómo va la espera— vive en `asistente/conversacion.ts`, como `sistema/campos.ts`.
+
+**Un fallo que cazó el spec antes de producción**: el `<form>` llevaba `(ngSubmit)` sin `formGroup`, y sin él Angular no emite `ngSubmit`. En el navegador, «Enviar» habría hecho el envío nativo del formulario y recargado la página.
+
+**Tests**: 10 nuevos en el backend (401 en total), que se escribieron antes y fallaron contra el código de entonces: el prefijo, `senal_de` con cuatro señales y cuatro casos que no lo son, la tarjeta en la traza y el tope en `/agent`. Y 35 en el frontend (155): el servicio con el sondeo y el 429 con reloj de mentira, `conversacion.ts`, la pantalla en sus estados y las pestañas de la cáscara.
+
+#### En producción, con una sesión real
+
+Dos pruebas desde el navegador del autor, con una sesión de `gpu-sesion` abierta para cada una y cerrada después, con la GPU a 0 MiB. El navegador integrado no acepta el certificado autofirmado (#165), así que lo visual lo comprobó el autor.
+
+| Condiciones | |
+|---|---|
+| Fechas | 2026-09-28, de 18:02 a 18:09 (hora de Madrid) sobre `7a7dbb7`, y de 20:22 a 20:24 sobre `d6a90d8` |
+| Camino | el navegador → `https://gongarcia.tfg.etsii.urjc.es/asistente` → Caddy → API → túnel de `gpu-sesion` (`6ad6a751d636`) → Ollama 0.34.2 en la A40 |
+| Modelo | `qwen3.5:27b` (ID `7653528ba5cb`), `num_ctx` 8192, `think=True`, prompt `04-preciso`, precargado (8,7 s y 8,6 s) |
+| Tiempos | del registro de la API (`agent.vuelta`, `agent.herramienta` y `agent.fin`), con [`spikes/chat_registro.sh`](spikes/chat_registro.sh) |
+
+```bash
+bash spikes/chat_registro.sh 2026-09-28T18:22:00Z 2026-09-28T18:24:00Z
+```
+
+**Primera prueba**: cuatro conversaciones, las cuatro en `answered` y con `analyze_headline`. Sus tiempos se leyeron esa tarde con la misma orden; ese registro ya no existe, porque es del contenedor y el segundo despliegue lo recreó.
+
+| Hora | Vueltas | Total | |
+|---|---|---|---|
+| 18:02 | 2 | 38,7 s | 6,9 s de MCP en frío, la primera tras el despliegue |
+| 18:05 | 2 | 26,2 s | |
+| 18:06 | 2 | 26,5 s | |
+| 18:07 | 3 | **127,6 s** | una vuelta de **98,8 s**, que volvió a pedir `analyze_headline` con el mismo titular |
+
+**La vuelta de 98,8 s se leyó como un cuelgue.** El bloque del análisis llegó en seguida y, después, casi cien segundos sin nada nuevo mientras el modelo razonaba, con la pantalla diciendo sólo «trabajando». No era un fallo del sondeo —la narración llegó—, sino la variabilidad que ya midió #188, con una vuelta de 96 s. De ahí un cambio: la espera dice **en qué fase está** —decidiendo qué consultar, o leyendo lo que devolvió una herramienta— y **cuánto lleva**, medido con el reloj del navegador desde el envío hasta la última lectura; y pasado un minuto, que una vuelta puede tardar hasta un par de minutos. No hizo falta un temporizador nuevo: el sondeo ya lee cada 2 s.
+
+**Segunda prueba**, con ese cambio desplegado: dos conversaciones, de 27,4 s —6,9 s de MCP en frío, otra vez tras el despliegue— y 17,6 s. El autor vio las fases y el tiempo. Ninguna vuelta pasó del minuto, así que el aviso largo no salió en producción; lo cubre un test.
+
+**Lo que no se probó en producción**: la tarjeta de una señal suelta, la lista de noticias y el aviso de respuesta sin herramientas, porque las seis conversaciones usaron `analyze_headline`. Tampoco el historial: las seis empezaron con unos 3.700 tokens, sin él, y en la segunda prueba se recargó la página entre preguntas. Todo eso lo cubren los tests, y que el historial cuenta en la ventana lo midió #189.
+
+#### Lo que se desvía del plano
+
+§12 de `docs/arquitectura.md` no se toca. Lo que sale distinto: la API añade a cada paso de una señal su `SignalResult`. Las tarjetas siguen saliendo del JSON de las herramientas, como dice el plano; lo que añade la API es la lectura de su voto, con la regla del orquestador.
+
+#### Lo que queda
+
+- **El historial se pierde al recargar**: vive en la memoria de la pantalla, y el servidor no guarda las conversaciones (decidido al definir H5). Hay dos caminos para más adelante: `sessionStorage`, sin tocar el backend, o guardarlas en el historial del servidor, que reabre esa decisión.
+- **Las respuestas son demasiado técnicas** para quien no conoce las señales (observado por el autor). El prompt `04-preciso` pide cifras exactas y nombres de señales, y el modelo copia los decimales enteros (#188). Se itera en #192, con las 26 consultas como examen, para que un prompt más llano no pierda fidelidad sin que se note.
+- **Una llamada repetida**: en la vuelta de 98,8 s, el modelo volvió a pedir `analyze_headline` con el mismo titular. Costó 0,27 s y una vuelta más. Para #192.
+- **La primera conversación tras un despliegue paga el MCP en frío**, 6,9 s las dos veces (aceptado en H4).
+- **El despliegue sirve esta rama** (`d6a90d8`) desde la segunda prueba; el clon vuelve a `dev` tras el merge.
 
 
 

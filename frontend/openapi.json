@@ -488,7 +488,7 @@
           "asistente"
         ],
         "summary": "Get Agent",
-        "description": "Si el asistente se puede usar ahora, qué modelo es y qué instrucciones\nrecibe.\n\n- `availability`: uno de los cuatro estados, con una frase que explica por\n  qué no, si no se puede (R6.14: la interfaz no debe ofrecer controles que\n  no puedan funcionar). Se pregunta en el momento, sin caché: un servidor\n  apagado se detecta en 0,2 ms (#181).\n- `model_card`: la ficha del modelo, con sus límites medidos (R13.7). Si se\n  configuró otro modelo, se publica ése y sin las medidas, que eran de otro.\n- `prompt`: el prompt de sistema en uso, entero (R13.5).",
+        "description": "Si el asistente se puede usar ahora, qué modelo es y qué instrucciones\nrecibe.\n\n- `availability`: uno de los cuatro estados, con una frase que explica por\n  qué no, si no se puede (R6.14: la interfaz no debe ofrecer controles que\n  no puedan funcionar). Se pregunta en el momento, sin caché: un servidor\n  apagado se detecta en 0,2 ms (#181).\n- `model_card`: la ficha del modelo, con sus límites medidos (R13.7). Si se\n  configuró otro modelo, se publica ése y sin las medidas, que eran de otro.\n- `prompt`: el prompt de sistema en uso, entero (R13.5).\n- `max_history_chars`: el tope del historial de `POST /chat`, para que la\n  interfaz recorte antes de enviar en vez de recibir un 422 (#191).",
         "operationId": "get_agent_agent_get",
         "responses": {
           "200": {
@@ -520,13 +520,19 @@
           },
           "prompt": {
             "$ref": "#/components/schemas/AgentPrompt"
+          },
+          "max_history_chars": {
+            "type": "integer",
+            "title": "Max History Chars",
+            "description": "Cuántos caracteres de historial admite `POST /chat`, sumando el texto de todos los turnos. Va aquí, y no escrito en la interfaz, para que ésta recorte los turnos más antiguos ANTES de enviar y el número salga de la configuración real (#191)."
           }
         },
         "type": "object",
         "required": [
           "availability",
           "model_card",
-          "prompt"
+          "prompt",
+          "max_history_chars"
         ],
         "title": "AgentInfo",
         "description": "Todo lo que la interfaz necesita saber del asistente antes de usarlo.\n\nSi se puede usar ahora y por qué no (R6.14: sin controles que no puedan\nfuncionar), qué modelo es y sus límites medidos (R13.7), y qué\ninstrucciones recibe (R13.5). No es `describe_models`: ésa la sirve el MCP,\nque no conoce la configuración del agente."
@@ -715,14 +721,14 @@
                   "$ref": "#/components/schemas/PasoModelo"
                 },
                 {
-                  "$ref": "#/components/schemas/PasoHerramienta"
+                  "$ref": "#/components/schemas/PasoHerramientaPublicado"
                 }
               ],
               "discriminator": {
                 "propertyName": "kind",
                 "mapping": {
                   "model": "#/components/schemas/PasoModelo",
-                  "tool": "#/components/schemas/PasoHerramienta"
+                  "tool": "#/components/schemas/PasoHerramientaPublicado"
                 }
               }
             },
@@ -1218,7 +1224,7 @@
         "title": "OverallVerdict",
         "description": "Etiqueta única, para listados compactos como el historial.\n\nSe deriva de las dimensiones con una jerarquía explícita —el engaño pesa más\nque la forma— en lugar de por mayoría de señales."
       },
-      "PasoHerramienta": {
+      "PasoHerramientaPublicado": {
         "properties": {
           "kind": {
             "type": "string",
@@ -1280,6 +1286,16 @@
           "duration_s": {
             "type": "number",
             "title": "Duration S"
+          },
+          "signal": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SignalResult"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "type": "object",
@@ -1292,10 +1308,11 @@
           "data",
           "error",
           "server",
-          "duration_s"
+          "duration_s",
+          "signal"
         ],
-        "title": "PasoHerramienta",
-        "description": "Una herramienta que pidió el modelo, con su resultado o su error.\n\n`data` es el resultado estructurado ENTERO, aunque al modelo le llegue\nrecortado. `error` es público: se enseña tal cual (#163, #89). `server` es\n`None` si no se llegó a ejecutar en ningún servidor."
+        "title": "PasoHerramientaPublicado",
+        "description": "Una herramienta de la traza, tal como la publica la API.\n\nEs el paso del agente, sin copiarlo, más `signal`: si la herramienta es una\nseñal y funcionó, el `SignalResult` que produciría el orquestador con su\n`data`, para que la interfaz la pinte con la misma tarjeta que el análisis\n(#191). La regla del voto se queda en `analysis/`; el agente no la conoce y\nla interfaz no la repite."
       },
       "PasoModelo": {
         "properties": {

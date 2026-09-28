@@ -299,6 +299,8 @@ export interface paths {
          *     - `model_card`: la ficha del modelo, con sus límites medidos (R13.7). Si se
          *       configuró otro modelo, se publica ése y sin las medidas, que eran de otro.
          *     - `prompt`: el prompt de sistema en uso, entero (R13.5).
+         *     - `max_history_chars`: el tope del historial de `POST /chat`, para que la
+         *       interfaz recorte antes de enviar en vez de recibir un 422 (#191).
          */
         get: operations["get_agent_agent_get"];
         put?: never;
@@ -326,6 +328,11 @@ export interface components {
             availability: components["schemas"]["Disponibilidad"];
             model_card: components["schemas"]["FichaLLM"];
             prompt: components["schemas"]["AgentPrompt"];
+            /**
+             * Max History Chars
+             * @description Cuántos caracteres de historial admite `POST /chat`, sumando el texto de todos los turnos. Va aquí, y no escrito en la interfaz, para que ésta recorte los turnos más antiguos ANTES de enviar y el número salga de la configuración real (#191).
+             */
+            max_history_chars: number;
         };
         /**
          * AgentPrompt
@@ -453,7 +460,7 @@ export interface components {
              */
             created_at: string;
             /** Steps */
-            steps: (components["schemas"]["PasoModelo"] | components["schemas"]["PasoHerramienta"])[];
+            steps: (components["schemas"]["PasoModelo"] | components["schemas"]["PasoHerramientaPublicado"])[];
             /** @description `null` mientras `status` no sea `done`. */
             result?: components["schemas"]["ChatOutcome"] | null;
         };
@@ -740,14 +747,16 @@ export interface components {
          */
         OverallVerdict: "deceptive" | "stylistic_clickbait" | "factual" | "ambiguous" | "no_data";
         /**
-         * PasoHerramienta
-         * @description Una herramienta que pidió el modelo, con su resultado o su error.
+         * PasoHerramientaPublicado
+         * @description Una herramienta de la traza, tal como la publica la API.
          *
-         *     `data` es el resultado estructurado ENTERO, aunque al modelo le llegue
-         *     recortado. `error` es público: se enseña tal cual (#163, #89). `server` es
-         *     `None` si no se llegó a ejecutar en ningún servidor.
+         *     Es el paso del agente, sin copiarlo, más `signal`: si la herramienta es una
+         *     señal y funcionó, el `SignalResult` que produciría el orquestador con su
+         *     `data`, para que la interfaz la pinte con la misma tarjeta que el análisis
+         *     (#191). La regla del voto se queda en `analysis/`; el agente no la conoce y
+         *     la interfaz no la repite.
          */
-        PasoHerramienta: {
+        PasoHerramientaPublicado: {
             /**
              * @description discriminator enum property added by openapi-typescript
              * @enum {string}
@@ -774,6 +783,7 @@ export interface components {
             server: string | null;
             /** Duration S */
             duration_s: number;
+            signal: components["schemas"]["SignalResult"] | null;
         };
         /**
          * PasoModelo

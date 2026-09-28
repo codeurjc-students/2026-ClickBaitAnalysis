@@ -267,6 +267,13 @@ def _leer(resultado: CallToolResult, name: str, servidor: str) -> Invocation:
             primero.text if isinstance(primero, TextContent) else "Error desconocido"
         )
         log.warning("tool.execute.failed", tool=name, motivo=motivo)
+        # FastMCP antepone «Error executing tool <nombre>: », en inglés, al
+        # mensaje de la herramienta. El mensaje ya es público —lo redacta la
+        # herramienta (#89)— y el prefijo sólo repite el nombre en otro idioma:
+        # se quita aquí, donde se lee, y deja de verse a la vez en
+        # `/tools/{name}/execute` y en la traza del agente (#191). El registro
+        # de arriba lo conserva tal cual llegó.
+        motivo = motivo.removeprefix(f"Error executing tool {name}: ")
         return Invocation(server=servidor, result=ToolResult.fail(motivo))
 
     return Invocation(
