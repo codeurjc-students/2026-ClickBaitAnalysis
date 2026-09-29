@@ -48,18 +48,40 @@ partes:
    guion vuelve a calcular si la respuesta es fiel a partir de las afirmaciones
    que el juez clasificó: si no coincide con lo que él mismo dice, lo marca.
    El primer caso hace de prueba: si el modelo no carga o no devuelve el JSON
-   pedido, se para ahí en vez de gastar la sesión.
+   pedido, se para ahí en vez de gastar la sesión. Juzga el corpus o, si se le
+   da, otro fichero con la misma forma (los de `comparar`).
+
+3. `comparar`: las mismas 27 consultas, tres veces, en cinco condiciones —el
+   prompt de producción con y sin redondeo de las cifras que lee el modelo,
+   `05-llano`, `03-estricto`, y el ganador con el perfil de muestreo «preciso»
+   que recomiendan los autores del modelo—. Se intercalan (consulta a
+   consulta, todas las condiciones seguidas) para que el paso del tiempo —las
+   noticias cambian— no caiga sobre una sola condición. Además de lo que diga
+   el juez, cuenta sin juez lo que salió de la validación a mano: nombres
+   internos, posiciones y cifras con más de tres decimales en el texto, las
+   llamadas repetidas, las que no son las esperadas para la consulta y las
+   respuestas sin ninguna herramienta.
+
+4. `resumen`: sin GPU. Las cifras de cada condición, con las del juez si ya
+   se ha juzgado, y cuánto dicen los marcadores de la legibilidad leída a
+   mano en el corpus. La regla para decidir se fijó ANTES de medir y está en
+   la sección del README.
 
 Ejecutar desde la raíz, con el túnel abierto (la sesión la abre
 `spikes/fidelidad_a40.sh`):
 
     NLP_BACKEND=local .venv/bin/python spikes/fidelidad.py corpus [fuente ...]
-    .venv/bin/python spikes/fidelidad.py jueces <modelo>
+    .venv/bin/python spikes/fidelidad.py jueces <modelo> [fichero]
+    NLP_BACKEND=local .venv/bin/python spikes/fidelidad.py comparar A B C D
+    NLP_BACKEND=local .venv/bin/python spikes/fidelidad.py comparar E:05-llano
+    .venv/bin/python spikes/fidelidad.py resumen
 
-Sin fuentes, las cuatro; los jueces, de uno en uno. `OLLAMA_URL` cambia el
-servidor (defecto `http://127.0.0.1:11500`) y `FIDELIDAD_JSON` el fichero donde
-se guarda (defecto `spikes/fidelidad/corpus.json` y
-`spikes/fidelidad/juez-<modelo>.json`).
+Sin fuentes, las cuatro; los jueces, de uno en uno; `E:<prompt>` es la
+condición del perfil preciso sobre ese prompt. `OLLAMA_URL` cambia el servidor
+(defecto `http://127.0.0.1:11500`) y `FIDELIDAD_JSON` el fichero del corpus o
+del juez (defecto `spikes/fidelidad/corpus.json` y
+`spikes/fidelidad/juez-<modelo>[-<fichero>].json`). Los de `comparar` son
+`spikes/fidelidad/comparacion-<condición>.json`, y continúan donde se quedaron.
 """
 
 import asyncio
@@ -67,6 +89,7 @@ import hashlib
 import json
 import logging
 import os
+import re
 import statistics
 import subprocess
 import sys
@@ -95,7 +118,7 @@ from spikes.agente_a40 import BUCLES  # noqa: E402
 from spikes.tool_calling_descripciones_contraste import (  # noqa: E402
     CONSULTAS as CONTRASTE,
 )
-from spikes.tool_calling_fase2 import PRUEBAS  # noqa: E402
+from spikes.tool_calling_fase2 import CLICKBAIT_CUALQUIERA, PRUEBAS  # noqa: E402
 
 sys.argv = _ARGUMENTOS
 
@@ -171,31 +194,75 @@ FUENTES = [
 # Las que piden analizar un titular: las que respondió inventando en #188.
 CATEGORIAS_DE_ANALISIS = ("GENERICA", "ESPECIFICA")
 
+# Qué herramientas pide cada consulta. Las 21 del spike lo traen de su guion (en
+# las genéricas vale también `analyze_headline`, como en `agente_a40.py`); los
+# bucles, de lo que piden en palabras. Cualquier otra llamada es «de más».
+_ANALISIS = CLICKBAIT_CUALQUIERA | {"analyze_headline"}
+ESPERADAS_BUCLES = {
+    "encadena-nyt": {"get_nyt_news"} | _ANALISIS,
+    "dos-senales": {"detect_clickbait_lexical", "detect_clickbait_linear"},
+    "analisis-completo": _ANALISIS | {"detect_clickbait_incoherence", "analyze_sentiment"},
+    "incoherencia": {"detect_clickbait_incoherence", "analyze_headline"},
+    "encadena-guardian": {"get_guardian_news"} | _ANALISIS,
+    "segundo-turno": {"detect_clickbait"},
+}
 
-def _consultas() -> list[tuple[str, str, str, list]]:
-    """Las 27 consultas, como (clave, categoría, consulta, historial).
+
+def _consultas() -> list[tuple[str, str, str, list, set]]:
+    """Las 27 consultas, como (clave, categoría, consulta, historial, esperadas).
 
     La clave es estable —la categoría y su número de orden, o el nombre del
     bucle— para que la lectura a mano y los jueces se refieran a lo mismo.
     """
-    filas = [(categoria, consulta) for categoria, consulta, _ in PRUEBAS if categoria != "SIN_TOOL"]
-    filas += [("CONTRASTE", consulta) for _, consulta, _ in CONTRASTE]
+    filas = [
+        (categoria, consulta, _ANALISIS if categoria == "GENERICA" else set(esperadas))
+        for categoria, consulta, esperadas in PRUEBAS
+        if categoria != "SIN_TOOL"
+    ]
+    filas += [("CONTRASTE", consulta, set(esperadas)) for _, consulta, esperadas in CONTRASTE]
     numero = Counter()
     consultas = []
-    for categoria, consulta in filas:
+    for categoria, consulta, esperadas in filas:
         numero[categoria] += 1
-        consultas.append((f"{categoria.lower()}-{numero[categoria]}", categoria, consulta, []))
+        consultas.append((f"{categoria.lower()}-{numero[categoria]}", categoria, consulta, [], esperadas))
     consultas += [
-        (f"bucle-{nombre}", "BUCLE", consulta, historial) for nombre, consulta, historial in BUCLES
+        (f"bucle-{nombre}", "BUCLE", consulta, historial, ESPERADAS_BUCLES[nombre])
+        for nombre, consulta, historial in BUCLES
     ]
     return consultas
 
 
-def _config(fuente: Fuente) -> Configuracion:
-    """La configuración del agente de producción, con el modelo, el prompt y el `think` de la fuente."""
+class OllamaConMuestreo(OllamaClient):
+    """El cliente del agente, mandando además el muestreo que se le dé.
+
+    Para la condición del perfil «preciso» sin tocar el backend: si gana, el
+    muestreo pasará a ser configuración explícita del agente, como `num_ctx`.
+    """
+
+    def __init__(self, *args, muestreo: dict, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+        self.muestreo = muestreo
+
+    async def make_request(self, endpoint, method, params=None, json=None):
+        if json is not None:
+            json = {**json, "options": {**json.get("options", {}), **self.muestreo}}
+        return await super().make_request(endpoint, method, params=params, json=json)
+
+
+def _config(
+    fuente: Fuente, decimales: int | None = None, muestreo: dict | None = None
+) -> Configuracion:
+    """La configuración del agente de producción, con el modelo, el prompt y el
+    `think` de la fuente.
+
+    El redondeo va explícito: el corpus se generó antes de que existiera
+    (`239a955`), y sin decirlo aquí, repetirlo hoy redondearía.
+    """
+    clase = OllamaConMuestreo if muestreo else OllamaClient
+    extra = {"muestreo": muestreo} if muestreo else {}
     return Configuracion(
-        backend=OllamaClient(
-            URL, fuente.modelo, num_ctx=NUM_CTX, keep_alive=KEEP_ALIVE, timeout=LLM_TIMEOUT
+        backend=clase(
+            URL, fuente.modelo, num_ctx=NUM_CTX, keep_alive=KEEP_ALIVE, timeout=LLM_TIMEOUT, **extra
         ),
         servers=[_SERVIDOR_URL],
         prompt=prompts.cargar(fuente.prompt),
@@ -203,7 +270,72 @@ def _config(fuente: Fuente) -> Configuracion:
         # Las señales locales cargan su modelo la primera vez que se usan.
         execute_timeout=120.0,
         think=fuente.think,
+        decimales_para_el_modelo=decimales,
     )
+
+
+@dataclass(frozen=True)
+class Condicion:
+    """Una condición de la comparación: el prompt, el redondeo y el muestreo.
+
+    `muestreo` es `None` cuando no se manda nada, como en producción: entonces
+    manda el Modelfile, que se lee y se anota en las condiciones.
+    """
+
+    nombre: str
+    prompt: str
+    decimales: int | None
+    muestreo: dict | None = None
+    modelo: str = "qwen3.5:27b"
+
+
+# El perfil que recomiendan los autores de Qwen3.5 para tareas precisas; el del
+# Modelfile (temperatura 1, presence_penalty 1,5) es el de tareas generales.
+PERFIL_PRECISO = {"temperature": 0.6, "presence_penalty": 0.0}
+CONDICIONES = {
+    "A": Condicion("A-04-sin-redondeo", "04-preciso", decimales=None),
+    "B": Condicion("B-04", "04-preciso", decimales=3),
+    "C": Condicion("C-05", "05-llano", decimales=3),
+    "D": Condicion("D-03", "03-estricto", decimales=3),
+}
+REPETICIONES = 3
+FALLOS_SEGUIDOS_PARA_PARAR = 3
+
+
+def _condicion(nombre: str) -> Condicion:
+    """`A`–`D`, o `E:<prompt>`: el perfil preciso sobre el prompt ganador."""
+    if nombre.startswith("E:"):
+        prompt = nombre.removeprefix("E:")
+        if prompt not in prompts.disponibles():
+            sys.exit(f"No hay ningún prompt «{prompt}». Hay: {prompts.disponibles()}")
+        return Condicion(f"E-{prompt[:2]}-preciso", prompt, decimales=3, muestreo=PERFIL_PRECISO)
+    if nombre not in CONDICIONES:
+        sys.exit(f"Condición desconocida: {nombre}. Hay: {list(CONDICIONES)} y E:<prompt>")
+    return CONDICIONES[nombre]
+
+
+# Lo que la validación a mano señaló como técnico (#192), contado en el texto sin
+# juez. Los nombres internos van en `snake_case` —herramientas, categorías,
+# veredictos—, son las categorías de una palabra y el campo `score`, o son
+# etiquetas en inglés; «neutral» no, que es también castellano.
+MARCADORES = {
+    "nombres_internos": re.compile(
+        r"\b[a-z]+(?:_[a-z]+)+\b|\b(?:hyperbole|question|ellipsis|score)\b"
+        r"|\bfactual news\b|\bpositive\b|\bnegative\b",
+        re.IGNORECASE,
+    ),
+    "posiciones": re.compile(r"\[\s*\d+\s*[,\-–]\s*\d+\s*\]|posici(?:ón|ones)\s+\[?\d", re.IGNORECASE),
+    "decimales_largos": re.compile(r"\d[.,]\d{4,}"),
+}
+
+
+def _marcadores(texto: str) -> dict:
+    return {nombre: len(patron.findall(texto)) for nombre, patron in MARCADORES.items()}
+
+
+def _de_mas(pasos: list, esperadas: set) -> list[str]:
+    """Las llamadas a herramientas que la consulta no pedía (#192, validación)."""
+    return [paso["name"] for paso in pasos if paso["kind"] == "tool" and paso["name"] not in esperadas]
 
 
 def _repetidas(pasos: list) -> list[dict]:
@@ -372,7 +504,7 @@ async def corpus(registro: dict, fuentes: list[Fuente], ruta: Path) -> None:
             f"\n== {fuente.nombre}: {fuente.modelo}, `{fuente.prompt}`, think {fuente.think}"
             f" · {len(elegidas)} consultas"
         )
-        for clave, categoria, consulta, historial in elegidas:
+        for clave, categoria, consulta, historial, _ in elegidas:
             resultado = await responder(consulta, historial, _config(fuente))
             conversacion = _conversacion(fuente, clave, categoria, consulta, historial, resultado)
             registro["conversaciones"].append(conversacion)
@@ -520,8 +652,9 @@ CONDICIONES_FIJAS_DEL_JUEZ = ("juez", "num_ctx", "temperature", "think", "rubric
 ERRORES_SEGUIDOS_PARA_PARAR = 3
 
 
-async def jueces(modelo: str, ruta: Path) -> None:
-    """Un juez sobre el corpus, en una o varias sesiones.
+async def jueces(modelo: str, ruta: Path, juzgado: Path = CORPUS) -> None:
+    """Un juez sobre el corpus, o sobre otro fichero con su forma, en una o
+    varias sesiones.
 
     Juzgar es lento —el juez razona y escribe cada afirmación—, así que un juez
     puede no caber en una sesión corta de GPU. Si ya hay un fichero de este
@@ -529,7 +662,7 @@ async def jueces(modelo: str, ruta: Path) -> None:
     juicios hechos (también los de JSON no válido, que son un resultado) y se
     repiten sólo los que fallaron por error. Cada sesión queda anotada.
     """
-    corpus_leido = json.loads(CORPUS.read_text(encoding="utf-8"))
+    corpus_leido = json.loads(juzgado.read_text(encoding="utf-8"))
     casos = [
         conversacion
         for conversacion in corpus_leido["conversaciones"]
@@ -543,9 +676,9 @@ async def jueces(modelo: str, ruta: Path) -> None:
         "think": JUEZ_THINK,
         "keep_alive": KEEP_ALIVE,
         "rubrica": _huella(rubrica),
-        "corpus": hashlib.sha256(CORPUS.read_bytes()).hexdigest()[:12],
+        "corpus": hashlib.sha256(juzgado.read_bytes()).hexdigest()[:12],
         "corpus_generado": corpus_leido["condiciones"]["fecha"],
-    }
+    } | ({} if juzgado == CORPUS else {"juzgado": juzgado.name})
     for clave, valor in condiciones.items():
         print(f"  {clave}: {valor}")
 
@@ -613,21 +746,172 @@ async def jueces(modelo: str, ruta: Path) -> None:
     print(f"  {'COMPLETO' if not faltan else f'FALTAN {faltan}: otra sesión con el mismo juez'}")
 
 
-async def main(parte: str, argumentos: list[str]) -> None:
-    print("== condiciones")
-    if parte == "jueces":
-        modelo = argumentos[0]
-        ruta = Path(os.environ.get("FIDELIDAD_JSON", CARPETA / f"juez-{modelo.replace(':', '-')}.json"))
-        await jueces(modelo, ruta)
-        print(f"\nTodos los juicios, con el razonamiento de cada uno: {ruta}")
-        return
+# ----- 3 · La comparación -----
 
-    fuentes = [fuente for fuente in FUENTES if fuente.nombre in argumentos]
-    ruta = Path(os.environ.get("FIDELIDAD_JSON", CORPUS))
-    registro: dict = {"condiciones": await _condiciones_del_corpus(fuentes)}
-    for clave, valor in registro["condiciones"].items():
-        print(f"  {clave}: {valor}")
+# Lo que tiene que coincidir para que una sesión continúe la anterior de la
+# misma condición.
+CONDICIONES_FIJAS_DE_LA_COMPARACION = ("condicion", "prompt_huella", "modelo_id")
 
+
+def _ruta_de(condicion: Condicion) -> Path:
+    return CARPETA / f"comparacion-{condicion.nombre}.json"
+
+
+async def _registro_de(condicion: Condicion) -> dict:
+    """El fichero de una condición: el que había, si es de la misma medida, o uno nuevo."""
+    condiciones = await _condiciones({condicion.modelo}) | {
+        "condicion": asdict(condicion),
+        "prompt_huella": _huella(prompts.cargar(condicion.prompt)),
+        "num_ctx": NUM_CTX,
+        "keep_alive": KEEP_ALIVE,
+        "nlp_backend": settings.nlp_backend,
+        "repeticiones": REPETICIONES,
+    }
+    condiciones["modelo_id"] = condiciones["modelos"][condicion.modelo]["id"]
+    ruta = _ruta_de(condicion)
+    if ruta.exists():
+        registro = json.loads(ruta.read_text(encoding="utf-8"))
+        distintas = [
+            clave
+            for clave in CONDICIONES_FIJAS_DE_LA_COMPARACION
+            if registro["condiciones"].get(clave) != condiciones[clave]
+        ]
+        if distintas:
+            sys.exit(f"ABORTADO: {ruta} es de otra medida (cambia {distintas}). Se aparta a mano.")
+        # Lo que falló (la sesión que se acabó) se repite.
+        registro["conversaciones"] = [
+            conversacion for conversacion in registro["conversaciones"] if conversacion["estado"] != "failed"
+        ]
+    else:
+        registro = {"condiciones": condiciones, "sesiones": [], "conversaciones": []}
+    registro["sesiones"].append({clave: condiciones[clave] for clave in ("fecha", "commit", "guion", "ollama")})
+    return registro
+
+
+async def comparar(condiciones: list[Condicion]) -> None:
+    registros = {condicion.nombre: await _registro_de(condicion) for condicion in condiciones}
+    for condicion in condiciones:
+        print(f"  {condicion.nombre}: {asdict(condicion)} · {len(registros[condicion.nombre]['conversaciones'])} ya hechas")
+    hechas = {
+        conversacion["id"]
+        for registro in registros.values()
+        for conversacion in registro["conversaciones"]
+    }
+    consultas = _consultas()
+    total = REPETICIONES * len(consultas) * len(condiciones)
+    print(f"\n== {total - len(hechas)} conversaciones pendientes de {total}")
+
+    fallos_seguidos = 0
+    for repeticion in range(1, REPETICIONES + 1):
+        for clave, categoria, consulta, historial, esperadas in consultas:
+            for condicion in condiciones:
+                fuente = Fuente(condicion.nombre, condicion.modelo, condicion.prompt, think=True)
+                clave_repetida = f"{clave}/r{repeticion}"
+                if f"{condicion.nombre}/{clave_repetida}" in hechas:
+                    continue
+                resultado = await responder(
+                    consulta, historial, _config(fuente, condicion.decimales, condicion.muestreo)
+                )
+                conversacion = _conversacion(fuente, clave_repetida, categoria, consulta, historial, resultado)
+                de_mas = _de_mas(resultado["steps"], esperadas)
+                conversacion |= {
+                    "repeticion": repeticion,
+                    "esperadas": sorted(esperadas),
+                    "de_mas": de_mas,
+                    "sin_herramientas": resultado["status"] == "answered" and not conversacion["herramientas"],
+                    "marcadores": _marcadores(resultado["answer"]),
+                }
+                registro = registros[condicion.nombre]
+                registro["conversaciones"].append(conversacion)
+                _guardar(registro, _ruta_de(condicion))
+                marcadores = sum(conversacion["marcadores"].values())
+                print(
+                    f"  {conversacion['estado']:12} {conversacion['total_s']:6.1f} s  {conversacion['id']:48} "
+                    f"marcadores {marcadores}"
+                    + (f" · DE MÁS {de_mas}" if de_mas else "")
+                    + (" · SIN HERRAMIENTAS" if conversacion["sin_herramientas"] else "")
+                    + "".join(f" · REPITE {repetida['name']}" for repetida in conversacion["repetidas"])
+                    + (f" · {conversacion['detalle']}" if conversacion["detalle"] else "")
+                )
+                fallos_seguidos = fallos_seguidos + 1 if resultado["status"] == "failed" else 0
+                if fallos_seguidos >= FALLOS_SEGUIDOS_PARA_PARAR:
+                    print(f"  PARADO: {fallos_seguidos} fallos seguidos; se repiten en la próxima sesión.")
+                    return
+    print("  COMPLETO")
+
+
+# ----- 4 · El resumen -----
+
+
+def _resumen_de(conversaciones: list[dict]) -> dict:
+    """Las cifras de una condición que no necesitan juez."""
+    contestadas = [conversacion for conversacion in conversaciones if conversacion["estado"] == "answered"]
+    marcadores = [sum(conversacion["marcadores"].values()) for conversacion in contestadas]
+    return {
+        "conversaciones": len(conversaciones),
+        "estados": dict(Counter(conversacion["estado"] for conversacion in conversaciones)),
+        "marcadores_por_respuesta": round(statistics.mean(marcadores), 2) if marcadores else None,
+        "respuestas_sin_marcadores": sum(total == 0 for total in marcadores),
+        "marcadores_por_tipo": {
+            tipo: sum(conversacion["marcadores"][tipo] for conversacion in contestadas) for tipo in MARCADORES
+        },
+        "sin_herramientas": sum(conversacion["sin_herramientas"] for conversacion in conversaciones),
+        "con_llamadas_de_mas": sum(bool(conversacion["de_mas"]) for conversacion in conversaciones),
+        "con_repetidas": sum(bool(conversacion["repetidas"]) for conversacion in conversaciones),
+        "tiempo_mediana_s": round(_mediana([conversacion["total_s"] for conversacion in conversaciones]), 1),
+        "tiempo_max_s": round(max((conversacion["total_s"] for conversacion in conversaciones), default=0), 1),
+        "prompt_tokens_max": max(
+            (vuelta["prompt_tokens"] or 0 for conversacion in conversaciones for vuelta in conversacion["vueltas"]),
+            default=0,
+        ),
+    }
+
+
+def resumen() -> None:
+    salida: dict = {"condiciones": {}}
+
+    # ¿Dicen los marcadores algo de la legibilidad? Se mira en el corpus, contra
+    # la lectura a mano: si no bajan al subir la legibilidad, no sirven.
+    lectura = {
+        fila["id"]: fila for fila in json.loads((CARPETA / "lectura.json").read_text(encoding="utf-8"))["lecturas"]
+    }
+    por_nivel: dict[int, list[int]] = {}
+    for conversacion in json.loads(CORPUS.read_text(encoding="utf-8"))["conversaciones"]:
+        if conversacion["id"] in lectura:
+            nivel = lectura[conversacion["id"]]["legibilidad"]
+            por_nivel.setdefault(nivel, []).append(sum(_marcadores(conversacion["respuesta"]).values()))
+    salida["marcadores_frente_a_la_lectura"] = {
+        nivel: {"respuestas": len(valores), "marcadores_mediana": _mediana(valores)}
+        for nivel, valores in sorted(por_nivel.items())
+    }
+    print("== marcadores frente a la legibilidad leída a mano (corpus)")
+    for nivel, cifras in salida["marcadores_frente_a_la_lectura"].items():
+        print(f"  legibilidad {nivel}: {cifras['respuestas']} respuestas · mediana de marcadores {cifras['marcadores_mediana']}")
+
+    print("\n== la comparación")
+    for ruta in sorted(CARPETA.glob("comparacion-*.json")):
+        registro = json.loads(ruta.read_text(encoding="utf-8"))
+        nombre = registro["condiciones"]["condicion"]["nombre"]
+        cifras = _resumen_de(registro["conversaciones"])
+        for juez in sorted(CARPETA.glob(f"juez-*-{ruta.stem}.json")):
+            juicios = [
+                fila
+                for fila in json.loads(juez.read_text(encoding="utf-8"))["juicios"]
+                if not fila["error"] and fila.get("json_valido")
+            ]
+            cifras[f"juez {juez.stem.removeprefix('juez-').removesuffix('-' + ruta.stem)}"] = {
+                "juzgadas": len(juicios),
+                "infieles": sum(not fila["fiel_recalculado"] for fila in juicios),
+                "legibilidad": dict(sorted(Counter(fila["juicio"]["legibilidad"] for fila in juicios).items())),
+            }
+        salida["condiciones"][nombre] = cifras
+        print(f"  {nombre}: {json.dumps(cifras, ensure_ascii=False)}")
+    _guardar(salida, CARPETA / "resumen.json")
+    print(f"\nEl resumen, en {CARPETA / 'resumen.json'}")
+
+
+async def _con_mcp(corrutina) -> None:
+    """Sirve el `mcp` de producción en proceso mientras corre `corrutina`."""
     app = SERVIDOR.streamable_http_app()
     # El gestor de sesiones de FastMCP arranca en el lifespan, que
     # ASGITransport no ejecuta: se entra a mano (como en los tests).
@@ -635,8 +919,32 @@ async def main(parte: str, argumentos: list[str]) -> None:
         mcp_session._http_client = lambda corte: httpx.AsyncClient(
             transport=httpx.ASGITransport(app=app), base_url=_BASE, timeout=corte
         )
-        await corpus(registro, fuentes, ruta)
+        await corrutina
 
+
+async def main(parte: str, argumentos: list[str]) -> None:
+    print("== condiciones")
+    if parte == "jueces":
+        modelo = argumentos[0]
+        juzgado = CARPETA / argumentos[1] if len(argumentos) > 1 else CORPUS
+        sufijo = "" if juzgado == CORPUS else f"-{juzgado.stem}"
+        ruta = Path(os.environ.get("FIDELIDAD_JSON", CARPETA / f"juez-{modelo.replace(':', '-')}{sufijo}.json"))
+        await jueces(modelo, ruta, juzgado)
+        print(f"\nTodos los juicios, con el razonamiento de cada uno: {ruta}")
+        return
+    if parte == "comparar":
+        await _con_mcp(comparar([_condicion(nombre) for nombre in argumentos]))
+        return
+    if parte == "resumen":
+        resumen()
+        return
+
+    fuentes = [fuente for fuente in FUENTES if fuente.nombre in argumentos]
+    ruta = Path(os.environ.get("FIDELIDAD_JSON", CORPUS))
+    registro: dict = {"condiciones": await _condiciones_del_corpus(fuentes)}
+    for clave, valor in registro["condiciones"].items():
+        print(f"  {clave}: {valor}")
+    await _con_mcp(corpus(registro, fuentes, ruta))
     _guardar(registro, ruta)
     print(f"\nTodo lo generado, con las respuestas y las trazas enteras: {ruta}")
 
@@ -644,14 +952,17 @@ async def main(parte: str, argumentos: list[str]) -> None:
 if __name__ == "__main__":
     parte, argumentos = (sys.argv[1], sys.argv[2:]) if len(sys.argv) > 1 else ("", [])
     if parte == "jueces":
-        if len(argumentos) != 1:
-            sys.exit("Uso: fidelidad.py jueces <modelo>. Un juez por ejecución.")
+        if len(argumentos) not in (1, 2):
+            sys.exit("Uso: fidelidad.py jueces <modelo> [fichero]. Un juez por ejecución.")
     elif parte == "corpus":
         existentes = [fuente.nombre for fuente in FUENTES]
         argumentos = argumentos or existentes
         desconocidas = [nombre for nombre in argumentos if nombre not in existentes]
         if desconocidas:
             sys.exit(f"Fuentes desconocidas: {desconocidas}. Hay: {existentes}")
-    else:
-        sys.exit("Uso: fidelidad.py corpus [fuente ...] | fidelidad.py jueces <modelo>")
+    elif parte == "comparar":
+        if not argumentos:
+            sys.exit("Uso: fidelidad.py comparar A B C D | fidelidad.py comparar E:<prompt>")
+    elif parte != "resumen":
+        sys.exit("Uso: fidelidad.py corpus | jueces <modelo> [fichero] | comparar <condición ...> | resumen")
     asyncio.run(main(parte, argumentos))
