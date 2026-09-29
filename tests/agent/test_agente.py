@@ -59,8 +59,36 @@ class Eco(TypedDict):
     longitud: int
 
 
+class Cifras(TypedDict):
+    """Números con todos sus decimales, como los devuelven las señales de verdad."""
+
+    probability: float
+    similarity: float
+    low: float
+    tiny: float
+    exact: float
+    zero: float
+    top_cues: list[tuple[str, float]]
+    score: int
+    headline: str
+
+
+CIFRAS: Cifras = {
+    "probability": 0.999997361581358,
+    "similarity": 0.22802437841892242,
+    "low": 0.0028548036503576396,
+    "tiny": 0.00004,
+    "exact": 1.0,
+    "zero": 0.0,
+    "top_cues": [("you", 5.619727385247914), ("question", -4.22095859934778)],
+    "score": 4,
+    "headline": "0.123456789 Ways To Read A Number",
+}
+
+
 def _servidor() -> FastMCP:
-    """Un servidor MCP con una herramienta que responde y otra que falla."""
+    """Un servidor MCP con una herramienta que responde, otra que falla y otra
+    que devuelve cifras con todos sus decimales."""
     mcp = FastMCP("servidor-de-prueba")
 
     @mcp.tool()
@@ -75,6 +103,11 @@ def _servidor() -> FastMCP:
     def rota(texto: str) -> Eco:
         """Falla siempre, con un mensaje ya redactado para publicarse."""
         raise ToolError("La herramienta de prueba ha fallado a propósito.")
+
+    @mcp.tool()
+    def cifras() -> Cifras:
+        """Devuelve cifras con todos sus decimales."""
+        return CIFRAS
 
     return mcp
 
@@ -212,7 +245,7 @@ async def test_el_catalogo_llega_al_modelo_con_su_esquema(monkeypatch):
         await responder("Hola", [], _config(modelo))
 
     catalogo = {herramienta["name"]: herramienta for herramienta in modelo.catalogos[0]}
-    assert set(catalogo) == {"eco", "rota"}
+    assert set(catalogo) == {"eco", "rota", "cifras"}
     # Sin la sangría del docstring, que FastMCP manda tal cual y el modelo
     # pagaría en cada petición.
     assert catalogo["eco"]["description"] == (
@@ -290,6 +323,62 @@ async def test_la_traza_guarda_el_resultado_entero_aunque_el_modelo_lo_lea_recor
     assert len(leido) < 200
     # El recorte se dice: un JSON cortado sin aviso invita a completarlo de memoria.
     assert "recortado" in leido
+
+
+@pytest.mark.asyncio
+async def test_el_modelo_lee_las_cifras_con_tres_decimales_y_la_traza_enteras(
+    monkeypatch,
+):
+    """El modelo copiaba los decimales enteros («0,9996088089831324») aunque el
+    prompt no se lo pidiera, y eso hacía la respuesta ilegible (#191, #192).
+    Pedirle que redondee no lo garantiza; si no los lee, no los puede copiar.
+    Las tarjetas salen de la traza, que los conserva (R13.4)."""
+    modelo = ModeloGuionado(_pide(("cifras", {})), _responde("Hecho."))
+
+    async with mcp_en_proceso(monkeypatch):
+        resultado = await responder("Dame las cifras", [], _config(modelo))
+
+    (paso,) = _herramientas(resultado)
+    assert paso["data"] == json.loads(json.dumps(CIFRAS))
+
+    leido = json.loads(modelo.conversaciones[1][-1]["content"])
+    assert leido["similarity"] == 0.228
+    assert leido["low"] == 0.003
+    assert leido["top_cues"] == [["you", 5.62], ["question", -4.221]]
+    # Lo que no es un decimal no se toca: ni los enteros ni el texto.
+    assert leido["score"] == 4
+    assert leido["headline"] == "0.123456789 Ways To Read A Number"
+
+
+@pytest.mark.asyncio
+async def test_lo_que_no_es_cero_ni_uno_no_se_redondea_a_cero_ni_a_uno(monkeypatch):
+    """0,9999973 con tres decimales es 1, y el modelo diría «probabilidad de 1»:
+    una certeza que la herramienta no dio. Se queda en 0,999, y lo casi nulo en
+    0,001. Lo que sí es exactamente 0 o 1 se deja."""
+    modelo = ModeloGuionado(_pide(("cifras", {})), _responde("Hecho."))
+
+    async with mcp_en_proceso(monkeypatch):
+        await responder("Dame las cifras", [], _config(modelo))
+
+    leido = json.loads(modelo.conversaciones[1][-1]["content"])
+    assert leido["probability"] == 0.999
+    assert leido["tiny"] == 0.001
+    assert leido["exact"] == 1.0
+    assert leido["zero"] == 0.0
+
+
+@pytest.mark.asyncio
+async def test_sin_redondeo_el_modelo_lee_las_cifras_enteras(monkeypatch):
+    """`None` lo desactiva, para poder medir con y sin (#192)."""
+    modelo = ModeloGuionado(_pide(("cifras", {})), _responde("Hecho."))
+
+    async with mcp_en_proceso(monkeypatch):
+        await responder(
+            "Dame las cifras", [], _config(modelo, decimales_para_el_modelo=None)
+        )
+
+    leido = json.loads(modelo.conversaciones[1][-1]["content"])
+    assert leido == json.loads(json.dumps(CIFRAS))
 
 
 # ----- Cómo termina -----

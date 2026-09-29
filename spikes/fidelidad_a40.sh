@@ -91,7 +91,9 @@ if grep -q "LISTO PARA WSL" "$REGISTRO/maquina2.log"; then
     -L "$PUERTO:127.0.0.1:11434" "$MAQUINA_2"
   # El 11434 de WSL es OTRO Ollama: se comprueba que el 11500 es la A40.
   echo "túnel: 11500 → ollama $(curl -s "http://127.0.0.1:$PUERTO/api/version") · 11434 local → $(curl -s -m 2 http://127.0.0.1:11434/api/version)"
-  NLP_BACKEND=local .venv/bin/python spikes/fidelidad.py "$@" < /dev/null
+  # Sin búfer: escribiendo a un fichero, Python acumula la salida y el registro
+  # no enseñaba nada hasta el final (pasó con el primer juez).
+  NLP_BACKEND=local PYTHONUNBUFFERED=1 .venv/bin/python spikes/fidelidad.py "$@" < /dev/null
   pkill -f "ssh -f -N .*-L $PUERTO:127.0.0.1:11434" && echo "túnel cerrado"
 else
   echo "LA SESIÓN NO SE ABRIÓ: no se mide nada."
