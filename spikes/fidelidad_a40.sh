@@ -25,6 +25,8 @@
 # el juez. Un juez que no quepa en una sesión continúa en la siguiente.
 #   setsid nohup bash spikes/fidelidad_a40.sh corpus > /tmp/fidelidad_corpus.log 2>&1 < /dev/null & disown
 #   setsid nohup bash spikes/fidelidad_a40.sh jueces gpt-oss:20b > /tmp/fidelidad_juez.log 2>&1 < /dev/null & disown
+#   setsid nohup bash spikes/fidelidad_a40.sh comparar A B C D > /tmp/fidelidad_comparar.log 2>&1 < /dev/null & disown
+#   setsid nohup bash spikes/fidelidad_a40.sh jueces gemma4:31b comparacion-C-05.json > /tmp/fidelidad_juez.log 2>&1 < /dev/null & disown
 exec 2>&1
 cd "$(dirname "$0")/.." || exit 1
 MAQUINA_2=gongarcia@gserver2.tfg.etsii.urjc.es
@@ -36,7 +38,8 @@ USADO=(backend spikes/fidelidad.py)
 if [ "${1:-}" = jueces ]; then
   PRECARGA=${2:?falta el modelo juez: fidelidad_a40.sh jueces <modelo>}
   CTX=16384
-  USADO+=(spikes/prompts/juez-fidelidad.md spikes/fidelidad/corpus.json)
+  # Lo juzgado: el corpus, o el fichero de la comparación que se le pase.
+  USADO+=(spikes/prompts/juez-fidelidad.md "spikes/fidelidad/${3:-corpus.json}")
 else
   PRECARGA=qwen3.5:27b
   CTX=8192

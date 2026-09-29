@@ -4,7 +4,12 @@
   "fecha": "2026-09-29T16:59:51+02:00",
   "rubrica": "78e41cf7cdc3",
   "corpus": "f0c2be54c90b",
-  "que_se_anota": "de las afirmaciones, sólo las que no están respaldadas; «dudosa» marca los casos en que el criterio no es obvio"
+  "que_se_anota": "de las afirmaciones, sólo las que no están respaldadas; «dudosa» marca los casos en que el criterio no es obvio",
+  "validacion": {
+   "validadas": 84,
+   "exportada": "2026-09-29T18:59:44+02:00",
+   "origen": "la página de validación de #192 (artefacto privado), colección `validaciones`"
+  }
  },
  "lecturas": [
   {
@@ -15,7 +20,13 @@
    "sin_respaldo": [],
    "dudosa": false,
    "nota": "",
-   "validada": null
+   "validada": {
+    "fiel": true,
+    "legibilidad": 1,
+    "decision": "acuerdo",
+    "nota": "Incluye demasiados decimales, marcadores posicionales y nombres de señales internas que no debería recibir un usuario",
+    "actualizada": "2026-09-29T15:41:09.307Z"
+   }
   },
   {
    "id": "27b-04/generica-2",
@@ -25,7 +36,13 @@
    "sin_respaldo": [],
    "dudosa": true,
    "nota": "Llama «factual news» al veredicto global, que es «factual»; «factual news» es la etiqueta de la caja negra. Lo doy por la misma idea, no por mal atribuido.",
-   "validada": null
+   "validada": {
+    "fiel": true,
+    "legibilidad": 2,
+    "decision": "acuerdo",
+    "nota": "",
+    "actualizada": "2026-09-29T15:41:57.132Z"
+   }
   },
   {
    "id": "27b-04/generica-3",
@@ -35,7 +52,13 @@
    "sin_respaldo": [],
    "dudosa": false,
    "nota": "",
-   "validada": null
+   "validada": {
+    "fiel": true,
+    "legibilidad": 1,
+    "decision": "acuerdo",
+    "nota": "Incluye demasiados decimales, marcadores posicionales y nombres de señales internas que no debería recibir un usuario",
+    "actualizada": "2026-09-29T15:42:17.277Z"
+   }
   },
   {
    "id": "27b-04/generica-4",
@@ -45,7 +68,13 @@
    "sin_respaldo": [],
    "dudosa": false,
    "nota": "",
-   "validada": null
+   "validada": {
+    "fiel": true,
+    "legibilidad": 1,
+    "decision": "acuerdo",
+    "nota": "Incluye demasiados decimales, marcadores posicionales y nombres de señales internas que no debería recibir un usuario",
+    "actualizada": "2026-09-29T15:42:32.630Z"
+   }
   },
   {
    "id": "27b-04/especifica-1",
@@ -55,7 +84,13 @@
    "sin_respaldo": [],
    "dudosa": true,
    "nota": "«La herramienta indica que estas pistas aparecen específicamente en las posiciones mencionadas sin agruparlas ni aproximaciones»: es eco del prompt atribuido a la herramienta. No lo cuento como dato, pero la herramienta no dice eso.",
-   "validada": null
+   "validada": {
+    "fiel": true,
+    "legibilidad": 1,
+    "decision": "acuerdo",
+    "nota": "",
+    "actualizada": "2026-09-29T15:43:02.206Z"
+   }
   },
   {
    "id": "27b-04/especifica-2",
@@ -65,7 +100,13 @@
    "sin_respaldo": [],
    "dudosa": false,
    "nota": "",
-   "validada": null
+   "validada": {
+    "fiel": true,
+    "legibilidad": 1,
+    "decision": "acuerdo",
+    "nota": "No responder con valores internos",
+    "actualizada": "2026-09-29T15:43:23.567Z"
+   }
   },
   {
    "id": "27b-04/especifica-3",
@@ -75,7 +116,13 @@
    "sin_respaldo": [],
    "dudosa": false,
    "nota": "",
-   "validada": null
+   "validada": {
+    "fiel": true,
+    "legibilidad": 2,
+    "decision": "corregida",
+    "nota": "Casi perfecto, Incluye demasiados decimales.",
+    "actualizada": "2026-09-29T16:51:30.260Z"
+   }
   },
   {
    "id": "27b-04/especifica-4",
@@ -91,7 +138,13 @@
    ],
    "dudosa": true,
    "nota": "Depende de si nombrar la categoría de una pista, sin que la dé ninguna herramienta llamada, cuenta como infiel. Con la rúbrica al pie de la letra, sí.",
-   "validada": null
+   "validada": {
+    "fiel": false,
+    "legibilidad": 1,
+    "decision": "acuerdo",
+    "nota": "",
+    "actualizada": "2026-09-29T15:44:12.473Z"
+   }
   },
   {
    "id": "27b-04/especifica-5",
@@ -101,7 +154,13 @@
    "sin_respaldo": [],
    "dudosa": false,
    "nota": "",
-   "validada": null
+   "validada": {
+    "fiel": true,
+    "legibilidad": 2,
+    "decision": "acuerdo",
+    "nota": "",
+    "actualizada": "2026-09-29T15:45:20.587Z"
+   }
   },
   {
    "id": "27b-04/especifica-6",
@@ -111,7 +170,13 @@
    "sin_respaldo": [],
    "dudosa": false,
    "nota": "",
-   "validada": null
+   "validada": {
+    "fiel": true,
+    "legibilidad": 2,
+    "decision": "acuerdo",
+    "nota": "",
+    "actualizada": "2026-09-29T15:45:35.908Z"
+   }
   },
   {
    "id": "27b-04/especifica-7",
@@ -121,7 +186,13 @@
    "sin_respaldo": [],
    "dudosa": false,
    "nota": "",
-   "validada": null
+   "validada": {
+    "fiel": true,
+    "legibilidad": 2,
+    "decision": "acuerdo",
+    "nota": "dEMASIADOS DECIMALES",
+    "actualizada": "2026-09-29T15:45:49.900Z"
+   }
   },
   {
    "id": "27b-04/especifica-8",
@@ -131,7 +202,13 @@
    "sin_respaldo": [],
    "dudosa": false,
    "nota": "",
-   "validada": null
+   "validada": {
+    "fiel": true,
+    "legibilidad": 2,
+    "decision": "acuerdo",
+    "nota": "Demasiados decimales",
+    "actualizada": "2026-09-29T15:46:05.028Z"
+   }
   },
   {
    "id": "27b-04/otro_dominio-1",
@@ -141,7 +218,13 @@
    "sin_respaldo": [],
    "dudosa": false,
    "nota": "",
-   "validada": null
+   "validada": {
+    "fiel": true,
+    "legibilidad": 3,
+    "decision": "acuerdo",
+    "nota": "",
+    "actualizada": "2026-09-29T15:52:54.712Z"
+   }
   },
   {
    "id": "27b-04/otro_dominio-2",
@@ -151,7 +234,13 @@
    "sin_respaldo": [],
    "dudosa": false,
    "nota": "",
-   "validada": null
+   "validada": {
+    "fiel": true,
+    "legibilidad": 3,
+    "decision": "acuerdo",
+    "nota": "",
+    "actualizada": "2026-09-29T15:52:57.024Z"
+   }
   },
   {
    "id": "27b-04/otro_dominio-3",
@@ -161,7 +250,13 @@
    "sin_respaldo": [],
    "dudosa": false,
    "nota": "",
-   "validada": null
+   "validada": {
+    "fiel": true,
+    "legibilidad": 1,
+    "decision": "acuerdo",
+    "nota": "Cuidado con no revelar detalles que permitan ataques",
+    "actualizada": "2026-09-29T15:53:33.300Z"
+   }
   },
   {
    "id": "27b-04/contraste-1",
@@ -177,7 +272,13 @@
    ],
    "dudosa": false,
    "nota": "",
-   "validada": null
+   "validada": {
+    "fiel": false,
+    "legibilidad": 2,
+    "decision": "acuerdo",
+    "nota": "",
+    "actualizada": "2026-09-29T15:54:02.069Z"
+   }
   },
   {
    "id": "27b-04/contraste-2",
@@ -187,7 +288,13 @@
    "sin_respaldo": [],
    "dudosa": false,
    "nota": "",
-   "validada": null
+   "validada": {
+    "fiel": true,
+    "legibilidad": 2,
+    "decision": "acuerdo",
+    "nota": "",
+    "actualizada": "2026-09-29T15:54:30.016Z"
+   }
   },
   {
    "id": "27b-04/contraste-3",
@@ -197,7 +304,13 @@
    "sin_respaldo": [],
    "dudosa": false,
    "nota": "",
-   "validada": null
+   "validada": {
+    "fiel": true,
+    "legibilidad": 2,
+    "decision": "acuerdo",
+    "nota": "",
+    "actualizada": "2026-09-29T15:54:47.760Z"
+   }
   },
   {
    "id": "27b-04/contraste-4",
@@ -207,7 +320,13 @@
    "sin_respaldo": [],
    "dudosa": false,
    "nota": "",
-   "validada": null
+   "validada": {
+    "fiel": true,
+    "legibilidad": 2,
+    "decision": "acuerdo",
+    "nota": "",
+    "actualizada": "2026-09-29T15:55:00.592Z"
+   }
   },
   {
    "id": "27b-04/contraste-5",
@@ -217,7 +336,13 @@
    "sin_respaldo": [],
    "dudosa": false,
    "nota": "",
-   "validada": null
+   "validada": {
+    "fiel": true,
+    "legibilidad": 2,
+    "decision": "acuerdo",
+    "nota": "",
+    "actualizada": "2026-09-29T15:56:45.880Z"
+   }
   },
   {
    "id": "27b-04/contraste-6",
@@ -227,7 +352,13 @@
    "sin_respaldo": [],
    "dudosa": false,
    "nota": "",
-   "validada": null
+   "validada": {
+    "fiel": true,
+    "legibilidad": 2,
+    "decision": "acuerdo",
+    "nota": "",
+    "actualizada": "2026-09-29T15:56:52.784Z"
+   }
   },
   {
    "id": "27b-04/bucle-encadena-nyt",
@@ -237,7 +368,13 @@
    "sin_respaldo": [],
    "dudosa": false,
    "nota": "",
-   "validada": null
+   "validada": {
+    "fiel": true,
+    "legibilidad": 1,
+    "decision": "corregida",
+    "nota": "No muestra el cuerpo de la noticia pero lo usa para la comparación.",
+    "actualizada": "2026-09-29T15:58:11.479Z"
+   }
   },
   {
    "id": "27b-04/bucle-dos-senales",
@@ -247,7 +384,13 @@
    "sin_respaldo": [],
    "dudosa": false,
    "nota": "Traduce forward_reference por «referencia vaga» con el léxico llamado: lo doy por traducción.",
-   "validada": null
+   "validada": {
+    "fiel": true,
+    "legibilidad": 1,
+    "decision": "acuerdo",
+    "nota": "",
+    "actualizada": "2026-09-29T15:58:51.681Z"
+   }
   },
   {
    "id": "27b-04/bucle-analisis-completo",
@@ -257,7 +400,13 @@
    "sin_respaldo": [],
    "dudosa": false,
    "nota": "",
-   "validada": null
+   "validada": {
+    "fiel": true,
+    "legibilidad": 1,
+    "decision": "acuerdo",
+    "nota": "",
+    "actualizada": "2026-09-29T16:52:16.427Z"
+   }
   },
   {
    "id": "27b-04/bucle-incoherencia",
@@ -267,7 +416,13 @@
    "sin_respaldo": [],
    "dudosa": false,
    "nota": "",
-   "validada": null
+   "validada": {
+    "fiel": true,
+    "legibilidad": 3,
+    "decision": "acuerdo",
+    "nota": "",
+    "actualizada": "2026-09-29T15:59:22.980Z"
+   }
   },
   {
    "id": "27b-04/bucle-encadena-guardian",
@@ -277,7 +432,13 @@
    "sin_respaldo": [],
    "dudosa": false,
    "nota": "",
-   "validada": null
+   "validada": {
+    "fiel": true,
+    "legibilidad": 1,
+    "decision": "acuerdo",
+    "nota": "Me parece un buen analisis pero que da detalles que solo el programador podría entender (Question como señal se refiere a que termine en pregunta por ejemplo....)",
+    "actualizada": "2026-09-29T16:00:37.776Z"
+   }
   },
   {
    "id": "27b-04/bucle-segundo-turno",
@@ -293,7 +454,13 @@
    ],
    "dudosa": false,
    "nota": "Es el fallo de #188 sin razonar, ahora razonando: 1 de 27 en producción.",
-   "validada": null
+   "validada": {
+    "fiel": false,
+    "legibilidad": 3,
+    "decision": "acuerdo",
+    "nota": "",
+    "actualizada": "2026-09-29T16:00:45.904Z"
+   }
   },
   {
    "id": "2b-04/generica-4",
@@ -303,7 +470,13 @@
    "sin_respaldo": [],
    "dudosa": false,
    "nota": "",
-   "validada": null
+   "validada": {
+    "fiel": true,
+    "legibilidad": 3,
+    "decision": "acuerdo",
+    "nota": "Es extraño que tenga 0...",
+    "actualizada": "2026-09-29T16:02:01.470Z"
+   }
   },
   {
    "id": "2b-04/especifica-2",
@@ -313,7 +486,13 @@
    "sin_respaldo": [],
    "dudosa": false,
    "nota": "",
-   "validada": null
+   "validada": {
+    "fiel": true,
+    "legibilidad": 1,
+    "decision": "acuerdo",
+    "nota": "",
+    "actualizada": "2026-09-29T16:02:14.104Z"
+   }
   },
   {
    "id": "2b-04/especifica-3",
@@ -329,7 +508,13 @@
    ],
    "dudosa": false,
    "nota": "",
-   "validada": null
+   "validada": {
+    "fiel": false,
+    "legibilidad": 2,
+    "decision": "acuerdo",
+    "nota": "",
+    "actualizada": "2026-09-29T16:52:22.156Z"
+   }
   },
   {
    "id": "2b-04/especifica-4",
@@ -339,7 +524,13 @@
    "sin_respaldo": [],
    "dudosa": true,
    "nota": "«La incoherencia no es detectable por debajo del umbral de 0.3» es confuso, pero la similitud 0,371 está por encima y no es incoherente. Ojo: midió la incoherencia contra diez noticias de Guardian concatenadas, y no dio la probabilidad del lineal que se pedía (omitir no es infiel).",
-   "validada": null
+   "validada": {
+    "fiel": true,
+    "legibilidad": 1,
+    "decision": "acuerdo",
+    "nota": "Por muhco que sea fiel, no deberia interpretar eso como una manera de llamar a tantas herramientas",
+    "actualizada": "2026-09-29T16:04:20.624Z"
+   }
   },
   {
    "id": "2b-04/especifica-5",
@@ -355,7 +546,13 @@
    ],
    "dudosa": true,
    "nota": "Puede ser un «sí» de «te respondo», no de «concuerda».",
-   "validada": null
+   "validada": {
+    "fiel": false,
+    "legibilidad": 3,
+    "decision": "acuerdo",
+    "nota": "",
+    "actualizada": "2026-09-29T16:03:25.452Z"
+   }
   },
   {
    "id": "2b-04/especifica-6",
@@ -365,7 +562,13 @@
    "sin_respaldo": [],
    "dudosa": false,
    "nota": "",
-   "validada": null
+   "validada": {
+    "fiel": true,
+    "legibilidad": 2,
+    "decision": "acuerdo",
+    "nota": "",
+    "actualizada": "2026-09-29T16:04:30.880Z"
+   }
   },
   {
    "id": "2b-04/especifica-7",
@@ -375,7 +578,13 @@
    "sin_respaldo": [],
    "dudosa": false,
    "nota": "",
-   "validada": null
+   "validada": {
+    "fiel": true,
+    "legibilidad": 2,
+    "decision": "acuerdo",
+    "nota": "",
+    "actualizada": "2026-09-29T16:04:43.144Z"
+   }
   },
   {
    "id": "2b-04/especifica-8",
@@ -385,7 +594,13 @@
    "sin_respaldo": [],
    "dudosa": false,
    "nota": "Vuelca el JSON tal cual.",
-   "validada": null
+   "validada": {
+    "fiel": true,
+    "legibilidad": 1,
+    "decision": "acuerdo",
+    "nota": "",
+    "actualizada": "2026-09-29T16:04:46.720Z"
+   }
   },
   {
    "id": "2b-04/otro_dominio-1",
@@ -411,7 +626,13 @@
    ],
    "dudosa": false,
    "nota": "",
-   "validada": null
+   "validada": {
+    "fiel": false,
+    "legibilidad": 2,
+    "decision": "acuerdo",
+    "nota": "Hay que analizar como de factibles son estas contradicciones, ya ue no creo que todas se puedan eliminar debido al sesgo del modelo, aun asi, afinar prompt para devolver las noticias de la manera más fiel posible.",
+    "actualizada": "2026-09-29T16:06:21.192Z"
+   }
   },
   {
    "id": "2b-04/otro_dominio-2",
@@ -427,7 +648,13 @@
    ],
    "dudosa": true,
    "nota": "Error de traducción de una palabra; con la rúbrica al pie de la letra, contradicha.",
-   "validada": null
+   "validada": {
+    "fiel": false,
+    "legibilidad": 3,
+    "decision": "acuerdo",
+    "nota": "",
+    "actualizada": "2026-09-29T16:06:28.720Z"
+   }
   },
   {
    "id": "2b-04/otro_dominio-3",
@@ -443,7 +670,13 @@
    ],
    "dudosa": false,
    "nota": "",
-   "validada": null
+   "validada": {
+    "fiel": false,
+    "legibilidad": 1,
+    "decision": "acuerdo",
+    "nota": "",
+    "actualizada": "2026-09-29T16:06:37.040Z"
+   }
   },
   {
    "id": "2b-04/contraste-1",
@@ -453,7 +686,13 @@
    "sin_respaldo": [],
    "dudosa": false,
    "nota": "Llamó al léxico cuando se pedía un porcentaje (del lineal); lo que dice es fiel.",
-   "validada": null
+   "validada": {
+    "fiel": true,
+    "legibilidad": 2,
+    "decision": "acuerdo",
+    "nota": "",
+    "actualizada": "2026-09-29T16:06:47.872Z"
+   }
   },
   {
    "id": "2b-04/contraste-3",
@@ -469,7 +708,13 @@
    ],
    "dudosa": false,
    "nota": "",
-   "validada": null
+   "validada": {
+    "fiel": false,
+    "legibilidad": 1,
+    "decision": "acuerdo",
+    "nota": "Como digo, las posiciones es algo mñas para mostrar en el analisis que parea la respuesta persé",
+    "actualizada": "2026-09-29T16:07:20.717Z"
+   }
   },
   {
    "id": "2b-04/contraste-4",
@@ -479,7 +724,13 @@
    "sin_respaldo": [],
    "dudosa": false,
    "nota": "",
-   "validada": null
+   "validada": {
+    "fiel": true,
+    "legibilidad": 2,
+    "decision": "acuerdo",
+    "nota": "Casi perfecto, demasiados decimales.",
+    "actualizada": "2026-09-29T16:07:46.078Z"
+   }
   },
   {
    "id": "2b-04/bucle-dos-senales",
@@ -489,7 +740,13 @@
    "sin_respaldo": [],
    "dudosa": false,
    "nota": "",
-   "validada": null
+   "validada": {
+    "fiel": true,
+    "legibilidad": 1,
+    "decision": "acuerdo",
+    "nota": "",
+    "actualizada": "2026-09-29T16:52:37.588Z"
+   }
   },
   {
    "id": "2b-04/bucle-analisis-completo",
@@ -510,7 +767,13 @@
    ],
    "dudosa": false,
    "nota": "Además agrupa «what» y «this» bajo [18-27], que es la unión de sus dos posiciones.",
-   "validada": null
+   "validada": {
+    "fiel": false,
+    "legibilidad": 1,
+    "decision": "acuerdo",
+    "nota": "",
+    "actualizada": "2026-09-29T16:52:53.652Z"
+   }
   },
   {
    "id": "2b-04/bucle-incoherencia",
@@ -520,7 +783,13 @@
    "sin_respaldo": [],
    "dudosa": false,
    "nota": "",
-   "validada": null
+   "validada": {
+    "fiel": true,
+    "legibilidad": 3,
+    "decision": "acuerdo",
+    "nota": "",
+    "actualizada": "2026-09-29T16:53:04.778Z"
+   }
   },
   {
    "id": "2b-04/bucle-segundo-turno",
@@ -530,7 +799,13 @@
    "sin_respaldo": [],
    "dudosa": false,
    "nota": "",
-   "validada": null
+   "validada": {
+    "fiel": true,
+    "legibilidad": 2,
+    "decision": "acuerdo",
+    "nota": "",
+    "actualizada": "2026-09-29T16:54:07.745Z"
+   }
   },
   {
    "id": "27b-04-sin-razonar/generica-1",
@@ -546,7 +821,13 @@
    ],
    "dudosa": false,
    "nota": "",
-   "validada": null
+   "validada": {
+    "fiel": false,
+    "legibilidad": 1,
+    "decision": "acuerdo",
+    "nota": "",
+    "actualizada": "2026-09-29T16:54:14.569Z"
+   }
   },
   {
    "id": "27b-04-sin-razonar/generica-2",
@@ -562,7 +843,13 @@
    ],
    "dudosa": false,
    "nota": "",
-   "validada": null
+   "validada": {
+    "fiel": false,
+    "legibilidad": 2,
+    "decision": "acuerdo",
+    "nota": "",
+    "actualizada": "2026-09-29T16:54:16.849Z"
+   }
   },
   {
    "id": "27b-04-sin-razonar/generica-3",
@@ -578,7 +865,13 @@
    ],
    "dudosa": false,
    "nota": "",
-   "validada": null
+   "validada": {
+    "fiel": false,
+    "legibilidad": 2,
+    "decision": "acuerdo",
+    "nota": "",
+    "actualizada": "2026-09-29T16:54:22.298Z"
+   }
   },
   {
    "id": "27b-04-sin-razonar/generica-4",
@@ -594,7 +887,13 @@
    ],
    "dudosa": false,
    "nota": "",
-   "validada": null
+   "validada": {
+    "fiel": false,
+    "legibilidad": 2,
+    "decision": "acuerdo",
+    "nota": "",
+    "actualizada": "2026-09-29T16:54:24.010Z"
+   }
   },
   {
    "id": "27b-04-sin-razonar/especifica-1",
@@ -610,7 +909,13 @@
    ],
    "dudosa": false,
    "nota": "Coincide con lo que da el léxico, pero no lo llamó: acertar sin herramienta sigue siendo inventar.",
-   "validada": null
+   "validada": {
+    "fiel": false,
+    "legibilidad": 1,
+    "decision": "acuerdo",
+    "nota": "",
+    "actualizada": "2026-09-29T16:54:28.370Z"
+   }
   },
   {
    "id": "27b-04-sin-razonar/especifica-2",
@@ -620,7 +925,13 @@
    "sin_respaldo": [],
    "dudosa": false,
    "nota": "",
-   "validada": null
+   "validada": {
+    "fiel": true,
+    "legibilidad": 1,
+    "decision": "acuerdo",
+    "nota": "",
+    "actualizada": "2026-09-29T16:54:34.306Z"
+   }
   },
   {
    "id": "27b-04-sin-razonar/especifica-3",
@@ -636,7 +947,13 @@
    ],
    "dudosa": true,
    "nota": "Las cifras están bien; lo que falla es la interpretación añadida, que el prompt prohíbe.",
-   "validada": null
+   "validada": {
+    "fiel": false,
+    "legibilidad": 1,
+    "decision": "acuerdo",
+    "nota": "",
+    "actualizada": "2026-09-29T16:54:42.666Z"
+   }
   },
   {
    "id": "27b-04-sin-razonar/especifica-4",
@@ -652,7 +969,13 @@
    ],
    "dudosa": false,
    "nota": "",
-   "validada": null
+   "validada": {
+    "fiel": false,
+    "legibilidad": 1,
+    "decision": "acuerdo",
+    "nota": "",
+    "actualizada": "2026-09-29T16:54:45.482Z"
+   }
   },
   {
    "id": "27b-04-sin-razonar/especifica-5",
@@ -668,7 +991,13 @@
    ],
    "dudosa": false,
    "nota": "",
-   "validada": null
+   "validada": {
+    "fiel": false,
+    "legibilidad": 1,
+    "decision": "acuerdo",
+    "nota": "",
+    "actualizada": "2026-09-29T16:54:47.426Z"
+   }
   },
   {
    "id": "27b-04-sin-razonar/especifica-6",
@@ -684,7 +1013,13 @@
    ],
    "dudosa": false,
    "nota": "",
-   "validada": null
+   "validada": {
+    "fiel": false,
+    "legibilidad": 2,
+    "decision": "acuerdo",
+    "nota": "",
+    "actualizada": "2026-09-29T16:55:20.865Z"
+   }
   },
   {
    "id": "27b-04-sin-razonar/especifica-7",
@@ -700,7 +1035,13 @@
    ],
    "dudosa": false,
    "nota": "",
-   "validada": null
+   "validada": {
+    "fiel": false,
+    "legibilidad": 2,
+    "decision": "acuerdo",
+    "nota": "",
+    "actualizada": "2026-09-29T16:55:23.497Z"
+   }
   },
   {
    "id": "27b-04-sin-razonar/especifica-8",
@@ -716,7 +1057,13 @@
    ],
    "dudosa": false,
    "nota": "",
-   "validada": null
+   "validada": {
+    "fiel": false,
+    "legibilidad": 3,
+    "decision": "acuerdo",
+    "nota": "",
+    "actualizada": "2026-09-29T16:55:24.465Z"
+   }
   },
   {
    "id": "27b-03/generica-1",
@@ -726,7 +1073,13 @@
    "sin_respaldo": [],
    "dudosa": false,
    "nota": "",
-   "validada": null
+   "validada": {
+    "fiel": true,
+    "legibilidad": 1,
+    "decision": "acuerdo",
+    "nota": "",
+    "actualizada": "2026-09-29T16:55:49.769Z"
+   }
   },
   {
    "id": "27b-03/generica-2",
@@ -736,7 +1089,13 @@
    "sin_respaldo": [],
    "dudosa": false,
    "nota": "",
-   "validada": null
+   "validada": {
+    "fiel": true,
+    "legibilidad": 2,
+    "decision": "acuerdo",
+    "nota": "",
+    "actualizada": "2026-09-29T16:56:08.944Z"
+   }
   },
   {
    "id": "27b-03/generica-3",
@@ -746,7 +1105,13 @@
    "sin_respaldo": [],
    "dudosa": false,
    "nota": "",
-   "validada": null
+   "validada": {
+    "fiel": true,
+    "legibilidad": 1,
+    "decision": "acuerdo",
+    "nota": "",
+    "actualizada": "2026-09-29T16:56:16.536Z"
+   }
   },
   {
    "id": "27b-03/generica-4",
@@ -756,7 +1121,13 @@
    "sin_respaldo": [],
    "dudosa": false,
    "nota": "",
-   "validada": null
+   "validada": {
+    "fiel": true,
+    "legibilidad": 1,
+    "decision": "acuerdo",
+    "nota": "",
+    "actualizada": "2026-09-29T16:56:20.376Z"
+   }
   },
   {
    "id": "27b-03/especifica-1",
@@ -766,7 +1137,13 @@
    "sin_respaldo": [],
    "dudosa": false,
    "nota": "",
-   "validada": null
+   "validada": {
+    "fiel": true,
+    "legibilidad": 1,
+    "decision": "acuerdo",
+    "nota": "",
+    "actualizada": "2026-09-29T16:56:24.520Z"
+   }
   },
   {
    "id": "27b-03/especifica-2",
@@ -776,7 +1153,13 @@
    "sin_respaldo": [],
    "dudosa": false,
    "nota": "",
-   "validada": null
+   "validada": {
+    "fiel": true,
+    "legibilidad": 1,
+    "decision": "acuerdo",
+    "nota": "",
+    "actualizada": "2026-09-29T16:56:31.384Z"
+   }
   },
   {
    "id": "27b-03/especifica-3",
@@ -792,7 +1175,13 @@
    ],
    "dudosa": true,
    "nota": "El mismo caso que 27b-04/especifica-4.",
-   "validada": null
+   "validada": {
+    "fiel": false,
+    "legibilidad": 1,
+    "decision": "acuerdo",
+    "nota": "",
+    "actualizada": "2026-09-29T16:56:38.384Z"
+   }
   },
   {
    "id": "27b-03/especifica-4",
@@ -808,7 +1197,13 @@
    ],
    "dudosa": true,
    "nota": "El mismo caso que 27b-04/especifica-4.",
-   "validada": null
+   "validada": {
+    "fiel": false,
+    "legibilidad": 1,
+    "decision": "acuerdo",
+    "nota": "",
+    "actualizada": "2026-09-29T16:56:39.153Z"
+   }
   },
   {
    "id": "27b-03/especifica-5",
@@ -818,7 +1213,13 @@
    "sin_respaldo": [],
    "dudosa": false,
    "nota": "",
-   "validada": null
+   "validada": {
+    "fiel": true,
+    "legibilidad": 3,
+    "decision": "acuerdo",
+    "nota": "",
+    "actualizada": "2026-09-29T16:56:51.081Z"
+   }
   },
   {
    "id": "27b-03/especifica-6",
@@ -828,7 +1229,13 @@
    "sin_respaldo": [],
    "dudosa": false,
    "nota": "",
-   "validada": null
+   "validada": {
+    "fiel": true,
+    "legibilidad": 2,
+    "decision": "acuerdo",
+    "nota": "",
+    "actualizada": "2026-09-29T16:57:10.999Z"
+   }
   },
   {
    "id": "27b-03/especifica-7",
@@ -838,7 +1245,13 @@
    "sin_respaldo": [],
    "dudosa": false,
    "nota": "",
-   "validada": null
+   "validada": {
+    "fiel": true,
+    "legibilidad": 2,
+    "decision": "acuerdo",
+    "nota": "",
+    "actualizada": "2026-09-29T16:57:16.487Z"
+   }
   },
   {
    "id": "27b-03/especifica-8",
@@ -848,7 +1261,13 @@
    "sin_respaldo": [],
    "dudosa": false,
    "nota": "",
-   "validada": null
+   "validada": {
+    "fiel": true,
+    "legibilidad": 2,
+    "decision": "acuerdo",
+    "nota": "",
+    "actualizada": "2026-09-29T16:57:20.671Z"
+   }
   },
   {
    "id": "27b-03/otro_dominio-1",
@@ -858,7 +1277,13 @@
    "sin_respaldo": [],
    "dudosa": false,
    "nota": "",
-   "validada": null
+   "validada": {
+    "fiel": true,
+    "legibilidad": 2,
+    "decision": "corregida",
+    "nota": "NO es por legibilidad, pero deberia devolver dichos titulares, no hacer un resumen",
+    "actualizada": "2026-09-29T16:58:04.175Z"
+   }
   },
   {
    "id": "27b-03/otro_dominio-2",
@@ -868,7 +1293,13 @@
    "sin_respaldo": [],
    "dudosa": false,
    "nota": "",
-   "validada": null
+   "validada": {
+    "fiel": true,
+    "legibilidad": 3,
+    "decision": "acuerdo",
+    "nota": "",
+    "actualizada": "2026-09-29T16:58:11.791Z"
+   }
   },
   {
    "id": "27b-03/otro_dominio-3",
@@ -894,7 +1325,13 @@
    ],
    "dudosa": false,
    "nota": "",
-   "validada": null
+   "validada": {
+    "fiel": false,
+    "legibilidad": 2,
+    "decision": "acuerdo",
+    "nota": "",
+    "actualizada": "2026-09-29T16:58:15.639Z"
+   }
   },
   {
    "id": "27b-03/contraste-1",
@@ -904,7 +1341,13 @@
    "sin_respaldo": [],
    "dudosa": true,
    "nota": "«El detector también confirmó que cumple el umbral»: sólo se llamó al lineal; lo leo como el propio lineal (is_clickbait true).",
-   "validada": null
+   "validada": {
+    "fiel": true,
+    "legibilidad": 2,
+    "decision": "acuerdo",
+    "nota": "",
+    "actualizada": "2026-09-29T16:58:19.727Z"
+   }
   },
   {
    "id": "27b-03/contraste-2",
@@ -914,7 +1357,13 @@
    "sin_respaldo": [],
    "dudosa": false,
    "nota": "",
-   "validada": null
+   "validada": {
+    "fiel": true,
+    "legibilidad": 1,
+    "decision": "acuerdo",
+    "nota": "",
+    "actualizada": "2026-09-29T16:58:29.919Z"
+   }
   },
   {
    "id": "27b-03/contraste-3",
@@ -924,7 +1373,13 @@
    "sin_respaldo": [],
    "dudosa": false,
    "nota": "",
-   "validada": null
+   "validada": {
+    "fiel": true,
+    "legibilidad": 1,
+    "decision": "acuerdo",
+    "nota": "",
+    "actualizada": "2026-09-29T16:58:33.600Z"
+   }
   },
   {
    "id": "27b-03/contraste-4",
@@ -934,7 +1389,13 @@
    "sin_respaldo": [],
    "dudosa": false,
    "nota": "",
-   "validada": null
+   "validada": {
+    "fiel": true,
+    "legibilidad": 2,
+    "decision": "acuerdo",
+    "nota": "",
+    "actualizada": "2026-09-29T16:58:36.647Z"
+   }
   },
   {
    "id": "27b-03/contraste-5",
@@ -944,7 +1405,13 @@
    "sin_respaldo": [],
    "dudosa": false,
    "nota": "",
-   "validada": null
+   "validada": {
+    "fiel": true,
+    "legibilidad": 2,
+    "decision": "acuerdo",
+    "nota": "",
+    "actualizada": "2026-09-29T16:58:42.655Z"
+   }
   },
   {
    "id": "27b-03/contraste-6",
@@ -954,7 +1421,13 @@
    "sin_respaldo": [],
    "dudosa": false,
    "nota": "",
-   "validada": null
+   "validada": {
+    "fiel": true,
+    "legibilidad": 2,
+    "decision": "acuerdo",
+    "nota": "",
+    "actualizada": "2026-09-29T16:58:43.447Z"
+   }
   },
   {
    "id": "27b-03/bucle-encadena-nyt",
@@ -964,7 +1437,13 @@
    "sin_respaldo": [],
    "dudosa": false,
    "nota": "",
-   "validada": null
+   "validada": {
+    "fiel": true,
+    "legibilidad": 2,
+    "decision": "acuerdo",
+    "nota": "",
+    "actualizada": "2026-09-29T16:58:48.512Z"
+   }
   },
   {
    "id": "27b-03/bucle-dos-senales",
@@ -974,7 +1453,13 @@
    "sin_respaldo": [],
    "dudosa": false,
    "nota": "",
-   "validada": null
+   "validada": {
+    "fiel": true,
+    "legibilidad": 2,
+    "decision": "acuerdo",
+    "nota": "",
+    "actualizada": "2026-09-29T16:58:52.568Z"
+   }
   },
   {
    "id": "27b-03/bucle-analisis-completo",
@@ -984,7 +1469,13 @@
    "sin_respaldo": [],
    "dudosa": false,
    "nota": "",
-   "validada": null
+   "validada": {
+    "fiel": true,
+    "legibilidad": 1,
+    "decision": "acuerdo",
+    "nota": "",
+    "actualizada": "2026-09-29T16:58:56.734Z"
+   }
   },
   {
    "id": "27b-03/bucle-incoherencia",
@@ -994,7 +1485,13 @@
    "sin_respaldo": [],
    "dudosa": false,
    "nota": "",
-   "validada": null
+   "validada": {
+    "fiel": true,
+    "legibilidad": 2,
+    "decision": "acuerdo",
+    "nota": "",
+    "actualizada": "2026-09-29T16:58:55.160Z"
+   }
   },
   {
    "id": "27b-03/bucle-encadena-guardian",
@@ -1004,7 +1501,13 @@
    "sin_respaldo": [],
    "dudosa": false,
    "nota": "",
-   "validada": null
+   "validada": {
+    "fiel": true,
+    "legibilidad": 1,
+    "decision": "acuerdo",
+    "nota": "",
+    "actualizada": "2026-09-29T16:58:58.214Z"
+   }
   },
   {
    "id": "27b-03/bucle-segundo-turno",
@@ -1014,7 +1517,13 @@
    "sin_respaldo": [],
    "dudosa": false,
    "nota": "",
-   "validada": null
+   "validada": {
+    "fiel": true,
+    "legibilidad": 2,
+    "decision": "acuerdo",
+    "nota": "",
+    "actualizada": "2026-09-29T16:59:06.102Z"
+   }
   }
  ]
 }

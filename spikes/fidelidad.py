@@ -67,6 +67,12 @@ partes:
    mano en el corpus. La regla para decidir se fijó ANTES de medir y está en
    la sección del README.
 
+5. `validar` y `calibrar`: sin GPU. La lectura de Claude la valida el autor en
+   una página aparte; `validar` copia esas decisiones, exportadas, al campo
+   `validada` de `lectura.json`, y `calibrar` mide contra ellas a cada juez, a
+   las parejas de jueces y a la propia lectura: cuántas infieles caza, cuántas
+   fieles da por infieles, el kappa y la legibilidad.
+
 Ejecutar desde la raíz, con el túnel abierto (la sesión la abre
 `spikes/fidelidad_a40.sh`):
 
@@ -75,6 +81,8 @@ Ejecutar desde la raíz, con el túnel abierto (la sesión la abre
     NLP_BACKEND=local .venv/bin/python spikes/fidelidad.py comparar A B C D
     NLP_BACKEND=local .venv/bin/python spikes/fidelidad.py comparar E:05-llano
     .venv/bin/python spikes/fidelidad.py resumen
+    .venv/bin/python spikes/fidelidad.py validar <carpeta exportada>
+    .venv/bin/python spikes/fidelidad.py calibrar
 
 Sin fuentes, las cuatro; los jueces, de uno en uno; `E:<prompt>` es la
 condición del perfil preciso sobre ese prompt. `OLLAMA_URL` cambia el servidor
@@ -910,6 +918,132 @@ def resumen() -> None:
     print(f"\nEl resumen, en {CARPETA / 'resumen.json'}")
 
 
+# ----- 5 · La calibración -----
+
+
+def validar(carpeta: Path) -> None:
+    """Lleva a `lectura.json` lo validado por el autor en la página de validación.
+
+    La página guarda cada decisión en su base de datos, fuera del repositorio;
+    se exporta a una carpeta (un JSON por caso) y aquí se copia a `validada`,
+    junto a la lectura de Claude que se validaba. Sin esto, la referencia de la
+    calibración no estaría en el repositorio y no se podría citar.
+    """
+    ruta = CARPETA / "lectura.json"
+    registro = json.loads(ruta.read_text(encoding="utf-8"))
+    validaciones = {}
+    for fichero in sorted(carpeta.glob("*.json")):
+        cuerpo = json.loads(fichero.read_text(encoding="utf-8"))
+        validaciones[cuerpo["id"]] = {
+            clave: cuerpo.get(clave) for clave in ("fiel", "legibilidad", "decision", "nota", "actualizada")
+        }
+    desconocidas = set(validaciones) - {lectura["id"] for lectura in registro["lecturas"]}
+    if desconocidas:
+        sys.exit(f"ABORTADO: validaciones de casos que no están en la lectura: {sorted(desconocidas)}")
+    for lectura in registro["lecturas"]:
+        lectura["validada"] = validaciones.get(lectura["id"])
+    registro["condiciones"]["validacion"] = {
+        "validadas": len(validaciones),
+        "exportada": datetime.now().astimezone().isoformat(timespec="seconds"),
+        "origen": "la página de validación de #192 (artefacto privado), colección `validaciones`",
+    }
+    _guardar(registro, ruta)
+    decisiones = Counter(validacion["decision"] for validacion in validaciones.values())
+    print(f"  {len(validaciones)} de {len(registro['lecturas'])} validadas · {dict(decisiones)} → {ruta}")
+
+
+def _kappa(referencia: list[bool], dicho: list[bool]) -> float | None:
+    """El kappa de Cohen: el acuerdo, descontado el que saldría por azar."""
+    if not referencia:
+        return None
+    total = len(referencia)
+    observado = sum(uno == otro for uno, otro in zip(referencia, dicho, strict=True)) / total
+    por_azar = sum(
+        (referencia.count(valor) / total) * (dicho.count(valor) / total) for valor in (True, False)
+    )
+    return round((observado - por_azar) / (1 - por_azar), 3) if por_azar < 1 else None
+
+
+def _frente_a(referencia: dict[str, dict], dicho: dict[str, dict]) -> dict:
+    """Un juez (o la lectura, o una combinación) frente a lo validado.
+
+    «Positivo» es INFIEL: lo que importa es cuántas infieles caza y cuántas
+    fieles da por infieles.
+    """
+    comunes = [clave for clave in referencia if clave in dicho]
+    ref_fiel = [referencia[clave]["fiel"] for clave in comunes]
+    dicho_fiel = [dicho[clave]["fiel"] for clave in comunes]
+    infieles = [clave for clave in comunes if not referencia[clave]["fiel"]]
+    fieles = [clave for clave in comunes if referencia[clave]["fiel"]]
+    escapadas = [clave for clave in infieles if dicho[clave]["fiel"]]
+    falsas = [clave for clave in fieles if not dicho[clave]["fiel"]]
+    con_legibilidad = [clave for clave in comunes if dicho[clave].get("legibilidad") is not None]
+    diferencias = [dicho[clave]["legibilidad"] - referencia[clave]["legibilidad"] for clave in con_legibilidad]
+    return {
+        "casos": len(comunes),
+        "acuerdo": sum(uno == otro for uno, otro in zip(ref_fiel, dicho_fiel, strict=True)),
+        "kappa": _kappa(ref_fiel, dicho_fiel),
+        "infieles": len(infieles),
+        "cazadas": len(infieles) - len(escapadas),
+        "fieles": len(fieles),
+        "falsas_alarmas": len(falsas),
+        "escapadas_ids": escapadas,
+        "falsas_alarmas_ids": falsas,
+        "legibilidad_igual": sum(diferencia == 0 for diferencia in diferencias) if diferencias else None,
+        "legibilidad_diferencia_media": round(statistics.mean(diferencias), 2) if diferencias else None,
+    }
+
+
+def calibrar() -> None:
+    """Cada juez, y la lectura de Claude, frente a lo validado por el autor."""
+    lecturas = json.loads((CARPETA / "lectura.json").read_text(encoding="utf-8"))["lecturas"]
+    referencia = {lectura["id"]: lectura["validada"] for lectura in lecturas if lectura.get("validada")}
+    print(f"== referencia: {len(referencia)} casos validados por el autor")
+    dichos: dict[str, dict[str, dict]] = {
+        "lectura de Claude": {lectura["id"]: lectura for lectura in lecturas},
+    }
+    for ruta in sorted(CARPETA.glob("juez-*.json")):
+        registro = json.loads(ruta.read_text(encoding="utf-8"))
+        if "juzgado" in registro["condiciones"]:
+            continue  # los juicios de la comparación no se calibran: no hay lectura a mano
+        dichos[registro["condiciones"]["juez"]] = {
+            fila["id"]: {"fiel": fila["fiel_recalculado"], "legibilidad": fila["juicio"]["legibilidad"]}
+            for fila in registro["juicios"]
+            if not fila["error"] and fila.get("json_valido")
+        }
+    # Dos jueces juntos: infiel si lo dice alguno (caza más) o si lo dicen los
+    # dos (menos falsas alarmas). La legibilidad no se combina.
+    jueces = [nombre for nombre in dichos if nombre != "lectura de Claude"]
+    for posicion, uno in enumerate(jueces):
+        for otro in jueces[posicion + 1 :]:
+            comunes = set(dichos[uno]) & set(dichos[otro])
+            dichos[f"{uno} o {otro}"] = {
+                clave: {"fiel": dichos[uno][clave]["fiel"] and dichos[otro][clave]["fiel"]} for clave in comunes
+            }
+            dichos[f"{uno} y {otro}"] = {
+                clave: {"fiel": dichos[uno][clave]["fiel"] or dichos[otro][clave]["fiel"]} for clave in comunes
+            }
+
+    salida = {"validados": len(referencia), "frente_a_la_referencia": {}}
+    for nombre, dicho in dichos.items():
+        cifras = _frente_a(referencia, dicho)
+        salida["frente_a_la_referencia"][nombre] = cifras
+        print(
+            f"  {nombre:32} {cifras['casos']:3} casos · acuerdo {cifras['acuerdo']}/{cifras['casos']} "
+            f"(kappa {cifras['kappa']}) · infieles cazadas {cifras['cazadas']}/{cifras['infieles']} · "
+            f"falsas alarmas {cifras['falsas_alarmas']}/{cifras['fieles']}"
+            + (
+                f" · legibilidad igual {cifras['legibilidad_igual']}, diferencia media {cifras['legibilidad_diferencia_media']:+}"
+                if cifras["legibilidad_igual"] is not None
+                else ""
+            )
+        )
+        if cifras["escapadas_ids"]:
+            print(f"      se le escapan: {cifras['escapadas_ids']}")
+    _guardar(salida, CARPETA / "calibracion.json")
+    print(f"\nLa calibración, en {CARPETA / 'calibracion.json'}")
+
+
 async def _con_mcp(corrutina) -> None:
     """Sirve el `mcp` de producción en proceso mientras corre `corrutina`."""
     app = SERVIDOR.streamable_http_app()
@@ -938,6 +1072,12 @@ async def main(parte: str, argumentos: list[str]) -> None:
     if parte == "resumen":
         resumen()
         return
+    if parte == "validar":
+        validar(Path(argumentos[0]))
+        return
+    if parte == "calibrar":
+        calibrar()
+        return
 
     fuentes = [fuente for fuente in FUENTES if fuente.nombre in argumentos]
     ruta = Path(os.environ.get("FIDELIDAD_JSON", CORPUS))
@@ -963,6 +1103,12 @@ if __name__ == "__main__":
     elif parte == "comparar":
         if not argumentos:
             sys.exit("Uso: fidelidad.py comparar A B C D | fidelidad.py comparar E:<prompt>")
-    elif parte != "resumen":
-        sys.exit("Uso: fidelidad.py corpus | jueces <modelo> [fichero] | comparar <condición ...> | resumen")
+    elif parte == "validar":
+        if len(argumentos) != 1:
+            sys.exit("Uso: fidelidad.py validar <carpeta con la exportación de la página>")
+    elif parte not in ("resumen", "calibrar"):
+        sys.exit(
+            "Uso: fidelidad.py corpus | jueces <modelo> [fichero] | comparar <condición ...>"
+            " | resumen | validar <carpeta> | calibrar"
+        )
     asyncio.run(main(parte, argumentos))

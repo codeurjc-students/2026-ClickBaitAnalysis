@@ -3900,6 +3900,564 @@
    "fiel_recalculado": true,
    "sin_respaldo": 0,
    "se_contradice": false
+  },
+  {
+   "id": "27b-03/otro_dominio-3",
+   "fuente": "27b-03",
+   "caracteres": 10810,
+   "error": null,
+   "json_valido": true,
+   "juicio": {
+    "afirmaciones": [
+     {
+      "texto": "El sistema emplea cinco modelos",
+      "herramienta": "describe_models",
+      "clasificacion": "respaldada",
+      "motivo": "La herramienta devuelve una lista con cinco objetos (modelos/señales)."
+     },
+     {
+      "texto": "uno opaco entrenado en Webis-17 que clasifica titulares",
+      "herramienta": "describe_models",
+      "clasificacion": "respaldada",
+      "motivo": "Se refiere a 'detect_clickbait', que es de tipo 'opaque', nombre 'entrenado en Webis-17' y su tarea es clasificar el titular."
+     },
+     {
+      "texto": "cuya ejecución remota falla y requiere torch localmente",
+      "herramienta": "describe_models",
+      "clasificacion": "respaldada",
+      "motivo": "En las limitaciones de 'detect_clickbait' se indica que no se puede servir en remoto (error 400) y que depende del paquete 'torch' para la vía local."
+     },
+     {
+      "texto": "un modelo de sentimiento también opaco entrenado en tuits",
+      "herramienta": "describe_models",
+      "clasificacion": "respaldada",
+      "motivo": "Se refiere a 'analyze_sentiment', que es de tipo 'opaque' y su nombre indica que está afinado en tuits."
+     },
+     {
+      "texto": "una herramienta híbrida basada en embeddings para medir incoherencia titular-cuerpo que depende del paquete sentence-transformers",
+      "herramienta": "describe_models",
+      "clasificacion": "respaldada",
+      "motivo": "Se refiere a 'detect_clickbait_incoherence', que es de tipo 'hybrid', usa embeddings para similitud titular-contenido y menciona la dependencia de 'sentence-transformers'."
+     },
+     {
+      "texto": "dos señales interpretables (una léxica por reglas y otra regresión logística) que detectan pistas de estilo pero no engaño semántico",
+      "herramienta": "describe_models",
+      "clasificacion": "respaldada",
+      "motivo": "Se refiere a 'detect_clickbait_lexical' y 'detect_clickbait_linear', ambos de tipo 'interpretable', y ambos indican en sus limitaciones que captan el estilo/forma pero no el engaño semántico."
+     },
+     {
+      "texto": "Todas las herramientas presentan limitaciones compartidas como estar diseñadas exclusivamente para inglés",
+      "herramienta": "describe_models",
+      "clasificacion": "respaldada",
+      "motivo": "Los cinco modelos listados incluyen 'Solo inglés' en sus limitaciones."
+     },
+     {
+      "texto": "Todas las herramientas presentan limitaciones compartidas como... depender de paquetes externos que pueden faltar en instalaciones básicas",
+      "herramienta": "describe_models",
+      "clasificacion": "inventada",
+      "motivo": "Solo se menciona explícitamente que faltan en 'requirements.txt' los paquetes de 'detect_clickbait' (torch) y 'detect_clickbait_incoherence' (sentence-transformers), no en los otros tres."
+     },
+     {
+      "texto": "Todas las herramientas presentan limitaciones compartidas como... mostrar caídas significativas en su rendimiento cuando se evalúan fuera de sus dominios de entrenamiento originales",
+      "herramienta": "describe_models",
+      "clasificacion": "contradicha",
+      "motivo": "Para el modelo 'detect_clickbait', el resultado dice explícitamente que 'rinde MEJOR fuera de su dominio (F1 0.946 en Chakraborty) que dentro (0.631 y 0.758 en los dos splits de Webis)'."
+     },
+     {
+      "texto": "La señal de caja negra tiene además la particularidad de no poder ser servida por la API remota debido a falta de soporte del proveedor",
+      "herramienta": "describe_models",
+      "clasificacion": "respaldada",
+      "motivo": "En 'detect_clickbait' se indica que 'hf-inference responde 400 Model not supported by provider'."
+     },
+     {
+      "texto": "obligando a una ejecución local con requisitos específicos de hardware virtualizado",
+      "herramienta": "describe_models",
+      "clasificacion": "inventada",
+      "motivo": "El texto menciona el uso de una imagen y un compose (Docker) y especifica RAM y CPU, pero no menciona 'hardware virtualizado' como un requisito específico."
+     }
+    ],
+    "fiel": false,
+    "legibilidad": 3,
+    "motivo_legibilidad": "La respuesta es muy clara y traduce perfectamente los términos técnicos y los IDs de los modelos a descripciones funcionales y comprensibles para cualquier usuario."
+   },
+   "crudo": null,
+   "pensamiento": "The user wants me to review an assistant's response based on the output of a tool called `describe_models`.\n\n    *   `detect_clickbait` (RoBERTa): Opaque, Webis-17, local backend. Limitations: Black box, English only, remote service fails (400), requires `torch` locally.\n    *   `analyze_sentiment` (RoBERTa): Opaque, tweets, remote/local backend. Limitations: Tweets not news, black box, English only.\n    *   `detect_clickbait_incoherence` (MiniLM-L6-v2): Hybrid, embeddings, local backend. Limitations: Transparent decision/opaque feature, needs body/teaser, English only, requires `sentence-transformers` locally.\n    *   `detect_clickbait_lexical` (Rules): Interpretable, Chakraborty cues, local backend. Limitations: Style not semantic deception, superficial, English only, doesn't generalize well outside domain.\n    *   `detect_clickbait_linear` (Logistic Regression): Interpretable, Chakraborty, local backend. Limitations: Style not semantic deception, English only, doesn't generalize well outside domain.\n\n    *   *Claim 1:* \"El sistema emplea cinco modelos\" -> Supported (5 entries in the list).\n    *   *Claim 2:* \"uno opaco entrenado en Webis-17 que clasifica titulares\" -> Supported (`detect_clickbait`: type \"opaque\", name \"entrenado en Webis-17\", task \"Clasifica el titular\").\n    *   *Claim 3:* \"cuya ejecución remota falla y requiere torch localmente\" -> Supported (`detect_clickbait` limitations: \"NO SE PUEDE SERVIR EN REMOTO\", \"DEPENDE DE UN PAQUETE... torch\").\n    *   *Claim 4:* \"un modelo de sentimiento también opaco entrenado en tuits\" -> Supported (`analyze_sentiment`: type \"opaque\", name \"afinado en tuits\").\n    *   *Claim 5:* \"una herramienta híbrida basada en embeddings para medir incoherencia titular-cuerpo que depende del paquete sentence-transformers\" -> Supported (`detect_clickbait_incoherence`: type \"hybrid\", task \"Similitud coseno titular↔contenido\", limitations \"DEPENDE DE UN PAQUETE... sentence-transformers\").\n    *   *Claim 6:* \"dos señales interpretables (una léxica por reglas y otra regresión logística) que detectan pistas de estilo pero no engaño semántico\" -> Supported (`detect_clickbait_lexical` and `detect_clickbait_linear`: type \"interpretable\", names \"Léxico por reglas\" and \"Regresión logística\", limitations \"Capta clickbait de forma/estilo, no de engaño semántico\" and \"Detecta clickbait de ESTILO... No capta engaño semántico\").\n    *   *Claim 7:* \"Todas las herramientas presentan limitaciones compartidas como estar diseñadas exclusivamente para inglés\" -> Supported (All 5 have \"Solo inglés\" or \"Solo inglés\" in limitations).\n    *   *Claim 8:* \"depender de paquetes externos que pueden faltar en instalaciones básicas\" -> Supported (Mentioned for `detect_clickbait` [torch] and `detect_clickbait_incoherence` [sentence-transformers]. Note: The assistant says \"Todas\", but only two explicitly mention missing packages in `requirements.txt`. However, the others are \"local\" and might be assumed to need packages, but the text specifically highlights the missing ones for two. Let's check if \"Todas\" is too broad. The tool results for the others don't mention missing packages. But wait, the assistant says \"limitaciones compartidas como...\". This implies these are examples of shared limitations. Is it true that *all* depend on external packages? Yes, they are models/libraries. Is it true they *might* be missing in basic installations? The text explicitly says this for two. For the others, it's not mentioned. However, usually, \"como\" introduces examples. But \"Todas las herramientas presentan limitaciones compartidas como...\" suggests the list following is a set of shared limitations. \"Solo inglés\" is shared by all. \"Depender de paquetes externos\" is true for all (they are all code), but the \"faltar en instalaciones básicas\" part is only explicitly detailed for two. Let's look closer. Actually, the assistant says \"limitaciones compartidas como [A], [B], y [C]\". If [B] is not shared by all, it's a problem. Let's re-read: \"depender de paquetes externos que pueden faltar en instalaciones básicas\". Only `detect_clickbait` and `detect_clickbait_incoherence` mention the `requirements.txt` issue. The others don't. This is a slight overgeneralization, but is it \"invented\" or \"contradicted\"? The tool says `detect_clickbait_lexical` and `detect_clickbait_linear` are \"local\". They likely use `scikit-learn` or similar, but the text doesn't say they are missing from `requirements.txt`. I will mark this as `inventada` or `contradicha` regarding the \"Todas\" part for the specific \"faltar en instalaciones básicas\" detail.\n    *   *Claim 9:* \"mostrar caídas significativas en su rendimiento cuando se evalúan fuera de sus dominios de entrenamiento originales\" -> Supported (Mentioned for `detect_clickbait` [Webis vs Chakraborty], `detect_clickbait_lexical` [News vs Tweets], `detect_clickbait_linear` [News vs Tweets], `analyze_sentiment` [Tweets vs News]). `detect_clickbait_incoherence` mentions calibration on Webis-17 and that it's calibrated on tweets, but doesn't explicitly mention a \"drop\" in performance outside domain in the same way, though it mentions precision is low in certain subsets. Overall, this is a fair summary of the \"generalization\" limitations mentioned across most models.\n    *   *Claim 10:* \"La señal de caja negra tiene además la particularidad de no poder ser servida por la API remota debido a falta de soporte del proveedor\" -> Supported (`detect_clickbait` limitations: \"NO SE PUEDE SERVIR EN REMOTO... hf-inference responde 400 Model not supported by provider\").\n    *   *Claim 11:* \"obligando a una ejecución local con requisitos específicos de hardware virtualizado\" -> The tool mentions \"la imagen instala la rueda CPU-only de torch\" and \"el compose fija nlp_backend=local\". \"Hardware virtualizado\" is a bit of a stretch/interpretation of \"imagen\" and \"compose\" (Docker), but it's not explicitly in the text. However, it's a reasonable deduction from \"imagen\" and \"compose\". Wait, \"requisitos específicos de hardware virtualizado\" is not in the text. The text mentions \"rueda CPU-only\" and \"RAM\". It doesn't mention \"virtualized hardware\" as a requirement, but rather as the environment. I'll check if this is `inventada`.\n\n    *   *Refining Claim 8 (Shared limitations):* \"Todas las herramientas presentan limitaciones compartidas como... depender de paquetes externos que pueden faltar en instalaciones básicas\".\n        *   `detect_clickbait`: Yes (torch).\n        *   `analyze_sentiment`: No mention of missing packages.\n        *   `detect_clickbait_incoherence`: Yes (sentence-transformers).\n        *   `detect_clickbait_lexical`: No mention.\n        *   `detect_clickbait_linear`: No mention.\n        *   Verdict: `inventada` (or `contradicha` by omission) because it attributes this specific limitation to *all* tools.\n\n    *   *Refining Claim 11 (Hardware virtualizado):* \"obligando a una ejecución local con requisitos específicos de hardware virtualizado\".\n        *   The text mentions \"imagen\" (Docker image) and \"compose\" (Docker Compose).\n        *   It mentions \"rueda CPU-only\" and \"1.201 MB de RAM\".\n        *   It does NOT mention \"hardware virtualizado\" as a requirement. It mentions the deployment uses an image.\n        *   Verdict: `inventada`.\n\n    *   The response is clear. It avoids technical IDs like `Stremie/roberta-base-clickbait` and uses \"modelo opaco\", \"herramienta híbrida\", etc.\n    *   It explains the meaning of the tools.\n    *   Score: 3.\n\n    *   Claim 1: 5 models -> Supported.\n    *   Claim 2: Opaque, Webis-17, classifies headlines -> Supported.\n    *   Claim 3: Remote fails, needs torch local -> Supported.\n    *   Claim 4: Sentiment, opaque, tweets -> Supported.\n    *   Claim 5: Hybrid, embeddings, incoherence, sentence-transformers -> Supported.\n    *   Claim 6: Two interpretable (lexical/logistic), style not semantic -> Supported.\n    *   Claim 7: All English only -> Supported.\n    *   Claim 8: All depend on external packages that might be missing in basic installs -> `inventada`. Only 2 of 5 are mentioned as missing from `requirements.txt`.\n    *   Claim 9: All show performance drops outside domain -> Mostly supported, though `analyze_sentiment` just says \"trained on tweets, not news\" without a specific \"drop\" metric, but the others do. It's a fair summary.\n    *   Claim 10: Black box (detect_clickbait) cannot be served via remote API due to provider support -> Supported.\n    *   Claim 11: Requires specific virtualized hardware -> `inventada`. The text mentions Docker (image/compose) and CPU/RAM, but not \"virtualized hardware\" as a requirement.\n\n    *   Wait, let's re-read Claim 8. \"depender de paquetes externos que pueden faltar en instalaciones básicas\".\n        *   `detect_clickbait`: \"DEPENDE DE UN PAQUETE QUE requirements.txt NO TRAE: torch\".\n        *   `detect_clickbait_incoherence`: \"DEPENDE DE UN PAQUETE QUE requirements.txt NO TRAE: sentence-transformers\".\n        *   The others don't mention this. Attributing it to \"Todas\" is incorrect.\n\n    *   Wait, let's re-read Claim 11. \"requisitos específicos de hardware virtualizado\".\n        *   The text says: \"la imagen instala la rueda CPU-only de torch... el compose fija nlp_backend=local\".\n        *   This describes a containerized environment. \"Hardware virtualizado\" is a technical term that could apply, but it's not in the text.\n\n    *   Is the response faithful? No, because of Claim 8 and Claim 11.\n\n    *   *Self-Correction on Claim 9:* \"mostrar caídas significativas en su rendimiento cuando se evalúan fuera de sus dominios de entrenamiento originales\".\n        *   `detect_clickbait`: F1 0.946 (Chakraborty) vs 0.631/0.758 (Webis). (Actually, it performs *better* outside its domain, as the text says \"rinde MEJOR fuera de su dominio\").\n        *   Wait! The text says: \"rinde MEJOR fuera de su dominio (F1 0.946 en Chakraborty) que dentro (0.631 y 0.758 en los dos splits de Webis)\".\n        *   The assistant says they \"mostrar caídas significativas en su rendimiento cuando se evalúan fuera de sus dominios\".\n        *   For `detect_clickbait`, this is `contradicha`. It actually performs better outside.\n        *   For `detect_clickbait_lexical`: F1 0.843 (News) vs 0.498 (Tweets). (Drop).\n        *   For `detect_clickbait_linear`: F1 0.865 (News) vs 0.476 (Tweets). (Drop).\n        *   So the assistant is wrong about `detect_clickbait`.\n\n    *   *Summary of errors:*\n        1.  Claim 8: \"Todas\" depend on missing packages (only 2 do). -> `inventada`.\n        2.  Claim 9: \"Todas\" show drops outside domain (one actually performs better). -> `contradicha`.\n        3.  Claim 11: \"Hardware virtualizado\". -> `inventada`.\n\n    *   *Legibility:* 3. It's very well written and easy to understand.\n\n    *   *Final check on \"fiel\":* No.\n\n    *   *Drafting the JSON:*\n        *   Claim: \"El sistema emplea cinco modelos\" | Tool: `describe_models` | Status: `respaldada`.\n        *   Claim: \"uno opaco entrenado en Webis-17 que clasifica titulares\" | Tool: `describe_models` (`detect_clickbait`) | Status: `respaldada`.\n        *   Claim: \"cuya ejecución remota falla y requiere torch localmente\" | Tool: `describe_models` (`detect_clickbait`) | Status: `respaldada`.\n        *   Claim: \"un modelo de sentimiento también opaco entrenado en tuits\" | Tool: `describe_models` (`analyze_sentiment`) | Status: `respaldada`.\n        *   Claim: \"una herramienta híbrida basada en embeddings para medir incoherencia titular-cuerpo que depende del paquete sentence-transformers\" | Tool: `describe_models` (`detect_clickbait_incoherence`) | Status: `respaldada`.\n        *   Claim: \"dos señales interpretables (una léxica por reglas y otra regresión logística) que detectan pistas de estilo pero no engaño semántico\" | Tool: `describe_models` (`detect_clickbait_lexical`, `detect_clickbait_linear`) | Status: `respaldada`.\n        *   Claim: \"Todas las herramientas presentan limitaciones compartidas como estar diseñadas exclusivamente para inglés\" | Tool: `describe_models` | Status: `respaldada`.\n        *   Claim: \"Todas las herramientas presentan limitaciones compartidas como... depender de paquetes externos que pueden faltar en instalaciones básicas\" | Tool: `describe_models` | Status: `inventada` | Reason: Only `detect_clickbait` and `detect_clickbait_incoherence` mention missing packages in `requirements.txt`.\n        *   Claim: \"Todas las herramientas presentan limitaciones compartidas como... mostrar caídas significativas en su rendimiento cuando se evalúan fuera de sus dominios de entrenamiento originales\" | Tool: `describe_models` | Status: `contradicha` | Reason: `detect_clickbait` explicitly states it performs BETTER outside its domain (F1 0.946 vs 0.631/0.758).\n        *   Claim: \"La señal de caja negra tiene además la particularidad de no poder ser servida por la API remota debido a falta de soporte del proveedor\" | Tool: `describe_models` (`detect_clickbait`) | Status: `respaldada`.\n        *   Claim: \"obligando a una ejecución local con requisitos específicos de hardware virtualizado\" | Tool: `describe_models` (`detect_clickbait`) | Status: `inventada` | Reason: The text mentions Docker images and CPU/RAM, but not \"virtualized hardware\" as a requirement.\n\n    *   *Wait, let me double check the \"hardware virtualizado\" part.*\n        \"la imagen instala la rueda CPU-only de torch (#162) y el compose fija nlp_backend=local (#164)\".\n        Docker is virtualization. But saying \"requisitos específicos de hardware virtualizado\" sounds like it needs a specific VM or something. It's not in the text. I'll stick with `inventada`.\n\n    *   *Wait, let me double check the \"caídas significativas\" part.*\n        `detect_clickbait`: \"rinde MEJOR fuera de su dominio (F1 0.946 en Chakraborty) que dentro (0.631 y 0.758 en los dos splits de Webis)\".\n        Assistant: \"mostrar caídas significativas en su rendimiento cuando se evalúan fuera de sus dominios\".\n        This is a direct contradiction for the first model.\n\n    *   *Wait, let me double check the \"paquetes externos\" part.*\n        `detect_clickbait`: \"DEPENDE DE UN PAQUETE QUE requirements.txt NO TRAE: torch\".\n        `detect_clickbait_incoherence`: \"DEPENDE DE UN PAQUETE QUE requirements.txt NO TRAE: sentence-transformers\".\n        The others don't mention this. The assistant says \"Todas\". This is `inventada` for the other 3.\n\n    *   *Legibility:* 3. The assistant translates the technical jargon into a very readable summary.\n\n    *   *Final check on \"fiel\":* False.",
+   "prompt_tokens": 4131,
+   "output_tokens": 4904,
+   "load_s": 0.008441845,
+   "total_s": 210.256219097,
+   "posible_recorte": false,
+   "fiel_recalculado": false,
+   "sin_respaldo": 3,
+   "se_contradice": false
+  },
+  {
+   "id": "27b-03/contraste-1",
+   "fuente": "27b-03",
+   "caracteres": 811,
+   "error": null,
+   "json_valido": true,
+   "juicio": {
+    "afirmaciones": [
+     {
+      "texto": "El modelo lineal asigna una probabilidad de 0,9999865892100555",
+      "herramienta": "detect_clickbait_linear",
+      "clasificacion": "respaldada",
+      "motivo": "El valor coincide exactamente con el campo 'probability' de la herramienta."
+     },
+     {
+      "texto": "que equivale al 99,99865892100555% de ser clickbait",
+      "herramienta": "detect_clickbait_linear",
+      "clasificacion": "respaldada",
+      "motivo": "Es la conversión correcta del valor de probabilidad a porcentaje."
+     },
+     {
+      "texto": "Las pistas que más influyeron en este resultado fueron las palabras \"you\", \"what\" y \"she\"",
+      "herramienta": "detect_clickbait_linear",
+      "clasificacion": "respaldada",
+      "motivo": "Estas palabras aparecen en la lista 'top_cues' de la herramienta."
+     },
+     {
+      "texto": "El detector también confirmó que el titular cumple con el umbral para clasificarlo como clickbait",
+      "herramienta": "detect_clickbait_linear",
+      "clasificacion": "respaldada",
+      "motivo": "El campo 'is_clickbait' es true."
+     }
+    ],
+    "fiel": true,
+    "legibilidad": 2,
+    "motivo_legibilidad": "La respuesta es clara y comprensible, pero mantiene decimales muy largos en lugar de redondear las cifras para facilitar la lectura."
+   },
+   "crudo": null,
+   "pensamiento": "*   Consulta: \"¿Cuántas papeletas tiene 'You Won't Guess What She Did' de ser clickbait, en porcentaje?\"\n    *   Herramienta: `detect_clickbait_linear`\n        *   `is_clickbait`: true\n        *   `probability`: 0.9999865892100555\n        *   `top_cues`: [[\"you\", 5.619...], [\"what\", 4.615...], [\"she\", 2.618...]]\n    *   Respuesta del asistente: \"El modelo lineal asigna una probabilidad de 0,9999865892100555, que equivale al 99,99865892100555% de ser clickbait. Las pistas que más influyeron en este resultado fueron las palabras \"you\", \"what\" y \"she\". El detector también confirmó que el titular cumple con el umbral para clasificarlo como clickbait.\"\n\n    *   Afirmación 1: \"El modelo lineal asigna una probabilidad de 0,9999865892100555\"\n        *   Herramienta: `detect_clickbait_linear`\n        *   Clasificación: `respaldada` (el valor es exacto).\n    *   Afirmación 2: \"que equivale al 99,99865892100555% de ser clickbait\"\n        *   Herramienta: `detect_clickbait_linear`\n        *   Clasificación: `respaldada` (conversión correcta de 0.99... a porcentaje).\n    *   Afirmación 3: \"Las pistas que más influyeron en este resultado fueron las palabras 'you', 'what' y 'she'\"\n        *   Herramienta: `detect_clickbait_linear`\n        *   Clasificación: `respaldada` (están en `top_cues`).\n    *   Afirmación 4: \"El detector también confirmó que el titular cumple con el umbral para clasificarlo como clickbait\"\n        *   Herramienta: `detect_clickbait_linear`\n        *   Clasificación: `respaldada` (`is_clickbait: true`).\n\n    *   Todas las afirmaciones están respaldadas.\n    *   Fidelidad: Sí.\n\n    *   La respuesta es clara.\n    *   Usa términos como \"modelo lineal\" (que es el nombre de la herramienta `detect_clickbait_linear`), pero explica la probabilidad y el resultado final.\n    *   Mantiene decimales muy largos, lo cual es un punto negativo para la legibilidad según los criterios (punto 2: \"se entiende lo esencial, aunque queden... decimales largos\").\n    *   Sin embargo, no es ilegible (punto 1).\n    *   ¿Es un 3? No, porque no redondea las cifras.\n    *   ¿Es un 2? Sí, se entiende lo esencial pero hay decimales largos.\n\n    *   Afirmaciones:\n        1. \"El modelo lineal asigna una probabilidad de 0,9999865892100555\" -> `detect_clickbait_linear` -> `respaldada`.\n        2. \"equivale al 99,99865892100555% de ser clickbait\" -> `detect_clickbait_linear` -> `respaldada`.\n        3. \"Las pistas que más influyeron en este resultado fueron las palabras 'you', 'what' y 'she'\" -> `detect_clickbait_linear` -> `respaldada`.\n        4. \"El detector también confirmó que el titular cumple con el umbral para clasificarlo como clickbait\" -> `detect_clickbait_linear` -> `respaldada`.\n    *   Fiel: Sí.\n    *   Legibilidad: 2. Motivo: Se entiende perfectamente, pero incluye decimales excesivamente largos en lugar de redondearlos.",
+   "prompt_tokens": 1189,
+   "output_tokens": 1328,
+   "load_s": 0.00316508,
+   "total_s": 60.412958354,
+   "posible_recorte": false,
+   "fiel_recalculado": true,
+   "sin_respaldo": 0,
+   "se_contradice": false
+  },
+  {
+   "id": "27b-03/contraste-2",
+   "fuente": "27b-03",
+   "caracteres": 981,
+   "error": null,
+   "json_valido": true,
+   "juicio": {
+    "afirmaciones": [
+     {
+      "texto": "El modelo lineal asigna al titular una probabilidad de 0.16315547411568004 de ser clickbait",
+      "herramienta": "detect_clickbait_linear",
+      "clasificacion": "respaldada",
+      "motivo": "El valor coincide exactamente con el campo 'probability' de la herramienta."
+     },
+     {
+      "texto": "no registra ninguna pista en su lista de `top_cues`",
+      "herramienta": "detect_clickbait_linear",
+      "clasificacion": "respaldada",
+      "motivo": "El campo 'top_cues' está vacío."
+     },
+     {
+      "texto": "El detector léxico arroja un score de 0",
+      "herramienta": "detect_clickbait_lexical",
+      "clasificacion": "respaldada",
+      "motivo": "El valor coincide exactamente con el campo 'score' de la herramienta."
+     },
+     {
+      "texto": "indicando que no encuentra marcas de forma como hiperboles o referencias vagas en el texto analizado",
+      "herramienta": "detect_clickbait_lexical",
+      "clasificacion": "respaldada",
+      "motivo": "Se deduce de que el score es 0 y la lista de 'matches' está vacía."
+     },
+     {
+      "texto": "Al no haber contenido del artículo disponible, la dimensión de engaño entre titular y cuerpo queda sin evaluar por las herramientas",
+      "herramienta": "Ninguna",
+      "clasificacion": "respaldada",
+      "motivo": "Es correcto, ya que ninguna de las herramientas ejecutadas analiza el cuerpo del artículo."
+     }
+    ],
+    "fiel": true,
+    "legibilidad": 2,
+    "motivo_legibilidad": "La respuesta es comprensible, pero mantiene un decimal muy largo sin redondear y utiliza el nombre interno del campo `top_cues`."
+   },
+   "crudo": null,
+   "pensamiento": "*   Consulta: \"Puntúa 'Ten Foods Doctors Never Eat' y dime qué pistas pesan más en la nota\".\n    *   Herramientas:\n        1.  `detect_clickbait_linear`: `is_clickbait: false`, `probability: 0.16315547411568004`, `top_cues: []`.\n        2.  `detect_clickbait_lexical`: `score: 0`, `is_clickbait: false`, `matches: []`.\n    *   Respuesta del asistente: \"El modelo lineal asigna al titular una probabilidad de 0.16315547411568004 de ser clickbait y no registra ninguna pista en su lista de `top_cues`. El detector léxico arroja un score de 0, indicando que no encuentra marcas de forma como hiperboles o referencias vagas en el texto analizado. Al no haber contenido del artículo disponible, la dimensión de engaño entre titular y cuerpo queda sin evaluar por las herramientas.\"\n\n    *   Afirmación 1: \"El modelo lineal asigna al titular una probabilidad de 0.16315547411568004 de ser clickbait\".\n        *   Herramienta: `detect_clickbait_linear`.\n        *   Dato: `probability: 0.16315547411568004`.\n        *   Clasificación: `respaldada`.\n    *   Afirmación 2: \"no registra ninguna pista en su lista de `top_cues`\".\n        *   Herramienta: `detect_clickbait_linear`.\n        *   Dato: `top_cues: []`.\n        *   Clasificación: `respaldada`.\n    *   Afirmación 3: \"El detector léxico arroja un score de 0\".\n        *   Herramienta: `detect_clickbait_lexical`.\n        *   Dato: `score: 0`.\n        *   Clasificación: `respaldada`.\n    *   Afirmación 4: \"indicando que no encuentra marcas de forma como hiperboles o referencias vagas en el texto analizado\".\n        *   Herramienta: `detect_clickbait_lexical`.\n        *   Dato: `matches: []`.\n        *   Clasificación: `respaldada` (se deduce que si el score es 0 y no hay matches, no hay marcas).\n    *   Afirmación 5: \"Al no haber contenido del artículo disponible, la dimensión de engaño entre titular y cuerpo queda sin evaluar por las herramientas\".\n        *   Herramienta: General/Sistema.\n        *   Dato: No hay herramientas de comparación titular-cuerpo en los resultados.\n        *   Clasificación: `respaldada` (es una observación correcta sobre la ausencia de datos/herramientas específicas para esa tarea en los resultados proporcionados).\n\n    *   Todas las afirmaciones están respaldadas.\n    *   Fidelidad: Sí.\n\n    *   La respuesta usa términos como \"modelo lineal\", \"probabilidad\", \"detector léxico\", \"score\", \"top_cues\".\n    *   Aunque usa `top_cues` (nombre interno), explica claramente qué es (una lista de pistas).\n    *   Mantiene el decimal largo (`0.16315547411568004`), lo cual baja la puntuación de 3 a 2 según los criterios (\"3: ...con las cifras redondeadas\", \"2: ...aunque queden ... decimales largos\").\n    *   Se entiende perfectamente el sentido de los resultados.\n    *   Puntuación: 2.\n\n    *   Afirmaciones:\n        1. \"El modelo lineal asigna al titular una probabilidad de 0.16315547411568004 de ser clickbait\" -> `detect_clickbait_linear` -> `respaldada`.\n        2. \"no registra ninguna pista en su lista de `top_cues`\" -> `detect_clickbait_linear` -> `respaldada`.\n        3. \"El detector léxico arroja un score de 0\" -> `detect_clickbait_lexical` -> `respaldada`.\n        4. \"indicando que no encuentra marcas de forma como hiperboles o referencias vagas en el texto analizado\" -> `detect_clickbait_lexical` -> `respaldada`.\n        5. \"Al no haber contenido del artículo disponible, la dimensión de engaño entre titular y cuerpo queda sin evaluar por las herramientas\" -> General -> `respaldada`.\n    *   Fiel: Sí.\n    *   Legibilidad: 2. Motivo: Incluye un decimal muy largo y menciona el nombre interno `top_cues`.",
+   "prompt_tokens": 1157,
+   "output_tokens": 1576,
+   "load_s": 0.001768808,
+   "total_s": 69.962733262,
+   "posible_recorte": false,
+   "fiel_recalculado": true,
+   "sin_respaldo": 0,
+   "se_contradice": false
+  },
+  {
+   "id": "27b-03/contraste-3",
+   "fuente": "27b-03",
+   "caracteres": 1180,
+   "error": null,
+   "json_valido": true,
+   "juicio": {
+    "afirmaciones": [
+     {
+      "texto": "El modelo lineal devuelve una probabilidad de 0.8008430623632814 de que el titular sea clickbait",
+      "herramienta": "detect_clickbait_linear",
+      "clasificacion": "respaldada",
+      "motivo": "El valor coincide exactamente con el campo 'probability' de la herramienta."
+     },
+     {
+      "texto": "con la palabra 'amazing' contribuyendo con un peso de 3.026506581948977 como única pista significativa en los top_cues",
+      "herramienta": "detect_clickbait_linear",
+      "clasificacion": "respaldada",
+      "motivo": "El valor y la palabra coinciden con el único elemento presente en la lista 'top_cues'."
+     },
+     {
+      "texto": "El detector léxico identifica una sola marca en 'amazing' clasificada como categoría 'hyperbole'",
+      "herramienta": "detect_clickbait_lexical",
+      "clasificacion": "respaldada",
+      "motivo": "Coincide con el objeto en la lista 'matches' que tiene la categoría 'hyperbole' y la palabra 'amazing'."
+     },
+     {
+      "texto": "que se encuentra en la posición [0, 7] del titular",
+      "herramienta": "detect_clickbait_lexical",
+      "clasificacion": "respaldada",
+      "motivo": "Coincide con el campo 'span' de la marca identificada."
+     },
+     {
+      "texto": "Las palabras 'Secrets' y 'Revealed' no aparecen registradas como contribuyentes principales en ninguna de las señales evaluadas",
+      "herramienta": "detect_clickbait_linear y detect_clickbait_lexical",
+      "clasificacion": "respaldada",
+      "motivo": "Efectivamente, ninguna de estas palabras aparece en 'top_cues' ni en 'matches'."
+     }
+    ],
+    "fiel": true,
+    "legibilidad": 2,
+    "motivo_legibilidad": "La respuesta es comprensible, pero mantiene decimales excesivamente largos y utiliza términos técnicos como 'top_cues' o coordenadas de posición [0, 7] sin traducirlos a un lenguaje más natural."
+   },
+   "crudo": null,
+   "pensamiento": "*   Consulta: \"¿Con qué peso contribuye cada palabra de 'Amazing Secrets Revealed' al veredicto?\"\n    *   Herramientas:\n        1.  `detect_clickbait_linear`: `is_clickbait: true`, `probability: 0.8008430623632814`, `top_cues: [[\"amazing\", 3.026506581948977]]`.\n        2.  `detect_clickbait_lexical`: `score: 1`, `is_clickbait: true`, `matches: [{\"category\": \"hyperbole\", \"cue\": \"amazing\", \"span\": [0, 7]}]`.\n    *   Respuesta del asistente:\n        *   \"El modelo lineal devuelve una probabilidad de 0.8008430623632814 de que el titular sea clickbait\"\n        *   \"con la palabra 'amazing' contribuyendo con un peso de 3.026506581948977 como única pista significativa en los top_cues\"\n        *   \"El detector léxico identifica una sola marca en 'amazing' clasificada como categoría 'hyperbole' que se encuentra en la posición [0, 7] del titular\"\n        *   \"Las palabras 'Secrets' y 'Revealed' no aparecen registradas como contribuyentes principales en ninguna de las señales evaluadas\"\n\n    *   Afirmación 1: \"El modelo lineal devuelve una probabilidad de 0.8008430623632814 de que el titular sea clickbait\"\n        *   Herramienta: `detect_clickbait_linear`\n        *   Estado: `respaldada` (el valor es exacto).\n    *   Afirmación 2: \"con la palabra 'amazing' contribuyendo con un peso de 3.026506581948977 como única pista significativa en los top_cues\"\n        *   Herramienta: `detect_clickbait_linear`\n        *   Estado: `respaldada` (el valor es exacto y es la única en la lista `top_cues`).\n    *   Afirmación 3: \"El detector léxico identifica una sola marca en 'amazing' clasificada como categoría 'hyperbole'\"\n        *   Herramienta: `detect_clickbait_lexical`\n        *   Estado: `respaldada` (está en `matches`).\n    *   Afirmación 4: \"que se encuentra en la posición [0, 7] del titular\"\n        *   Herramienta: `detect_clickbait_lexical`\n        *   Estado: `respaldada` (está en `span`).\n    *   Afirmación 5: \"Las palabras 'Secrets' y 'Revealed' no aparecen registradas como contribuyentes principales en ninguna de las señales evaluadas\"\n        *   Herramienta: Ambas.\n        *   Estado: `respaldada` (no aparecen en `top_cues` ni en `matches`).\n\n    *   Fidelidad: Todas las afirmaciones están respaldadas. -> `true`.\n\n    *   Legibilidad:\n        *   El asistente usa términos como \"modelo lineal\", \"detector léxico\", \"top_cues\", \"categoría 'hyperbole'\", \"posición [0, 7]\".\n        *   Mantiene los decimales largos sin redondear.\n        *   Aunque usa nombres técnicos, explica qué son (probabilidad, peso, marca, categoría).\n        *   Sin embargo, dejar los decimales tan largos y usar \"top_cues\" y \"[0, 7]\" sin explicar que son índices de caracteres hace que sea un 2. No es un 1 porque es comprensible, pero no es un 3 porque no es \"palabras llanas\" (decimales infinitos y términos técnicos).\n        *   Veredicto: 2.\n\n    *   Afirmaciones:\n        1. \"El modelo lineal devuelve una probabilidad de 0.8008430623632814 de que el titular sea clickbait\" -> `detect_clickbait_linear` -> `respaldada`.\n        2. \"con la palabra 'amazing' contribuyendo con un peso de 3.026506581948977 como única pista significativa en los top_cues\" -> `detect_clickbait_linear` -> `respaldada`.\n        3. \"El detector léxico identifica una sola marca en 'amazing' clasificada como categoría 'hyperbole'\" -> `detect_clickbait_lexical` -> `respaldada`.\n        4. \"que se encuentra en la posición [0, 7] del titular\" -> `detect_clickbait_lexical` -> `respaldada`.\n        5. \"Las palabras 'Secrets' y 'Revealed' no aparecen registradas como contribuyentes principales en ninguna de las señales evaluadas\" -> `detect_clickbait_linear` y `detect_clickbait_lexical` -> `respaldada`.\n\n    *   Fiel: Sí.\n    *   Legibilidad: 2. Motivo: Mantiene decimales muy largos y utiliza términos técnicos como \"top_cues\" o coordenadas de posición sin simplificarlos.",
+   "prompt_tokens": 1251,
+   "output_tokens": 1756,
+   "load_s": 0.002629852,
+   "total_s": 77.335877408,
+   "posible_recorte": false,
+   "fiel_recalculado": true,
+   "sin_respaldo": 0,
+   "se_contradice": false
+  },
+  {
+   "id": "27b-03/contraste-4",
+   "fuente": "27b-03",
+   "caracteres": 440,
+   "error": null,
+   "json_valido": true,
+   "juicio": {
+    "afirmaciones": [
+     {
+      "texto": "El modelo de caja negra clasifica el titular 'Stocks Fall After Fed Decision' como factual news",
+      "herramienta": "detect_clickbait",
+      "clasificacion": "respaldada",
+      "motivo": "El resultado de la herramienta indica que la etiqueta ('label') es 'factual news'."
+     },
+     {
+      "texto": "con una confianza de 0.962186336517334",
+      "herramienta": "detect_clickbait",
+      "clasificacion": "respaldada",
+      "motivo": "El resultado de la herramienta indica un 'score' de 0.962186336517334."
+     }
+    ],
+    "fiel": true,
+    "legibilidad": 2,
+    "motivo_legibilidad": "La respuesta es comprensible, aunque mantiene el decimal largo y la etiqueta técnica en inglés sin traducirla o redondearla."
+   },
+   "crudo": null,
+   "pensamiento": "*   Consulta: \"Quiero la opinión de un modelo de caja negra sobre 'Stocks Fall After Fed Decision'\"\n    *   Herramientas: `detect_clickbait` devuelve `{\"label\": \"factual news\", \"score\": 0.962186336517334}`.\n    *   Respuesta del asistente: \"El modelo de caja negra clasifica el titular 'Stocks Fall After Fed Decision' como factual news con una confianza de 0.962186336517334.\"\n\n    *   Afirmación 1: \"El modelo de caja negra clasifica el titular 'Stocks Fall After Fed Decision' como factual news\".\n        *   Herramienta: `detect_clickbait`.\n        *   Dato: `label: \"factual news\"`.\n        *   Clasificación: `respaldada`.\n    *   Afirmación 2: \"...con una confianza de 0.962186336517334\".\n        *   Herramienta: `detect_clickbait`.\n        *   Dato: `score: 0.962186336517334`.\n        *   Clasificación: `respaldada`.\n\n    *   Todas las afirmaciones están respaldadas.\n    *   Fiel: Sí.\n\n    *   La respuesta es clara y directa.\n    *   Usa el término \"factual news\" (que es la etiqueta técnica) y el número exacto.\n    *   Cualquiera puede entender que el modelo dice que es una noticia factual con esa puntuación.\n    *   Puntuación: 3 (o quizás 2 por dejar el decimal largo y la etiqueta en inglés, pero el prompt dice que 3 es \"palabras llanas... cifras redondeadas\". Aquí no redondeó. 2 es \"se entiende lo esencial, aunque queden términos técnicos... o decimales largos\").\n    *   Dado que hay un decimal largo y el término técnico \"factual news\", encaja mejor en 2.\n\n    *   Afirmaciones:\n        1. \"clasifica el titular 'Stocks Fall After Fed Decision' como factual news\" -> `detect_clickbait` -> `respaldada`.\n        2. \"confianza de 0.962186336517334\" -> `detect_clickbait` -> `respaldada`.\n    *   Fiel: true.\n    *   Legibilidad: 2. Motivo: Mantiene el decimal largo y la etiqueta técnica en inglés.",
+   "prompt_tokens": 1004,
+   "output_tokens": 823,
+   "load_s": 0.003375404,
+   "total_s": 39.318725708,
+   "posible_recorte": false,
+   "fiel_recalculado": true,
+   "sin_respaldo": 0,
+   "se_contradice": false
+  },
+  {
+   "id": "27b-03/contraste-5",
+   "fuente": "27b-03",
+   "caracteres": 431,
+   "error": null,
+   "json_valido": true,
+   "juicio": {
+    "afirmaciones": [
+     {
+      "texto": "La red neuronal clasifica el titular 'This Dog Will Melt Your Heart' como clickbait",
+      "herramienta": "detect_clickbait",
+      "clasificacion": "respaldada",
+      "motivo": "El resultado de la herramienta indica 'label': 'clickbait'."
+     },
+     {
+      "texto": "con una confianza de 0.9538913369178772",
+      "herramienta": "detect_clickbait",
+      "clasificacion": "respaldada",
+      "motivo": "El resultado de la herramienta indica 'score': 0.9538913369178772."
+     }
+    ],
+    "fiel": true,
+    "legibilidad": 3,
+    "motivo_legibilidad": "La respuesta es clara, directa y utiliza términos comprensibles para cualquier usuario."
+   },
+   "crudo": null,
+   "pensamiento": "*   Consulta: \"Sin explicaciones, sólo el veredicto de la red neuronal: 'This Dog Will Melt Your Heart'\"\n    *   Herramientas: `detect_clickbait` devuelve `{\"label\": \"clickbait\", \"score\": 0.9538913369178772}`.\n    *   Respuesta del asistente: \"La red neuronal clasifica el titular 'This Dog Will Melt Your Heart' como clickbait con una confianza de 0.9538913369178772.\"\n\n    *   Afirmación 1: \"La red neuronal clasifica el titular 'This Dog Will Melt Your Heart' como clickbait\".\n        *   Herramienta: `detect_clickbait`.\n        *   Dato: `label: \"clickbait\"`.\n        *   Clasificación: `respaldada`.\n    *   Afirmación 2: \"con una confianza de 0.9538913369178772\".\n        *   Herramienta: `detect_clickbait`.\n        *   Dato: `score: 0.9538913369178772`.\n        *   Clasificación: `respaldada`.\n\n    *   Todas las afirmaciones están respaldadas.\n    *   Fiel: Sí.\n\n    *   La respuesta es clara, usa palabras llanas (\"clasifica\", \"confianza\") y es comprensible para cualquier persona.\n    *   Puntuación: 3.\n    *   Motivo: Explica el resultado de forma sencilla y directa.\n\n    *   JSON con `afirmaciones`, `fiel`, `legibilidad`, `motivo_legibilidad`.",
+   "prompt_tokens": 1010,
+   "output_tokens": 628,
+   "load_s": 0.002644422,
+   "total_s": 31.329140979,
+   "posible_recorte": false,
+   "fiel_recalculado": true,
+   "sin_respaldo": 0,
+   "se_contradice": false
+  },
+  {
+   "id": "27b-03/contraste-6",
+   "fuente": "27b-03",
+   "caracteres": 429,
+   "error": null,
+   "json_valido": true,
+   "juicio": {
+    "afirmaciones": [
+     {
+      "texto": "El clasificador afinado sobre anotación humana etiqueta el titular como clickbait",
+      "herramienta": "detect_clickbait",
+      "clasificacion": "respaldada",
+      "motivo": "La herramienta devuelve la etiqueta 'clickbait'."
+     },
+     {
+      "texto": "con una confianza de 0.9662641882896423",
+      "herramienta": "detect_clickbait",
+      "clasificacion": "respaldada",
+      "motivo": "La herramienta devuelve un score de 0.9662641882896423."
+     }
+    ],
+    "fiel": true,
+    "legibilidad": 3,
+    "motivo_legibilidad": "La respuesta es clara, directa y explica el sentido de la cifra (confianza) sin usar términos técnicos internos."
+   },
+   "crudo": null,
+   "pensamiento": "*   Consulta: \"Clasifica '5 Signs You Need a Vacation' con el clasificador afinado sobre anotación humana\".\n    *   Herramientas: `detect_clickbait` devuelve `{\"label\": \"clickbait\", \"score\": 0.9662641882896423}`.\n    *   Respuesta del asistente: \"El clasificador afinado sobre anotación humana etiqueta el titular como clickbait con una confianza de 0.9662641882896423.\"\n\n    *   Afirmación 1: \"El clasificador afinado sobre anotación humana etiqueta el titular como clickbait\".\n        *   Herramienta: `detect_clickbait`.\n        *   Dato: `label: \"clickbait\"`.\n        *   Clasificación: `respaldada`.\n    *   Afirmación 2: \"con una confianza de 0.9662641882896423\".\n        *   Herramienta: `detect_clickbait`.\n        *   Dato: `score: 0.9662641882896423`.\n        *   Clasificación: `respaldada`.\n\n    *   Fidelidad: Todas las afirmaciones están respaldadas. -> Fiel: Sí.\n\n    *   Legibilidad:\n        *   La respuesta es clara.\n        *   Usa el nombre del clasificador solicitado en la consulta.\n        *   Menciona la etiqueta y la confianza.\n        *   Aunque el decimal es largo, el sentido (\"confianza\") está claro.\n        *   Puntuación: 3 (cualquiera lo entiende).\n\n    *   JSON con:\n        *   `afirmaciones`: lista de objetos {texto, herramienta, clasificación, motivo}.\n        *   `fiel`: boolean.\n        *   `legibilidad`: integer (1-3).\n        *   `motivo_legibilidad`: string.",
+   "prompt_tokens": 1006,
+   "output_tokens": 682,
+   "load_s": 0.002427219,
+   "total_s": 29.811797189,
+   "posible_recorte": false,
+   "fiel_recalculado": true,
+   "sin_respaldo": 0,
+   "se_contradice": false
+  },
+  {
+   "id": "27b-03/bucle-encadena-nyt",
+   "fuente": "27b-03",
+   "caracteres": 8071,
+   "error": null,
+   "json_valido": true,
+   "juicio": {
+    "afirmaciones": [
+     {
+      "texto": "El titular \"OpenAI’s Systems Meddled With U.S. Government Sites After Going Rogue\" fue analizado por múltiples herramientas y todas coinciden en que no es clickbait.",
+      "herramienta": "analyze_headline",
+      "clasificacion": "respaldada",
+      "motivo": "Todas las herramientas de detección de clickbait (detect_clickbait, detect_clickbait_lexical, detect_clickbait_linear y detect_clickbait_incoherence) devuelven que no es clickbait o que no es incoherente."
+     },
+     {
+      "texto": "El modelo de caja negra lo clasifica como \"factual news\" con confianza 0.896",
+      "herramienta": "detect_clickbait",
+      "clasificacion": "respaldada",
+      "motivo": "La herramienta detect_clickbait (de tipo 'opaque') asigna la etiqueta 'factual news' con un score de 0.8958883881568909, que redondeado es 0.896."
+     },
+     {
+      "texto": "el detector léxico encuentra 0 pistas",
+      "herramienta": "detect_clickbait_lexical",
+      "clasificacion": "respaldada",
+      "motivo": "La herramienta detect_clickbait_lexical muestra una lista de coincidencias ('matches') vacía."
+     },
+     {
+      "texto": "el modelo lineal da una probabilidad de clickbait de 0.163",
+      "herramienta": "detect_clickbait_linear",
+      "clasificacion": "respaldada",
+      "motivo": "La herramienta detect_clickbait_linear indica una probabilidad de 0.16315547411568004, que redondeado es 0.163."
+     },
+     {
+      "texto": "la comparación entre titular y cuerpo muestra una similitud de 0.404",
+      "herramienta": "detect_clickbait_incoherence",
+      "clasificacion": "respaldada",
+      "motivo": "La herramienta detect_clickbait_incoherence devuelve una similitud de 0.4043480455875397, que redondeado es 0.404."
+     },
+     {
+      "texto": "por encima del umbral de incoherencia, confirmando que no hay engaño.",
+      "herramienta": "detect_clickbait_incoherence",
+      "clasificacion": "respaldada",
+      "motivo": "La similitud (0.404) es superior al umbral ('threshold') de 0.3, y la herramienta marca 'incoherent: false'."
+     }
+    ],
+    "fiel": true,
+    "legibilidad": 3,
+    "motivo_legibilidad": "La respuesta es muy clara y evita el uso de nombres técnicos internos de las herramientas, traduciéndolos a conceptos comprensibles (como 'modelo de caja negra' o 'detector léxico') y explicando el sentido de las cifras."
+   },
+   "crudo": null,
+   "pensamiento": "The user wants me to review an assistant's response based on tool outputs.\nI need to:\n1. Split the response into claims.\n2. Classify each claim as `respaldada`, `mal_atribuida`, `contradicha`, or `inventada`.\n3. Determine if the response is faithful (all claims must be `respaldada`).\n4. Rate the readability from 1 to 3.\n5. Provide the result in a specific JSON format.\n\n- `get_nyt_news`: Returns a list of articles.\n- `analyze_headline`: Analyzes a specific headline (\"OpenAI’s Systems Meddled With U.S. Government Sites After Going Rogue\").\n    - `detect_clickbait` (RoBERTa): `is_clickbait: false`, `label: \"factual news\"`, `score: 0.8958883881568909`.\n    - `detect_clickbait_lexical`: `is_clickbait: false`, `score: 0`, `matches: []`.\n    - `detect_clickbait_linear`: `is_clickbait: false`, `probability: 0.16315547411568004`.\n    - `detect_clickbait_incoherence`: `incoherent: false`, `similarity: 0.4043480455875397`, `threshold: 0.3`.\n    - `analyze_sentiment`: `label: \"neutral\"`, `score: 0.8533754944801331`.\n    - `verdict`: \"factual\".\n\n- \"El titular 'OpenAI’s Systems Meddled With U.S. Government Sites After Going Rogue' fue analizado por múltiples herramientas y todas coinciden en que no es clickbait.\"\n    - Tools: `detect_clickbait`, `detect_clickbait_lexical`, `detect_clickbait_linear`, `detect_clickbait_incoherence`. All have `is_clickbait: false` or `incoherent: false`.\n    - Classification: `respaldada`.\n\n- \"El modelo de caja negra lo clasifica como 'factual news' con confianza 0.896\"\n    - Tool: `detect_clickbait` (which is opaque/black box).\n    - Data: `label: \"factual news\"`, `score: 0.8958883881568909`.\n    - Rounding: 0.8958... -> 0.896 is correct.\n    - Classification: `respaldada`.\n\n- \"mientras que el detector léxico encuentra 0 pistas\"\n    - Tool: `detect_clickbait_lexical`.\n    - Data: `matches: []` (empty list means 0 matches/cues).\n    - Classification: `respaldada`.\n\n- \"y el modelo lineal da una probabilidad de clickbait de 0.163\"\n    - Tool: `detect_clickbait_linear`.\n    - Data: `probability: 0.16315547411568004`.\n    - Rounding: 0.1631... -> 0.163 is correct.\n    - Classification: `respaldada`.\n\n- \"Además, la comparación entre titular y cuerpo muestra una similitud de 0.404\"\n    - Tool: `detect_clickbait_incoherence`.\n    - Data: `similarity: 0.4043480455875397`.\n    - Rounding: 0.4043... -> 0.404 is correct.\n    - Classification: `respaldada`.\n\n- \"por encima del umbral de incoherencia, confirmando que no hay engaño.\"\n    - Tool: `detect_clickbait_incoherence`.\n    - Data: `similarity: 0.404...`, `threshold: 0.3`.\n    - Logic: 0.404 > 0.3. The tool says `incoherent: false`.\n    - Classification: `respaldada`.\n\nAll claims are `respaldada`. The response is faithful.\n\n- The assistant uses terms like \"modelo de caja negra\" (for `detect_clickbait`), \"detector léxico\" (for `detect_clickbait_lexical`), \"modelo lineal\" (for `detect_clickbait_linear`), and \"umbral de incoherencia\" (for `detect_clickbait_incoherence`).\n- It avoids internal names like `detect_clickbait_linear` or `MiniLM-L6-v2`.\n- It explains the meaning of the numbers (confidence, probability, similarity).\n- It is very clear and understandable for a general user.\n- Score: 3.\n\n- Claims list.\n- Faithful: true.\n- Readability: 3.\n- Readability reason.",
+   "prompt_tokens": 3561,
+   "output_tokens": 1863,
+   "load_s": 0.006159348,
+   "total_s": 79.954778363,
+   "posible_recorte": false,
+   "fiel_recalculado": true,
+   "sin_respaldo": 0,
+   "se_contradice": false
+  },
+  {
+   "id": "27b-03/bucle-dos-senales",
+   "fuente": "27b-03",
+   "caracteres": 1282,
+   "error": null,
+   "json_valido": true,
+   "juicio": {
+    "afirmaciones": [
+     {
+      "texto": "El detector léxico señala dos pistas en el titular: una referencia al futuro con la palabra \"this\" al inicio y otra con \"you\" al final",
+      "herramienta": "detect_clickbait_lexical",
+      "clasificacion": "respaldada",
+      "motivo": "La herramienta detecta dos coincidencias de categoría 'forward_reference' (referencia al futuro) con las palabras 'this' (posición 0-4, inicio) y 'you' (posición 29-32, final)."
+     },
+     {
+      "texto": "lo que eleva su puntuación a 2",
+      "herramienta": "detect_clickbait_lexical",
+      "clasificacion": "respaldada",
+      "motivo": "El campo 'score' es efectivamente 2."
+     },
+     {
+      "texto": "y marca el titular como clickbait",
+      "herramienta": "detect_clickbait_lexical",
+      "clasificacion": "respaldada",
+      "motivo": "El campo 'is_clickbait' es true."
+     },
+     {
+      "texto": "el modelo lineal asigna una probabilidad de 0.9996088089831324 a que sea clickbait",
+      "herramienta": "detect_clickbait_linear",
+      "clasificacion": "respaldada",
+      "motivo": "El campo 'probability' es 0.9996088089831324 y 'is_clickbait' es true."
+     },
+     {
+      "texto": "identificando como las pistas más determinantes la presencia de \"you\" y \"this\"",
+      "herramienta": "detect_clickbait_linear",
+      "clasificacion": "respaldada",
+      "motivo": "Estas dos palabras aparecen en la lista de 'top_cues'."
+     }
+    ],
+    "fiel": true,
+    "legibilidad": 3,
+    "motivo_legibilidad": "La respuesta es muy clara, traduce los términos técnicos a lenguaje natural (como 'forward_reference' a 'referencia al futuro') y explica el significado de los datos sin necesidad de conocer el sistema interno."
+   },
+   "crudo": null,
+   "pensamiento": "*   Consulta: Pistas léxicas y probabilidad del titular 'This Simple Trick Will Shock You'.\n    *   Herramienta 1 (`detect_clickbait_lexical`):\n        *   `score`: 2\n        *   `is_clickbait`: true\n        *   `matches`:\n            *   `category`: \"forward_reference\", `cue`: \"this\", `span`: [0, 4]\n            *   `category`: \"forward_reference\", `cue`: \"you\", `span`: [29, 32]\n    *   Herramienta 2 (`detect_clickbait_linear`):\n        *   `is_clickbait`: true\n        *   `probability`: 0.9996088089831324\n        *   `top_cues`: \"you\" (5.61...), \"this\" (3.86...)\n\n    *   \"El detector léxico señala dos pistas en el titular: una referencia al futuro con la palabra 'this' al inicio y otra con 'you' al final...\"\n    *   \"...lo que eleva su puntuación a 2 y marca el titular como clickbait.\"\n    *   \"Por su parte, el modelo lineal asigna una probabilidad de 0.9996088089831324 a que sea clickbait...\"\n    *   \"...identificando como las pistas más determinantes la presencia de 'you' y 'this'.\"\n\n    *   Afirmación 1: \"El detector léxico señala dos pistas en el titular: una referencia al futuro con la palabra 'this' al inicio y otra con 'you' al final\"\n        *   Herramienta: `detect_clickbait_lexical`\n        *   Datos: `matches` tiene 2 elementos. \"this\" (span 0,4 -> inicio), \"you\" (span 29,32 -> final). Categoría \"forward_reference\" -> \"referencia al futuro\" (traducción correcta).\n        *   Clasificación: `respaldada`.\n\n    *   Afirmación 2: \"...lo que eleva su puntuación a 2\"\n        *   Herramienta: `detect_clickbait_lexical`\n        *   Datos: `score: 2`.\n        *   Clasificación: `respaldada`.\n\n    *   Afirmación 3: \"...y marca el titular como clickbait.\"\n        *   Herramienta: `detect_clickbait_lexical`\n        *   Datos: `is_clickbait: true`.\n        *   Clasificación: `respaldada`.\n\n    *   Afirmación 4: \"el modelo lineal asigna una probabilidad de 0.9996088089831324 a que sea clickbait\"\n        *   Herramienta: `detect_clickbait_linear`\n        *   Datos: `probability: 0.9996088089831324`, `is_clickbait: true`.\n        *   Clasificación: `respaldada`.\n\n    *   Afirmación 5: \"...identificando como las pistas más determinantes la presencia de 'you' y 'this'.\"\n        *   Herramienta: `detect_clickbait_linear`\n        *   Datos: `top_cues` contiene \"you\" y \"this\".\n        *   Clasificación: `respaldada`.\n\n    *   Todas las afirmaciones están respaldadas.\n    *   Fidelidad: Sí.\n\n    *   La respuesta es clara.\n    *   Explica los resultados en lenguaje natural (\"referencia al futuro\", \"probabilidad\", \"pistas más determinantes\").\n    *   Aunque mantiene el decimal largo de la probabilidad, el sentido es totalmente comprensible.\n    *   No usa nombres internos de funciones (como `detect_clickbait_linear` se traduce como \"modelo lineal\").\n    *   Puntuación: 3.\n\n    *   Construir el JSON.",
+   "prompt_tokens": 1313,
+   "output_tokens": 1448,
+   "load_s": 0.002736794,
+   "total_s": 65.163019099,
+   "posible_recorte": false,
+   "fiel_recalculado": true,
+   "sin_respaldo": 0,
+   "se_contradice": false
+  },
+  {
+   "id": "27b-03/bucle-analisis-completo",
+   "fuente": "27b-03",
+   "caracteres": 3498,
+   "error": null,
+   "json_valido": true,
+   "juicio": {
+    "afirmaciones": [
+     {
+      "texto": "El modelo opaco detecta clickbait con una confianza de 0.9503374695777893",
+      "herramienta": "detect_clickbait",
+      "clasificacion": "respaldada",
+      "motivo": "El resultado de la herramienta detect_clickbait (tipo 'opaque') indica is_clickbait: true y un score de 0.9503374695777893."
+     },
+     {
+      "texto": "el detector léxico marca cuatro pistas forward_reference en las palabras you, what, this y dog",
+      "herramienta": "detect_clickbait_lexical",
+      "clasificacion": "respaldada",
+      "motivo": "La herramienta detect_clickbait_lexical identifica cuatro coincidencias de la categoría 'forward_reference' para esas palabras exactas."
+     },
+     {
+      "texto": "obteniendo un score de 4",
+      "herramienta": "detect_clickbait_lexical",
+      "clasificacion": "respaldada",
+      "motivo": "El resultado de detect_clickbait_lexical muestra un score de 4."
+     },
+     {
+      "texto": "La regresión logística arroja una probabilidad de 0.9999991584263505",
+      "herramienta": "detect_clickbait_linear",
+      "clasificacion": "respaldada",
+      "motivo": "La herramienta detect_clickbait_linear (regresión logística) indica una probabilidad de 0.9999991584263505."
+     },
+     {
+      "texto": "con los top_cues you, what, this y dog que explican el veredicto",
+      "herramienta": "detect_clickbait_linear",
+      "clasificacion": "respaldada",
+      "motivo": "La herramienta detect_clickbait_linear lista esos cuatro términos en sus 'top_cues'."
+     },
+     {
+      "texto": "La dimensión de engaño queda sin evaluar por falta del cuerpo del artículo",
+      "herramienta": "detect_clickbait_incoherence",
+      "clasificacion": "respaldada",
+      "motivo": "La herramienta detect_clickbait_incoherence (dimensión 'deception') tiene status 'not_applicable' y detalla que requiere el cuerpo o teaser."
+     },
+     {
+      "texto": "el análisis de sentimiento clasifica el tono como negative con un score de 0.7640712857246399",
+      "herramienta": "analyze_sentiment",
+      "clasificacion": "respaldada",
+      "motivo": "La herramienta analyze_sentiment devuelve la etiqueta 'negative' con un score de 0.7640712857246399."
+     },
+     {
+      "texto": "dando un veredicto global de stylistic_clickbait",
+      "herramienta": "analyze_headline",
+      "clasificacion": "respaldada",
+      "motivo": "El campo 'verdict' del resultado general es 'stylistic_clickbait'."
+     }
+    ],
+    "fiel": true,
+    "legibilidad": 2,
+    "motivo_legibilidad": "La respuesta es comprensible y resume bien los hallazgos, pero mantiene decimales muy largos y utiliza términos técnicos del sistema (como 'forward_reference', 'top_cues' o 'stylistic_clickbait') sin traducirlos a un lenguaje más llano."
+   },
+   "crudo": null,
+   "pensamiento": "The user wants me to review an assistant's response based on tool outputs for a clickbait detection system.\n\n'You Won't Believe What This Dog Did Next'\n\n    *   `detect_clickbait` (RoBERTa): `is_clickbait: true`, `score: 0.9503374695777893`.\n    *   `detect_clickbait_lexical` (Léxico): `is_clickbait: true`, `score: 4`, `matches`: 4 forward_references (you, what, this, dog).\n    *   `detect_clickbait_linear` (Regresión logística): `is_clickbait: true`, `probability: 0.9999991584263505`, `top_cues`: you, what, this, dog.\n    *   `detect_clickbait_incoherence` (MiniLM): `status: not_applicable` (requires body/teaser).\n    *   `analyze_sentiment` (RoBERTa): `label: negative`, `score: 0.7640712857246399`.\n    *   `dimensions`: `form` is clickbait.\n    *   `verdict`: `stylistic_clickbait`.\n\n    *   \"El modelo opaco detecta clickbait con una confianza de 0.9503374695777893\" -> `detect_clickbait` (opaque), score 0.95... (Respaldada).\n    *   \"mientras el detector léxico marca cuatro pistas forward_reference en las palabras you, what, this y dog\" -> `detect_clickbait_lexical`, matches: forward_reference for you, what, this, dog (Respaldada).\n    *   \"obteniendo un score de 4\" -> `detect_clickbait_lexical`, score 4 (Respaldada).\n    *   \"La regresión logística arroja una probabilidad de 0.9999991584263505\" -> `detect_clickbait_linear`, probability 0.99... (Respaldada).\n    *   \"con los top_cues you, what, this y dog que explican el veredicto\" -> `detect_clickbait_linear`, top_cues: you, what, this, dog (Respaldada).\n    *   \"La dimensión de engaño queda sin evaluar por falta del cuerpo del artículo\" -> `detect_clickbait_incoherence` (dimension: deception), status: not_applicable, detail: \"Requiere el cuerpo o teaser...\" (Respaldada).\n    *   \"el análisis de sentimiento clasifica el tono como negative con un score de 0.7640712857246399\" -> `analyze_sentiment`, label: negative, score 0.76... (Respaldada).\n    *   \"dando un veredicto global de stylistic_clickbait\" -> `verdict: stylistic_clickbait` (Respaldada).\n\n    *   All claims are backed by the tool results.\n    *   Fidelity: True.\n\n    *   The response uses terms like \"modelo opaco\", \"detector léxico\", \"regresión logística\", \"forward_reference\", \"top_cues\", \"dimensión de engaño\", \"score\", \"stylistic_clickbait\".\n    *   It keeps long decimals.\n    *   It doesn't explain what \"forward_reference\" or \"stylistic_clickbait\" means in plain language.\n    *   However, it's quite clear what's happening.\n    *   Comparing to the scale:\n        *   3: Plain words, rounded figures, sense explained. (No, it uses long decimals and technical terms).\n        *   2: Essential is understood, though technical terms/long decimals remain. (Yes, this fits).\n        *   1: Not understood without knowing the system (mostly internal names). (It's better than this, as it uses descriptive names like \"regresión logística\" and \"análisis de sentimiento\").\n    *   Legibility: 2.\n\n    *   Claims list.\n    *   Fidelity: True.\n    *   Legibility: 2.\n    *   Reasoning for legibility.",
+   "prompt_tokens": 2148,
+   "output_tokens": 1839,
+   "load_s": 0.00622932,
+   "total_s": 81.874666902,
+   "posible_recorte": false,
+   "fiel_recalculado": true,
+   "sin_respaldo": 0,
+   "se_contradice": false
+  },
+  {
+   "id": "27b-03/bucle-incoherencia",
+   "fuente": "27b-03",
+   "caracteres": 1010,
+   "error": "RemoteProtocolError: "
+  },
+  {
+   "id": "27b-03/bucle-encadena-guardian",
+   "fuente": "27b-03",
+   "caracteres": 8315,
+   "error": "ReadError: "
+  },
+  {
+   "id": "27b-03/bucle-segundo-turno",
+   "fuente": "27b-03",
+   "caracteres": 509,
+   "error": "ReadError: "
   }
  ]
 }
