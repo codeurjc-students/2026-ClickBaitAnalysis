@@ -37,7 +37,15 @@
    "con_repetidas": 0,
    "tiempo_mediana_s": 14.9,
    "tiempo_max_s": 59.0,
-   "prompt_tokens_max": 6628
+   "prompt_tokens_max": 6628,
+   "juez gemma4-31b": {
+    "juzgadas": 27,
+    "infieles": 4,
+    "legibilidad": {
+     "2": 2,
+     "3": 25
+    }
+   }
   },
   "C-05": {
    "conversaciones": 27,
@@ -58,10 +66,10 @@
    "tiempo_max_s": 58.0,
    "prompt_tokens_max": 6873,
    "juez gemma4-31b": {
-    "juzgadas": 6,
-    "infieles": 1,
+    "juzgadas": 27,
+    "infieles": 5,
     "legibilidad": {
-     "3": 6
+     "3": 27
     }
    }
   },
@@ -83,6 +91,25 @@
    "tiempo_mediana_s": 18.0,
    "tiempo_max_s": 53.8,
    "prompt_tokens_max": 6463
+  },
+  "E-05-preciso": {
+   "conversaciones": 27,
+   "estados": {
+    "answered": 27
+   },
+   "marcadores_por_respuesta": 0,
+   "respuestas_sin_marcadores": 27,
+   "marcadores_por_tipo": {
+    "nombres_internos": 0,
+    "posiciones": 0,
+    "decimales_largos": 0
+   },
+   "sin_herramientas": 0,
+   "con_llamadas_de_mas": 1,
+   "con_repetidas": 0,
+   "tiempo_mediana_s": 16.9,
+   "tiempo_max_s": 120.5,
+   "prompt_tokens_max": 6873
   }
  },
  "marcadores_frente_a_la_lectura": {
