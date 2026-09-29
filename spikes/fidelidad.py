@@ -51,7 +51,8 @@ partes:
    pedido, se para ahí en vez de gastar la sesión. Juzga el corpus o, si se le
    da, otro fichero con la misma forma (los de `comparar`).
 
-3. `comparar`: las mismas 27 consultas, tres veces, en cinco condiciones —el
+3. `comparar`: las mismas 27 consultas, una vez (se diseñó con tres: ver
+   `REPETICIONES`), en cinco condiciones —el
    prompt de producción con y sin redondeo de las cifras que lee el modelo,
    `05-llano`, `03-estricto`, y el ganador con el perfil de muestreo «preciso»
    que recomiendan los autores del modelo—. Se intercalan (consulta a
@@ -306,7 +307,12 @@ CONDICIONES = {
     "C": Condicion("C-05", "05-llano", decimales=3),
     "D": Condicion("D-03", "03-estricto", decimales=3),
 }
-REPETICIONES = 3
+# Una: decidido por el usuario el 2026-09-29, con la primera sesión ya en marcha
+# (se diseñó con tres). Juzgar cada conversación con el juez calibrado cuesta
+# ~70 s, y la segunda y la tercera sólo habrían dado marcadores sin juez. La
+# primera sesión se paró al completar la repetición 1, así que sus ficheros
+# dicen `"repeticiones": 3` en las condiciones pero sólo traen `r1`.
+REPETICIONES = 1
 FALLOS_SEGUIDOS_PARA_PARAR = 3
 
 

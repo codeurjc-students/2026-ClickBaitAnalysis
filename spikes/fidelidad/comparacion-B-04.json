@@ -1,0 +1,314 @@
+{
+ "condiciones": {
+  "fecha": "2026-09-29T19:13:58+02:00",
+  "commit": "0f9beee",
+  "guion": "1256dc0d9729",
+  "ollama": "0.34.2",
+  "servidor": "http://127.0.0.1:11500",
+  "modelos": {
+   "qwen3.5:27b": {
+    "id": "7653528ba5cb",
+    "parametros": "temperature                    1\ntop_k                          20\ntop_p                          0.95\npresence_penalty               1.5"
+   }
+  },
+  "condicion": {
+   "nombre": "B-04",
+   "prompt": "04-preciso",
+   "decimales": 3,
+   "muestreo": null,
+   "modelo": "qwen3.5:27b"
+  },
+  "prompt_huella": "105523bc0298",
+  "num_ctx": 8192,
+  "keep_alive": "10m",
+  "nlp_backend": "local",
+  "repeticiones": 3,
+  "modelo_id": "7653528ba5cb"
+ },
+ "sesiones": [
+  {
+   "fecha": "2026-09-29T19:13:58+02:00",
+   "commit": "0f9beee",
+   "guion": "1256dc0d9729",
+   "ollama": "0.34.2"
+  }
+ ],
+ "conversaciones": [
+  {
+   "id": "B-04/generica-1/r1",
+   "fuente": "B-04",
+   "categoria": "GENERICA",
+   "consulta": "¿Es clickbait este titular? '10 Amazing Things You Won't Believe'",
+   "historial": [],
+   "estado": "answered",
+   "detalle": null,
+   "respuesta": "El detector léxico identifica cuatro pistas: `hyperbole` en «amazing» (posición 3-10), dos `forward_reference` en «things» (11-17) y «you» (18-21), junto con un `leading_number` en «10» (0-2), marcando el titular como clickbait de forma. El modelo lineal asigna una probabilidad de 0.999 de ser clickbait, destacando las pistas «you», «things», «amazing» y la lista numerada inicial. El clasificador neuronal etiqueta el texto como clickbait con una confianza de 0.967, mientras que la dimensión de engaño no se evalúa por falta de contenido del artículo. Todas las señales sobre forma coinciden en su veredicto, aunque sin cuerpo de noticia no puede determinarse si hay incoherencia entre titular y contenido.",
+   "herramientas": [
+    "analyze_headline",
+    "detect_clickbait_lexical"
+   ],
+   "repetidas": [],
+   "vueltas": [
+    {
+     "prompt_tokens": 3702,
+     "output_tokens": 381,
+     "load_s": 0.003348883,
+     "total_s": 12.989944128,
+     "pide": [
+      "analyze_headline",
+      "detect_clickbait_lexical"
+     ]
+    },
+    {
+     "prompt_tokens": 4588,
+     "output_tokens": 474,
+     "load_s": 0.005374216,
+     "total_s": 16.957553318,
+     "pide": []
+    }
+   ],
+   "total_s": 30.093951431997993,
+   "pasos": [
+    {
+     "kind": "model",
+     "round": 1,
+     "content": "",
+     "tool_calls": [
+      "analyze_headline",
+      "detect_clickbait_lexical"
+     ],
+     "metrics": {
+      "prompt_tokens": 3702,
+      "output_tokens": 381,
+      "load_s": 0.003348883,
+      "total_s": 12.989944128
+     }
+    },
+    {
+     "kind": "tool",
+     "round": 1,
+     "name": "analyze_headline",
+     "arguments": {
+      "headline": "10 Amazing Things You Won't Believe",
+      "content": "None"
+     },
+     "status": "ok",
+     "data": {
+      "headline": "10 Amazing Things You Won't Believe",
+      "content": null,
+      "signals": [
+       {
+        "name": "detect_clickbait",
+        "label": "RoBERTa dedicado (entrenado en Webis-17)",
+        "status": "ok",
+        "dimension": "form",
+        "type": "opaque",
+        "is_clickbait": true,
+        "data": {
+         "label": "clickbait",
+         "score": 0.9667009115219116
+        },
+        "detail": null
+       },
+       {
+        "name": "detect_clickbait_lexical",
+        "label": "Léxico por reglas (listas de cues de Chakraborty et al. 2016)",
+        "status": "ok",
+        "dimension": "form",
+        "type": "interpretable",
+        "is_clickbait": true,
+        "data": {
+         "score": 4,
+         "is_clickbait": true,
+         "matches": [
+          {
+           "category": "hyperbole",
+           "cue": "amazing",
+           "span": [
+            3,
+            10
+           ]
+          },
+          {
+           "category": "forward_reference",
+           "cue": "things",
+           "span": [
+            11,
+            17
+           ]
+          },
+          {
+           "category": "forward_reference",
+           "cue": "you",
+           "span": [
+            18,
+            21
+           ]
+          },
+          {
+           "category": "leading_number",
+           "cue": "10",
+           "span": [
+            0,
+            2
+           ]
+          }
+         ],
+         "headline": "10 Amazing Things You Won't Believe"
+        },
+        "detail": null
+       },
+       {
+        "name": "detect_clickbait_linear",
+        "label": "Regresión logística sobre features léxicas (entrenada en Chakraborty)",
+        "status": "ok",
+        "dimension": "form",
+        "type": "interpretable",
+        "is_clickbait": true,
+        "data": {
+         "is_clickbait": true,
+         "probability": 0.999997361581358,
+         "top_cues": [
+          [
+           "you",
+           5.619727385247914
+          ],
+          [
+           "things",
+           3.070336489922464
+          ],
+          [
+           "amazing",
+           3.026506581948977
+          ],
+          [
+           "leading_number",
+           2.763692450467654
+          ]
+         ],
+         "headline": "10 Amazing Things You Won't Believe"
+        },
+        "detail": null
+       },
+       {
+        "name": "detect_clickbait_incoherence",
+        "label": "MiniLM-L6-v2 (embeddings de frase)",
+        "status": "not_applicable",
+        "dimension": "deception",
+        "type": "hybrid",
+        "is_clickbait": null,
+        "data": null,
+        "detail": "Requiere el cuerpo o teaser de la noticia."
+       },
+       {
+        "name": "analyze_sentiment",
+        "label": "RoBERTa afinado en tuits (3 clases)",
+        "status": "ok",
+        "dimension": "tone",
+        "type": "opaque",
+        "is_clickbait": null,
+        "data": {
+         "label": "positive",
+         "score": 0.9511515498161316
+        },
+        "detail": null
+       }
+      ],
+      "dimensions": [
+       {
+        "dimension": "form",
+        "is_clickbait": true,
+        "contributing": [
+         "detect_clickbait",
+         "detect_clickbait_lexical",
+         "detect_clickbait_linear"
+        ]
+       }
+      ],
+      "verdict": "stylistic_clickbait"
+     },
+     "error": null,
+     "server": "tfg-mcp-server",
+     "duration_s": 0.056705520997638814
+    },
+    {
+     "kind": "tool",
+     "round": 1,
+     "name": "detect_clickbait_lexical",
+     "arguments": {
+      "headline": "10 Amazing Things You Won't Believe"
+     },
+     "status": "ok",
+     "data": {
+      "score": 4,
+      "is_clickbait": true,
+      "matches": [
+       {
+        "category": "hyperbole",
+        "cue": "amazing",
+        "span": [
+         3,
+         10
+        ]
+       },
+       {
+        "category": "forward_reference",
+        "cue": "things",
+        "span": [
+         11,
+         17
+        ]
+       },
+       {
+        "category": "forward_reference",
+        "cue": "you",
+        "span": [
+         18,
+         21
+        ]
+       },
+       {
+        "category": "leading_number",
+        "cue": "10",
+        "span": [
+         0,
+         2
+        ]
+       }
+      ],
+      "headline": "10 Amazing Things You Won't Believe"
+     },
+     "error": null,
+     "server": "tfg-mcp-server",
+     "duration_s": 0.019225035000999924
+    },
+    {
+     "kind": "model",
+     "round": 2,
+     "content": "El detector léxico identifica cuatro pistas: `hyperbole` en «amazing» (posición 3-10), dos `forward_reference` en «things» (11-17) y «you» (18-21), junto con un `leading_number` en «10» (0-2), marcando el titular como clickbait de forma. El modelo lineal asigna una probabilidad de 0.999 de ser clickbait, destacando las pistas «you», «things», «amazing» y la lista numerada inicial. El clasificador neuronal etiqueta el texto como clickbait con una confianza de 0.967, mientras que la dimensión de engaño no se evalúa por falta de contenido del artículo. Todas las señales sobre forma coinciden en su veredicto, aunque sin cuerpo de noticia no puede determinarse si hay incoherencia entre titular y contenido.",
+     "tool_calls": [],
+     "metrics": {
+      "prompt_tokens": 4588,
+      "output_tokens": 474,
+      "load_s": 0.005374216,
+      "total_s": 16.957553318
+     }
+    }
+   ],
+   "repeticion": 1,
+   "esperadas": [
+    "analyze_headline",
+    "detect_clickbait",
+    "detect_clickbait_lexical",
+    "detect_clickbait_linear"
+   ],
+   "de_mas": [],
+   "sin_herramientas": false,
+   "marcadores": {
+    "nombres_internos": 3,
+    "posiciones": 1,
+    "decimales_largos": 0
+   }
+  }
+ ]
+}
