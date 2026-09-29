@@ -901,7 +901,8 @@ def resumen() -> None:
     por_nivel: dict[int, list[int]] = {}
     for conversacion in json.loads(CORPUS.read_text(encoding="utf-8"))["conversaciones"]:
         if conversacion["id"] in lectura:
-            nivel = lectura[conversacion["id"]]["legibilidad"]
+            # La validada por el autor si la hay; si no, la del borrador.
+            nivel = (lectura[conversacion["id"]].get("validada") or lectura[conversacion["id"]])["legibilidad"]
             por_nivel.setdefault(nivel, []).append(sum(_marcadores(conversacion["respuesta"]).values()))
     salida["marcadores_frente_a_la_lectura"] = {
         nivel: {"respuestas": len(valores), "marcadores_mediana": _mediana(valores)}

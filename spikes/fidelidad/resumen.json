@@ -56,7 +56,14 @@
    "con_repetidas": 0,
    "tiempo_mediana_s": 18.6,
    "tiempo_max_s": 58.0,
-   "prompt_tokens_max": 6873
+   "prompt_tokens_max": 6873,
+   "juez gemma4-31b": {
+    "juzgadas": 6,
+    "infieles": 1,
+    "legibilidad": {
+     "3": 6
+    }
+   }
   },
   "D-03": {
    "conversaciones": 27,
@@ -84,12 +91,12 @@
    "marcadores_mediana": 4
   },
   "2": {
-   "respuestas": 37,
-   "marcadores_mediana": 1
+   "respuestas": 38,
+   "marcadores_mediana": 1.0
   },
   "3": {
-   "respuestas": 12,
-   "marcadores_mediana": 0.0
+   "respuestas": 11,
+   "marcadores_mediana": 0
   }
  }
 }

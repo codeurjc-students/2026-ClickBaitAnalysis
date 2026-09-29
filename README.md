@@ -7115,6 +7115,107 @@ bash spikes/chat_registro.sh 2026-09-28T18:22:00Z 2026-09-28T18:24:00Z
 - **La primera conversación tras un despliegue paga el MCP en frío**, 6,9 s las dos veces (aceptado en H4).
 - **El despliegue sirve esta rama** (`d6a90d8`) desde la segunda prueba; el clon vuelve a `dev` tras el merge.
 
+### La fidelidad del agente: jueces calibrados y un prompt llano (#192, 29 sep 2026)
+
+*En curso: escrita a mitad de la issue para que no se pierda lo hecho. Falta juzgar la comparación, la condición del perfil preciso y la medida de la ventana; se completa antes de la PR.*
+
+La issue F de H5 tiene dos preguntas. La primera: si lo que cuenta el agente está en lo que devolvieron las herramientas, y cómo medirlo sin leerlo todo a mano. La segunda: qué prompt lo consigue sin sonar técnico, que es lo que dejó la prueba en producción de #191 ([comentario en la issue](https://github.com/codeurjc-students/2026-ClickBaitAnalysis/issues/192#issuecomment-5876234208)). Todo sale de [`spikes/fidelidad.py`](spikes/fidelidad.py), por partes, con [`spikes/fidelidad_a40.sh`](spikes/fidelidad_a40.sh) abriendo cada sesión de GPU, y los datos en [`spikes/fidelidad/`](spikes/fidelidad/).
+
+#### El corpus
+
+La parte `corpus` genera las conversaciones que después se leen y se juzgan: las 26 consultas de `agente_a40.py` sin las cinco que no piden herramientas —sin resultados no hay nada a lo que ser fiel— y sus seis bucles, 27 en total, completas y con los resultados enteros, como en producción. Las responden cuatro fuentes. Dos son candidatas: producción (el 27B razonando con `04-preciso`) y el otro prompt (`03-estricto`). Las otras dos están para que haya errores que cazar: el 2B, que en el spike se equivocaba sin que la criba lo viera, y el 27B sin razonar en las 12 consultas de análisis, que en #188 se inventaba los resultados.
+
+| Condiciones | |
+|---|---|
+| Fecha | 2026-09-29, 13:23, sobre `239a955` (guion `5fe6436111ae`) |
+| Máquina | la A40, con `gpu-sesion` (`6ad6a751d636`) y el túnel propio en el 11500; Ollama 0.34.2 |
+| Modelos | `qwen3.5:27b` (`7653528ba5cb`) y `qwen3.5:2b` (`324d162be6ca`), `num_ctx` 8192 |
+| Muestreo | el del Modelfile, que el agente no manda: temperatura 1, `top_k` 20, `top_p` 0,95 y `presence_penalty` 1,5, leído de `api/show` y guardado con el corpus |
+| Datos | [`corpus.json`](spikes/fidelidad/corpus.json): 93 conversaciones con la traza entera |
+
+| Fuente | Con texto | Vacías | Con texto y sin herramientas | De punta a punta (mediana · máx) |
+|---|---|---|---|---|
+| `27b-04` | 27 | 0 | 1 | 16,5 · 93,3 s |
+| `2b-04` | 18 | 9 | 0 | 3,6 · 13,9 s |
+| `27b-04-sin-razonar` | 12 | 0 | 10 | 5,3 · 7,7 s |
+| `27b-03` | 27 | 0 | 0 | 16,9 · 35,5 s |
+
+**Una condición que nadie mandaba: el muestreo.** El agente fija `num_ctx` y `think`, pero no la temperatura, así que manda la del Modelfile. Esos valores son el perfil que recomiendan los autores de Qwen3.5 para razonar en tareas generales; para tareas precisas recomiendan temperatura 0,6 y `presence_penalty` 0 ([ficha de Qwen3.5](https://huggingface.co/Qwen/Qwen3.5-0.8B), [discusión sobre los parámetros](https://huggingface.co/Qwen/Qwen3.5-9B/discussions/51)). Todo lo medido del agente desde el spike se midió así sin saberlo: es la regla de #188 otra vez, un parámetro que no se manda también es una condición.
+
+#### La lectura, validada por el autor
+
+Claude leyó las 84 respuestas con texto contra los resultados de sus herramientas, con la misma rúbrica que después usan los jueces ([`juez-fidelidad.md`](spikes/prompts/juez-fidelidad.md)). Cada afirmación queda respaldada, mal atribuida, contradicha o inventada, y la respuesta es fiel sólo si todas están respaldadas. Redondear bien no es infiel; un porcentaje sólo vale para una probabilidad o una confianza; y la legibilidad, de 1 a 3, va aparte. Dos puntos los decidió el autor antes de juzgar: nombrar una categoría que no da ninguna herramienta llamada es infiel (la «referencia vaga» de un titular con sólo el modelo lineal llamado), y los niveles 1 y 2 de legibilidad se reescribieron para que no se solaparan en los decimales.
+
+El borrador lo validó el autor caso a caso, en una página privada con la etiqueta de Claude a la vista, que es lo que él prefirió a una muestra a ciegas. Estuvo de acuerdo en 81 de 84; las 3 correcciones son de legibilidad, ninguna de fidelidad. La parte `validar` copia sus decisiones al campo `validada` de [`lectura.json`](spikes/fidelidad/lectura.json), y ésa es la referencia de todo lo que sigue.
+
+| Fuente | Fieles | Legibilidad 1 · 2 · 3 |
+|---|---|---|
+| `27b-04` | 24/27 | 11 · 12 · 4 |
+| `27b-03` | 24/27 | 11 · 14 · 2 |
+| `2b-04` | 11/18 | 7 · 7 · 4 |
+| `27b-04-sin-razonar` | 1/12 | 6 · 5 · 1 |
+
+- **Razonando, producción también se inventa un resultado alguna vez.** A «¿Y qué dice el modelo de caja negra?», con el historial, contestó «factual news con una confianza de 0,95» sin llamar a la herramienta, que da 0,718. Es el modo de fallo de #188, que razonar hace raro pero no elimina: 1 de 27.
+- **Una mal atribuida en producción**: las posiciones que da el léxico, atribuidas en la misma frase al modelo lineal.
+- **El 2B**: los pesos presentados como posiciones («you» en [5,62]), que la incoherencia «detecta falta de coherencia» cuando salió no aplicable, noticias mal traducidas y cuatro de las cinco señales llamadas caja negra.
+- **Lo ilegible, según las notas del autor**: los decimales, las posiciones y los nombres internos. Las dos últimas las exigía el propio `04-preciso` («cada pista lleva su propia posición», las categorías «tal como las devuelve la herramienta»).
+
+#### Los jueces, calibrados
+
+Se propusieron tres jueces y se midieron dos, de familias distintas a la que responde: `gpt-oss:20b` (`17052f91a42e`, de OpenAI) y `gemma4:31b` (`6316f0629137`, de Google), descargados en la máquina 2 (2 min 18 s y 3 min 13 s; de 163 a 131 GB libres). El tercero, `qwen3.5:27b`, de la misma familia, queda por el coste. Todo va explícito, porque el juez es un instrumento de medida: temperatura 0, razonando, `num_ctx` 16384 y la salida atada a un esquema JSON con `format`. El guion vuelve a calcular si la respuesta es fiel a partir de las afirmaciones que clasifica el juez, y marca si el juez se contradice; no pasó ninguna vez. Rúbrica `78e41cf7cdc3`, corpus `f0c2be54c90b`; la parte `calibrar` da las cifras en [`calibracion.json`](spikes/fidelidad/calibracion.json).
+
+| Juez | Acuerdo | Kappa | Infieles cazadas | Falsas alarmas | Legibilidad igual (diferencia media) | Por caso (mediana · máx) |
+|---|---|---|---|---|---|---|
+| **`gemma4:31b`** | 76/84 | **0,77** | **20/24** | **4/60** | 30/84 (+0,76) | 62,5 · 210,3 s |
+| `gpt-oss:20b` | 64/84 | 0,46 | 17/24 | 13/60 | 20/84 (+1,02) | 11,1 · 95,1 s |
+| infiel si lo dice cualquiera | 67/84 | 0,56 | 21/24 | 14/60 | — | — |
+| infiel si lo dicen los dos | 73/84 | 0,66 | 16/24 | 3/60 | — | — |
+
+- **`gemma4:31b` es el juez.** Lo que se le escapa es casi todo de la regla más estricta: las tres «referencias vagas» y el «Sí» ambiguo del 2B a «¿concuerda?». Juntarlo con el otro no compensa: una infiel más cazada por diez falsas alarmas más.
+- **`gpt-oss:20b` es demasiado estricto con lo que la rúbrica excluye**: cuenta como inventadas las descripciones generales de las señales y las deducciones directas del dato («factual news» es «no es clickbait»).
+- **Para la legibilidad no sirve ninguno**: los dos puntúan de más, +0,8 y +1,0 de media. Por eso la legibilidad se mide sin juez (abajo).
+- `gemma4:31b` necesitó tres sesiones de 45 minutos; la parte `jueces` continúa donde lo dejó. Las primeras cargas, justo tras la descarga, tardaron 95,8 s (`gpt-oss`) y 82,8 s (`gemma4`); en las sesiones, 8,2 s y entre 10,4 y 31,3 s. Observado, sin explicar: no se midió la caché de disco.
+
+#### Dos cambios que salen de la validación
+
+1. **El redondeo, en el código y no en el prompt** (`81faf29`). El agente redondea a tres decimales las cifras que LEE el modelo, nunca la traza, de la que salen las tarjetas (R13.4); y lo que no es 0 ni ±1 no se redondea a 0 ni a 1, para no leer una certeza que la herramienta no dio (0,9999973 se queda en 0,999). Pedírselo al prompt no lo garantiza: si no ve los decimales, no los puede copiar. Es `decimales_para_el_modelo` en `Configuracion`, 3 por defecto; tres tests escritos antes, que fallaban.
+2. **Un prompt nuevo, `05-llano`** (`dec141c`). Conserva las reglas de veracidad y cambia lo que la validación señaló: sin posiciones, un glosario fijo de nombres llanos para herramientas, pistas y veredictos (fijo para que la traducción se pueda juzgar), cada cifra con su sentido, la conclusión primero, las noticias con su titular y una frase de su resumen, y las fichas sin detalles de instalación. 3.906 caracteres, frente a los 3.054 de `04-preciso`.
+
+#### La comparación, sin juez todavía
+
+La parte `comparar` pasa las 27 consultas por cuatro condiciones, intercaladas consulta a consulta para que el paso del tiempo —las noticias cambian— no caiga sobre una sola: A, `04-preciso` sin redondeo (producción hoy); B, `04-preciso` con redondeo; C, `05-llano`; y D, `03-estricto` con redondeo. Se diseñó con tres repeticiones. Con la primera sesión en marcha, el autor decidió quedarse con una, por lo que cuesta juzgar cada conversación, así que la sesión se paró al terminar la repetición 1: los ficheros dicen `"repeticiones": 3` en sus condiciones, pero sólo traen la primera. Commit `0f9beee`, de 19:13 a 19:52; los datos, en `comparacion-<condición>.json`.
+
+Sin juez se cuentan las tres quejas de la validación —nombres internos, posiciones y cifras con más de tres decimales—, además de las llamadas que no son las esperadas para cada consulta y las respuestas sin ninguna herramienta. **Los marcadores siguen a la legibilidad validada**: en el corpus, la mediana es 4 en las respuestas de legibilidad 1, 1 en las de 2 y 0 en las de 3 (35, 38 y 11 respuestas). La parte `resumen` lo recalcula y guarda [`resumen.json`](spikes/fidelidad/resumen.json).
+
+| Condición | Marcadores por respuesta | Sin ninguno | Nombres · posiciones · decimales | Llamadas de más | Sin herramientas | Mediana · máx | Prompt máx |
+|---|---|---|---|---|---|---|---|
+| A · `04` sin redondeo | 3,0 | 4 de 26 | 27 · 19 · 32 | 2 | 0 | 17,0 · 87,6 s | 6.628 |
+| B · `04` con redondeo | 1,78 | 11 de 27 | 32 · 16 · 0 | 2 | 0 | 14,9 · 59,0 s | 6.628 |
+| **C · `05-llano`** | **0** | **27 de 27** | **0 · 0 · 0** | 1 | 0 | 18,6 · 58,0 s | 6.873 |
+| D · `03` con redondeo | 1,56 | 12 de 27 | 35 · 7 · 0 | 1 | 0 | 18,0 · 53,8 s | 6.463 |
+
+El redondeo hace lo suyo (los decimales largos pasan de 32 a 0 entre A y B), y `05-llano` quita los tres marcadores en las 27 respuestas. A tuvo una respuesta vacía.
+
+**La regla para decidir se fijó ANTES de juzgar**, como el tope de #189:
+
+1. Un prompt queda fuera si su tasa de infieles, según `gemma4:31b` sobre las 27 respuestas de cada condición, supera en más de 5 puntos a la de B.
+2. De los que quedan, gana el que menos marcadores tenga por respuesta; si mejora a B en menos de un 20 %, se queda `04-preciso`, porque cambiar de prompt obliga a volver a medir la ventana y el historial.
+3. La condición E —el ganador con el perfil de muestreo «preciso» de los autores, temperatura 0,6 y `presence_penalty` 0— sólo se queda si no sube las infieles ni las respuestas sin herramientas, y baja las vueltas desbocadas o el tiempo. Cambia dos parámetros a la vez, pero es un perfil que los autores ya validaron, no uno inventado.
+
+#### La ventana se queda justa
+
+La regla del tope del historial de #189 midió sólo el prompt, pero el razonamiento y la respuesta también ocupan ventana. Sumando las dos cosas por vuelta, la más pesada de la comparación es la de las fichas de los modelos, cuyo resultado es el más largo: con `05-llano`, 7.575 de 8.192 tokens sin historial (6.873 + 702); en A, una noticia encadenada llegó a 7.525. Con el historial máximo (4.000 caracteres, unos 1.141 tokens en #189) pasarían de 8.192, y Ollama recortaría en silencio. En el corpus ya pasó una vez: una vuelta del 2B llenó la ventana exacta (8.183 + 9). La salida que se propone es subir `llm_num_ctx` a 16.384, midiéndolo antes con la parte `ventana`: las dos vueltas más pesadas, con 3.674 caracteres de historial real, en las dos ventanas, y la memoria de cada una según `api/ps`.
+
+#### Por el camino
+
+- **Un `.sh` editado desde Windows pierde el bit de ejecución**, porque la herramienta guarda escribiendo una copia y renombrándola; y **un `.sh` no se edita mientras corre**, porque bash lo lee línea a línea. Las dos van en la skill `ejecutar-en-wsl`.
+- **Python acumula la salida cuando escribe en un fichero**, y el registro del primer juez no enseñó nada hasta el final: la sesión corre con `PYTHONUNBUFFERED=1`.
+
+#### Lo que queda
+
+- Que `gemma4:31b` juzgue A–D, la condición E sobre el ganador y la medida de la ventana; con ellas, la decisión, y si gana `05-llano`, que pase a ser el prompt por defecto y volver a medir el tope del historial.
+- Fuera de esta issue, anotado: los enlaces de las noticias en la pantalla, sacados de la traza y no del texto del modelo (idea del autor); las fichas de `describe_models` mezclan los límites de cada señal con detalles de operación que el agente repite a cualquiera (nota del autor al validar); y el léxico no encuentra ninguna pista en «Top 5 Secrets Finally Revealed», un ejemplo del techo de cobertura que midió #121, para #75.
+
 
 
 "Aplico Rudin donde puedo —incoherencia(A MEDIAS, YA QUE EL MODELO NO) y léxico son intrínsecamente interpretables— y reservo lo post-hoc (LIME/SHAP), con sus límites de fidelidad, solo para la parte que depende de un transformer preentrenado que no puedo abrir de otro modo." !!!IMPORTANTE (NO MODIFICAR, RECORDAR POSTURA DEFINIDA)
