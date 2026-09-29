@@ -74,6 +74,11 @@ partes:
    las parejas de jueces y a la propia lectura: cuántas infieles caza, cuántas
    fieles da por infieles, el kappa y la legibilidad.
 
+6. `ventana`: las dos vueltas más pesadas de la comparación, con el historial
+   máximo que admite la API, con `num_ctx` 8.192 y 16.384: si la pequeña
+   recorta, y cuánta memoria cuesta la grande. Mide antes de cambiar el valor
+   por defecto del agente.
+
 Ejecutar desde la raíz, con el túnel abierto (la sesión la abre
 `spikes/fidelidad_a40.sh`):
 
@@ -84,6 +89,7 @@ Ejecutar desde la raíz, con el túnel abierto (la sesión la abre
     .venv/bin/python spikes/fidelidad.py resumen
     .venv/bin/python spikes/fidelidad.py validar <carpeta exportada>
     .venv/bin/python spikes/fidelidad.py calibrar
+    NLP_BACKEND=local .venv/bin/python spikes/fidelidad.py ventana
 
 Sin fuentes, las cuatro; los jueces, de uno en uno; `E:<prompt>` es la
 condición del perfil preciso sobre ese prompt. `OLLAMA_URL` cambia el servidor
@@ -259,7 +265,10 @@ class OllamaConMuestreo(OllamaClient):
 
 
 def _config(
-    fuente: Fuente, decimales: int | None = None, muestreo: dict | None = None
+    fuente: Fuente,
+    decimales: int | None = None,
+    muestreo: dict | None = None,
+    num_ctx: int = NUM_CTX,
 ) -> Configuracion:
     """La configuración del agente de producción, con el modelo, el prompt y el
     `think` de la fuente.
@@ -271,7 +280,7 @@ def _config(
     extra = {"muestreo": muestreo} if muestreo else {}
     return Configuracion(
         backend=clase(
-            URL, fuente.modelo, num_ctx=NUM_CTX, keep_alive=KEEP_ALIVE, timeout=LLM_TIMEOUT, **extra
+            URL, fuente.modelo, num_ctx=num_ctx, keep_alive=KEEP_ALIVE, timeout=LLM_TIMEOUT, **extra
         ),
         servers=[_SERVIDOR_URL],
         prompt=prompts.cargar(fuente.prompt),
@@ -1050,6 +1059,104 @@ def calibrar() -> None:
     print(f"\nLa calibración, en {CARPETA / 'calibracion.json'}")
 
 
+# ----- 6 · La ventana -----
+
+VENTANAS = (8192, 16384)
+# Las dos vueltas que más ocuparon en la comparación: las fichas de los modelos
+# (el resultado más largo) y encadenar una noticia (la vuelta con más salida).
+CONSULTAS_PESADAS = ("otro_dominio-3", "bucle-encadena-nyt")
+# El tope del historial de producción (`chat_max_history_chars`, #189).
+HISTORIAL_MAXIMO = 4000
+
+
+def _historial_maximo() -> list[dict]:
+    """Turnos reales —preguntas y respuestas de `05-llano` en la comparación— hasta
+    el tope de caracteres que admite la API, como lo recortaría la interfaz."""
+    conversaciones = json.loads((CARPETA / "comparacion-C-05.json").read_text(encoding="utf-8"))["conversaciones"]
+    historial: list[dict] = []
+    caracteres = 0
+    for conversacion in conversaciones:
+        pareja = [
+            {"role": "user", "content": conversacion["consulta"]},
+            {"role": "assistant", "content": conversacion["respuesta"]},
+        ]
+        tamano = sum(len(turno["content"]) for turno in pareja)
+        if caracteres + tamano > HISTORIAL_MAXIMO:
+            break
+        historial += pareja
+        caracteres += tamano
+    return historial
+
+
+async def ventana() -> None:
+    """Cuánto cuesta subir `num_ctx` de 8.192 a 16.384, y si con 8.192 se recorta.
+
+    La comparación de #192 enseñó que la regla de #189 medía sólo el prompt: el
+    razonamiento y la respuesta también ocupan ventana, y la vuelta de las fichas
+    con `05-llano` llegó a 7.575 tokens SIN historial. Aquí las dos vueltas más
+    pesadas, con el historial máximo, en las dos ventanas: si con 8.192 el
+    prompt sale más corto que con 16.384 para la misma entrada, Ollama lo
+    recortó. Y la memoria de cada una, de `api/ps`, sin sondear `nvidia-smi`.
+    """
+    fuente = Fuente("ventana", "qwen3.5:27b", "05-llano", think=True)
+    historial = _historial_maximo()
+    caracteres = sum(len(turno["content"]) for turno in historial)
+    registro: dict = {
+        "condiciones": await _condiciones({fuente.modelo})
+        | {
+            "prompt": fuente.prompt,
+            "prompt_huella": _huella(prompts.cargar(fuente.prompt)),
+            "decimales": 3,
+            "historial": {"turnos": len(historial), "caracteres": caracteres},
+            "ventanas": VENTANAS,
+        },
+        "medidas": [],
+    }
+    print(f"  historial: {len(historial)} turnos, {caracteres} caracteres")
+    consultas = {clave: (consulta, esperadas) for clave, _, consulta, _, esperadas in _consultas()}
+    ruta = CARPETA / "ventana.json"
+    async with httpx.AsyncClient(timeout=10.0) as cliente:
+        for num_ctx in VENTANAS:
+            print(f"\n== num_ctx {num_ctx}")
+            for clave in CONSULTAS_PESADAS:
+                consulta, _ = consultas[clave]
+                resultado = await responder(consulta, historial, _config(fuente, 3, None, num_ctx))
+                cargado = await _pedir(cliente, "GET", "api/ps") or {}
+                memoria = next(
+                    (entrada for entrada in cargado.get("models", []) if entrada.get("name") == fuente.modelo), {}
+                )
+                vueltas = [paso["metrics"] for paso in resultado["steps"] if paso["kind"] == "model"]
+                medida = {
+                    "num_ctx": num_ctx,
+                    "consulta": clave,
+                    "estado": resultado["status"],
+                    "total_s": resultado["total_s"],
+                    "vueltas": [
+                        {
+                            "prompt_tokens": vuelta["prompt_tokens"],
+                            "output_tokens": vuelta["output_tokens"],
+                            "load_s": vuelta["load_s"],
+                            "total_s": vuelta["total_s"],
+                        }
+                        for vuelta in vueltas
+                    ],
+                    "ocupacion_max": max(
+                        ((vuelta["prompt_tokens"] or 0) + (vuelta["output_tokens"] or 0) for vuelta in vueltas), default=0
+                    ),
+                    "vram_mib": round((memoria.get("size_vram") or 0) / 2**20),
+                    "tamano_mib": round((memoria.get("size") or 0) / 2**20),
+                    "respuesta": resultado["answer"],
+                }
+                registro["medidas"].append(medida)
+                _guardar(registro, ruta)
+                print(
+                    f"  {clave:22} {medida['estado']:12} {medida['total_s']:6.1f} s · "
+                    f"prompt por vuelta {[vuelta['prompt_tokens'] for vuelta in medida['vueltas']]} · "
+                    f"ocupación máx {medida['ocupacion_max']} de {num_ctx} · VRAM {medida['vram_mib']} MiB"
+                )
+    print(f"\nLas medidas, en {ruta}")
+
+
 async def _con_mcp(corrutina) -> None:
     """Sirve el `mcp` de producción en proceso mientras corre `corrutina`."""
     app = SERVIDOR.streamable_http_app()
@@ -1084,6 +1191,9 @@ async def main(parte: str, argumentos: list[str]) -> None:
     if parte == "calibrar":
         calibrar()
         return
+    if parte == "ventana":
+        await _con_mcp(ventana())
+        return
 
     fuentes = [fuente for fuente in FUENTES if fuente.nombre in argumentos]
     ruta = Path(os.environ.get("FIDELIDAD_JSON", CORPUS))
@@ -1112,9 +1222,9 @@ if __name__ == "__main__":
     elif parte == "validar":
         if len(argumentos) != 1:
             sys.exit("Uso: fidelidad.py validar <carpeta con la exportación de la página>")
-    elif parte not in ("resumen", "calibrar"):
+    elif parte not in ("resumen", "calibrar", "ventana"):
         sys.exit(
             "Uso: fidelidad.py corpus | jueces <modelo> [fichero] | comparar <condición ...>"
-            " | resumen | validar <carpeta> | calibrar"
+            " | resumen | validar <carpeta> | calibrar | ventana"
         )
     asyncio.run(main(parte, argumentos))
