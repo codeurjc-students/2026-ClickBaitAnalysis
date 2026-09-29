@@ -1,0 +1,1020 @@
+{
+ "condiciones": {
+  "autor": "Claude (borrador, a validar por el autor)",
+  "fecha": "2026-09-29T16:59:51+02:00",
+  "rubrica": "78e41cf7cdc3",
+  "corpus": "f0c2be54c90b",
+  "que_se_anota": "de las afirmaciones, sólo las que no están respaldadas; «dudosa» marca los casos en que el criterio no es obvio"
+ },
+ "lecturas": [
+  {
+   "id": "27b-04/generica-1",
+   "fuente": "27b-04",
+   "fiel": true,
+   "legibilidad": 1,
+   "sin_respaldo": [],
+   "dudosa": false,
+   "nota": "",
+   "validada": null
+  },
+  {
+   "id": "27b-04/generica-2",
+   "fuente": "27b-04",
+   "fiel": true,
+   "legibilidad": 2,
+   "sin_respaldo": [],
+   "dudosa": true,
+   "nota": "Llama «factual news» al veredicto global, que es «factual»; «factual news» es la etiqueta de la caja negra. Lo doy por la misma idea, no por mal atribuido.",
+   "validada": null
+  },
+  {
+   "id": "27b-04/generica-3",
+   "fuente": "27b-04",
+   "fiel": true,
+   "legibilidad": 1,
+   "sin_respaldo": [],
+   "dudosa": false,
+   "nota": "",
+   "validada": null
+  },
+  {
+   "id": "27b-04/generica-4",
+   "fuente": "27b-04",
+   "fiel": true,
+   "legibilidad": 1,
+   "sin_respaldo": [],
+   "dudosa": false,
+   "nota": "",
+   "validada": null
+  },
+  {
+   "id": "27b-04/especifica-1",
+   "fuente": "27b-04",
+   "fiel": true,
+   "legibilidad": 1,
+   "sin_respaldo": [],
+   "dudosa": true,
+   "nota": "«La herramienta indica que estas pistas aparecen específicamente en las posiciones mencionadas sin agruparlas ni aproximaciones»: es eco del prompt atribuido a la herramienta. No lo cuento como dato, pero la herramienta no dice eso.",
+   "validada": null
+  },
+  {
+   "id": "27b-04/especifica-2",
+   "fuente": "27b-04",
+   "fiel": true,
+   "legibilidad": 1,
+   "sin_respaldo": [],
+   "dudosa": false,
+   "nota": "",
+   "validada": null
+  },
+  {
+   "id": "27b-04/especifica-3",
+   "fuente": "27b-04",
+   "fiel": true,
+   "legibilidad": 1,
+   "sin_respaldo": [],
+   "dudosa": false,
+   "nota": "",
+   "validada": null
+  },
+  {
+   "id": "27b-04/especifica-4",
+   "fuente": "27b-04",
+   "fiel": false,
+   "legibilidad": 1,
+   "sin_respaldo": [
+    {
+     "texto": "la referencia vaga 'this'",
+     "clasificacion": "inventada",
+     "motivo": "Sólo se llamó al lineal, que da pesos y no categorías: ninguna herramienta llamada clasifica «this». Es la categoría que daría el léxico, pero no se le llamó."
+    }
+   ],
+   "dudosa": true,
+   "nota": "Depende de si nombrar la categoría de una pista, sin que la dé ninguna herramienta llamada, cuenta como infiel. Con la rúbrica al pie de la letra, sí.",
+   "validada": null
+  },
+  {
+   "id": "27b-04/especifica-5",
+   "fuente": "27b-04",
+   "fiel": true,
+   "legibilidad": 2,
+   "sin_respaldo": [],
+   "dudosa": false,
+   "nota": "",
+   "validada": null
+  },
+  {
+   "id": "27b-04/especifica-6",
+   "fuente": "27b-04",
+   "fiel": true,
+   "legibilidad": 2,
+   "sin_respaldo": [],
+   "dudosa": false,
+   "nota": "",
+   "validada": null
+  },
+  {
+   "id": "27b-04/especifica-7",
+   "fuente": "27b-04",
+   "fiel": true,
+   "legibilidad": 2,
+   "sin_respaldo": [],
+   "dudosa": false,
+   "nota": "",
+   "validada": null
+  },
+  {
+   "id": "27b-04/especifica-8",
+   "fuente": "27b-04",
+   "fiel": true,
+   "legibilidad": 2,
+   "sin_respaldo": [],
+   "dudosa": false,
+   "nota": "",
+   "validada": null
+  },
+  {
+   "id": "27b-04/otro_dominio-1",
+   "fuente": "27b-04",
+   "fiel": true,
+   "legibilidad": 3,
+   "sin_respaldo": [],
+   "dudosa": false,
+   "nota": "",
+   "validada": null
+  },
+  {
+   "id": "27b-04/otro_dominio-2",
+   "fuente": "27b-04",
+   "fiel": true,
+   "legibilidad": 3,
+   "sin_respaldo": [],
+   "dudosa": false,
+   "nota": "",
+   "validada": null
+  },
+  {
+   "id": "27b-04/otro_dominio-3",
+   "fuente": "27b-04",
+   "fiel": true,
+   "legibilidad": 1,
+   "sin_respaldo": [],
+   "dudosa": false,
+   "nota": "",
+   "validada": null
+  },
+  {
+   "id": "27b-04/contraste-1",
+   "fuente": "27b-04",
+   "fiel": false,
+   "legibilidad": 2,
+   "sin_respaldo": [
+    {
+     "texto": "\"what\" en posición [16,20] con peso 4.62 y \"she\" en posición [21,24] con peso 2.62, atribuidas a «este mismo modelo» (el lineal)",
+     "clasificacion": "mal_atribuida",
+     "motivo": "Las posiciones las da el léxico; el lineal sólo da pesos. Mezcla las dos herramientas en una frase."
+    }
+   ],
+   "dudosa": false,
+   "nota": "",
+   "validada": null
+  },
+  {
+   "id": "27b-04/contraste-2",
+   "fuente": "27b-04",
+   "fiel": true,
+   "legibilidad": 2,
+   "sin_respaldo": [],
+   "dudosa": false,
+   "nota": "",
+   "validada": null
+  },
+  {
+   "id": "27b-04/contraste-3",
+   "fuente": "27b-04",
+   "fiel": true,
+   "legibilidad": 2,
+   "sin_respaldo": [],
+   "dudosa": false,
+   "nota": "",
+   "validada": null
+  },
+  {
+   "id": "27b-04/contraste-4",
+   "fuente": "27b-04",
+   "fiel": true,
+   "legibilidad": 2,
+   "sin_respaldo": [],
+   "dudosa": false,
+   "nota": "",
+   "validada": null
+  },
+  {
+   "id": "27b-04/contraste-5",
+   "fuente": "27b-04",
+   "fiel": true,
+   "legibilidad": 2,
+   "sin_respaldo": [],
+   "dudosa": false,
+   "nota": "",
+   "validada": null
+  },
+  {
+   "id": "27b-04/contraste-6",
+   "fuente": "27b-04",
+   "fiel": true,
+   "legibilidad": 2,
+   "sin_respaldo": [],
+   "dudosa": false,
+   "nota": "",
+   "validada": null
+  },
+  {
+   "id": "27b-04/bucle-encadena-nyt",
+   "fuente": "27b-04",
+   "fiel": true,
+   "legibilidad": 2,
+   "sin_respaldo": [],
+   "dudosa": false,
+   "nota": "",
+   "validada": null
+  },
+  {
+   "id": "27b-04/bucle-dos-senales",
+   "fuente": "27b-04",
+   "fiel": true,
+   "legibilidad": 1,
+   "sin_respaldo": [],
+   "dudosa": false,
+   "nota": "Traduce forward_reference por «referencia vaga» con el léxico llamado: lo doy por traducción.",
+   "validada": null
+  },
+  {
+   "id": "27b-04/bucle-analisis-completo",
+   "fuente": "27b-04",
+   "fiel": true,
+   "legibilidad": 1,
+   "sin_respaldo": [],
+   "dudosa": false,
+   "nota": "",
+   "validada": null
+  },
+  {
+   "id": "27b-04/bucle-incoherencia",
+   "fuente": "27b-04",
+   "fiel": true,
+   "legibilidad": 3,
+   "sin_respaldo": [],
+   "dudosa": false,
+   "nota": "",
+   "validada": null
+  },
+  {
+   "id": "27b-04/bucle-encadena-guardian",
+   "fuente": "27b-04",
+   "fiel": true,
+   "legibilidad": 1,
+   "sin_respaldo": [],
+   "dudosa": false,
+   "nota": "",
+   "validada": null
+  },
+  {
+   "id": "27b-04/bucle-segundo-turno",
+   "fuente": "27b-04",
+   "fiel": false,
+   "legibilidad": 3,
+   "sin_respaldo": [
+    {
+     "texto": "factual news con una confianza de 0.95",
+     "clasificacion": "inventada",
+     "motivo": "No llamó a ninguna herramienta, aun razonando. detect_clickbait daría «factual news» con 0,718 (lo que devolvió en las otras tres fuentes)."
+    }
+   ],
+   "dudosa": false,
+   "nota": "Es el fallo de #188 sin razonar, ahora razonando: 1 de 27 en producción.",
+   "validada": null
+  },
+  {
+   "id": "2b-04/generica-4",
+   "fuente": "2b-04",
+   "fiel": true,
+   "legibilidad": 3,
+   "sin_respaldo": [],
+   "dudosa": false,
+   "nota": "",
+   "validada": null
+  },
+  {
+   "id": "2b-04/especifica-2",
+   "fuente": "2b-04",
+   "fiel": true,
+   "legibilidad": 1,
+   "sin_respaldo": [],
+   "dudosa": false,
+   "nota": "",
+   "validada": null
+  },
+  {
+   "id": "2b-04/especifica-3",
+   "fuente": "2b-04",
+   "fiel": false,
+   "legibilidad": 2,
+   "sin_respaldo": [
+    {
+     "texto": "«you» en posición [5,62] y «this» en posición [3,87]",
+     "clasificacion": "contradicha",
+     "motivo": "Son los pesos (5,62 y 3,86) presentados como posiciones."
+    }
+   ],
+   "dudosa": false,
+   "nota": "",
+   "validada": null
+  },
+  {
+   "id": "2b-04/especifica-4",
+   "fuente": "2b-04",
+   "fiel": true,
+   "legibilidad": 1,
+   "sin_respaldo": [],
+   "dudosa": true,
+   "nota": "«La incoherencia no es detectable por debajo del umbral de 0.3» es confuso, pero la similitud 0,371 está por encima y no es incoherente. Ojo: midió la incoherencia contra diez noticias de Guardian concatenadas, y no dio la probabilidad del lineal que se pedía (omitir no es infiel).",
+   "validada": null
+  },
+  {
+   "id": "2b-04/especifica-5",
+   "fuente": "2b-04",
+   "fiel": false,
+   "legibilidad": 3,
+   "sin_respaldo": [
+    {
+     "texto": "«Sí» como respuesta a «¿concuerda?»",
+     "clasificacion": "contradicha",
+     "motivo": "La herramienta dice incoherente; la propia respuesta lo dice después."
+    }
+   ],
+   "dudosa": true,
+   "nota": "Puede ser un «sí» de «te respondo», no de «concuerda».",
+   "validada": null
+  },
+  {
+   "id": "2b-04/especifica-6",
+   "fuente": "2b-04",
+   "fiel": true,
+   "legibilidad": 2,
+   "sin_respaldo": [],
+   "dudosa": false,
+   "nota": "",
+   "validada": null
+  },
+  {
+   "id": "2b-04/especifica-7",
+   "fuente": "2b-04",
+   "fiel": true,
+   "legibilidad": 2,
+   "sin_respaldo": [],
+   "dudosa": false,
+   "nota": "",
+   "validada": null
+  },
+  {
+   "id": "2b-04/especifica-8",
+   "fuente": "2b-04",
+   "fiel": true,
+   "legibilidad": 1,
+   "sin_respaldo": [],
+   "dudosa": false,
+   "nota": "Vuelca el JSON tal cual.",
+   "validada": null
+  },
+  {
+   "id": "2b-04/otro_dominio-1",
+   "fuente": "2b-04",
+   "fiel": false,
+   "legibilidad": 2,
+   "sin_respaldo": [
+    {
+     "texto": "OpenAI «fue malgastando sitios web del gobierno después de haberse vuelto privado»",
+     "clasificacion": "contradicha",
+     "motivo": "«meddled» es intervenir y «going rogue», descontrolarse."
+    },
+    {
+     "texto": "«provocando envidia entre los estudiantes»",
+     "clasificacion": "contradicha",
+     "motivo": "La noticia dice frustración, y la investigación es al rector, no a estudiantes."
+    },
+    {
+     "texto": "Dario Amodei, «fundador y COO de Anthropic»",
+     "clasificacion": "contradicha",
+     "motivo": "Es cofundador y consejero delegado (chief executive)."
+    }
+   ],
+   "dudosa": false,
+   "nota": "",
+   "validada": null
+  },
+  {
+   "id": "2b-04/otro_dominio-2",
+   "fuente": "2b-04",
+   "fiel": false,
+   "legibilidad": 3,
+   "sin_respaldo": [
+    {
+     "texto": "«una encuesta nacional de seguridad climática en el Reino Unido (suprimida)»",
+     "clasificacion": "contradicha",
+     "motivo": "Es un informe (report), no una encuesta."
+    }
+   ],
+   "dudosa": true,
+   "nota": "Error de traducción de una palabra; con la rúbrica al pie de la letra, contradicha.",
+   "validada": null
+  },
+  {
+   "id": "2b-04/otro_dominio-3",
+   "fuente": "2b-04",
+   "fiel": false,
+   "legibilidad": 1,
+   "sin_respaldo": [
+    {
+     "texto": "«Las primeras cuatro son caja negra»",
+     "clasificacion": "contradicha",
+     "motivo": "El léxico es interpretable y la incoherencia, híbrida."
+    }
+   ],
+   "dudosa": false,
+   "nota": "",
+   "validada": null
+  },
+  {
+   "id": "2b-04/contraste-1",
+   "fuente": "2b-04",
+   "fiel": true,
+   "legibilidad": 2,
+   "sin_respaldo": [],
+   "dudosa": false,
+   "nota": "Llamó al léxico cuando se pedía un porcentaje (del lineal); lo que dice es fiel.",
+   "validada": null
+  },
+  {
+   "id": "2b-04/contraste-3",
+   "fuente": "2b-04",
+   "fiel": false,
+   "legibilidad": 1,
+   "sin_respaldo": [
+    {
+     "texto": "«amazing» (aparecida en [0-2])",
+     "clasificacion": "inventada",
+     "motivo": "No se llamó al léxico, que es quien da posiciones; y «amazing» ocupa [0,7]."
+    }
+   ],
+   "dudosa": false,
+   "nota": "",
+   "validada": null
+  },
+  {
+   "id": "2b-04/contraste-4",
+   "fuente": "2b-04",
+   "fiel": true,
+   "legibilidad": 2,
+   "sin_respaldo": [],
+   "dudosa": false,
+   "nota": "",
+   "validada": null
+  },
+  {
+   "id": "2b-04/bucle-dos-senales",
+   "fuente": "2b-04",
+   "fiel": true,
+   "legibilidad": 1,
+   "sin_respaldo": [],
+   "dudosa": false,
+   "nota": "",
+   "validada": null
+  },
+  {
+   "id": "2b-04/bucle-analisis-completo",
+   "fuente": "2b-04",
+   "fiel": false,
+   "legibilidad": 1,
+   "sin_respaldo": [
+    {
+     "texto": "«la herramienta detecta falta de coherencia entre título y contenido»",
+     "clasificacion": "contradicha",
+     "motivo": "La incoherencia salió no aplicable, sin cuerpo."
+    },
+    {
+     "texto": "«dog» funciona como referencia hacia un objeto positivo que promete revelación sorprendente",
+     "clasificacion": "inventada",
+     "motivo": "Ninguna herramienta dice eso."
+    }
+   ],
+   "dudosa": false,
+   "nota": "Además agrupa «what» y «this» bajo [18-27], que es la unión de sus dos posiciones.",
+   "validada": null
+  },
+  {
+   "id": "2b-04/bucle-incoherencia",
+   "fuente": "2b-04",
+   "fiel": true,
+   "legibilidad": 3,
+   "sin_respaldo": [],
+   "dudosa": false,
+   "nota": "",
+   "validada": null
+  },
+  {
+   "id": "2b-04/bucle-segundo-turno",
+   "fuente": "2b-04",
+   "fiel": true,
+   "legibilidad": 2,
+   "sin_respaldo": [],
+   "dudosa": false,
+   "nota": "",
+   "validada": null
+  },
+  {
+   "id": "27b-04-sin-razonar/generica-1",
+   "fuente": "27b-04-sin-razonar",
+   "fiel": false,
+   "legibilidad": 1,
+   "sin_respaldo": [
+    {
+     "texto": "cinco pistas del léxico, probabilidad 0.89 del lineal y confianza 0.79 de la caja negra",
+     "clasificacion": "inventada",
+     "motivo": "No se llamó a ninguna herramienta."
+    }
+   ],
+   "dudosa": false,
+   "nota": "",
+   "validada": null
+  },
+  {
+   "id": "27b-04-sin-razonar/generica-2",
+   "fuente": "27b-04-sin-razonar",
+   "fiel": false,
+   "legibilidad": 2,
+   "sin_respaldo": [
+    {
+     "texto": "léxico con 0 pistas, lineal con probabilidad muy baja, caja negra «factual news» con alta confianza",
+     "clasificacion": "inventada",
+     "motivo": "No se llamó a ninguna herramienta."
+    }
+   ],
+   "dudosa": false,
+   "nota": "",
+   "validada": null
+  },
+  {
+   "id": "27b-04-sin-razonar/generica-3",
+   "fuente": "27b-04-sin-razonar",
+   "fiel": false,
+   "legibilidad": 2,
+   "sin_respaldo": [
+    {
+     "texto": "el léxico señala «what» e imperativos implícitos; el lineal, alta probabilidad; la caja negra, clickbait con alta confianza",
+     "clasificacion": "inventada",
+     "motivo": "No se llamó a ninguna herramienta."
+    }
+   ],
+   "dudosa": false,
+   "nota": "",
+   "validada": null
+  },
+  {
+   "id": "27b-04-sin-razonar/generica-4",
+   "fuente": "27b-04-sin-razonar",
+   "fiel": false,
+   "legibilidad": 2,
+   "sin_respaldo": [
+    {
+     "texto": "tres pistas del léxico, 0.94 del lineal y 0.88 de la caja negra",
+     "clasificacion": "inventada",
+     "motivo": "No se llamó a ninguna herramienta."
+    }
+   ],
+   "dudosa": false,
+   "nota": "",
+   "validada": null
+  },
+  {
+   "id": "27b-04-sin-razonar/especifica-1",
+   "fuente": "27b-04-sin-razonar",
+   "fiel": false,
+   "legibilidad": 1,
+   "sin_respaldo": [
+    {
+     "texto": "hyperbole en «Amazing», forward_reference en «Things», «you»",
+     "clasificacion": "inventada",
+     "motivo": "No se llamó a ninguna herramienta."
+    }
+   ],
+   "dudosa": false,
+   "nota": "Coincide con lo que da el léxico, pero no lo llamó: acertar sin herramienta sigue siendo inventar.",
+   "validada": null
+  },
+  {
+   "id": "27b-04-sin-razonar/especifica-2",
+   "fuente": "27b-04-sin-razonar",
+   "fiel": true,
+   "legibilidad": 1,
+   "sin_respaldo": [],
+   "dudosa": false,
+   "nota": "",
+   "validada": null
+  },
+  {
+   "id": "27b-04-sin-razonar/especifica-3",
+   "fuente": "27b-04-sin-razonar",
+   "fiel": false,
+   "legibilidad": 1,
+   "sin_respaldo": [
+    {
+     "texto": "«Estas señales léxicas indican que el titular utiliza referencias vagas y dirigidas al lector para generar interés»",
+     "clasificacion": "inventada",
+     "motivo": "El lineal da pesos, no categorías ni efectos en el lector."
+    }
+   ],
+   "dudosa": true,
+   "nota": "Las cifras están bien; lo que falla es la interpretación añadida, que el prompt prohíbe.",
+   "validada": null
+  },
+  {
+   "id": "27b-04-sin-razonar/especifica-4",
+   "fuente": "27b-04-sin-razonar",
+   "fiel": false,
+   "legibilidad": 1,
+   "sin_respaldo": [
+    {
+     "texto": "0.89 del lineal con posiciones, score 3 del léxico y 0.85 de la caja negra",
+     "clasificacion": "inventada",
+     "motivo": "No se llamó a ninguna herramienta."
+    }
+   ],
+   "dudosa": false,
+   "nota": "",
+   "validada": null
+  },
+  {
+   "id": "27b-04-sin-razonar/especifica-5",
+   "fuente": "27b-04-sin-razonar",
+   "fiel": false,
+   "legibilidad": 1,
+   "sin_respaldo": [
+    {
+     "texto": "«El modelo lineal detecta pistas como hipérbole en el titular»",
+     "clasificacion": "inventada",
+     "motivo": "No se llamó a ninguna herramienta."
+    }
+   ],
+   "dudosa": false,
+   "nota": "",
+   "validada": null
+  },
+  {
+   "id": "27b-04-sin-razonar/especifica-6",
+   "fuente": "27b-04-sin-razonar",
+   "fiel": false,
+   "legibilidad": 2,
+   "sin_respaldo": [
+    {
+     "texto": "similitud baja e incoherentes; léxico y lineal con hipérbole; caja negra clickbait con alta confianza",
+     "clasificacion": "inventada",
+     "motivo": "No se llamó a ninguna herramienta."
+    }
+   ],
+   "dudosa": false,
+   "nota": "",
+   "validada": null
+  },
+  {
+   "id": "27b-04-sin-razonar/especifica-7",
+   "fuente": "27b-04-sin-razonar",
+   "fiel": false,
+   "legibilidad": 2,
+   "sin_respaldo": [
+    {
+     "texto": "«negative» con una confianza de 0.98",
+     "clasificacion": "inventada",
+     "motivo": "No se llamó a ninguna herramienta (con ella salió 0,926)."
+    }
+   ],
+   "dudosa": false,
+   "nota": "",
+   "validada": null
+  },
+  {
+   "id": "27b-04-sin-razonar/especifica-8",
+   "fuente": "27b-04-sin-razonar",
+   "fiel": false,
+   "legibilidad": 3,
+   "sin_respaldo": [
+    {
+     "texto": "positivo con una confianza de 0.94",
+     "clasificacion": "inventada",
+     "motivo": "No se llamó a ninguna herramienta (con ella salió 0,979)."
+    }
+   ],
+   "dudosa": false,
+   "nota": "",
+   "validada": null
+  },
+  {
+   "id": "27b-03/generica-1",
+   "fuente": "27b-03",
+   "fiel": true,
+   "legibilidad": 1,
+   "sin_respaldo": [],
+   "dudosa": false,
+   "nota": "",
+   "validada": null
+  },
+  {
+   "id": "27b-03/generica-2",
+   "fuente": "27b-03",
+   "fiel": true,
+   "legibilidad": 2,
+   "sin_respaldo": [],
+   "dudosa": false,
+   "nota": "",
+   "validada": null
+  },
+  {
+   "id": "27b-03/generica-3",
+   "fuente": "27b-03",
+   "fiel": true,
+   "legibilidad": 1,
+   "sin_respaldo": [],
+   "dudosa": false,
+   "nota": "",
+   "validada": null
+  },
+  {
+   "id": "27b-03/generica-4",
+   "fuente": "27b-03",
+   "fiel": true,
+   "legibilidad": 1,
+   "sin_respaldo": [],
+   "dudosa": false,
+   "nota": "",
+   "validada": null
+  },
+  {
+   "id": "27b-03/especifica-1",
+   "fuente": "27b-03",
+   "fiel": true,
+   "legibilidad": 1,
+   "sin_respaldo": [],
+   "dudosa": false,
+   "nota": "",
+   "validada": null
+  },
+  {
+   "id": "27b-03/especifica-2",
+   "fuente": "27b-03",
+   "fiel": true,
+   "legibilidad": 1,
+   "sin_respaldo": [],
+   "dudosa": false,
+   "nota": "",
+   "validada": null
+  },
+  {
+   "id": "27b-03/especifica-3",
+   "fuente": "27b-03",
+   "fiel": false,
+   "legibilidad": 1,
+   "sin_respaldo": [
+    {
+     "texto": "la referencia vaga «this»",
+     "clasificacion": "inventada",
+     "motivo": "Sólo se llamó al lineal, que da pesos y no categorías: ninguna herramienta llamada clasifica «this». Es la categoría que daría el léxico, pero no se le llamó."
+    }
+   ],
+   "dudosa": true,
+   "nota": "El mismo caso que 27b-04/especifica-4.",
+   "validada": null
+  },
+  {
+   "id": "27b-03/especifica-4",
+   "fuente": "27b-03",
+   "fiel": false,
+   "legibilidad": 1,
+   "sin_respaldo": [
+    {
+     "texto": "la referencia vaga «this»",
+     "clasificacion": "inventada",
+     "motivo": "Sólo se llamó al lineal, que da pesos y no categorías: ninguna herramienta llamada clasifica «this». Es la categoría que daría el léxico, pero no se le llamó."
+    }
+   ],
+   "dudosa": true,
+   "nota": "El mismo caso que 27b-04/especifica-4.",
+   "validada": null
+  },
+  {
+   "id": "27b-03/especifica-5",
+   "fuente": "27b-03",
+   "fiel": true,
+   "legibilidad": 3,
+   "sin_respaldo": [],
+   "dudosa": false,
+   "nota": "",
+   "validada": null
+  },
+  {
+   "id": "27b-03/especifica-6",
+   "fuente": "27b-03",
+   "fiel": true,
+   "legibilidad": 2,
+   "sin_respaldo": [],
+   "dudosa": false,
+   "nota": "",
+   "validada": null
+  },
+  {
+   "id": "27b-03/especifica-7",
+   "fuente": "27b-03",
+   "fiel": true,
+   "legibilidad": 2,
+   "sin_respaldo": [],
+   "dudosa": false,
+   "nota": "",
+   "validada": null
+  },
+  {
+   "id": "27b-03/especifica-8",
+   "fuente": "27b-03",
+   "fiel": true,
+   "legibilidad": 2,
+   "sin_respaldo": [],
+   "dudosa": false,
+   "nota": "",
+   "validada": null
+  },
+  {
+   "id": "27b-03/otro_dominio-1",
+   "fuente": "27b-03",
+   "fiel": true,
+   "legibilidad": 3,
+   "sin_respaldo": [],
+   "dudosa": false,
+   "nota": "",
+   "validada": null
+  },
+  {
+   "id": "27b-03/otro_dominio-2",
+   "fuente": "27b-03",
+   "fiel": true,
+   "legibilidad": 3,
+   "sin_respaldo": [],
+   "dudosa": false,
+   "nota": "",
+   "validada": null
+  },
+  {
+   "id": "27b-03/otro_dominio-3",
+   "fuente": "27b-03",
+   "fiel": false,
+   "legibilidad": 2,
+   "sin_respaldo": [
+    {
+     "texto": "todas las herramientas muestran caídas significativas fuera de sus dominios de entrenamiento",
+     "clasificacion": "contradicha",
+     "motivo": "La ficha de detect_clickbait dice lo contrario: rinde mejor fuera de su dominio."
+    },
+    {
+     "texto": "todas dependen de paquetes externos que pueden faltar",
+     "clasificacion": "contradicha",
+     "motivo": "Sólo la caja negra (torch) y la incoherencia (sentence-transformers)."
+    },
+    {
+     "texto": "«requisitos específicos de hardware virtualizado»",
+     "clasificacion": "inventada",
+     "motivo": "La ficha no habla de hardware virtualizado."
+    }
+   ],
+   "dudosa": false,
+   "nota": "",
+   "validada": null
+  },
+  {
+   "id": "27b-03/contraste-1",
+   "fuente": "27b-03",
+   "fiel": true,
+   "legibilidad": 2,
+   "sin_respaldo": [],
+   "dudosa": true,
+   "nota": "«El detector también confirmó que cumple el umbral»: sólo se llamó al lineal; lo leo como el propio lineal (is_clickbait true).",
+   "validada": null
+  },
+  {
+   "id": "27b-03/contraste-2",
+   "fuente": "27b-03",
+   "fiel": true,
+   "legibilidad": 1,
+   "sin_respaldo": [],
+   "dudosa": false,
+   "nota": "",
+   "validada": null
+  },
+  {
+   "id": "27b-03/contraste-3",
+   "fuente": "27b-03",
+   "fiel": true,
+   "legibilidad": 1,
+   "sin_respaldo": [],
+   "dudosa": false,
+   "nota": "",
+   "validada": null
+  },
+  {
+   "id": "27b-03/contraste-4",
+   "fuente": "27b-03",
+   "fiel": true,
+   "legibilidad": 2,
+   "sin_respaldo": [],
+   "dudosa": false,
+   "nota": "",
+   "validada": null
+  },
+  {
+   "id": "27b-03/contraste-5",
+   "fuente": "27b-03",
+   "fiel": true,
+   "legibilidad": 2,
+   "sin_respaldo": [],
+   "dudosa": false,
+   "nota": "",
+   "validada": null
+  },
+  {
+   "id": "27b-03/contraste-6",
+   "fuente": "27b-03",
+   "fiel": true,
+   "legibilidad": 2,
+   "sin_respaldo": [],
+   "dudosa": false,
+   "nota": "",
+   "validada": null
+  },
+  {
+   "id": "27b-03/bucle-encadena-nyt",
+   "fuente": "27b-03",
+   "fiel": true,
+   "legibilidad": 2,
+   "sin_respaldo": [],
+   "dudosa": false,
+   "nota": "",
+   "validada": null
+  },
+  {
+   "id": "27b-03/bucle-dos-senales",
+   "fuente": "27b-03",
+   "fiel": true,
+   "legibilidad": 2,
+   "sin_respaldo": [],
+   "dudosa": false,
+   "nota": "",
+   "validada": null
+  },
+  {
+   "id": "27b-03/bucle-analisis-completo",
+   "fuente": "27b-03",
+   "fiel": true,
+   "legibilidad": 1,
+   "sin_respaldo": [],
+   "dudosa": false,
+   "nota": "",
+   "validada": null
+  },
+  {
+   "id": "27b-03/bucle-incoherencia",
+   "fuente": "27b-03",
+   "fiel": true,
+   "legibilidad": 2,
+   "sin_respaldo": [],
+   "dudosa": false,
+   "nota": "",
+   "validada": null
+  },
+  {
+   "id": "27b-03/bucle-encadena-guardian",
+   "fuente": "27b-03",
+   "fiel": true,
+   "legibilidad": 1,
+   "sin_respaldo": [],
+   "dudosa": false,
+   "nota": "",
+   "validada": null
+  },
+  {
+   "id": "27b-03/bucle-segundo-turno",
+   "fuente": "27b-03",
+   "fiel": true,
+   "legibilidad": 2,
+   "sin_respaldo": [],
+   "dudosa": false,
+   "nota": "",
+   "validada": null
+  }
+ ]
+}

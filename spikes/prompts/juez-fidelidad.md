@@ -48,10 +48,11 @@ De 1 a 3, según se entienda sin saber qué es cada herramienta:
 - 3: la entendería cualquiera. Dice en palabras llanas qué encontró cada
   herramienta, con las cifras redondeadas y con su sentido («una probabilidad
   del 72 %»).
-- 2: se entiende lo esencial, pero queda algún término técnico, nombre interno o
-  cifra con muchos decimales sin explicar.
-- 1: hace falta conocer el sistema: nombres internos (`detect_clickbait_linear`,
-  `forward_reference`), decimales largos o jerga sin explicar.
+- 2: se entiende lo esencial, aunque queden términos técnicos, nombres internos o
+  decimales largos.
+- 1: no se entiende sin conocer el sistema: la respuesta es sobre todo nombres
+  internos (`detect_clickbait_linear`, `forward_reference`), posiciones o cifras
+  sin su sentido.
 
 La legibilidad no cuenta para la fidelidad, ni al revés.
 
