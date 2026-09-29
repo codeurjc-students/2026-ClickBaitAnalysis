@@ -17,7 +17,7 @@ def test_el_ajuste_que_elige_el_prompt_ofrece_los_versionados():
 
 
 def test_los_prompts_versionados_se_pueden_cargar():
-    assert prompts.disponibles() == ["03-estricto", "04-preciso"]
+    assert prompts.disponibles() == ["03-estricto", "04-preciso", "05-llano"]
     for nombre in prompts.disponibles():
         assert prompts.cargar(nombre).startswith("Eres el asistente")
 

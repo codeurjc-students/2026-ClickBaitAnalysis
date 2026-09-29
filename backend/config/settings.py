@@ -227,7 +227,7 @@ class Settings(BaseSettings):
     # de los ficheros. `04-preciso` es el punto de partida del spike (PR #176) y
     # con el que se aceptó #188; entre los dos no hay un ranking defendible, e
     # iterarlos es #192.
-    llm_prompt: Literal["03-estricto", "04-preciso"] = "04-preciso"
+    llm_prompt: Literal["03-estricto", "04-preciso", "05-llano"] = "04-preciso"
 
     # Los trabajos del chat, en memoria del proceso (#189).
     #
