@@ -82,7 +82,8 @@ partes:
    razonamiento del modelo, para explicar una respuesta vacía. Y con
    `--variantes`, con o sin historial y con el muestreo preciso o el del
    Modelfile, intercaladas: con historial, el modelo narró análisis que no
-   había hecho.
+   había hecho. `preciso-con-aviso` mide el arreglo, el aviso del agente
+   sobre el historial (`aviso_historial`).
 
 Ejecutar desde la raíz, con el túnel abierto (la sesión la abre
 `spikes/fidelidad_a40.sh`):
@@ -98,6 +99,8 @@ Ejecutar desde la raíz, con el túnel abierto (la sesión la abre
     NLP_BACKEND=local .venv/bin/python spikes/fidelidad.py ventana --ctx 16384 --veces 3 bucle-encadena-nyt
     NLP_BACKEND=local .venv/bin/python spikes/fidelidad.py ventana --ctx 16384 --veces 5 \
         --variantes preciso-con,modelfile-con,preciso-sin bucle-encadena-nyt
+    NLP_BACKEND=local .venv/bin/python spikes/fidelidad.py ventana --ctx 16384 --veces 20 \
+        --variantes preciso-con-aviso,preciso-con bucle-encadena-nyt
 
 Sin fuentes, las cuatro; los jueces, de uno en uno; `E:<prompt>` es la
 condición del perfil preciso sobre ese prompt. `OLLAMA_URL` cambia el servidor
@@ -132,7 +135,7 @@ sys.path.insert(0, str(RAIZ))
 # devuelve después, como en `agente_a40.py`.
 _ARGUMENTOS, sys.argv = sys.argv, sys.argv[:1]
 from backend.agent import agente, prompts  # noqa: E402
-from backend.agent.agente import Configuracion, responder  # noqa: E402
+from backend.agent.agente import AVISO_HISTORIAL, Configuracion, responder  # noqa: E402
 from backend.config.settings import settings  # noqa: E402
 from backend.core.mcp import session as mcp_session  # noqa: E402
 from backend.integrations.llm.ollama import OllamaClient  # noqa: E402
@@ -307,12 +310,15 @@ def _config(
     muestreo: dict | None = None,
     num_ctx: int = NUM_CTX,
     clase: type[OllamaClient] | None = None,
+    aviso_historial: str | None = None,
 ) -> Configuracion:
     """La configuración del agente de producción, con el modelo, el prompt y el
     `think` de la fuente.
 
     El redondeo va explícito: el corpus se generó antes de que existiera
-    (`239a955`), y sin decirlo aquí, repetirlo hoy redondearía.
+    (`239a955`), y sin decirlo aquí, repetirlo hoy redondearía. Lo mismo el
+    aviso del historial: llegó después de la comparación, y apagado por
+    defecto la repite como se midió.
     """
     clase = clase or (OllamaConMuestreo if muestreo else OllamaClient)
     extra = {"muestreo": muestreo} if muestreo else {}
@@ -327,6 +333,7 @@ def _config(
         execute_timeout=120.0,
         think=fuente.think,
         decimales_para_el_modelo=decimales,
+        aviso_historial=aviso_historial,
     )
 
 
@@ -1127,15 +1134,18 @@ def _historial_maximo() -> list[dict]:
     return historial
 
 
-# Qué se manda en cada variante: el muestreo (`None` es el del Modelfile) y si
-# va el historial. Se añadieron tras la segunda medida, en la que con historial
-# el modelo narró dos veces de tres un análisis que no había hecho: para saber
-# si es del historial, del muestreo o de los dos.
+# Qué se manda en cada variante: el muestreo (`None` es el del Modelfile), si
+# va el historial y si va el aviso del agente sobre él. Se añadieron tras la
+# segunda medida, en la que con historial el modelo narró dos veces de tres un
+# análisis que no había hecho: para saber si es del historial, del muestreo o
+# de los dos. El aviso llegó después, como arreglo (`aviso_historial`), y las
+# variantes sin él lo apagan explícitamente, como se midieron.
 VARIANTES = {
-    "preciso-con": (PERFIL_PRECISO, True),
-    "modelfile-con": (None, True),
-    "preciso-sin": (PERFIL_PRECISO, False),
-    "modelfile-sin": (None, False),
+    "preciso-con": (PERFIL_PRECISO, True, False),
+    "modelfile-con": (None, True, False),
+    "preciso-sin": (PERFIL_PRECISO, False, False),
+    "modelfile-sin": (None, False, False),
+    "preciso-con-aviso": (PERFIL_PRECISO, True, True),
 }
 VARIANTE_DE_PRODUCCION = ("preciso-con",)
 
@@ -1203,7 +1213,14 @@ async def ventana(
             "prompt": fuente.prompt,
             "prompt_huella": _huella(prompts.cargar(fuente.prompt)),
             "decimales": 3,
-            "variantes": {nombre: {"muestreo": VARIANTES[nombre][0], "historial": VARIANTES[nombre][1]} for nombre in variantes},
+            "variantes": {
+                nombre: {
+                    "muestreo": VARIANTES[nombre][0],
+                    "historial": VARIANTES[nombre][1],
+                    "aviso_historial": AVISO_HISTORIAL if VARIANTES[nombre][2] else None,
+                }
+                for nombre in variantes
+            },
             "historial": {"turnos": len(historial), "caracteres": caracteres},
             "ventanas": ventanas,
             "consultas": elegidas,
@@ -1220,7 +1237,7 @@ async def ventana(
             for clave in elegidas:
                 for vez in range(1, veces + 1):
                     for variante in variantes:
-                        muestreo, con_historial = VARIANTES[variante]
+                        muestreo, con_historial, con_aviso = VARIANTES[variante]
                         await _medir_ventana(
                             cliente,
                             registro,
@@ -1233,6 +1250,7 @@ async def ventana(
                             consultas[clave][0],
                             variante,
                             muestreo,
+                            con_aviso,
                         )
     print(f"\nLas medidas, en {ruta}")
 
@@ -1249,8 +1267,16 @@ async def _medir_ventana(
     consulta: str,
     variante: str,
     muestreo: dict | None,
+    con_aviso: bool,
 ) -> None:
-    config = _config(fuente, 3, muestreo, num_ctx, clase=OllamaQueGuardaElRazonamiento)
+    config = _config(
+        fuente,
+        3,
+        muestreo,
+        num_ctx,
+        clase=OllamaQueGuardaElRazonamiento,
+        aviso_historial=AVISO_HISTORIAL if con_aviso else None,
+    )
     resultado = await responder(consulta, historial, config)
     crudo = config.backend.crudo if isinstance(config.backend, OllamaQueGuardaElRazonamiento) else []
     cargado = await _pedir(cliente, "GET", "api/ps") or {}

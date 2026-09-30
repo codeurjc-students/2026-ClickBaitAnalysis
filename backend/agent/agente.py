@@ -79,6 +79,18 @@ SIN_HERRAMIENTAS = (
     "qué analizar."
 )
 
+# Va como mensaje de sistema justo antes de la consulta, sólo si hay historial
+# (#192). Ollama 0.34.2 pinta un mensaje de sistema que no es el primero en su
+# sitio, con el renderizador de `qwen3.5`.
+AVISO_HISTORIAL = (
+    "Los turnos anteriores de esta conversación sólo conservan el texto de tus "
+    "respuestas: los resultados de las herramientas en que se basaban ya no "
+    "están, y no sirven para esta consulta. Todo veredicto, cifra, pista o "
+    "categoría que des ahora tiene que salir de una herramienta llamada en este "
+    "turno. Si se pide analizar un titular, llama a las herramientas aunque ya "
+    "hayas analizado otros antes."
+)
+
 
 @dataclass(frozen=True)
 class Configuracion:
@@ -101,6 +113,13 @@ class Configuracion:
     lo que decide —una similitud de 0,311 frente al umbral de 0,3— y lo que no
     es 0 ni 1 no se redondea a 0 ni a 1, para no leer una certeza que la
     herramienta no dio. `None` lo desactiva, para medir con y sin.
+
+    `aviso_historial` le recuerda al modelo, cuando hay turnos anteriores, que
+    de ellos sólo queda el texto (#192). Con historial se inventaba el análisis:
+    trajo la noticia y narró un veredicto con cifras falsas sin llamar a
+    ninguna señal en 4 de 10 conversaciones, y en 0 de 12 sin historial. Lo
+    que ve de los turnos anteriores son respuestas con veredictos y ninguna
+    llamada delante, y las imita. `None` lo desactiva, para medir con y sin.
     """
 
     backend: LLMBackend
@@ -112,6 +131,7 @@ class Configuracion:
     think: bool = True
     max_result_chars: int | None = None
     decimales_para_el_modelo: int | None = 3
+    aviso_historial: str | None = AVISO_HISTORIAL
 
 
 # Cada herramienta del catálogo, con la URL del servidor que la publicó.
@@ -158,9 +178,15 @@ async def responder(
         return terminar("failed", rounds=0, detail=SIN_HERRAMIENTAS)
     herramientas = [herramienta for herramienta, _ in catalogo.values()]
 
+    aviso: list[Mensaje] = (
+        [{"role": "system", "content": config.aviso_historial}]
+        if historial and config.aviso_historial
+        else []
+    )
     mensajes: list[Mensaje] = [
         {"role": "system", "content": config.prompt},
         *({"role": turno["role"], "content": turno["content"]} for turno in historial),
+        *aviso,
         {"role": "user", "content": consulta},
     ]
 

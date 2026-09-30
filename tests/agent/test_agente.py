@@ -28,6 +28,7 @@ from mcp.shared.exceptions import McpError
 from structlog.testing import capture_logs
 
 from backend.agent.agente import (
+    AVISO_HISTORIAL,
     MAX_VUELTAS,
     SIN_HERRAMIENTAS,
     Configuracion,
@@ -282,7 +283,45 @@ async def test_el_historial_va_entre_el_prompt_y_la_consulta(monkeypatch):
     assert modelo.conversaciones[0] == [
         {"role": "system", "content": "Eres un asistente de prueba."},
         *historial,
+        {"role": "system", "content": AVISO_HISTORIAL},
         {"role": "user", "content": "¿Y el lineal?"},
+    ]
+
+
+@pytest.mark.asyncio
+async def test_sin_historial_no_hay_aviso(monkeypatch):
+    """El aviso sólo tiene sentido si hay turnos que imitar: sin ellos, la
+    conversación es la misma que se midió en la comparación de #192."""
+    modelo = ModeloGuionado(_responde("Hola."))
+
+    async with mcp_en_proceso(monkeypatch):
+        await responder("Hola", [], _config(modelo))
+
+    assert modelo.conversaciones[0] == [
+        {"role": "system", "content": "Eres un asistente de prueba."},
+        {"role": "user", "content": "Hola"},
+    ]
+
+
+@pytest.mark.asyncio
+async def test_el_aviso_del_historial_se_puede_quitar(monkeypatch):
+    """`None` lo desactiva, para medir con y sin (#192)."""
+    modelo = ModeloGuionado(_responde("Hola."))
+    historial: list[Turno] = [
+        {"role": "user", "content": "¿Es clickbait este titular?"},
+        {"role": "assistant", "content": "No."},
+    ]
+
+    async with mcp_en_proceso(monkeypatch):
+        await responder(
+            "¿Y este otro?", historial, _config(modelo, aviso_historial=None)
+        )
+
+    assert [mensaje["role"] for mensaje in modelo.conversaciones[0]] == [
+        "system",
+        "user",
+        "assistant",
+        "user",
     ]
 
 
