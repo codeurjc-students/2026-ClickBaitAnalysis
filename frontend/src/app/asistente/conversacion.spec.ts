@@ -36,13 +36,13 @@ const SENAL: SignalResult = {
   data: { score: 1, is_clickbait: true, matches: [], headline: 'x' },
 };
 
-/** Un intercambio terminado, con la respuesta que se diga. */
-function terminado(pregunta: string, respuesta: string): Intercambio {
+/** Un intercambio terminado, con la respuesta y los pasos que se digan. */
+function terminado(pregunta: string, respuesta: string, pasos: ChatJob['steps'] = []): Intercambio {
   const trabajo: ChatJob = {
     id: pregunta,
     status: 'done',
     created_at: '2026-09-28T10:00:00Z',
-    steps: [],
+    steps: pasos,
     result: { status: 'answered', answer: respuesta, detail: null, rounds: 1, total_s: 3 },
   };
   return { pregunta, trabajo, error: null, enviadaEl: 0, leidaEl: 3000 };
@@ -155,6 +155,37 @@ describe('historialQueCabe', () => {
     const historial = historialQueCabe(
       [terminado('uno', 'x'.repeat(10)), terminado('dos', 'y'.repeat(10))],
       15, // la segunda pareja son 13 caracteres; las dos, 26
+    );
+    expect(historial.map((turno) => turno.content)).toEqual(['dos', 'y'.repeat(10)]);
+  });
+
+  // #192: con sólo el texto, el modelo veía respuestas con veredictos y
+  // ninguna llamada delante, y se inventaba el análisis sin llamar a nada.
+  it('cada respuesta lleva los nombres de las herramientas que usó, sin repetir y en orden', () => {
+    const pasos: ChatJob['steps'] = [
+      herramienta('get_nyt_news', { result: [] }),
+      herramienta('analyze_headline', {}),
+      { ...herramienta('analyze_headline', null), status: 'error', error: 'Falló.' },
+    ];
+    const historial = historialQueCabe([terminado('¿Es clickbait?', 'No.', pasos)], 4000);
+    expect(historial[1]).toEqual({
+      role: 'assistant',
+      content: 'No.',
+      tools: ['get_nyt_news', 'analyze_headline'],
+    });
+  });
+
+  it('una respuesta sin herramientas va sin la clave', () => {
+    const historial = historialQueCabe([terminado('Hola', '¿Qué titular?')], 4000);
+    expect('tools' in historial[1]).toBe(false);
+  });
+
+  // El backend los cuenta en el mismo tope (#192): también llegan al modelo.
+  it('los nombres cuentan para el tope', () => {
+    const conHerramienta = terminado('uno', 'x'.repeat(10), [herramienta('abcdef', {})]);
+    const historial = historialQueCabe(
+      [conHerramienta, terminado('dos', 'y'.repeat(10))],
+      26, // sin el nombre cabrían las dos (26); con él, 32
     );
     expect(historial.map((turno) => turno.content)).toEqual(['dos', 'y'.repeat(10)]);
   });
