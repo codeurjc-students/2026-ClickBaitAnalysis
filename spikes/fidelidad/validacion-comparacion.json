@@ -1,0 +1,89 @@
+{
+ "condiciones": {
+  "exportada": "2026-09-30T14:24:05+02:00",
+  "origen": "la página de validación de #192 (artefacto privado), colección `validaciones_comparacion`",
+  "que_se_valido": "lo que el juez (gemma4:31b) marcó como infiel en cada condición; lo que dio por fiel no se leyó"
+ },
+ "validaciones": {
+  "B-04/contraste-1/r1": {
+   "condicion": "B-04",
+   "fiel": false,
+   "legibilidad": null,
+   "decision": "acuerdo",
+   "nota": "",
+   "actualizada": "2026-09-30T09:10:13.779Z"
+  },
+  "B-04/especifica-6/r1": {
+   "condicion": "B-04",
+   "fiel": true,
+   "legibilidad": null,
+   "decision": "corregida",
+   "nota": "Puede omitirse, lo considero fiel.",
+   "actualizada": "2026-09-30T09:13:05.159Z"
+  },
+  "B-04/especifica-8/r1": {
+   "condicion": "B-04",
+   "fiel": false,
+   "legibilidad": null,
+   "decision": "acuerdo",
+   "nota": "Aun asi roza la fidelidad. SI somos intransigentes si se condiera infiel",
+   "actualizada": "2026-09-30T09:09:38.059Z"
+  },
+  "B-04/otro_dominio-3/r1": {
+   "condicion": "B-04",
+   "fiel": false,
+   "legibilidad": null,
+   "decision": "acuerdo",
+   "nota": "",
+   "actualizada": "2026-09-30T09:13:18.136Z"
+  },
+  "C-05/bucle-analisis-completo/r1": {
+   "condicion": "C-05",
+   "fiel": false,
+   "legibilidad": null,
+   "decision": "acuerdo",
+   "nota": "",
+   "actualizada": "2026-09-30T09:11:29.653Z"
+  },
+  "C-05/bucle-incoherencia/r1": {
+   "condicion": "C-05",
+   "fiel": false,
+   "legibilidad": null,
+   "decision": "acuerdo",
+   "nota": "",
+   "actualizada": "2026-09-30T09:12:41.887Z"
+  },
+  "C-05/especifica-8/r1": {
+   "condicion": "C-05",
+   "fiel": false,
+   "legibilidad": null,
+   "decision": "acuerdo",
+   "nota": "",
+   "actualizada": "2026-09-30T09:10:24.387Z"
+  },
+  "C-05/generica-4/r1": {
+   "condicion": "C-05",
+   "fiel": false,
+   "legibilidad": null,
+   "decision": "acuerdo",
+   "nota": "",
+   "actualizada": "2026-09-30T09:11:19.956Z"
+  },
+  "C-05/otro_dominio-3/r1": {
+   "condicion": "C-05",
+   "fiel": false,
+   "legibilidad": null,
+   "decision": "acuerdo",
+   "nota": "",
+   "actualizada": "2026-09-30T09:11:10.308Z"
+  },
+  "E-05-preciso/especifica-3/r1": {
+   "condicion": "E-05-preciso",
+   "fiel": false,
+   "legibilidad": null,
+   "decision": "acuerdo",
+   "nota": "",
+   "actualizada": "2026-09-30T09:12:55.391Z"
+  }
+ }
+}

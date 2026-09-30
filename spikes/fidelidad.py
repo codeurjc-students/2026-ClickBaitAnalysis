@@ -70,7 +70,9 @@ partes:
 
 5. `validar` y `calibrar`: sin GPU. La lectura de Claude la valida el autor en
    una página aparte; `validar` copia esas decisiones, exportadas, al campo
-   `validada` de `lectura.json`, y `calibrar` mide contra ellas a cada juez, a
+   `validada` de `lectura.json` —y las de lo que el juez marcó en la
+   comparación, a `validacion-comparacion.json`, que `resumen` cuenta junto a
+   las del juez—, y `calibrar` mide contra ellas a cada juez, a
    las parejas de jueces y a la propia lectura: cuántas infieles caza, cuántas
    fieles da por infieles, el kappa y la legibilidad.
 
@@ -85,7 +87,12 @@ partes:
    había hecho. `preciso-con-aviso` mide el primer arreglo, el aviso del
    agente sobre el historial (`aviso_historial`), y
    `preciso-con-herramientas-aviso` el segundo, los nombres de las
-   herramientas en cada respuesta del historial (`Turno.tools`).
+   herramientas en cada respuesta del historial (`Turno.tools`). `--casos`
+   mezcla consultas y variantes que no son todas con todas.
+
+7. `recuento`: sin GPU. En las medidas de `ventana`, cuántas veces llamó a una
+   señal, se inventó el análisis —trajo sólo noticias y aun así dio un
+   veredicto— o no contestó, por caso, con el texto de cada inventada.
 
 Ejecutar desde la raíz, con el túnel abierto (la sesión la abre
 `spikes/fidelidad_a40.sh`):
@@ -95,8 +102,9 @@ Ejecutar desde la raíz, con el túnel abierto (la sesión la abre
     NLP_BACKEND=local .venv/bin/python spikes/fidelidad.py comparar A B C D
     NLP_BACKEND=local .venv/bin/python spikes/fidelidad.py comparar E:05-llano
     .venv/bin/python spikes/fidelidad.py resumen
-    .venv/bin/python spikes/fidelidad.py validar <carpeta exportada>
+    .venv/bin/python spikes/fidelidad.py validar <carpeta exportada> [carpeta …]
     .venv/bin/python spikes/fidelidad.py calibrar
+    .venv/bin/python spikes/fidelidad.py recuento [spikes/fidelidad/ventana-….json …]
     NLP_BACKEND=local .venv/bin/python spikes/fidelidad.py ventana
     NLP_BACKEND=local .venv/bin/python spikes/fidelidad.py ventana --ctx 16384 --veces 3 bucle-encadena-nyt
     NLP_BACKEND=local .venv/bin/python spikes/fidelidad.py ventana --ctx 16384 --veces 5 \
@@ -918,6 +926,10 @@ async def comparar(condiciones: list[Condicion]) -> None:
 # ----- 4 · El resumen -----
 
 
+def _tiempo_del_modelo(conversacion: dict) -> float:
+    return sum(vuelta["total_s"] or 0 for vuelta in conversacion["vueltas"])
+
+
 def _resumen_de(conversaciones: list[dict]) -> dict:
     """Las cifras de una condición que no necesitan juez."""
     contestadas = [conversacion for conversacion in conversaciones if conversacion["estado"] == "answered"]
@@ -935,6 +947,15 @@ def _resumen_de(conversaciones: list[dict]) -> dict:
         "con_repetidas": sum(bool(conversacion["repetidas"]) for conversacion in conversaciones),
         "tiempo_mediana_s": round(_mediana([conversacion["total_s"] for conversacion in conversaciones]), 1),
         "tiempo_max_s": round(max((conversacion["total_s"] for conversacion in conversaciones), default=0), 1),
+        # Sólo las vueltas del modelo, sin las herramientas: la primera
+        # conversación de una sesión paga la carga en frío de las señales
+        # locales (91 s en la de E), y eso no dice nada del prompt.
+        "modelo_mediana_s": round(_mediana([_tiempo_del_modelo(conversacion) for conversacion in conversaciones]), 1),
+        "modelo_max_s": round(max((_tiempo_del_modelo(conversacion) for conversacion in conversaciones), default=0), 1),
+        "modelo_suma_s": round(sum(_tiempo_del_modelo(conversacion) for conversacion in conversaciones), 1),
+        "salida_tokens_suma": sum(
+            vuelta["output_tokens"] or 0 for conversacion in conversaciones for vuelta in conversacion["vueltas"]
+        ),
         "prompt_tokens_max": max(
             (vuelta["prompt_tokens"] or 0 for conversacion in conversaciones for vuelta in conversacion["vueltas"]),
             default=0,
@@ -964,6 +985,12 @@ def resumen() -> None:
     for nivel, cifras in salida["marcadores_frente_a_la_lectura"].items():
         print(f"  legibilidad {nivel}: {cifras['respuestas']} respuestas · mediana de marcadores {cifras['marcadores_mediana']}")
 
+    # Lo que el autor leyó de lo que marcó el juez calibrado (`validar`).
+    validadas: dict[str, dict] = (
+        json.loads(VALIDACION_COMPARACION.read_text(encoding="utf-8"))["validaciones"]
+        if VALIDACION_COMPARACION.exists()
+        else {}
+    )
     print("\n== la comparación")
     for ruta in sorted(CARPETA.glob("comparacion-*.json")):
         registro = json.loads(ruta.read_text(encoding="utf-8"))
@@ -975,11 +1002,21 @@ def resumen() -> None:
                 for fila in json.loads(juez.read_text(encoding="utf-8"))["juicios"]
                 if not fila["error"] and fila.get("json_valido")
             ]
-            cifras[f"juez {juez.stem.removeprefix('juez-').removesuffix('-' + ruta.stem)}"] = {
+            marcadas = [fila["id"] for fila in juicios if not fila["fiel_recalculado"]]
+            cifras_del_juez: dict = {
                 "juzgadas": len(juicios),
-                "infieles": sum(not fila["fiel_recalculado"] for fila in juicios),
+                "infieles": len(marcadas),
                 "legibilidad": dict(sorted(Counter(fila["juicio"]["legibilidad"] for fila in juicios).items())),
             }
+            # Sólo se validó lo que marcó `gemma4:31b`, el juez calibrado.
+            if "gemma4" in juez.stem and validadas:
+                leidas = [validadas[clave] for clave in marcadas if clave in validadas]
+                cifras_del_juez["validacion_del_autor"] = {
+                    "infieles_confirmadas": sum(not fila["fiel"] for fila in leidas),
+                    "falsas_alarmas": sum(bool(fila["fiel"]) for fila in leidas),
+                    "sin_validar": len(marcadas) - len(leidas),
+                }
+            cifras[f"juez {juez.stem.removeprefix('juez-').removesuffix('-' + ruta.stem)}"] = cifras_del_juez
         salida["condiciones"][nombre] = cifras
         print(f"  {nombre}: {json.dumps(cifras, ensure_ascii=False)}")
     _guardar(salida, CARPETA / "resumen.json")
@@ -989,35 +1026,77 @@ def resumen() -> None:
 # ----- 5 · La calibración -----
 
 
-def validar(carpeta: Path) -> None:
-    """Lleva a `lectura.json` lo validado por el autor en la página de validación.
+VALIDACION_COMPARACION = CARPETA / "validacion-comparacion.json"
+
+
+def validar(carpetas: list[Path]) -> None:
+    """Lleva al repositorio lo validado por el autor en la página de validación.
 
     La página guarda cada decisión en su base de datos, fuera del repositorio;
-    se exporta a una carpeta (un JSON por caso) y aquí se copia a `validada`,
-    junto a la lectura de Claude que se validaba. Sin esto, la referencia de la
-    calibración no estaría en el repositorio y no se podría citar.
+    cada colección se exporta a una carpeta (un JSON por caso). Sin esto, la
+    referencia no estaría en el repositorio y no se podría citar. Cada decisión
+    va donde dice su id:
+
+    - las del corpus (colección `validaciones`), a `validada` en `lectura.json`,
+      junto a la lectura de Claude que se validaba: es la referencia de la
+      calibración;
+    - las de la comparación (colección `validaciones_comparacion`), a
+      `validacion-comparacion.json`: son lo que el juez marcó como infiel en
+      cada condición, leído por el autor. Lo que el juez dio por fiel no se
+      leyó.
+
+    `lectura.json` sólo se toca si llegan decisiones del corpus: exportar sólo
+    la comparación no puede borrar la validación del corpus.
     """
-    ruta = CARPETA / "lectura.json"
-    registro = json.loads(ruta.read_text(encoding="utf-8"))
-    validaciones = {}
-    for fichero in sorted(carpeta.glob("*.json")):
-        cuerpo = json.loads(fichero.read_text(encoding="utf-8"))
-        validaciones[cuerpo["id"]] = {
-            clave: cuerpo.get(clave) for clave in ("fiel", "legibilidad", "decision", "nota", "actualizada")
-        }
-    desconocidas = set(validaciones) - {lectura["id"] for lectura in registro["lecturas"]}
-    if desconocidas:
-        sys.exit(f"ABORTADO: validaciones de casos que no están en la lectura: {sorted(desconocidas)}")
-    for lectura in registro["lecturas"]:
-        lectura["validada"] = validaciones.get(lectura["id"])
-    registro["condiciones"]["validacion"] = {
-        "validadas": len(validaciones),
-        "exportada": datetime.now().astimezone().isoformat(timespec="seconds"),
-        "origen": "la página de validación de #192 (artefacto privado), colección `validaciones`",
+    ruta_lectura = CARPETA / "lectura.json"
+    registro = json.loads(ruta_lectura.read_text(encoding="utf-8"))
+    del_corpus = {lectura["id"] for lectura in registro["lecturas"]}
+    de_la_comparacion = {
+        conversacion["id"]: ruta.stem.removeprefix("comparacion-")
+        for ruta in CARPETA.glob("comparacion-*.json")
+        for conversacion in json.loads(ruta.read_text(encoding="utf-8"))["conversaciones"]
     }
-    _guardar(registro, ruta)
-    decisiones = Counter(validacion["decision"] for validacion in validaciones.values())
-    print(f"  {len(validaciones)} de {len(registro['lecturas'])} validadas · {dict(decisiones)} → {ruta}")
+
+    corpus: dict[str, dict] = {}
+    comparacion: dict[str, dict] = {}
+    for carpeta in carpetas:
+        for fichero in sorted(carpeta.glob("*.json")):
+            cuerpo = json.loads(fichero.read_text(encoding="utf-8"))
+            decision = {clave: cuerpo.get(clave) for clave in ("fiel", "legibilidad", "decision", "nota", "actualizada")}
+            if cuerpo["id"] in del_corpus:
+                corpus[cuerpo["id"]] = decision
+            elif cuerpo["id"] in de_la_comparacion:
+                comparacion[cuerpo["id"]] = {"condicion": de_la_comparacion[cuerpo["id"]]} | decision
+            else:
+                sys.exit(f"ABORTADO: una validación de un caso que no está ni en la lectura ni en la comparación: {cuerpo['id']}")
+    exportada = datetime.now().astimezone().isoformat(timespec="seconds")
+
+    if corpus:
+        for lectura in registro["lecturas"]:
+            lectura["validada"] = corpus.get(lectura["id"])
+        registro["condiciones"]["validacion"] = {
+            "validadas": len(corpus),
+            "exportada": exportada,
+            "origen": "la página de validación de #192 (artefacto privado), colección `validaciones`",
+        }
+        _guardar(registro, ruta_lectura)
+        decisiones = Counter(validacion["decision"] for validacion in corpus.values())
+        print(f"  corpus: {len(corpus)} de {len(registro['lecturas'])} validadas · {dict(decisiones)} → {ruta_lectura}")
+
+    if comparacion:
+        _guardar(
+            {
+                "condiciones": {
+                    "exportada": exportada,
+                    "origen": "la página de validación de #192 (artefacto privado), colección `validaciones_comparacion`",
+                    "que_se_valido": "lo que el juez (gemma4:31b) marcó como infiel en cada condición; lo que dio por fiel no se leyó",
+                },
+                "validaciones": dict(sorted(comparacion.items())),
+            },
+            VALIDACION_COMPARACION,
+        )
+        por_condicion = Counter((fila["condicion"], fila["fiel"]) for fila in comparacion.values())
+        print(f"  comparación: {len(comparacion)} validadas · (condición, fiel): {dict(sorted(por_condicion.items()))} → {VALIDACION_COMPARACION}")
 
 
 def _kappa(referencia: list[bool], dicho: list[bool]) -> float | None:
@@ -1366,6 +1445,52 @@ async def _medir_ventana(
     )
 
 
+NOTICIAS = {"get_nyt_news", "get_guardian_news"}
+# Un texto que da un veredicto o una cifra de las señales.
+VEREDICTO = re.compile(r"clickbait|informativ|clasificador|detector|confianza|%", re.IGNORECASE)
+
+
+def _clase_de(medida: dict) -> str:
+    """Qué hizo el agente en una medida de `ventana`, para el recuento.
+
+    - `llamo_a_una_senal`: llamó a alguna herramienta que no es de noticias.
+      Dice que el camino fue el bueno, no que la narración sea fiel: eso no se
+      juzgó aquí.
+    - `inventada`: trajo, como mucho, noticias, y aun así el texto da un
+      veredicto o una cifra. Cada una se enseña para leerla.
+    - `sin_analisis`: no llamó a ninguna señal y tampoco da veredicto.
+    - `empty_answer`, `failed`, `max_rounds`: el estado con que acabó.
+    - `sin_traza`: la primera medida de `ventana` no guardaba los pasos.
+    """
+    if medida["estado"] != "answered":
+        return medida["estado"]
+    if "pasos" not in medida:
+        return "sin_traza"
+    herramientas = {paso["name"] for paso in medida["pasos"] if paso["kind"] == "tool"}
+    if herramientas - NOTICIAS:
+        return "llamo_a_una_senal"
+    return "inventada" if VEREDICTO.search(medida["respuesta"]) else "sin_analisis"
+
+
+def recuento(rutas: list[Path]) -> None:
+    """Sin GPU: cuántas veces llamó a una señal, se inventó el análisis o no
+    contestó, por caso (consulta y variante), en las medidas de `ventana`.
+    Enseña el texto de cada inventada, para que se pueda leer."""
+    for ruta in rutas or sorted(CARPETA.glob("ventana*.json")):
+        registro = json.loads(ruta.read_text(encoding="utf-8"))
+        condiciones = registro["condiciones"]
+        print(f"\n== {ruta.name} · {condiciones['fecha']} · {condiciones['commit']}")
+        por_caso: dict[str, Counter] = {}
+        for medida in registro["medidas"]:
+            caso = f"{medida['consulta']}:{medida.get('variante', 'preciso-con')}·{medida['num_ctx']}"
+            clase = _clase_de(medida)
+            por_caso.setdefault(caso, Counter())[clase] += 1
+            if clase == "inventada":
+                print(f"   inventada · {caso} #{medida.get('vez', 1)}: {medida['respuesta'][:180]!r}")
+        for caso, clases in por_caso.items():
+            print(f"  {caso}: {dict(sorted(clases.items()))}")
+
+
 async def _con_mcp(corrutina) -> None:
     """Sirve el `mcp` de producción en proceso mientras corre `corrutina`."""
     app = SERVIDOR.streamable_http_app()
@@ -1395,7 +1520,10 @@ async def main(parte: str, argumentos: list[str]) -> None:
         resumen()
         return
     if parte == "validar":
-        validar(Path(argumentos[0]))
+        validar([Path(argumento) for argumento in argumentos])
+        return
+    if parte == "recuento":
+        recuento([Path(argumento) for argumento in argumentos])
         return
     if parte == "calibrar":
         calibrar()
@@ -1429,8 +1557,8 @@ if __name__ == "__main__":
         if not argumentos:
             sys.exit("Uso: fidelidad.py comparar A B C D | fidelidad.py comparar E:<prompt>")
     elif parte == "validar":
-        if len(argumentos) != 1:
-            sys.exit("Uso: fidelidad.py validar <carpeta con la exportación de la página>")
+        if not argumentos:
+            sys.exit("Uso: fidelidad.py validar <carpeta exportada> [carpeta …], una por colección de la página")
     elif parte == "ventana":
         try:
             _, _, casos = _argumentos_ventana(argumentos)
@@ -1442,9 +1570,10 @@ if __name__ == "__main__":
         existentes = {clave for clave, *_ in _consultas()}
         if desconocidas := sorted({clave for clave, _ in casos} - existentes):
             sys.exit(f"Consultas desconocidas: {desconocidas}. Hay: {sorted(existentes)}")
-    elif parte not in ("resumen", "calibrar"):
+    elif parte not in ("resumen", "calibrar", "recuento"):
         sys.exit(
             "Uso: fidelidad.py corpus | jueces <modelo> [fichero] | comparar <condición ...>"
-            " | resumen | validar <carpeta> | calibrar | ventana [--ctx N,N] [--veces N] [consulta ...]"
+            " | resumen | validar <carpeta ...> | calibrar | ventana [--ctx N,N] [--veces N] [consulta ...]"
+            " | recuento [fichero ...]"
         )
     asyncio.run(main(parte, argumentos))
