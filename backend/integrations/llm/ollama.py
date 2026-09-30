@@ -19,6 +19,11 @@ No lee `settings`: recibe su configuración, como los detectores NLP (#119). Y
 `num_ctx` va SIEMPRE explícito: Ollama 0.34.2 elige el suyo según la VRAM
 (32.768 en la A40, #181), y con uno pequeño recorta el catálogo de
 herramientas sin avisar (spike rehecho en la A40, PR #176).
+
+La temperatura y el `presence_penalty` se mandan si se dan (#192); si no, decide
+el Modelfile del modelo. La factoría los da siempre, así que el agente los
+manda siempre. Que aquí sean opcionales es para los guiones de `spikes/` que
+se midieron sin mandarlos: repetirlos tiene que seguir midiendo lo mismo.
 """
 
 import json
@@ -57,6 +62,8 @@ class OllamaClient(BaseAPI, LLMBackend):
         num_ctx: int,
         keep_alive: str,
         timeout: float,
+        temperature: float | None = None,
+        presence_penalty: float | None = None,
     ) -> None:
         super().__init__()
         # `make_request` compone `BASE_URL + endpoint`: sin la barra final, la
@@ -66,6 +73,8 @@ class OllamaClient(BaseAPI, LLMBackend):
         self.model = model
         self.num_ctx = num_ctx
         self.keep_alive = keep_alive
+        self.temperature = temperature
+        self.presence_penalty = presence_penalty
 
     async def chat(
         self,
@@ -80,7 +89,7 @@ class OllamaClient(BaseAPI, LLMBackend):
             "stream": False,
             "think": think,
             "keep_alive": self.keep_alive,
-            "options": {"num_ctx": self.num_ctx},
+            "options": self._opciones(),
         }
         if tools:
             cuerpo["tools"] = [
@@ -107,6 +116,14 @@ class OllamaClient(BaseAPI, LLMBackend):
             return ToolResult.fail(
                 f"El modelo `{self.model}` {mensaje_publico(error)}."
             )
+
+    def _opciones(self) -> dict:
+        opciones: dict = {"num_ctx": self.num_ctx}
+        if self.temperature is not None:
+            opciones["temperature"] = self.temperature
+        if self.presence_penalty is not None:
+            opciones["presence_penalty"] = self.presence_penalty
+        return opciones
 
     async def disponibilidad(self) -> Disponibilidad:
         try:

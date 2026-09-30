@@ -1098,6 +1098,9 @@ async def ventana() -> None:
     pesadas, con el historial máximo, en las dos ventanas: si con 8.192 el
     prompt sale más corto que con 16.384 para la misma entrada, Ollama lo
     recortó. Y la memoria de cada una, de `api/ps`, sin sondear `nvidia-smi`.
+
+    Con la configuración de producción desde #192: `05-llano` y el perfil
+    preciso, que es lo que manda el agente.
     """
     fuente = Fuente("ventana", "qwen3.5:27b", "05-llano", think=True)
     historial = _historial_maximo()
@@ -1108,6 +1111,7 @@ async def ventana() -> None:
             "prompt": fuente.prompt,
             "prompt_huella": _huella(prompts.cargar(fuente.prompt)),
             "decimales": 3,
+            "muestreo": PERFIL_PRECISO,
             "historial": {"turnos": len(historial), "caracteres": caracteres},
             "ventanas": VENTANAS,
         },
@@ -1121,7 +1125,7 @@ async def ventana() -> None:
             print(f"\n== num_ctx {num_ctx}")
             for clave in CONSULTAS_PESADAS:
                 consulta, _ = consultas[clave]
-                resultado = await responder(consulta, historial, _config(fuente, 3, None, num_ctx))
+                resultado = await responder(consulta, historial, _config(fuente, 3, PERFIL_PRECISO, num_ctx))
                 cargado = await _pedir(cliente, "GET", "api/ps") or {}
                 memoria = next(
                     (entrada for entrada in cargado.get("models", []) if entrada.get("name") == fuente.modelo), {}

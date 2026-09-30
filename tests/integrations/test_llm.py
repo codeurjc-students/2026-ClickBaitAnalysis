@@ -100,6 +100,33 @@ async def test_el_chat_envia_num_ctx_explicito_y_la_conversacion_traducida():
 
 
 @pytest.mark.asyncio
+async def test_el_muestreo_se_envia_cuando_se_da():
+    """#192. Sin darlo no se manda nada y decide el Modelfile (el test de
+    arriba), que es como se midieron los guiones de antes. El cero también se
+    manda: es un valor, no una ausencia."""
+    cliente = OllamaClient(
+        URL,
+        "qwen3.5:27b",
+        num_ctx=8192,
+        keep_alive="10m",
+        timeout=30.0,
+        temperature=0.6,
+        presence_penalty=0.0,
+    )
+    with respx.mock:
+        ruta = respx.post(f"{URL}/api/chat").mock(
+            return_value=Response(200, json=_respuesta_ollama(content="Hola."))
+        )
+        await cliente.chat([{"role": "user", "content": "hola"}], [])
+
+    assert json.loads(ruta.calls.last.request.content)["options"] == {
+        "num_ctx": 8192,
+        "temperature": 0.6,
+        "presence_penalty": 0.0,
+    }
+
+
+@pytest.mark.asyncio
 async def test_sin_herramientas_no_se_envia_la_clave_tools():
     with respx.mock:
         ruta = respx.post(f"{URL}/api/chat").mock(
@@ -331,6 +358,24 @@ def test_el_backend_se_cachea_por_el_valor_de_la_configuracion(monkeypatch):
     assert isinstance(otro, OllamaClient)
     assert otro is not primero
     assert otro.model == "qwen3.5:2b"
+
+
+def test_la_factoria_da_siempre_el_muestreo_de_la_configuracion(monkeypatch):
+    """#192: el agente lo manda siempre, y cambiarlo da otro cliente (#119)."""
+    monkeypatch.setattr(settings, "llm_backend", "ollama")
+    monkeypatch.setattr(settings, "llm_url", URL)
+    monkeypatch.setattr(settings, "llm_temperature", 0.6)
+    monkeypatch.setattr(settings, "llm_presence_penalty", 0.0)
+    primero = factory.get_llm_backend()
+
+    assert isinstance(primero, OllamaClient)
+    assert (primero.temperature, primero.presence_penalty) == (0.6, 0.0)
+
+    monkeypatch.setattr(settings, "llm_temperature", 1.0)
+    otro = factory.get_llm_backend()
+    assert isinstance(otro, OllamaClient)
+    assert otro is not primero
+    assert otro.temperature == 1.0
 
 
 def test_la_ficha_declarada_se_publica_con_su_modelo(monkeypatch):

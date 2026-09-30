@@ -109,7 +109,14 @@
    "con_repetidas": 0,
    "tiempo_mediana_s": 16.9,
    "tiempo_max_s": 120.5,
-   "prompt_tokens_max": 6873
+   "prompt_tokens_max": 6873,
+   "juez gemma4-31b": {
+    "juzgadas": 27,
+    "infieles": 1,
+    "legibilidad": {
+     "3": 27
+    }
+   }
   }
  },
  "marcadores_frente_a_la_lectura": {
