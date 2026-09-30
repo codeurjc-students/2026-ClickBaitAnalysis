@@ -7115,6 +7115,179 @@ bash spikes/chat_registro.sh 2026-09-28T18:22:00Z 2026-09-28T18:24:00Z
 - **La primera conversación tras un despliegue paga el MCP en frío**, 6,9 s las dos veces (aceptado en H4).
 - **El despliegue sirve esta rama** (`d6a90d8`) desde la segunda prueba; el clon vuelve a `dev` tras el merge.
 
+### La fidelidad del agente: jueces calibrados y un prompt llano (#192, 29 sep 2026)
+
+La issue F de H5 tiene dos preguntas. La primera: si lo que cuenta el agente está en lo que devolvieron las herramientas, y cómo medirlo sin leerlo todo a mano. La segunda: qué prompt lo consigue sin sonar técnico, que es lo que dejó la prueba en producción de #191 ([comentario en la issue](https://github.com/codeurjc-students/2026-ClickBaitAnalysis/issues/192#issuecomment-5876234208)). Todo sale de [`spikes/fidelidad.py`](spikes/fidelidad.py), por partes, con [`spikes/fidelidad_a40.sh`](spikes/fidelidad_a40.sh) abriendo cada sesión de GPU, y los datos en [`spikes/fidelidad/`](spikes/fidelidad/).
+
+#### El corpus
+
+La parte `corpus` genera las conversaciones que después se leen y se juzgan: las 26 consultas de `agente_a40.py` sin las cinco que no piden herramientas —sin resultados no hay nada a lo que ser fiel— y sus seis bucles, 27 en total, completas y con los resultados enteros, como en producción. Las responden cuatro fuentes. Dos son candidatas: producción (el 27B razonando con `04-preciso`) y el otro prompt (`03-estricto`). Las otras dos están para que haya errores que cazar: el 2B, que en el spike se equivocaba sin que la criba lo viera, y el 27B sin razonar en las 12 consultas de análisis, que en #188 se inventaba los resultados.
+
+| Condiciones | |
+|---|---|
+| Fecha | 2026-09-29, 13:23, sobre `239a955` (guion `5fe6436111ae`) |
+| Máquina | la A40, con `gpu-sesion` (`6ad6a751d636`) y el túnel propio en el 11500; Ollama 0.34.2 |
+| Modelos | `qwen3.5:27b` (`7653528ba5cb`) y `qwen3.5:2b` (`324d162be6ca`), `num_ctx` 8192 |
+| Muestreo | el del Modelfile, que el agente no manda: temperatura 1, `top_k` 20, `top_p` 0,95 y `presence_penalty` 1,5, leído de `api/show` y guardado con el corpus |
+| Datos | [`corpus.json`](spikes/fidelidad/corpus.json): 93 conversaciones con la traza entera |
+
+| Fuente | Con texto | Vacías | Con texto y sin herramientas | De punta a punta (mediana · máx) |
+|---|---|---|---|---|
+| `27b-04` | 27 | 0 | 1 | 16,5 · 93,3 s |
+| `2b-04` | 18 | 9 | 0 | 3,6 · 13,9 s |
+| `27b-04-sin-razonar` | 12 | 0 | 10 | 5,3 · 7,7 s |
+| `27b-03` | 27 | 0 | 0 | 16,9 · 35,5 s |
+
+**Una condición que nadie mandaba: el muestreo.** El agente fija `num_ctx` y `think`, pero no la temperatura, así que manda la del Modelfile. Esos valores son el perfil que recomiendan los autores de Qwen3.5 para razonar en tareas generales; para tareas precisas recomiendan temperatura 0,6 y `presence_penalty` 0 ([ficha de Qwen3.5](https://huggingface.co/Qwen/Qwen3.5-0.8B), [discusión sobre los parámetros](https://huggingface.co/Qwen/Qwen3.5-9B/discussions/51)). Todo lo medido del agente desde el spike se midió así sin saberlo: es la regla de #188 otra vez, un parámetro que no se manda también es una condición.
+
+#### La lectura, validada por el autor
+
+Claude leyó las 84 respuestas con texto contra los resultados de sus herramientas, con la misma rúbrica que después usan los jueces ([`juez-fidelidad.md`](spikes/prompts/juez-fidelidad.md)). Cada afirmación queda respaldada, mal atribuida, contradicha o inventada, y la respuesta es fiel sólo si todas están respaldadas. Redondear bien no es infiel; un porcentaje sólo vale para una probabilidad o una confianza; y la legibilidad, de 1 a 3, va aparte. Dos puntos los decidió el autor antes de juzgar: nombrar una categoría que no da ninguna herramienta llamada es infiel (la «referencia vaga» de un titular con sólo el modelo lineal llamado), y los niveles 1 y 2 de legibilidad se reescribieron para que no se solaparan en los decimales.
+
+El borrador lo validó el autor caso a caso, en una página privada con la etiqueta de Claude a la vista, que es lo que él prefirió a una muestra a ciegas. Estuvo de acuerdo en 81 de 84; las 3 correcciones son de legibilidad, ninguna de fidelidad. La parte `validar` copia sus decisiones al campo `validada` de [`lectura.json`](spikes/fidelidad/lectura.json), y ésa es la referencia de todo lo que sigue.
+
+| Fuente | Fieles | Legibilidad 1 · 2 · 3 |
+|---|---|---|
+| `27b-04` | 24/27 | 11 · 12 · 4 |
+| `27b-03` | 24/27 | 11 · 14 · 2 |
+| `2b-04` | 11/18 | 7 · 7 · 4 |
+| `27b-04-sin-razonar` | 1/12 | 6 · 5 · 1 |
+
+- **Razonando, producción también se inventa un resultado alguna vez.** A «¿Y qué dice el modelo de caja negra?», con el historial, contestó «factual news con una confianza de 0,95» sin llamar a la herramienta, que da 0,718. Es el modo de fallo de #188, que razonar hace raro pero no elimina: 1 de 27.
+- **Una mal atribuida en producción**: las posiciones que da el léxico, atribuidas en la misma frase al modelo lineal.
+- **El 2B**: los pesos presentados como posiciones («you» en [5,62]), que la incoherencia «detecta falta de coherencia» cuando salió no aplicable, noticias mal traducidas y cuatro de las cinco señales llamadas caja negra.
+- **Lo ilegible, según las notas del autor**: los decimales, las posiciones y los nombres internos. Las dos últimas las exigía el propio `04-preciso` («cada pista lleva su propia posición», las categorías «tal como las devuelve la herramienta»).
+
+#### Los jueces, calibrados
+
+Se propusieron tres jueces y se midieron dos, de familias distintas a la que responde: `gpt-oss:20b` (`17052f91a42e`, de OpenAI) y `gemma4:31b` (`6316f0629137`, de Google), descargados en la máquina 2 (2 min 18 s y 3 min 13 s; de 163 a 131 GB libres). El tercero, `qwen3.5:27b`, de la misma familia, queda por el coste. Todo va explícito, porque el juez es un instrumento de medida: temperatura 0, razonando, `num_ctx` 16384 y la salida atada a un esquema JSON con `format`. El guion vuelve a calcular si la respuesta es fiel a partir de las afirmaciones que clasifica el juez, y marca si el juez se contradice; no pasó ninguna vez. Rúbrica `78e41cf7cdc3`, corpus `f0c2be54c90b`; la parte `calibrar` da las cifras en [`calibracion.json`](spikes/fidelidad/calibracion.json).
+
+| Juez | Acuerdo | Kappa | Infieles cazadas | Falsas alarmas | Legibilidad igual (diferencia media) | Por caso (mediana · máx) |
+|---|---|---|---|---|---|---|
+| **`gemma4:31b`** | 76/84 | **0,77** | **20/24** | **4/60** | 30/84 (+0,76) | 62,5 · 210,3 s |
+| `gpt-oss:20b` | 64/84 | 0,46 | 17/24 | 13/60 | 20/84 (+1,02) | 11,1 · 95,1 s |
+| infiel si lo dice cualquiera | 67/84 | 0,56 | 21/24 | 14/60 | — | — |
+| infiel si lo dicen los dos | 73/84 | 0,66 | 16/24 | 3/60 | — | — |
+
+- **`gemma4:31b` es el juez.** Lo que se le escapa es casi todo de la regla más estricta: las tres «referencias vagas» y el «Sí» ambiguo del 2B a «¿concuerda?». Juntarlo con el otro no compensa: una infiel más cazada por diez falsas alarmas más.
+- **`gpt-oss:20b` es demasiado estricto con lo que la rúbrica excluye**: cuenta como inventadas las descripciones generales de las señales y las deducciones directas del dato («factual news» es «no es clickbait»).
+- **Para la legibilidad no sirve ninguno**: los dos puntúan de más, +0,8 y +1,0 de media. Por eso la legibilidad se mide sin juez (abajo).
+- `gemma4:31b` necesitó tres sesiones de 45 minutos; la parte `jueces` continúa donde lo dejó. Las primeras cargas, justo tras la descarga, tardaron 95,8 s (`gpt-oss`) y 82,8 s (`gemma4`); en las sesiones, 8,2 s y entre 10,4 y 31,3 s. Observado, sin explicar: no se midió la caché de disco.
+
+#### Dos cambios que salen de la validación
+
+1. **El redondeo, en el código y no en el prompt** (`81faf29`). El agente redondea a tres decimales las cifras que LEE el modelo, nunca la traza, de la que salen las tarjetas (R13.4); y lo que no es 0 ni ±1 no se redondea a 0 ni a 1, para no leer una certeza que la herramienta no dio (0,9999973 se queda en 0,999). Pedírselo al prompt no lo garantiza: si no ve los decimales, no los puede copiar. Es `decimales_para_el_modelo` en `Configuracion`, 3 por defecto; tres tests escritos antes, que fallaban.
+2. **Un prompt nuevo, `05-llano`** (`dec141c`). Conserva las reglas de veracidad y cambia lo que la validación señaló: sin posiciones, un glosario fijo de nombres llanos para herramientas, pistas y veredictos (fijo para que la traducción se pueda juzgar), cada cifra con su sentido, la conclusión primero, las noticias con su titular y una frase de su resumen, y las fichas sin detalles de instalación. 3.906 caracteres, frente a los 3.054 de `04-preciso`.
+
+#### La comparación
+
+La parte `comparar` pasa las 27 consultas por cuatro condiciones, intercaladas consulta a consulta para que el paso del tiempo —las noticias cambian— no caiga sobre una sola: A, `04-preciso` sin redondeo (producción hoy); B, `04-preciso` con redondeo; C, `05-llano`; y D, `03-estricto` con redondeo. Se diseñó con tres repeticiones. Con la primera sesión en marcha, el autor decidió quedarse con una, por lo que cuesta juzgar cada conversación, así que la sesión se paró al terminar la repetición 1: los ficheros dicen `"repeticiones": 3` en sus condiciones, pero sólo traen la primera. Commit `0f9beee`, de 19:13 a 19:52; los datos, en `comparacion-<condición>.json`.
+
+Sin juez se cuentan las tres quejas de la validación —nombres internos, posiciones y cifras con más de tres decimales—, además de las llamadas que no son las esperadas para cada consulta y las respuestas sin ninguna herramienta. **Los marcadores siguen a la legibilidad validada**: en el corpus, la mediana es 4 en las respuestas de legibilidad 1, 1 en las de 2 y 0 en las de 3 (35, 38 y 11 respuestas). La parte `resumen` lo recalcula y guarda [`resumen.json`](spikes/fidelidad/resumen.json).
+
+| Condición | Marcadores por respuesta | Sin ninguno | Nombres · posiciones · decimales | Llamadas de más | Sin herramientas | Mediana · máx | Prompt máx |
+|---|---|---|---|---|---|---|---|
+| A · `04` sin redondeo | 3,0 | 4 de 26 | 27 · 19 · 32 | 2 | 0 | 17,0 · 87,6 s | 6.628 |
+| B · `04` con redondeo | 1,78 | 11 de 27 | 32 · 16 · 0 | 2 | 0 | 14,9 · 59,0 s | 6.628 |
+| **C · `05-llano`** | **0** | **27 de 27** | **0 · 0 · 0** | 1 | 0 | 18,6 · 58,0 s | 6.873 |
+| D · `03` con redondeo | 1,56 | 12 de 27 | 35 · 7 · 0 | 1 | 0 | 18,0 · 53,8 s | 6.463 |
+
+El redondeo hace lo suyo (los decimales largos pasan de 32 a 0 entre A y B), y `05-llano` quita los tres marcadores en las 27 respuestas. A tuvo una respuesta vacía.
+
+**Llamadas repetidas**, el otro criterio que dejó #191 —la misma herramienta con los mismos argumentos dentro de una conversación—: ninguna en las 135 conversaciones de las cinco condiciones, ni en las 54 del 27B del corpus. Sólo el 2B repitió una vez (`detect_clickbait` con el mismo titular, en `contraste-5`). La repetición que se vio en producción en #191 no se reprodujo aquí. Lo cuentan `comparar` y `resumen` (`con_repetidas`).
+
+**La regla para decidir se fijó ANTES de juzgar**, como el tope de #189:
+
+1. Un prompt queda fuera si su tasa de infieles, según `gemma4:31b` sobre las 27 respuestas de cada condición, supera en más de 5 puntos a la de B.
+2. De los que quedan, gana el que menos marcadores tenga por respuesta; si mejora a B en menos de un 20 %, se queda `04-preciso`, porque cambiar de prompt obliga a volver a medir la ventana y el historial.
+3. La condición E —el ganador con el perfil de muestreo «preciso» de los autores, temperatura 0,6 y `presence_penalty` 0— sólo se queda si no sube las infieles ni las respuestas sin herramientas, y baja las vueltas desbocadas o el tiempo. Cambia dos parámetros a la vez, pero es un perfil que los autores ya validaron, no uno inventado.
+
+La condición E se generó a las 21:46 del 29 sobre `c703a2c`, con `05-llano`: 0 marcadores en las 27 respuestas, como C, ninguna sin herramientas y una llamada de más.
+
+#### El juez, la validación y la decisión
+
+`gemma4:31b` juzgó B, C y E, una sesión de GPU cada una: C a las 19:57 del 29 sobre `19c7320`, B a las 20:57 sobre `478b240` y E a las 22:16 sobre `08385ca`. Lo que marcó como infiel lo leyó el autor en la misma página de validación, con la lectura de Claude como sugerencia; lo que dio por fiel no se leyó. Sus decisiones están en [`validacion-comparacion.json`](spikes/fidelidad/validacion-comparacion.json) —la parte `validar` las reparte por su id—, y `resumen` las cuenta junto a las del juez.
+
+| Condición | Infieles según el juez | Confirmadas por el autor | Falsas alarmas |
+|---|---|---|---|
+| B · `04` con redondeo | 4 de 27 | 3 | 1 |
+| C · `05-llano` | 5 de 27 | 5 | 0 |
+| E · `05-llano` y perfil preciso | 1 de 27 | 1 | 0 |
+
+- **La falsa alarma** explica en general cómo mide la herramienta de incoherencia («los embeddings no coinciden»), que la rúbrica no cuenta como afirmación.
+- **Una infiel por otro motivo del que dio el juez** (B, `contraste-1`). El juez marcó como contradicho «0,999, es decir, un 99,9 %», que es el redondeo: el modelo leyó 0,999, porque el redondeo nunca llega a 1, y el juez lee la traza entera, 0,99998. Lo que la hace infiel es lo que el juez no vio: llama «referencia vaga» y «palabra interrogativa» a palabras que sólo dio el modelo lineal, sin haber llamado al léxico.
+- **El fallo que más se repite, en C y en E**: nombrar con las categorías del detector léxico lo que sólo dio el modelo lineal, y atribuirle al tono una justificación («debido a los términos presentes», un «wonderful» que no sale de ninguna parte) cuando la herramienta sólo da la etiqueta y la confianza.
+
+La regla, aplicada:
+
+1. **Con las cifras del juez, C supera a B en 3,7 puntos** (18,5 % frente a 14,8 %), así que no queda fuera. **Con las validadas**, B baja a 3 (11,1 %) y C quedaría 7,4 puntos por encima: fuera, por dos respuestas de 27. El autor decidió aplicar la regla como se escribió, porque cambiar la medida después de ver el resultado es justo lo que fijarla antes quería evitar, y dejar escrita la validación al lado.
+2. **Gana `05-llano`**: 0 marcadores por respuesta frente a 1,78 de B. D no se juzgó, porque con 1,56 marcadores no podía ganar a C aunque fuera más fiel; A no era un prompt candidato, sino B sin redondeo.
+3. **E se queda**: una infiel frente a cinco, ninguna respuesta sin herramientas en ninguna de las dos, y el modelo tardó menos (mediana de 16,5 s frente a 18,5 s por conversación, 506 s frente a 573 en total, y 13.799 tokens de salida frente a 15.329).
+
+El máximo de E, 120,5 s de punta a punta, no es del modelo: es la carga en frío de las señales locales en la primera conversación de su sesión, 91 s dentro de `analyze_headline`. Por eso `resumen` cuenta también el tiempo de las vueltas del modelo solas, que en E da un máximo de 57,0 s.
+
+**Dos cautelas.** Es una sola repetición, y el juez se equivoca en los dos sentidos (en la calibración dejó pasar 4 de 24 infieles, y lo que dio por fiel aquí no se leyó). Y cambian dos cosas a la vez: `04-preciso` no se midió con el perfil preciso, así que no se sabe qué parte de la mejora de E es del perfil y qué parte del prompt. Se decidió no medirlo: la pregunta de la issue era hacer legibles las respuestas sin perder fidelidad, y E lo cumple; `E:04-preciso` sólo diría si se puede tener la misma fidelidad con respuestas técnicas.
+
+**En el agente** (`e11ad48`): `05-llano` pasa a ser el prompt por defecto, y el agente manda siempre temperatura 0,6 y `presence_penalty` 0 (`llm_temperature` y `llm_presence_penalty`). El cliente de Ollama sólo los manda si se le dan, para que los guiones que se midieron sin ellos sigan midiendo lo mismo; la factoría los da siempre. La ficha del modelo publica lo medido.
+
+#### La ventana, a 16.384
+
+La regla del tope del historial de #189 midió sólo el prompt, pero el razonamiento y la respuesta también ocupan ventana. Sumando las dos cosas por vuelta, la más pesada de la comparación es la de las fichas de los modelos: con `05-llano`, 7.575 de 8.192 tokens sin historial (6.873 + 702). En el corpus ya había pasado una vez: una vuelta del 2B llenó la ventana exacta (8.183 + 9). La parte `ventana` lo midió con la configuración nueva —`05-llano` y el perfil preciso— y 14 turnos de historial real (3.674 caracteres, las primeras respuestas de C), el 30 a las 10:26 sobre `e11ad48`; los datos, en [`ventana.json`](spikes/fidelidad/ventana.json).
+
+| `num_ctx` | Consulta | Estado | Prompt por vuelta | Ocupación máxima | VRAM |
+|---|---|---|---|---|---|
+| 8.192 | las fichas de los modelos | **vacía** | 4.885 · 7.818 | **8.192** | 15.959 MiB |
+| 8.192 | encadenar una noticia | contestada | 4.895 · 6.249 | 6.377 | 15.959 MiB |
+| 16.384 | las fichas de los modelos | contestada | 4.885 · 7.818 | 8.371 | 16.487 MiB |
+| 16.384 | encadenar una noticia | vacía | 4.895 · 6.249 · 7.011 | 7.865 | 16.487 MiB |
+
+- **Con 8.192, la consulta de las fichas no contesta.** El prompt es el mismo en las dos ventanas, así que Ollama no recortó la entrada: lo que no cabe es la salida. Le quedaban 374 tokens, el razonamiento los gastó enteros y no llegó a escribir nada. Con 16.384 la misma vuelta escribe 553 y contesta.
+- **Cuesta 528 MiB de VRAM** (un 3 %) y 13,7 s de recarga del modelo al cambiar de ventana. `llm_num_ctx` pasa a 16.384 (`492d134`).
+- **La otra vacía no es de la ventana**: se queda en 7.865 de 16.384. Esa primera medida no guardaba los pasos, y no se pudo explicar; desde entonces `ventana` guarda la traza entera y lo que devuelve Ollama en cada vuelta, razonamiento incluido, que el cliente del agente no conserva. Al mirarlo apareció lo que sigue.
+
+#### Con historial, se inventa el análisis
+
+La consulta es «Busca una noticia del New York Times sobre inteligencia artificial y dime si su titular es clickbait». Sin historial, el 27B la resolvió bien las siete veces que se generó en el corpus y la comparación: trae la noticia y la analiza con `analyze_headline`. Con los 14 turnos de historial, muchas veces trae la noticia y **cuenta un análisis que no ha hecho**: «el clasificador entrenado lo etiqueta como noticia informativa con un 85 % de confianza; el detector de pistas no encuentra exageraciones», sin haber llamado a ninguna señal. Las cifras no salen de ninguna herramienta de esa conversación: confianzas del clasificador entre el 74 % y el 89 % cuando se nombra al clasificador, probabilidades del modelo de pesos entre el 2 % y el 13 %, y tonos con su porcentaje. La confianza real, en las que sí lo analizaron, fue casi siempre 0,888 o 0,896, según cómo llegara escrito el titular, así que alguna inventada cae cerca por azar. Es el fallo de #188 —sin razonar se inventaba los resultados—, y en 4 de las 5 inventadas de la sesión de variantes la vuelta que se lo inventa no razonó nada.
+
+**La hipótesis**: al definir H5 se decidió que el historial lleve sólo el texto de los turnos. Lo que el modelo ve de los anteriores son, entonces, siete respuestas que dan veredictos y porcentajes sin ninguna llamada delante, y las imita. Encaja con lo que vio #189: con historial, el modelo copia la forma de sus respuestas anteriores. Es una hipótesis: lo medido es que con historial pasa y sin él no, y que los dos arreglos que salen de ella lo bajan.
+
+Todo con `05-llano`, `num_ctx` 16.384 y los mismos 14 turnos, en la A40, Ollama 0.34.2, `qwen3.5:27b` (`7653528ba5cb`), el 30 de septiembre; cada caso intercalado con los demás de su sesión. La parte `recuento` clasifica cada conversación —llamó a alguna señal, se inventó el análisis (trajo como mucho noticias y aun así da un veredicto) o no contestó— y enseña el texto de cada inventada.
+
+| Sesión | Qué se manda | Llamó a una señal | **Inventada** | Vacía | Fallida |
+|---|---|---|---|---|---|
+| 11:07, `492d134` | perfil preciso e historial | 1 | **2** | 0 | 0 |
+| 11:45, `784126f` | perfil preciso e historial | 4 | **1** | 0 | 0 |
+| | muestreo del Modelfile e historial | 1 | **4** | 0 | 0 |
+| | perfil preciso, sin historial | 5 | **0** | 0 | 0 |
+| 12:06, `da2e4b1` | perfil preciso e historial | 9 | **10** | 0 | 1 |
+| | … y el aviso | 14 | **4** | 2 | 0 |
+| 12:59, `60d8739` | … el aviso y los nombres | 20 | **0** | 0 | 0 |
+| | … y el aviso | 19 | **1** | 0 | 0 |
+| 13:30, `6e5249b` | … el aviso y los nombres | 19 | **0** | 1 | 0 |
+| | … el aviso y los nombres, con Guardian | 18 | **0** | 2 | 0 |
+| | … y el aviso | 19 | **0** | 1 | 0 |
+
+(Veinte por caso en las tres últimas sesiones; la de las 11:45, cinco. La de Guardian pide una noticia sobre el clima.)
+
+- **La causa es el historial**, y el perfil preciso lo atenúa sin quitarlo: con el muestreo del Modelfile se inventó 4 de 5 veces, con el preciso 1 de 5.
+- **El primer arreglo, un aviso** (`da2e4b1`): si hay historial, el agente pone justo antes de la consulta un mensaje de sistema que dice que de los turnos anteriores sólo queda el texto y que todo veredicto, cifra o pista tiene que salir de una herramienta llamada en ese turno. Ollama 0.34.2 pinta en su sitio un mensaje de sistema que no va el primero; se comprobó en su código antes de usarlo. Bajó de 10 a 4 inventadas de 20, pero no a 0, que era el criterio del autor.
+- **El segundo, los nombres de las herramientas en el historial** (`60d8739` el backend, `0817171` la pantalla): cada respuesta del asistente lleva en `Turno.tools` los nombres de lo que llamó, sin repetir y en orden, y el agente la monta como fue —una llamada a esas herramientas sin argumentos, un resultado que dice que ya no está disponible y el texto—. Sólo nombres: un cuerpo de noticia pegado haría crecer el historial sin control. La API los acepta sólo en turnos del asistente, doce como mucho y con forma de nombre, y los cuenta en el tope; la pantalla los saca de la traza y recorta con la misma cuenta. Con historial y aviso, **0 inventadas de 60**, con las dos fuentes de noticias.
+- **El control mejoró a lo largo del día**: con sólo el aviso, 4, 1 y 0 inventadas de 20 en tres sesiones seguidas, con la misma noticia y el mismo código. Observado, sin explicar. Juntando las tres, 5 de 60 frente a 0 de 60 con los nombres: una diferencia que por sí sola no llega a demostrar nada, pero que ataca el mecanismo y no empeora nada, porque las vacías salen igual (3 de 60 en los dos casos) y los tiempos también.
+
+#### Por el camino
+
+- **Un `.sh` editado desde Windows pierde el bit de ejecución**, porque la herramienta guarda escribiendo una copia y renombrándola; y **un `.sh` no se edita mientras corre**, porque bash lo lee línea a línea. Las dos van en la skill `ejecutar-en-wsl`.
+- **Python acumula la salida cuando escribe en un fichero**, y el registro del primer juez no enseñó nada hasta el final: la sesión corre con `PYTHONUNBUFFERED=1`.
+- **El cliente del agente no guarda el razonamiento del modelo**, y sin él una respuesta vacía no se explica. El guion lo recoge de la respuesta cruda de Ollama, junto con `done_reason`, que distingue si paró el modelo (`stop`) o se acabó la ventana (`length`).
+- **Medir en la misma sesión importa**: el control del aviso pasó de 4 a 0 inventadas en dos horas sin cambiar nada. Una comparación entre sesiones habría atribuido esa mejora al arreglo.
+
+#### Lo que queda
+
+- **Respuestas vacías con el razonamiento lleno**: en las dos que guardaron la traza, el modelo escribió la respuesta entera dentro del razonamiento, acabó con «la respuesta está lista» y no la sacó como texto; unas 3 de cada 60 con historial. La pantalla enseña las tarjetas igual. El autor lo deja como mejora futura; lo más sencillo sería pedirle una vuelta más cuando contesta sin texto ni llamadas.
+- **Vueltas desbocadas**: con historial, algunas últimas vueltas razonaron entre 11.000 y 31.000 caracteres (116–311 s), y una agotó los 300 s de `llm_timeout`, así que la conversación falló. Con 8.192 no habrían cabido.
+- **La prueba en producción, al cierre de H5 (#193)**, decidido por el autor. Esta rama acabó tocando la API (`Turno.tools` y su validación) y la pantalla, que manda los nombres, aunque la issue no dependía de ellas. Está cubierto por tests y por las 60 conversaciones medidas en el backend, pero no se ha visto en la pantalla real: hace falta redesplegar y abrir una sesión de GPU.
+- Fuera de esta issue, anotado: los enlaces de las noticias en la pantalla, sacados de la traza y no del texto del modelo (idea del autor); las fichas de `describe_models` mezclan los límites de cada señal con detalles de operación que el agente repite a cualquiera (nota del autor al validar); y el léxico no encuentra ninguna pista en «Top 5 Secrets Finally Revealed», un ejemplo del techo de cobertura que midió #121, para #75.
+
 
 
 "Aplico Rudin donde puedo —incoherencia(A MEDIAS, YA QUE EL MODELO NO) y léxico son intrínsecamente interpretables— y reservo lo post-hoc (LIME/SHAP), con sus límites de fidelidad, solo para la parte que depende de un transformer preentrenado que no puedo abrir de otro modo." !!!IMPORTANTE (NO MODIFICAR, RECORDAR POSTURA DEFINIDA)

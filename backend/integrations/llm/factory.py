@@ -26,6 +26,8 @@ def _backend_para(
     num_ctx: int,
     keep_alive: str,
     timeout: float,
+    temperature: float,
+    presence_penalty: float,
 ) -> LLMBackend:
     """Un cliente por configuración, construido la primera vez que hace falta.
 
@@ -35,7 +37,13 @@ def _backend_para(
     match backend:
         case "ollama":
             return OllamaClient(
-                url, model, num_ctx=num_ctx, keep_alive=keep_alive, timeout=timeout
+                url,
+                model,
+                num_ctx=num_ctx,
+                keep_alive=keep_alive,
+                timeout=timeout,
+                temperature=temperature,
+                presence_penalty=presence_penalty,
             )
         case _:
             raise ValueError(f"Backend de modelo de lenguaje desconocido: {backend}")
@@ -52,6 +60,8 @@ def get_llm_backend() -> LLMBackend | None:
         settings.llm_num_ctx,
         settings.llm_keep_alive,
         settings.llm_timeout,
+        settings.llm_temperature,
+        settings.llm_presence_penalty,
     )
 
 

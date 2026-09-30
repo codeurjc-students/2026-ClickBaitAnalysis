@@ -14,6 +14,15 @@ con ellas.
 
 `04-preciso` es el prompt de partida del spike; `03-estricto`, la alternativa.
 Entre los dos no hay un ranking defendible (PR #176), e iterarlos es #192.
+
+`05-llano` sale de #192: las respuestas de `04-preciso` eran fieles pero no se
+entendían sin conocer el sistema, y la validación a mano señaló por qué —las
+posiciones y los nombres internos, que el propio `04` exigía—. Cambia eso por un
+glosario fijo, para que la traducción sea siempre la misma y se pueda juzgar, y
+conserva las reglas de veracidad. Los decimales no los arregla el prompt: los
+redondea el agente en lo que lee el modelo (`decimales_para_el_modelo`). Es el
+de por defecto desde #192, junto con el muestreo preciso (`llm_temperature`),
+que es con lo que ganó la comparación.
 """
 
 from pathlib import Path

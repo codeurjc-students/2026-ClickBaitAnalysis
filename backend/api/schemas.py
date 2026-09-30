@@ -20,6 +20,7 @@ hablando de sus componentes, o sea sistema— pero usa ``SignalType`` y
 ``Dimension``, que son dominio.)
 """
 
+import re
 from datetime import datetime
 from enum import Enum
 from typing import Annotated, Any
@@ -395,6 +396,12 @@ class HistoryPage(BaseModel):
 # --------------------------------------------------------------------------
 
 
+# Las herramientas de un turno del historial (#192): nombres como los del
+# catálogo, y como mucho tantos como tiene el catálogo entero (12, #188).
+NOMBRE_DE_HERRAMIENTA = re.compile(r"[A-Za-z0-9_\-]{1,64}")
+MAX_HERRAMIENTAS_POR_TURNO = 12
+
+
 class ChatRequest(BaseModel):
     """Un mensaje al asistente, con el texto de los turnos anteriores.
 
@@ -411,17 +418,40 @@ class ChatRequest(BaseModel):
         description=(
             "Los turnos anteriores, del más antiguo al más reciente, sólo con su "
             "texto. El rol es `user` o `assistant`: el de sistema lo pone el "
-            "servidor, y un cliente no puede colar otro. Tiene un tope en "
-            "caracteres que da la configuración; por encima, 422, y hay que "
-            "quitar los turnos más antiguos."
+            "servidor, y un cliente no puede colar otro. Los del asistente "
+            "pueden llevar en `tools` los nombres de las herramientas que usaron "
+            f"(como mucho {MAX_HERRAMIENTAS_POR_TURNO}), sin sus resultados. "
+            "Tiene un tope en caracteres, texto y nombres, que da la "
+            "configuración; por encima, 422, y hay que quitar los turnos más "
+            "antiguos."
         ),
     )
 
     @model_validator(mode="after")
     def _historial_dentro_de_la_ventana(self) -> "ChatRequest":
         """Un historial que desborde la ventana, Ollama lo recorta en SILENCIO
-        y el modelo elige mal sin que nada falle (PR #176): se rechaza antes."""
-        caracteres = sum(len(turno["content"]) for turno in self.history)
+        y el modelo elige mal sin que nada falle (PR #176): se rechaza antes.
+
+        Los nombres de las herramientas también llegan al modelo (#192), así
+        que cuentan; y son NOMBRES, así que por ahí no entra texto libre."""
+        for turno in self.history:
+            nombres = turno.get("tools") or []
+            if nombres and turno["role"] != "assistant":
+                raise ValueError("Sólo los turnos del asistente llevan herramientas.")
+            if len(nombres) > MAX_HERRAMIENTAS_POR_TURNO:
+                raise ValueError(
+                    f"Un turno lleva {len(nombres)} herramientas y el tope es "
+                    f"{MAX_HERRAMIENTAS_POR_TURNO}."
+                )
+            if not all(NOMBRE_DE_HERRAMIENTA.fullmatch(nombre) for nombre in nombres):
+                raise ValueError(
+                    "Una herramienta del historial no tiene forma de nombre."
+                )
+        caracteres = sum(
+            len(turno["content"])
+            + sum(len(nombre) for nombre in turno.get("tools") or [])
+            for turno in self.history
+        )
         tope = settings.chat_max_history_chars
         if caracteres > tope:
             raise ValueError(

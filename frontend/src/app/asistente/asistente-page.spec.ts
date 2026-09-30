@@ -293,7 +293,7 @@ describe('AsistentePage', () => {
     await conAgente('available');
   });
 
-  it('la segunda pregunta lleva el texto de la primera como historial', async () => {
+  it('la segunda pregunta lleva la primera como historial, con sus herramientas', async () => {
     await conAgente('available');
     await preguntar('¿Es clickbait «Top 5 Secrets»?');
     http.expectOne('/api/chat').flush({ id: 'abc' });
@@ -305,7 +305,8 @@ describe('AsistentePage', () => {
       message: '¿Y por qué?',
       history: [
         { role: 'user', content: '¿Es clickbait «Top 5 Secrets»?' },
-        { role: 'assistant', content: 'Sí, de forma.' },
+        // Los nombres de lo que consultó, sin resultados (#192).
+        { role: 'assistant', content: 'Sí, de forma.', tools: ['detect_clickbait_lexical'] },
       ],
     });
     segunda.flush({ id: 'abc' });

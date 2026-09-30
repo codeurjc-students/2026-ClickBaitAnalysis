@@ -160,6 +160,8 @@ def _config(think: bool | None, **cambios) -> Configuracion:
         # Las señales locales cargan su modelo la primera vez que se usan.
         execute_timeout=120.0,
         think=bool(think),
+        # El aviso del historial llegó en #192; sin él, como se midió #188.
+        aviso_historial=None,
         **cambios,
     )
 

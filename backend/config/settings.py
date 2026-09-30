@@ -209,7 +209,21 @@ class Settings(BaseSettings):
     # SIEMPRE explícito, nunca el defecto de Ollama: la 0.34.2 lo elige según la
     # VRAM (32.768 en la A40), y con 2048 el catálogo —2.629 tokens desde #183—
     # se recortaba en silencio y el modelo elegía mal (9/20 frente a 20/20).
-    llm_num_ctx: int = 8192
+    # 16.384 desde #192, porque la SALIDA también ocupa ventana: con 8.192 y el
+    # historial máximo, la consulta de las fichas de los modelos llegó a 7.818
+    # tokens de prompt, el razonamiento se comió los 374 que quedaban y la
+    # respuesta salió vacía; con 16.384 escribió 553 y contestó. Cuesta 528 MiB
+    # más de VRAM en la A40 (`spikes/fidelidad.py ventana`, 2026-09-30).
+    llm_num_ctx: int = 16384
+    # El muestreo, también explícito (#192). Sin mandarlo decide el Modelfile
+    # de Ollama —temperatura 1 y `presence_penalty` 1,5, el perfil que los
+    # autores de Qwen3.5 dan para tareas generales—, y con ése se midió todo
+    # hasta #192 sin decirlo. Éste es el que dan para tareas precisas: con el
+    # prompt `05-llano`, el juez calibrado marcó 1 respuesta infiel de 27,
+    # frente a 5 con el del Modelfile, y el modelo tardó un 11 % menos en
+    # mediana (una repetición; `spikes/fidelidad.py`, A40, 2026-09-29).
+    llm_temperature: float = 0.6
+    llm_presence_penalty: float = 0.0
     # Cuánto sigue el modelo en la GPU tras la última petición. Pasado ese
     # tiempo la suelta, aunque la sesión siga abierta: el servidor sin modelo
     # ocupa 0 MiB (#181). Diez minutos cubren una conversación con pausas.
@@ -224,10 +238,12 @@ class Settings(BaseSettings):
     # `backend/agent/prompts/` (R13.5). Un `Literal` y no una cadena libre para
     # que un nombre mal escrito falle AL ARRANCAR y no en la primera
     # conversación; `tests/agent/test_prompts.py` comprueba que la lista es la
-    # de los ficheros. `04-preciso` es el punto de partida del spike (PR #176) y
-    # con el que se aceptó #188; entre los dos no hay un ranking defendible, e
-    # iterarlos es #192.
-    llm_prompt: Literal["03-estricto", "04-preciso"] = "04-preciso"
+    # de los ficheros. `04-preciso` fue el punto de partida del spike (PR #176)
+    # y con el que se aceptó #188. Desde #192 es `05-llano`, que ganó la
+    # comparación con una regla fijada antes de medir: 0 nombres internos,
+    # posiciones o decimales largos en 27 respuestas (1,78 por respuesta con
+    # `04-preciso`), sin pasar de su infidelidad más 5 puntos.
+    llm_prompt: Literal["03-estricto", "04-preciso", "05-llano"] = "05-llano"
 
     # Los trabajos del chat, en memoria del proceso (#189).
     #
@@ -248,7 +264,8 @@ class Settings(BaseSettings):
     # turnos más antiguos. Medido en la A40 a través de la máquina 1
     # (`spikes/chat_maquina1.py`, 2026-09-26): la conversación más larga de
     # #188 llegó a 5.766 tokens sin historial y a 6.907 con 4.000 caracteres,
-    # por debajo del 7.500 fijado antes de medir.
+    # por debajo del 7.500 fijado antes de medir. Esa regla miraba sólo el
+    # prompt, y con 8.192 no bastó: ver `llm_num_ctx` (#192).
     chat_max_history_chars: int = 4000
 
 

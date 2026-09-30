@@ -173,32 +173,54 @@ export function comoNoticias(datos: unknown): Noticia[] | null {
  * intercambios TERMINADOS con respuesta, quitando los más antiguos hasta que
  * quepa en `tope` (`max_history_chars` de `GET /agent`).
  *
- * Sólo el texto, sin resultados de herramientas (decidido al definir H5). Y se
- * recorta aquí, ANTES de enviar: un historial que desborde la ventana del
- * modelo lo recortaría Ollama en silencio, y el backend lo rechaza con un 422
- * para que no llegue (#189).
+ * Sin resultados de herramientas (decidido al definir H5), pero cada respuesta
+ * con los NOMBRES de las que usó (#192): con sólo el texto, el modelo veía
+ * respuestas con veredictos y ninguna llamada delante, y en un turno nuevo
+ * traía la noticia y se inventaba el análisis sin llamar a ninguna señal.
  *
- * Se quita por parejas —pregunta y respuesta—, para que el modelo no lea una
- * respuesta sin la pregunta que la originó.
+ * Se recorta aquí, ANTES de enviar, con los nombres dentro de la cuenta como
+ * hace el backend: un historial que desborde la ventana del modelo lo
+ * recortaría Ollama en silencio, y el backend lo rechaza con un 422 para que
+ * no llegue (#189). Se quita por parejas —pregunta y respuesta—, para que el
+ * modelo no lea una respuesta sin la pregunta que la originó.
  */
 export function historialQueCabe(intercambios: Intercambio[], tope: number): Turno[] {
   const parejas: Turno[][] = [];
   for (const intercambio of intercambios) {
-    const respuesta = intercambio.trabajo?.result?.answer.trim();
-    if (intercambio.trabajo?.status !== 'done' || !respuesta) continue;
+    const trabajo = intercambio.trabajo;
+    const respuesta = trabajo?.result?.answer.trim();
+    if (trabajo?.status !== 'done' || !respuesta) continue;
+    const herramientas = herramientasUsadas(trabajo);
     parejas.push([
       { role: 'user', content: intercambio.pregunta },
-      { role: 'assistant', content: respuesta },
+      herramientas.length > 0
+        ? { role: 'assistant', content: respuesta, tools: herramientas }
+        : { role: 'assistant', content: respuesta },
     ]);
   }
 
   const medir = (pareja: Turno[]) =>
-    pareja.reduce((suma, turno) => suma + turno.content.length, 0);
+    pareja.reduce(
+      (suma, turno) =>
+        suma +
+        turno.content.length +
+        (turno.tools ?? []).reduce((nombres, nombre) => nombres + nombre.length, 0),
+      0,
+    );
   let total = parejas.reduce((suma, pareja) => suma + medir(pareja), 0);
   while (parejas.length > 0 && total > tope) {
     total -= medir(parejas.shift()!);
   }
   return parejas.flat();
+}
+
+/**
+ * Las herramientas que llamó una respuesta, sin repetir y en el orden en que
+ * se llamaron. También las que fallaron: la llamada existió, y el modelo la vio.
+ */
+export function herramientasUsadas(trabajo: ChatJob): string[] {
+  const nombres = trabajo.steps.flatMap((paso) => (paso.kind === 'tool' ? [paso.name] : []));
+  return [...new Set(nombres)];
 }
 
 /** Si la respuesta se apoyó en alguna herramienta (pendiente de #188). */

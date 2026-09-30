@@ -818,7 +818,7 @@
             },
             "type": "array",
             "title": "History",
-            "description": "Los turnos anteriores, del más antiguo al más reciente, sólo con su texto. El rol es `user` o `assistant`: el de sistema lo pone el servidor, y un cliente no puede colar otro. Tiene un tope en caracteres que da la configuración; por encima, 422, y hay que quitar los turnos más antiguos."
+            "description": "Los turnos anteriores, del más antiguo al más reciente, sólo con su texto. El rol es `user` o `assistant`: el de sistema lo pone el servidor, y un cliente no puede colar otro. Los del asistente pueden llevar en `tools` los nombres de las herramientas que usaron (como mucho 12), sin sus resultados. Tiene un tope en caracteres, texto y nombres, que da la configuración; por encima, 422, y hay que quitar los turnos más antiguos."
           }
         },
         "type": "object",
@@ -1713,6 +1713,13 @@
           "content": {
             "type": "string",
             "title": "Content"
+          },
+          "tools": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Tools"
           }
         },
         "type": "object",
@@ -1721,7 +1728,7 @@
           "content"
         ],
         "title": "Turno",
-        "description": "Un turno anterior de la conversación, sólo con su texto.\n\nSin los resultados de las herramientas: la ventana es de 8.192 tokens y el\ncatálogo ya ocupa 2.629 (decidido al definir H5). El servidor no guarda nada\nentre turnos; el historial lo manda el cliente."
+        "description": "Un turno anterior de la conversación, sólo con su texto.\n\nSin los resultados de las herramientas: la ventana era de 8.192 tokens y el\ncatálogo ya ocupaba 2.629 (decidido al definir H5; la ventana es de 16.384\ndesde #192). El servidor no guarda nada entre turnos; el historial lo manda\nel cliente.\n\n`tools`, sólo en los del asistente, son los NOMBRES de las herramientas que\nusó (#192). Con el texto solo, el modelo veía respuestas con veredictos sin\nninguna llamada delante y las imitaba: traía una noticia y narraba un\nanálisis inventado, con cifras, sin llamar a ninguna señal."
       },
       "ValidationError": {
         "properties": {

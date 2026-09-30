@@ -11,7 +11,8 @@ Lo que no se deduce leyendo el bucle:
 
 - **El veredicto no pasa por aquí** (R13.4). El modelo narra; las tarjetas
   salen del resultado de cada herramienta, que va ENTERO a la traza. Lo que lee
-  el modelo se puede recortar (`max_result_chars`); la traza, nunca.
+  el modelo se puede recortar (`max_result_chars`) y lleva las cifras con tres
+  decimales (`decimales_para_el_modelo`); la traza, nunca.
 - **No lee `settings`**: recibe backend, servidores, prompt y cortes en
   `Configuracion` (regla de #119), y `tests/test_arquitectura.py` lo vigila. Lo
   monta la API, en `api/chat.py` (#189).
@@ -41,10 +42,12 @@ Lo que no se deduce leyendo el bucle:
 
 import inspect
 import json
+import math
 import time
 import traceback
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
+from typing import Any
 
 import structlog
 
@@ -76,6 +79,22 @@ SIN_HERRAMIENTAS = (
     "qué analizar."
 )
 
+# Va como mensaje de sistema justo antes de la consulta, sólo si hay historial
+# (#192). Ollama 0.34.2 pinta un mensaje de sistema que no es el primero en su
+# sitio, con el renderizador de `qwen3.5`.
+AVISO_HISTORIAL = (
+    "Los turnos anteriores de esta conversación sólo conservan el texto de tus "
+    "respuestas: los resultados de las herramientas en que se basaban ya no "
+    "están, y no sirven para esta consulta. Todo veredicto, cifra, pista o "
+    "categoría que des ahora tiene que salir de una herramienta llamada en este "
+    "turno. Si se pide analizar un titular, llama a las herramientas aunque ya "
+    "hayas analizado otros antes."
+)
+
+# Lo que devuelve, en el historial, cada herramienta de un turno anterior: el
+# nombre de la llamada sí llega (`Turno.tools`), su resultado no (#192).
+RESULTADO_DE_OTRO_TURNO = "(Resultado de un turno anterior: ya no está disponible.)"
+
 
 @dataclass(frozen=True)
 class Configuracion:
@@ -91,6 +110,20 @@ class Configuracion:
     leyó `"incoherent": fa`— y dejó fuera el umbral y el veredicto global, y
     el modelo llamó «incoherente» a una similitud de 0,311 con umbral 0,3. Se
     conserva para poder reproducir esa medida.
+
+    `decimales_para_el_modelo` redondea las cifras que LEE el modelo (#192): las
+    copiaba enteras («0,9996088089831324») y hacían la respuesta ilegible, y
+    pedirle en el prompt que redondee no lo garantiza. Tres decimales conservan
+    lo que decide —una similitud de 0,311 frente al umbral de 0,3— y lo que no
+    es 0 ni 1 no se redondea a 0 ni a 1, para no leer una certeza que la
+    herramienta no dio. `None` lo desactiva, para medir con y sin.
+
+    `aviso_historial` le recuerda al modelo, cuando hay turnos anteriores, que
+    de ellos sólo queda el texto (#192). Con historial se inventaba el análisis:
+    trajo la noticia y narró un veredicto con cifras falsas sin llamar a
+    ninguna señal en 4 de 10 conversaciones, y en 0 de 12 sin historial. Lo
+    que ve de los turnos anteriores son respuestas con veredictos y ninguna
+    llamada delante, y las imita. `None` lo desactiva, para medir con y sin.
     """
 
     backend: LLMBackend
@@ -101,6 +134,8 @@ class Configuracion:
     max_rounds: int = MAX_VUELTAS
     think: bool = True
     max_result_chars: int | None = None
+    decimales_para_el_modelo: int | None = 3
+    aviso_historial: str | None = AVISO_HISTORIAL
 
 
 # Cada herramienta del catálogo, con la URL del servidor que la publicó.
@@ -147,9 +182,15 @@ async def responder(
         return terminar("failed", rounds=0, detail=SIN_HERRAMIENTAS)
     herramientas = [herramienta for herramienta, _ in catalogo.values()]
 
+    aviso: list[Mensaje] = (
+        [{"role": "system", "content": config.aviso_historial}]
+        if historial and config.aviso_historial
+        else []
+    )
     mensajes: list[Mensaje] = [
         {"role": "system", "content": config.prompt},
-        *({"role": turno["role"], "content": turno["content"]} for turno in historial),
+        *(mensaje for turno in historial for mensaje in _turno_anterior(turno)),
+        *aviso,
         {"role": "user", "content": consulta},
     ]
 
@@ -199,11 +240,37 @@ async def responder(
                 {
                     "role": "tool",
                     "tool_name": llamada["name"],
-                    "content": _para_el_modelo(paso, config.max_result_chars),
+                    "content": _para_el_modelo(
+                        paso, config.max_result_chars, config.decimales_para_el_modelo
+                    ),
                 }
             )
 
     return terminar("max_rounds", rounds=config.max_rounds)
+
+
+def _turno_anterior(turno: Turno) -> list[Mensaje]:
+    """Un turno del historial, como lo leerá el modelo.
+
+    Una respuesta que usó herramientas va con sus llamadas delante —sin
+    argumentos— y un resultado que dice que ya no está, que es la forma que
+    tuvo cuando se generó (#192). Sin `tools`, sólo el texto, como hasta #192.
+    """
+    nombres = turno.get("tools") or []
+    if turno["role"] != "assistant" or not nombres:
+        return [{"role": turno["role"], "content": turno["content"]}]
+    return [
+        {
+            "role": "assistant",
+            "content": "",
+            "tool_calls": [{"name": nombre, "arguments": {}} for nombre in nombres],
+        },
+        *(
+            {"role": "tool", "tool_name": nombre, "content": RESULTADO_DE_OTRO_TURNO}
+            for nombre in nombres
+        ),
+        {"role": "assistant", "content": turno["content"]},
+    ]
 
 
 async def _descubrir(config: Configuracion) -> Catalogo:
@@ -305,8 +372,11 @@ async def _ejecutar(
     }
 
 
-def _para_el_modelo(paso: PasoHerramienta, max_chars: int | None) -> str:
-    """Lo que el modelo lee de un resultado: el JSON, entero o recortado.
+def _para_el_modelo(
+    paso: PasoHerramienta, max_chars: int | None, decimales: int | None
+) -> str:
+    """Lo que el modelo lee de un resultado: el JSON, entero o recortado, con
+    las cifras redondeadas.
 
     Un recorte lo DICE, con el tamaño total: un JSON cortado sin aviso invita a
     completar de memoria lo que falta, que es justo lo que no puede hacer (R13.4).
@@ -314,9 +384,35 @@ def _para_el_modelo(paso: PasoHerramienta, max_chars: int | None) -> str:
     if paso["status"] == "error":
         return json.dumps({"error": paso["error"]}, ensure_ascii=False)
 
-    texto = json.dumps(paso["data"], ensure_ascii=False, default=str)
+    datos = paso["data"] if decimales is None else _redondear(paso["data"], decimales)
+    texto = json.dumps(datos, ensure_ascii=False, default=str)
     if max_chars is None or len(texto) <= max_chars:
         return texto
     return (
         f"{texto[:max_chars]}… [recortado: el resultado tiene {len(texto)} caracteres]"
     )
+
+
+def _redondear(valor: Any, decimales: int) -> Any:
+    """Los decimales de un resultado, a `decimales` cifras, a cualquier
+    profundidad. Lo que no es un decimal —enteros, texto, booleanos— no se toca.
+
+    Lo que no es 0 ni ±1 no se redondea a 0 ni a ±1: se queda en el valor más
+    cercano que se puede escribir con esos decimales (0,999 o 0,001 con tres).
+    Una probabilidad de 0,9999973 leída como 1 sería una certeza que ninguna
+    herramienta dio.
+    """
+    if isinstance(valor, dict):
+        return {clave: _redondear(dentro, decimales) for clave, dentro in valor.items()}
+    if isinstance(valor, list | tuple):
+        return [_redondear(dentro, decimales) for dentro in valor]
+    if not isinstance(valor, float):
+        return valor
+
+    redondeado = round(valor, decimales)
+    minimo = 10**-decimales
+    if redondeado == 0 and valor != 0:
+        return math.copysign(minimo, valor)
+    if abs(redondeado) == 1 and abs(valor) < 1:
+        return math.copysign(round(1 - minimo, decimales), valor)
+    return redondeado

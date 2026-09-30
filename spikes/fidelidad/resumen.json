@@ -1,0 +1,171 @@
+{
+ "condiciones": {
+  "A-04-sin-redondeo": {
+   "conversaciones": 27,
+   "estados": {
+    "answered": 26,
+    "empty_answer": 1
+   },
+   "marcadores_por_respuesta": 3,
+   "respuestas_sin_marcadores": 4,
+   "marcadores_por_tipo": {
+    "nombres_internos": 27,
+    "posiciones": 19,
+    "decimales_largos": 32
+   },
+   "sin_herramientas": 0,
+   "con_llamadas_de_mas": 2,
+   "con_repetidas": 0,
+   "tiempo_mediana_s": 17.0,
+   "tiempo_max_s": 87.6,
+   "modelo_mediana_s": 16.7,
+   "modelo_max_s": 87.5,
+   "modelo_suma_s": 623.2,
+   "salida_tokens_suma": 16893,
+   "prompt_tokens_max": 6628
+  },
+  "B-04": {
+   "conversaciones": 27,
+   "estados": {
+    "answered": 27
+   },
+   "marcadores_por_respuesta": 1.78,
+   "respuestas_sin_marcadores": 11,
+   "marcadores_por_tipo": {
+    "nombres_internos": 32,
+    "posiciones": 16,
+    "decimales_largos": 0
+   },
+   "sin_herramientas": 0,
+   "con_llamadas_de_mas": 2,
+   "con_repetidas": 0,
+   "tiempo_mediana_s": 14.9,
+   "tiempo_max_s": 59.0,
+   "modelo_mediana_s": 14.5,
+   "modelo_max_s": 58.7,
+   "modelo_suma_s": 482.0,
+   "salida_tokens_suma": 13489,
+   "prompt_tokens_max": 6628,
+   "juez gemma4-31b": {
+    "juzgadas": 27,
+    "infieles": 4,
+    "legibilidad": {
+     "2": 2,
+     "3": 25
+    },
+    "validacion_del_autor": {
+     "infieles_confirmadas": 3,
+     "falsas_alarmas": 1,
+     "sin_validar": 0
+    }
+   }
+  },
+  "C-05": {
+   "conversaciones": 27,
+   "estados": {
+    "answered": 27
+   },
+   "marcadores_por_respuesta": 0,
+   "respuestas_sin_marcadores": 27,
+   "marcadores_por_tipo": {
+    "nombres_internos": 0,
+    "posiciones": 0,
+    "decimales_largos": 0
+   },
+   "sin_herramientas": 0,
+   "con_llamadas_de_mas": 1,
+   "con_repetidas": 0,
+   "tiempo_mediana_s": 18.6,
+   "tiempo_max_s": 58.0,
+   "modelo_mediana_s": 18.5,
+   "modelo_max_s": 57.8,
+   "modelo_suma_s": 573.4,
+   "salida_tokens_suma": 15329,
+   "prompt_tokens_max": 6873,
+   "juez gemma4-31b": {
+    "juzgadas": 27,
+    "infieles": 5,
+    "legibilidad": {
+     "3": 27
+    },
+    "validacion_del_autor": {
+     "infieles_confirmadas": 5,
+     "falsas_alarmas": 0,
+     "sin_validar": 0
+    }
+   }
+  },
+  "D-03": {
+   "conversaciones": 27,
+   "estados": {
+    "answered": 27
+   },
+   "marcadores_por_respuesta": 1.56,
+   "respuestas_sin_marcadores": 12,
+   "marcadores_por_tipo": {
+    "nombres_internos": 35,
+    "posiciones": 7,
+    "decimales_largos": 0
+   },
+   "sin_herramientas": 0,
+   "con_llamadas_de_mas": 1,
+   "con_repetidas": 0,
+   "tiempo_mediana_s": 18.0,
+   "tiempo_max_s": 53.8,
+   "modelo_mediana_s": 17.4,
+   "modelo_max_s": 53.6,
+   "modelo_suma_s": 557.4,
+   "salida_tokens_suma": 15005,
+   "prompt_tokens_max": 6463
+  },
+  "E-05-preciso": {
+   "conversaciones": 27,
+   "estados": {
+    "answered": 27
+   },
+   "marcadores_por_respuesta": 0,
+   "respuestas_sin_marcadores": 27,
+   "marcadores_por_tipo": {
+    "nombres_internos": 0,
+    "posiciones": 0,
+    "decimales_largos": 0
+   },
+   "sin_herramientas": 0,
+   "con_llamadas_de_mas": 1,
+   "con_repetidas": 0,
+   "tiempo_mediana_s": 16.9,
+   "tiempo_max_s": 120.5,
+   "modelo_mediana_s": 16.5,
+   "modelo_max_s": 57.0,
+   "modelo_suma_s": 505.7,
+   "salida_tokens_suma": 13799,
+   "prompt_tokens_max": 6873,
+   "juez gemma4-31b": {
+    "juzgadas": 27,
+    "infieles": 1,
+    "legibilidad": {
+     "3": 27
+    },
+    "validacion_del_autor": {
+     "infieles_confirmadas": 1,
+     "falsas_alarmas": 0,
+     "sin_validar": 0
+    }
+   }
+  }
+ },
+ "marcadores_frente_a_la_lectura": {
+  "1": {
+   "respuestas": 35,
+   "marcadores_mediana": 4
+  },
+  "2": {
+   "respuestas": 38,
+   "marcadores_mediana": 1.0
+  },
+  "3": {
+   "respuestas": 11,
+   "marcadores_mediana": 0
+  }
+ }
+}

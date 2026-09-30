@@ -1,0 +1,4056 @@
+{
+ "condiciones": {
+  "fecha": "2026-09-29T19:13:58+02:00",
+  "commit": "0f9beee",
+  "guion": "1256dc0d9729",
+  "ollama": "0.34.2",
+  "servidor": "http://127.0.0.1:11500",
+  "modelos": {
+   "qwen3.5:27b": {
+    "id": "7653528ba5cb",
+    "parametros": "temperature                    1\ntop_k                          20\ntop_p                          0.95\npresence_penalty               1.5"
+   }
+  },
+  "condicion": {
+   "nombre": "B-04",
+   "prompt": "04-preciso",
+   "decimales": 3,
+   "muestreo": null,
+   "modelo": "qwen3.5:27b"
+  },
+  "prompt_huella": "105523bc0298",
+  "num_ctx": 8192,
+  "keep_alive": "10m",
+  "nlp_backend": "local",
+  "repeticiones": 3,
+  "modelo_id": "7653528ba5cb"
+ },
+ "sesiones": [
+  {
+   "fecha": "2026-09-29T19:13:58+02:00",
+   "commit": "0f9beee",
+   "guion": "1256dc0d9729",
+   "ollama": "0.34.2"
+  }
+ ],
+ "conversaciones": [
+  {
+   "id": "B-04/generica-1/r1",
+   "fuente": "B-04",
+   "categoria": "GENERICA",
+   "consulta": "¿Es clickbait este titular? '10 Amazing Things You Won't Believe'",
+   "historial": [],
+   "estado": "answered",
+   "detalle": null,
+   "respuesta": "El detector léxico identifica cuatro pistas: `hyperbole` en «amazing» (posición 3-10), dos `forward_reference` en «things» (11-17) y «you» (18-21), junto con un `leading_number` en «10» (0-2), marcando el titular como clickbait de forma. El modelo lineal asigna una probabilidad de 0.999 de ser clickbait, destacando las pistas «you», «things», «amazing» y la lista numerada inicial. El clasificador neuronal etiqueta el texto como clickbait con una confianza de 0.967, mientras que la dimensión de engaño no se evalúa por falta de contenido del artículo. Todas las señales sobre forma coinciden en su veredicto, aunque sin cuerpo de noticia no puede determinarse si hay incoherencia entre titular y contenido.",
+   "herramientas": [
+    "analyze_headline",
+    "detect_clickbait_lexical"
+   ],
+   "repetidas": [],
+   "vueltas": [
+    {
+     "prompt_tokens": 3702,
+     "output_tokens": 381,
+     "load_s": 0.003348883,
+     "total_s": 12.989944128,
+     "pide": [
+      "analyze_headline",
+      "detect_clickbait_lexical"
+     ]
+    },
+    {
+     "prompt_tokens": 4588,
+     "output_tokens": 474,
+     "load_s": 0.005374216,
+     "total_s": 16.957553318,
+     "pide": []
+    }
+   ],
+   "total_s": 30.093951431997993,
+   "pasos": [
+    {
+     "kind": "model",
+     "round": 1,
+     "content": "",
+     "tool_calls": [
+      "analyze_headline",
+      "detect_clickbait_lexical"
+     ],
+     "metrics": {
+      "prompt_tokens": 3702,
+      "output_tokens": 381,
+      "load_s": 0.003348883,
+      "total_s": 12.989944128
+     }
+    },
+    {
+     "kind": "tool",
+     "round": 1,
+     "name": "analyze_headline",
+     "arguments": {
+      "headline": "10 Amazing Things You Won't Believe",
+      "content": "None"
+     },
+     "status": "ok",
+     "data": {
+      "headline": "10 Amazing Things You Won't Believe",
+      "content": null,
+      "signals": [
+       {
+        "name": "detect_clickbait",
+        "label": "RoBERTa dedicado (entrenado en Webis-17)",
+        "status": "ok",
+        "dimension": "form",
+        "type": "opaque",
+        "is_clickbait": true,
+        "data": {
+         "label": "clickbait",
+         "score": 0.9667009115219116
+        },
+        "detail": null
+       },
+       {
+        "name": "detect_clickbait_lexical",
+        "label": "Léxico por reglas (listas de cues de Chakraborty et al. 2016)",
+        "status": "ok",
+        "dimension": "form",
+        "type": "interpretable",
+        "is_clickbait": true,
+        "data": {
+         "score": 4,
+         "is_clickbait": true,
+         "matches": [
+          {
+           "category": "hyperbole",
+           "cue": "amazing",
+           "span": [
+            3,
+            10
+           ]
+          },
+          {
+           "category": "forward_reference",
+           "cue": "things",
+           "span": [
+            11,
+            17
+           ]
+          },
+          {
+           "category": "forward_reference",
+           "cue": "you",
+           "span": [
+            18,
+            21
+           ]
+          },
+          {
+           "category": "leading_number",
+           "cue": "10",
+           "span": [
+            0,
+            2
+           ]
+          }
+         ],
+         "headline": "10 Amazing Things You Won't Believe"
+        },
+        "detail": null
+       },
+       {
+        "name": "detect_clickbait_linear",
+        "label": "Regresión logística sobre features léxicas (entrenada en Chakraborty)",
+        "status": "ok",
+        "dimension": "form",
+        "type": "interpretable",
+        "is_clickbait": true,
+        "data": {
+         "is_clickbait": true,
+         "probability": 0.999997361581358,
+         "top_cues": [
+          [
+           "you",
+           5.619727385247914
+          ],
+          [
+           "things",
+           3.070336489922464
+          ],
+          [
+           "amazing",
+           3.026506581948977
+          ],
+          [
+           "leading_number",
+           2.763692450467654
+          ]
+         ],
+         "headline": "10 Amazing Things You Won't Believe"
+        },
+        "detail": null
+       },
+       {
+        "name": "detect_clickbait_incoherence",
+        "label": "MiniLM-L6-v2 (embeddings de frase)",
+        "status": "not_applicable",
+        "dimension": "deception",
+        "type": "hybrid",
+        "is_clickbait": null,
+        "data": null,
+        "detail": "Requiere el cuerpo o teaser de la noticia."
+       },
+       {
+        "name": "analyze_sentiment",
+        "label": "RoBERTa afinado en tuits (3 clases)",
+        "status": "ok",
+        "dimension": "tone",
+        "type": "opaque",
+        "is_clickbait": null,
+        "data": {
+         "label": "positive",
+         "score": 0.9511515498161316
+        },
+        "detail": null
+       }
+      ],
+      "dimensions": [
+       {
+        "dimension": "form",
+        "is_clickbait": true,
+        "contributing": [
+         "detect_clickbait",
+         "detect_clickbait_lexical",
+         "detect_clickbait_linear"
+        ]
+       }
+      ],
+      "verdict": "stylistic_clickbait"
+     },
+     "error": null,
+     "server": "tfg-mcp-server",
+     "duration_s": 0.056705520997638814
+    },
+    {
+     "kind": "tool",
+     "round": 1,
+     "name": "detect_clickbait_lexical",
+     "arguments": {
+      "headline": "10 Amazing Things You Won't Believe"
+     },
+     "status": "ok",
+     "data": {
+      "score": 4,
+      "is_clickbait": true,
+      "matches": [
+       {
+        "category": "hyperbole",
+        "cue": "amazing",
+        "span": [
+         3,
+         10
+        ]
+       },
+       {
+        "category": "forward_reference",
+        "cue": "things",
+        "span": [
+         11,
+         17
+        ]
+       },
+       {
+        "category": "forward_reference",
+        "cue": "you",
+        "span": [
+         18,
+         21
+        ]
+       },
+       {
+        "category": "leading_number",
+        "cue": "10",
+        "span": [
+         0,
+         2
+        ]
+       }
+      ],
+      "headline": "10 Amazing Things You Won't Believe"
+     },
+     "error": null,
+     "server": "tfg-mcp-server",
+     "duration_s": 0.019225035000999924
+    },
+    {
+     "kind": "model",
+     "round": 2,
+     "content": "El detector léxico identifica cuatro pistas: `hyperbole` en «amazing» (posición 3-10), dos `forward_reference` en «things» (11-17) y «you» (18-21), junto con un `leading_number` en «10» (0-2), marcando el titular como clickbait de forma. El modelo lineal asigna una probabilidad de 0.999 de ser clickbait, destacando las pistas «you», «things», «amazing» y la lista numerada inicial. El clasificador neuronal etiqueta el texto como clickbait con una confianza de 0.967, mientras que la dimensión de engaño no se evalúa por falta de contenido del artículo. Todas las señales sobre forma coinciden en su veredicto, aunque sin cuerpo de noticia no puede determinarse si hay incoherencia entre titular y contenido.",
+     "tool_calls": [],
+     "metrics": {
+      "prompt_tokens": 4588,
+      "output_tokens": 474,
+      "load_s": 0.005374216,
+      "total_s": 16.957553318
+     }
+    }
+   ],
+   "repeticion": 1,
+   "esperadas": [
+    "analyze_headline",
+    "detect_clickbait",
+    "detect_clickbait_lexical",
+    "detect_clickbait_linear"
+   ],
+   "de_mas": [],
+   "sin_herramientas": false,
+   "marcadores": {
+    "nombres_internos": 3,
+    "posiciones": 1,
+    "decimales_largos": 0
+   }
+  },
+  {
+   "id": "B-04/generica-2/r1",
+   "fuente": "B-04",
+   "categoria": "GENERICA",
+   "consulta": "Analiza si esto es clickbait: 'Scientists Discover New Species'",
+   "historial": [],
+   "estado": "answered",
+   "detalle": null,
+   "respuesta": "El sistema clasifica el titular como noticia factual con una confianza del 0.718 según el modelo opaco, y los detectores de forma también lo marcan como no clickbait sin encontrar pistas léxicas ni una probabilidad significativa en la regresión lineal (0.163). No se pudo evaluar la dimensión de engaño por incoherencia entre titular y cuerpo porque no se proporcionó el texto completo del artículo. El análisis de sentimiento indica un tono neutral con una confianza de 0.504.",
+   "herramientas": [
+    "analyze_headline"
+   ],
+   "repetidas": [],
+   "vueltas": [
+    {
+     "prompt_tokens": 3699,
+     "output_tokens": 218,
+     "load_s": 0.002078443,
+     "total_s": 7.495731633,
+     "pide": [
+      "analyze_headline"
+     ]
+    },
+    {
+     "prompt_tokens": 4262,
+     "output_tokens": 116,
+     "load_s": 0.002333617,
+     "total_s": 4.632224164,
+     "pide": []
+    }
+   ],
+   "total_s": 12.182303582005261,
+   "pasos": [
+    {
+     "kind": "model",
+     "round": 1,
+     "content": "",
+     "tool_calls": [
+      "analyze_headline"
+     ],
+     "metrics": {
+      "prompt_tokens": 3699,
+      "output_tokens": 218,
+      "load_s": 0.002078443,
+      "total_s": 7.495731633
+     }
+    },
+    {
+     "kind": "tool",
+     "round": 1,
+     "name": "analyze_headline",
+     "arguments": {
+      "headline": "Scientists Discover New Species",
+      "content": "None"
+     },
+     "status": "ok",
+     "data": {
+      "headline": "Scientists Discover New Species",
+      "content": null,
+      "signals": [
+       {
+        "name": "detect_clickbait",
+        "label": "RoBERTa dedicado (entrenado en Webis-17)",
+        "status": "ok",
+        "dimension": "form",
+        "type": "opaque",
+        "is_clickbait": false,
+        "data": {
+         "label": "factual news",
+         "score": 0.7176514863967896
+        },
+        "detail": null
+       },
+       {
+        "name": "detect_clickbait_lexical",
+        "label": "Léxico por reglas (listas de cues de Chakraborty et al. 2016)",
+        "status": "ok",
+        "dimension": "form",
+        "type": "interpretable",
+        "is_clickbait": false,
+        "data": {
+         "score": 0,
+         "is_clickbait": false,
+         "matches": [],
+         "headline": "Scientists Discover New Species"
+        },
+        "detail": null
+       },
+       {
+        "name": "detect_clickbait_linear",
+        "label": "Regresión logística sobre features léxicas (entrenada en Chakraborty)",
+        "status": "ok",
+        "dimension": "form",
+        "type": "interpretable",
+        "is_clickbait": false,
+        "data": {
+         "is_clickbait": false,
+         "probability": 0.16315547411568004,
+         "top_cues": [],
+         "headline": "Scientists Discover New Species"
+        },
+        "detail": null
+       },
+       {
+        "name": "detect_clickbait_incoherence",
+        "label": "MiniLM-L6-v2 (embeddings de frase)",
+        "status": "not_applicable",
+        "dimension": "deception",
+        "type": "hybrid",
+        "is_clickbait": null,
+        "data": null,
+        "detail": "Requiere el cuerpo o teaser de la noticia."
+       },
+       {
+        "name": "analyze_sentiment",
+        "label": "RoBERTa afinado en tuits (3 clases)",
+        "status": "ok",
+        "dimension": "tone",
+        "type": "opaque",
+        "is_clickbait": null,
+        "data": {
+         "label": "neutral",
+         "score": 0.5035858750343323
+        },
+        "detail": null
+       }
+      ],
+      "dimensions": [
+       {
+        "dimension": "form",
+        "is_clickbait": false,
+        "contributing": [
+         "detect_clickbait",
+         "detect_clickbait_lexical",
+         "detect_clickbait_linear"
+        ]
+       }
+      ],
+      "verdict": "factual"
+     },
+     "error": null,
+     "server": "tfg-mcp-server",
+     "duration_s": 0.05629751100059366
+    },
+    {
+     "kind": "model",
+     "round": 2,
+     "content": "El sistema clasifica el titular como noticia factual con una confianza del 0.718 según el modelo opaco, y los detectores de forma también lo marcan como no clickbait sin encontrar pistas léxicas ni una probabilidad significativa en la regresión lineal (0.163). No se pudo evaluar la dimensión de engaño por incoherencia entre titular y cuerpo porque no se proporcionó el texto completo del artículo. El análisis de sentimiento indica un tono neutral con una confianza de 0.504.",
+     "tool_calls": [],
+     "metrics": {
+      "prompt_tokens": 4262,
+      "output_tokens": 116,
+      "load_s": 0.002333617,
+      "total_s": 4.632224164
+     }
+    }
+   ],
+   "repeticion": 1,
+   "esperadas": [
+    "analyze_headline",
+    "detect_clickbait",
+    "detect_clickbait_lexical",
+    "detect_clickbait_linear"
+   ],
+   "de_mas": [],
+   "sin_herramientas": false,
+   "marcadores": {
+    "nombres_internos": 0,
+    "posiciones": 0,
+    "decimales_largos": 0
+   }
+  },
+  {
+   "id": "B-04/generica-3/r1",
+   "fuente": "B-04",
+   "categoria": "GENERICA",
+   "consulta": "'You Won't Believe What Happened Next' — ¿es un titular engañoso?",
+   "historial": [],
+   "estado": "answered",
+   "detalle": null,
+   "respuesta": "El modelo opaco clasifica el titular como clickbait con una confianza de 0.958, mientras que el detector léxico identifica tres pistas: forward_reference en [0,3] con \"you\", forward_reference en [18,22] con \"what\" y curiosity_gap en [18,36] con \"what happened next\". El modelo lineal asigna una probabilidad de 0.999 de que sea clickbait basándose principalmente en \"you\" y \"what\". Sin embargo, no se puede determinar si el titular es engañoso porque falta el cuerpo de la noticia para evaluar la coherencia entre titular y contenido.",
+   "herramientas": [
+    "analyze_headline"
+   ],
+   "repetidas": [],
+   "vueltas": [
+    {
+     "prompt_tokens": 3703,
+     "output_tokens": 298,
+     "load_s": 0.00190353,
+     "total_s": 10.196791414,
+     "pide": [
+      "analyze_headline"
+     ]
+    },
+    {
+     "prompt_tokens": 4386,
+     "output_tokens": 486,
+     "load_s": 0.001694207,
+     "total_s": 17.183792226,
+     "pide": []
+    }
+   ],
+   "total_s": 27.533315025000775,
+   "pasos": [
+    {
+     "kind": "model",
+     "round": 1,
+     "content": "",
+     "tool_calls": [
+      "analyze_headline"
+     ],
+     "metrics": {
+      "prompt_tokens": 3703,
+      "output_tokens": 298,
+      "load_s": 0.00190353,
+      "total_s": 10.196791414
+     }
+    },
+    {
+     "kind": "tool",
+     "round": 1,
+     "name": "analyze_headline",
+     "arguments": {
+      "headline": "You Won't Believe What Happened Next",
+      "content": "None"
+     },
+     "status": "ok",
+     "data": {
+      "headline": "You Won't Believe What Happened Next",
+      "content": null,
+      "signals": [
+       {
+        "name": "detect_clickbait",
+        "label": "RoBERTa dedicado (entrenado en Webis-17)",
+        "status": "ok",
+        "dimension": "form",
+        "type": "opaque",
+        "is_clickbait": true,
+        "data": {
+         "label": "clickbait",
+         "score": 0.9578046202659607
+        },
+        "detail": null
+       },
+       {
+        "name": "detect_clickbait_lexical",
+        "label": "Léxico por reglas (listas de cues de Chakraborty et al. 2016)",
+        "status": "ok",
+        "dimension": "form",
+        "type": "interpretable",
+        "is_clickbait": true,
+        "data": {
+         "score": 3,
+         "is_clickbait": true,
+         "matches": [
+          {
+           "category": "forward_reference",
+           "cue": "you",
+           "span": [
+            0,
+            3
+           ]
+          },
+          {
+           "category": "forward_reference",
+           "cue": "what",
+           "span": [
+            18,
+            22
+           ]
+          },
+          {
+           "category": "curiosity_gap",
+           "cue": "what happened next",
+           "span": [
+            18,
+            36
+           ]
+          }
+         ],
+         "headline": "You Won't Believe What Happened Next"
+        },
+        "detail": null
+       },
+       {
+        "name": "detect_clickbait_linear",
+        "label": "Regresión logística sobre features léxicas (entrenada en Chakraborty)",
+        "status": "ok",
+        "dimension": "form",
+        "type": "interpretable",
+        "is_clickbait": true,
+        "data": {
+         "is_clickbait": true,
+         "probability": 0.9998160701393545,
+         "top_cues": [
+          [
+           "you",
+           5.619727385247914
+          ],
+          [
+           "what",
+           4.6159794596177495
+          ],
+          [
+           "what happened next",
+           0.0
+          ]
+         ],
+         "headline": "You Won't Believe What Happened Next"
+        },
+        "detail": null
+       },
+       {
+        "name": "detect_clickbait_incoherence",
+        "label": "MiniLM-L6-v2 (embeddings de frase)",
+        "status": "not_applicable",
+        "dimension": "deception",
+        "type": "hybrid",
+        "is_clickbait": null,
+        "data": null,
+        "detail": "Requiere el cuerpo o teaser de la noticia."
+       },
+       {
+        "name": "analyze_sentiment",
+        "label": "RoBERTa afinado en tuits (3 clases)",
+        "status": "ok",
+        "dimension": "tone",
+        "type": "opaque",
+        "is_clickbait": null,
+        "data": {
+         "label": "negative",
+         "score": 0.5303246974945068
+        },
+        "detail": null
+       }
+      ],
+      "dimensions": [
+       {
+        "dimension": "form",
+        "is_clickbait": true,
+        "contributing": [
+         "detect_clickbait",
+         "detect_clickbait_lexical",
+         "detect_clickbait_linear"
+        ]
+       }
+      ],
+      "verdict": "stylistic_clickbait"
+     },
+     "error": null,
+     "server": "tfg-mcp-server",
+     "duration_s": 0.056282206998730544
+    },
+    {
+     "kind": "model",
+     "round": 2,
+     "content": "El modelo opaco clasifica el titular como clickbait con una confianza de 0.958, mientras que el detector léxico identifica tres pistas: forward_reference en [0,3] con \"you\", forward_reference en [18,22] con \"what\" y curiosity_gap en [18,36] con \"what happened next\". El modelo lineal asigna una probabilidad de 0.999 de que sea clickbait basándose principalmente en \"you\" y \"what\". Sin embargo, no se puede determinar si el titular es engañoso porque falta el cuerpo de la noticia para evaluar la coherencia entre titular y contenido.",
+     "tool_calls": [],
+     "metrics": {
+      "prompt_tokens": 4386,
+      "output_tokens": 486,
+      "load_s": 0.001694207,
+      "total_s": 17.183792226
+     }
+    }
+   ],
+   "repeticion": 1,
+   "esperadas": [
+    "analyze_headline",
+    "detect_clickbait",
+    "detect_clickbait_lexical",
+    "detect_clickbait_linear"
+   ],
+   "de_mas": [],
+   "sin_herramientas": false,
+   "marcadores": {
+    "nombres_internos": 3,
+    "posiciones": 3,
+    "decimales_largos": 0
+   }
+  },
+  {
+   "id": "B-04/generica-4/r1",
+   "fuente": "B-04",
+   "categoria": "GENERICA",
+   "consulta": "Evalúa este titular: 'Top 5 Secrets Finally Revealed'",
+   "historial": [],
+   "estado": "answered",
+   "detalle": null,
+   "respuesta": "El modelo de caja negra clasifica el titular como clickbait con una confianza de 0.957. En contraste, la herramienta léxica no detecta ninguna pista disparadora y otorga un score de 0, mientras que el modelo lineal asigna una probabilidad de 0.163 para esa misma categoría. La dimensión de engaño queda sin evaluar al faltar el cuerpo del artículo, y el análisis de sentimiento marca un tono neutral con 0.681 de confianza. Estas señales contradictorias en la forma generan un veredicto final ambiguo.",
+   "herramientas": [
+    "analyze_headline"
+   ],
+   "repetidas": [],
+   "vueltas": [
+    {
+     "prompt_tokens": 3698,
+     "output_tokens": 188,
+     "load_s": 0.006490594,
+     "total_s": 6.52261123,
+     "pide": [
+      "analyze_headline"
+     ]
+    },
+    {
+     "prompt_tokens": 4272,
+     "output_tokens": 460,
+     "load_s": 0.001972001,
+     "total_s": 16.201719035,
+     "pide": []
+    }
+   ],
+   "total_s": 22.82053861899476,
+   "pasos": [
+    {
+     "kind": "model",
+     "round": 1,
+     "content": "",
+     "tool_calls": [
+      "analyze_headline"
+     ],
+     "metrics": {
+      "prompt_tokens": 3698,
+      "output_tokens": 188,
+      "load_s": 0.006490594,
+      "total_s": 6.52261123
+     }
+    },
+    {
+     "kind": "tool",
+     "round": 1,
+     "name": "analyze_headline",
+     "arguments": {
+      "headline": "Top 5 Secrets Finally Revealed",
+      "content": "None"
+     },
+     "status": "ok",
+     "data": {
+      "headline": "Top 5 Secrets Finally Revealed",
+      "content": null,
+      "signals": [
+       {
+        "name": "detect_clickbait",
+        "label": "RoBERTa dedicado (entrenado en Webis-17)",
+        "status": "ok",
+        "dimension": "form",
+        "type": "opaque",
+        "is_clickbait": true,
+        "data": {
+         "label": "clickbait",
+         "score": 0.9571180939674377
+        },
+        "detail": null
+       },
+       {
+        "name": "detect_clickbait_lexical",
+        "label": "Léxico por reglas (listas de cues de Chakraborty et al. 2016)",
+        "status": "ok",
+        "dimension": "form",
+        "type": "interpretable",
+        "is_clickbait": false,
+        "data": {
+         "score": 0,
+         "is_clickbait": false,
+         "matches": [],
+         "headline": "Top 5 Secrets Finally Revealed"
+        },
+        "detail": null
+       },
+       {
+        "name": "detect_clickbait_linear",
+        "label": "Regresión logística sobre features léxicas (entrenada en Chakraborty)",
+        "status": "ok",
+        "dimension": "form",
+        "type": "interpretable",
+        "is_clickbait": false,
+        "data": {
+         "is_clickbait": false,
+         "probability": 0.16315547411568004,
+         "top_cues": [],
+         "headline": "Top 5 Secrets Finally Revealed"
+        },
+        "detail": null
+       },
+       {
+        "name": "detect_clickbait_incoherence",
+        "label": "MiniLM-L6-v2 (embeddings de frase)",
+        "status": "not_applicable",
+        "dimension": "deception",
+        "type": "hybrid",
+        "is_clickbait": null,
+        "data": null,
+        "detail": "Requiere el cuerpo o teaser de la noticia."
+       },
+       {
+        "name": "analyze_sentiment",
+        "label": "RoBERTa afinado en tuits (3 clases)",
+        "status": "ok",
+        "dimension": "tone",
+        "type": "opaque",
+        "is_clickbait": null,
+        "data": {
+         "label": "neutral",
+         "score": 0.6809771656990051
+        },
+        "detail": null
+       }
+      ],
+      "dimensions": [
+       {
+        "dimension": "form",
+        "is_clickbait": null,
+        "contributing": [
+         "detect_clickbait",
+         "detect_clickbait_lexical",
+         "detect_clickbait_linear"
+        ]
+       }
+      ],
+      "verdict": "ambiguous"
+     },
+     "error": null,
+     "server": "tfg-mcp-server",
+     "duration_s": 0.05961672899866244
+    },
+    {
+     "kind": "model",
+     "round": 2,
+     "content": "El modelo de caja negra clasifica el titular como clickbait con una confianza de 0.957. En contraste, la herramienta léxica no detecta ninguna pista disparadora y otorga un score de 0, mientras que el modelo lineal asigna una probabilidad de 0.163 para esa misma categoría. La dimensión de engaño queda sin evaluar al faltar el cuerpo del artículo, y el análisis de sentimiento marca un tono neutral con 0.681 de confianza. Estas señales contradictorias en la forma generan un veredicto final ambiguo.",
+     "tool_calls": [],
+     "metrics": {
+      "prompt_tokens": 4272,
+      "output_tokens": 460,
+      "load_s": 0.001972001,
+      "total_s": 16.201719035
+     }
+    }
+   ],
+   "repeticion": 1,
+   "esperadas": [
+    "analyze_headline",
+    "detect_clickbait",
+    "detect_clickbait_lexical",
+    "detect_clickbait_linear"
+   ],
+   "de_mas": [],
+   "sin_herramientas": false,
+   "marcadores": {
+    "nombres_internos": 1,
+    "posiciones": 0,
+    "decimales_largos": 0
+   }
+  },
+  {
+   "id": "B-04/especifica-1/r1",
+   "fuente": "B-04",
+   "categoria": "ESPECIFICA",
+   "consulta": "¿Qué pistas léxicas dispara el titular 'Amazing Things You Need'?",
+   "historial": [],
+   "estado": "answered",
+   "detalle": null,
+   "respuesta": "El detector léxico identifica tres pistas en el titular: una marca de hyperbole en «amazing» posicionada entre [0, 7], y dos referencias vagas de categoría forward_reference, concretamente «things» en el rango [8, 14] y «you» en el intervalo [15, 18]. Con un score acumulado de 3, la herramienta clasifica este titular como clickbait. Estas señales corresponden únicamente a la forma del titular sin evaluar su veracidad ni coherencia con el contenido.",
+   "herramientas": [
+    "detect_clickbait_lexical"
+   ],
+   "repetidas": [],
+   "vueltas": [
+    {
+     "prompt_tokens": 3699,
+     "output_tokens": 96,
+     "load_s": 0.001737037,
+     "total_s": 3.398641471,
+     "pide": [
+      "detect_clickbait_lexical"
+     ]
+    },
+    {
+     "prompt_tokens": 3847,
+     "output_tokens": 334,
+     "load_s": 0.002008891,
+     "total_s": 11.579550247,
+     "pide": []
+    }
+   ],
+   "total_s": 14.989059762003308,
+   "pasos": [
+    {
+     "kind": "model",
+     "round": 1,
+     "content": "",
+     "tool_calls": [
+      "detect_clickbait_lexical"
+     ],
+     "metrics": {
+      "prompt_tokens": 3699,
+      "output_tokens": 96,
+      "load_s": 0.001737037,
+      "total_s": 3.398641471
+     }
+    },
+    {
+     "kind": "tool",
+     "round": 1,
+     "name": "detect_clickbait_lexical",
+     "arguments": {
+      "headline": "Amazing Things You Need"
+     },
+     "status": "ok",
+     "data": {
+      "score": 3,
+      "is_clickbait": true,
+      "matches": [
+       {
+        "category": "hyperbole",
+        "cue": "amazing",
+        "span": [
+         0,
+         7
+        ]
+       },
+       {
+        "category": "forward_reference",
+        "cue": "things",
+        "span": [
+         8,
+         14
+        ]
+       },
+       {
+        "category": "forward_reference",
+        "cue": "you",
+        "span": [
+         15,
+         18
+        ]
+       }
+      ],
+      "headline": "Amazing Things You Need"
+     },
+     "error": null,
+     "server": "tfg-mcp-server",
+     "duration_s": 0.01889721999759786
+    },
+    {
+     "kind": "model",
+     "round": 2,
+     "content": "El detector léxico identifica tres pistas en el titular: una marca de hyperbole en «amazing» posicionada entre [0, 7], y dos referencias vagas de categoría forward_reference, concretamente «things» en el rango [8, 14] y «you» en el intervalo [15, 18]. Con un score acumulado de 3, la herramienta clasifica este titular como clickbait. Estas señales corresponden únicamente a la forma del titular sin evaluar su veracidad ni coherencia con el contenido.",
+     "tool_calls": [],
+     "metrics": {
+      "prompt_tokens": 3847,
+      "output_tokens": 334,
+      "load_s": 0.002008891,
+      "total_s": 11.579550247
+     }
+    }
+   ],
+   "repeticion": 1,
+   "esperadas": [
+    "detect_clickbait_lexical"
+   ],
+   "de_mas": [],
+   "sin_herramientas": false,
+   "marcadores": {
+    "nombres_internos": 3,
+    "posiciones": 3,
+    "decimales_largos": 0
+   }
+  },
+  {
+   "id": "B-04/especifica-2/r1",
+   "fuente": "B-04",
+   "categoria": "ESPECIFICA",
+   "consulta": "Muéstrame qué cues concretos aparecen en '10 Best Tips Ever' y dónde",
+   "historial": [],
+   "estado": "answered",
+   "detalle": null,
+   "respuesta": "El detector léxico identifica una pista de tipo leading_number en el titular, que corresponde al número 10 ubicado en la posición inicial del texto. Esta señal es la única detectada en este caso. La herramienta marca el titular como clickbait con un score de 1 basado en esta evidencia encontrada.",
+   "herramientas": [
+    "detect_clickbait_lexical"
+   ],
+   "repetidas": [],
+   "vueltas": [
+    {
+     "prompt_tokens": 3703,
+     "output_tokens": 116,
+     "load_s": 0.004711905,
+     "total_s": 4.103517718,
+     "pide": [
+      "detect_clickbait_lexical"
+     ]
+    },
+    {
+     "prompt_tokens": 3806,
+     "output_tokens": 66,
+     "load_s": 0.00255963,
+     "total_s": 2.58864889,
+     "pide": []
+    }
+   ],
+   "total_s": 6.835417652000615,
+   "pasos": [
+    {
+     "kind": "model",
+     "round": 1,
+     "content": "",
+     "tool_calls": [
+      "detect_clickbait_lexical"
+     ],
+     "metrics": {
+      "prompt_tokens": 3703,
+      "output_tokens": 116,
+      "load_s": 0.004711905,
+      "total_s": 4.103517718
+     }
+    },
+    {
+     "kind": "tool",
+     "round": 1,
+     "name": "detect_clickbait_lexical",
+     "arguments": {
+      "headline": "10 Best Tips Ever"
+     },
+     "status": "ok",
+     "data": {
+      "score": 1,
+      "is_clickbait": true,
+      "matches": [
+       {
+        "category": "leading_number",
+        "cue": "10",
+        "span": [
+         0,
+         2
+        ]
+       }
+      ],
+      "headline": "10 Best Tips Ever"
+     },
+     "error": null,
+     "server": "tfg-mcp-server",
+     "duration_s": 0.021200060997216497
+    },
+    {
+     "kind": "model",
+     "round": 2,
+     "content": "El detector léxico identifica una pista de tipo leading_number en el titular, que corresponde al número 10 ubicado en la posición inicial del texto. Esta señal es la única detectada en este caso. La herramienta marca el titular como clickbait con un score de 1 basado en esta evidencia encontrada.",
+     "tool_calls": [],
+     "metrics": {
+      "prompt_tokens": 3806,
+      "output_tokens": 66,
+      "load_s": 0.00255963,
+      "total_s": 2.58864889
+     }
+    }
+   ],
+   "repeticion": 1,
+   "esperadas": [
+    "detect_clickbait_lexical"
+   ],
+   "de_mas": [],
+   "sin_herramientas": false,
+   "marcadores": {
+    "nombres_internos": 2,
+    "posiciones": 0,
+    "decimales_largos": 0
+   }
+  },
+  {
+   "id": "B-04/especifica-3/r1",
+   "fuente": "B-04",
+   "categoria": "ESPECIFICA",
+   "consulta": "Dame la probabilidad de clickbait de 'This Simple Trick Will Shock You'",
+   "historial": [],
+   "estado": "answered",
+   "detalle": null,
+   "respuesta": "El modelo lineal da una probabilidad de 0.999 de que el titular sea clickbait y emite un veredicto afirmativo. Las pistas que más influyeron en este resultado fueron \"you\" con un peso de 5.62 y \"this\" con un peso de 3.861. Estas marcas son señales típicas detectadas por el sistema en la estructura del texto analizado. La herramienta clasifica automáticamente este tipo de titulares basándose en las pistas léxicas presentes en su forma.",
+   "herramientas": [
+    "detect_clickbait_linear"
+   ],
+   "repetidas": [],
+   "vueltas": [
+    {
+     "prompt_tokens": 3701,
+     "output_tokens": 233,
+     "load_s": 0.006033846,
+     "total_s": 8.063109768,
+     "pide": [
+      "detect_clickbait_linear"
+     ]
+    },
+    {
+     "prompt_tokens": 3806,
+     "output_tokens": 246,
+     "load_s": 0.00186087,
+     "total_s": 8.667638415,
+     "pide": []
+    }
+   ],
+   "total_s": 16.79009534400393,
+   "pasos": [
+    {
+     "kind": "model",
+     "round": 1,
+     "content": "",
+     "tool_calls": [
+      "detect_clickbait_linear"
+     ],
+     "metrics": {
+      "prompt_tokens": 3701,
+      "output_tokens": 233,
+      "load_s": 0.006033846,
+      "total_s": 8.063109768
+     }
+    },
+    {
+     "kind": "tool",
+     "round": 1,
+     "name": "detect_clickbait_linear",
+     "arguments": {
+      "headline": "This Simple Trick Will Shock You"
+     },
+     "status": "ok",
+     "data": {
+      "is_clickbait": true,
+      "probability": 0.9996088089831324,
+      "top_cues": [
+       [
+        "you",
+        5.619727385247914
+       ],
+       [
+        "this",
+        3.861130656757006
+       ]
+      ],
+      "headline": "This Simple Trick Will Shock You"
+     },
+     "error": null,
+     "server": "tfg-mcp-server",
+     "duration_s": 0.019083530001807958
+    },
+    {
+     "kind": "model",
+     "round": 2,
+     "content": "El modelo lineal da una probabilidad de 0.999 de que el titular sea clickbait y emite un veredicto afirmativo. Las pistas que más influyeron en este resultado fueron \"you\" con un peso de 5.62 y \"this\" con un peso de 3.861. Estas marcas son señales típicas detectadas por el sistema en la estructura del texto analizado. La herramienta clasifica automáticamente este tipo de titulares basándose en las pistas léxicas presentes en su forma.",
+     "tool_calls": [],
+     "metrics": {
+      "prompt_tokens": 3806,
+      "output_tokens": 246,
+      "load_s": 0.00186087,
+      "total_s": 8.667638415
+     }
+    }
+   ],
+   "repeticion": 1,
+   "esperadas": [
+    "detect_clickbait_linear"
+   ],
+   "de_mas": [],
+   "sin_herramientas": false,
+   "marcadores": {
+    "nombres_internos": 0,
+    "posiciones": 0,
+    "decimales_largos": 0
+   }
+  },
+  {
+   "id": "B-04/especifica-4/r1",
+   "fuente": "B-04",
+   "categoria": "ESPECIFICA",
+   "consulta": "Usa el modelo entrenado para puntuar 'Doctors Hate This One Trick'",
+   "historial": [],
+   "estado": "answered",
+   "detalle": null,
+   "respuesta": "El modelo lineal asigna una probabilidad de 0.938 de que el titular sea clickbait, destacando como pistas más influyentes \"this\" con un peso de 3.861 y \"one\" con 0.482. El detector léxico reporta una puntuación de 2 identificando \"this\" en la posición [13, 17] y \"one\" en [18, 21], ambas como forward_reference. El clasificador opaco etiqueta el titular como clickbait con una confianza de 0.963, mientras que el análisis de sentimiento detecta un tono negativo con score 0.887. La evaluación de incoherencia no aplica al carecer del cuerpo de la noticia para comparar.",
+   "herramientas": [
+    "analyze_headline"
+   ],
+   "repetidas": [],
+   "vueltas": [
+    {
+     "prompt_tokens": 3700,
+     "output_tokens": 195,
+     "load_s": 0.001701707,
+     "total_s": 6.742272635,
+     "pide": [
+      "analyze_headline"
+     ]
+    },
+    {
+     "prompt_tokens": 4326,
+     "output_tokens": 562,
+     "load_s": 0.006786138,
+     "total_s": 19.711579483,
+     "pide": []
+    }
+   ],
+   "total_s": 26.564608132001013,
+   "pasos": [
+    {
+     "kind": "model",
+     "round": 1,
+     "content": "",
+     "tool_calls": [
+      "analyze_headline"
+     ],
+     "metrics": {
+      "prompt_tokens": 3700,
+      "output_tokens": 195,
+      "load_s": 0.001701707,
+      "total_s": 6.742272635
+     }
+    },
+    {
+     "kind": "tool",
+     "round": 1,
+     "name": "analyze_headline",
+     "arguments": {
+      "headline": "Doctors Hate This One Trick"
+     },
+     "status": "ok",
+     "data": {
+      "headline": "Doctors Hate This One Trick",
+      "content": null,
+      "signals": [
+       {
+        "name": "detect_clickbait",
+        "label": "RoBERTa dedicado (entrenado en Webis-17)",
+        "status": "ok",
+        "dimension": "form",
+        "type": "opaque",
+        "is_clickbait": true,
+        "data": {
+         "label": "clickbait",
+         "score": 0.9629175066947937
+        },
+        "detail": null
+       },
+       {
+        "name": "detect_clickbait_lexical",
+        "label": "Léxico por reglas (listas de cues de Chakraborty et al. 2016)",
+        "status": "ok",
+        "dimension": "form",
+        "type": "interpretable",
+        "is_clickbait": true,
+        "data": {
+         "score": 2,
+         "is_clickbait": true,
+         "matches": [
+          {
+           "category": "forward_reference",
+           "cue": "this",
+           "span": [
+            13,
+            17
+           ]
+          },
+          {
+           "category": "forward_reference",
+           "cue": "one",
+           "span": [
+            18,
+            21
+           ]
+          }
+         ],
+         "headline": "Doctors Hate This One Trick"
+        },
+        "detail": null
+       },
+       {
+        "name": "detect_clickbait_linear",
+        "label": "Regresión logística sobre features léxicas (entrenada en Chakraborty)",
+        "status": "ok",
+        "dimension": "form",
+        "type": "interpretable",
+        "is_clickbait": true,
+        "data": {
+         "is_clickbait": true,
+         "probability": 0.9375272209471589,
+         "top_cues": [
+          [
+           "this",
+           3.861130656757006
+          ],
+          [
+           "one",
+           0.48231893610048454
+          ]
+         ],
+         "headline": "Doctors Hate This One Trick"
+        },
+        "detail": null
+       },
+       {
+        "name": "detect_clickbait_incoherence",
+        "label": "MiniLM-L6-v2 (embeddings de frase)",
+        "status": "not_applicable",
+        "dimension": "deception",
+        "type": "hybrid",
+        "is_clickbait": null,
+        "data": null,
+        "detail": "Requiere el cuerpo o teaser de la noticia."
+       },
+       {
+        "name": "analyze_sentiment",
+        "label": "RoBERTa afinado en tuits (3 clases)",
+        "status": "ok",
+        "dimension": "tone",
+        "type": "opaque",
+        "is_clickbait": null,
+        "data": {
+         "label": "negative",
+         "score": 0.887021005153656
+        },
+        "detail": null
+       }
+      ],
+      "dimensions": [
+       {
+        "dimension": "form",
+        "is_clickbait": true,
+        "contributing": [
+         "detect_clickbait",
+         "detect_clickbait_lexical",
+         "detect_clickbait_linear"
+        ]
+       }
+      ],
+      "verdict": "stylistic_clickbait"
+     },
+     "error": null,
+     "server": "tfg-mcp-server",
+     "duration_s": 0.059108411995111965
+    },
+    {
+     "kind": "model",
+     "round": 2,
+     "content": "El modelo lineal asigna una probabilidad de 0.938 de que el titular sea clickbait, destacando como pistas más influyentes \"this\" con un peso de 3.861 y \"one\" con 0.482. El detector léxico reporta una puntuación de 2 identificando \"this\" en la posición [13, 17] y \"one\" en [18, 21], ambas como forward_reference. El clasificador opaco etiqueta el titular como clickbait con una confianza de 0.963, mientras que el análisis de sentimiento detecta un tono negativo con score 0.887. La evaluación de incoherencia no aplica al carecer del cuerpo de la noticia para comparar.",
+     "tool_calls": [],
+     "metrics": {
+      "prompt_tokens": 4326,
+      "output_tokens": 562,
+      "load_s": 0.006786138,
+      "total_s": 19.711579483
+     }
+    }
+   ],
+   "repeticion": 1,
+   "esperadas": [
+    "detect_clickbait_linear"
+   ],
+   "de_mas": [
+    "analyze_headline"
+   ],
+   "sin_herramientas": false,
+   "marcadores": {
+    "nombres_internos": 2,
+    "posiciones": 2,
+    "decimales_largos": 0
+   }
+  },
+  {
+   "id": "B-04/especifica-5/r1",
+   "fuente": "B-04",
+   "categoria": "ESPECIFICA",
+   "consulta": "¿El titular 'Cure Found' concuerda con el cuerpo 'Researchers report early-stage results in mice'?",
+   "historial": [],
+   "estado": "answered",
+   "detalle": null,
+   "respuesta": "El detector de incoherencia calcula una similitud de 0.228 entre el titular 'Cure Found' y el cuerpo proporcionado. Al quedar por debajo del umbral de 0.3, la herramienta marca el resultado como incoherent. Esta medición refleja la baja correspondencia entre el titular y el contenido sobre resultados iniciales en ratones.",
+   "herramientas": [
+    "detect_clickbait_incoherence"
+   ],
+   "repetidas": [],
+   "vueltas": [
+    {
+     "prompt_tokens": 3707,
+     "output_tokens": 170,
+     "load_s": 0.001678107,
+     "total_s": 5.918666978,
+     "pide": [
+      "detect_clickbait_incoherence"
+     ]
+    },
+    {
+     "prompt_tokens": 3822,
+     "output_tokens": 694,
+     "load_s": 0.002942307,
+     "total_s": 23.69887735,
+     "pide": []
+    }
+   ],
+   "total_s": 29.72383508799976,
+   "pasos": [
+    {
+     "kind": "model",
+     "round": 1,
+     "content": "",
+     "tool_calls": [
+      "detect_clickbait_incoherence"
+     ],
+     "metrics": {
+      "prompt_tokens": 3707,
+      "output_tokens": 170,
+      "load_s": 0.001678107,
+      "total_s": 5.918666978
+     }
+    },
+    {
+     "kind": "tool",
+     "round": 1,
+     "name": "detect_clickbait_incoherence",
+     "arguments": {
+      "headline": "Cure Found",
+      "content": "Researchers report early-stage results in mice"
+     },
+     "status": "ok",
+     "data": {
+      "similarity": 0.22802437841892242,
+      "incoherent": true,
+      "threshold": 0.3,
+      "headline": "Cure Found",
+      "content": "Researchers report early-stage results in mice"
+     },
+     "error": null,
+     "server": "tfg-mcp-server",
+     "duration_s": 0.037600666997605
+    },
+    {
+     "kind": "model",
+     "round": 2,
+     "content": "El detector de incoherencia calcula una similitud de 0.228 entre el titular 'Cure Found' y el cuerpo proporcionado. Al quedar por debajo del umbral de 0.3, la herramienta marca el resultado como incoherent. Esta medición refleja la baja correspondencia entre el titular y el contenido sobre resultados iniciales en ratones.",
+     "tool_calls": [],
+     "metrics": {
+      "prompt_tokens": 3822,
+      "output_tokens": 694,
+      "load_s": 0.002942307,
+      "total_s": 23.69887735
+     }
+    }
+   ],
+   "repeticion": 1,
+   "esperadas": [
+    "detect_clickbait_incoherence"
+   ],
+   "de_mas": [],
+   "sin_herramientas": false,
+   "marcadores": {
+    "nombres_internos": 0,
+    "posiciones": 0,
+    "decimales_largos": 0
+   }
+  },
+  {
+   "id": "B-04/especifica-6/r1",
+   "fuente": "B-04",
+   "categoria": "ESPECIFICA",
+   "consulta": "Compara titular y contenido: titular 'Miracle Diet Works', cuerpo 'A small study shows modest effects'",
+   "historial": [],
+   "estado": "answered",
+   "detalle": null,
+   "respuesta": "El detector de incoherencia compara el titular \"Miracle Diet Works\" con el contenido \"A small study shows modest effects\" y obtiene una similitud de 0.229. Dado que este valor está por debajo del umbral de 0.3, la herramienta marca el resultado como incoherente true. Esto indica que hay una discrepancia significativa entre lo que promete el titular y lo que relata el cuerpo del artículo. La similitud calculada sugiere que los embeddings generados no coinciden en su contenido semántico.",
+   "herramientas": [
+    "detect_clickbait_incoherence"
+   ],
+   "repetidas": [],
+   "vueltas": [
+    {
+     "prompt_tokens": 3706,
+     "output_tokens": 143,
+     "load_s": 0.00564676,
+     "total_s": 5.051249776,
+     "pide": [
+      "detect_clickbait_incoherence"
+     ]
+    },
+    {
+     "prompt_tokens": 3821,
+     "output_tokens": 264,
+     "load_s": 0.002335778,
+     "total_s": 9.228765448,
+     "pide": []
+    }
+   ],
+   "total_s": 14.389899916001013,
+   "pasos": [
+    {
+     "kind": "model",
+     "round": 1,
+     "content": "",
+     "tool_calls": [
+      "detect_clickbait_incoherence"
+     ],
+     "metrics": {
+      "prompt_tokens": 3706,
+      "output_tokens": 143,
+      "load_s": 0.00564676,
+      "total_s": 5.051249776
+     }
+    },
+    {
+     "kind": "tool",
+     "round": 1,
+     "name": "detect_clickbait_incoherence",
+     "arguments": {
+      "headline": "Miracle Diet Works",
+      "content": "A small study shows modest effects"
+     },
+     "status": "ok",
+     "data": {
+      "similarity": 0.22943492233753204,
+      "incoherent": true,
+      "threshold": 0.3,
+      "headline": "Miracle Diet Works",
+      "content": "A small study shows modest effects"
+     },
+     "error": null,
+     "server": "tfg-mcp-server",
+     "duration_s": 0.029059114996925928
+    },
+    {
+     "kind": "model",
+     "round": 2,
+     "content": "El detector de incoherencia compara el titular \"Miracle Diet Works\" con el contenido \"A small study shows modest effects\" y obtiene una similitud de 0.229. Dado que este valor está por debajo del umbral de 0.3, la herramienta marca el resultado como incoherente true. Esto indica que hay una discrepancia significativa entre lo que promete el titular y lo que relata el cuerpo del artículo. La similitud calculada sugiere que los embeddings generados no coinciden en su contenido semántico.",
+     "tool_calls": [],
+     "metrics": {
+      "prompt_tokens": 3821,
+      "output_tokens": 264,
+      "load_s": 0.002335778,
+      "total_s": 9.228765448
+     }
+    }
+   ],
+   "repeticion": 1,
+   "esperadas": [
+    "detect_clickbait_incoherence"
+   ],
+   "de_mas": [],
+   "sin_herramientas": false,
+   "marcadores": {
+    "nombres_internos": 0,
+    "posiciones": 0,
+    "decimales_largos": 0
+   }
+  },
+  {
+   "id": "B-04/especifica-7/r1",
+   "fuente": "B-04",
+   "categoria": "ESPECIFICA",
+   "consulta": "¿Qué sentimiento transmite 'This is the worst day ever'?",
+   "historial": [],
+   "estado": "answered",
+   "detalle": null,
+   "respuesta": "El analizador de sentimiento clasifica el texto como negative con una confianza de 0.926. El modelo etiqueta este fragmento dentro de la categoría de tono negativo y otorga un alto nivel de certeza en dicha clasificación. La herramienta determina esta evaluación sin proporcionar explicaciones adicionales sobre los motivos del veredicto.",
+   "herramientas": [
+    "analyze_sentiment"
+   ],
+   "repetidas": [],
+   "vueltas": [
+    {
+     "prompt_tokens": 3696,
+     "output_tokens": 108,
+     "load_s": 0.001722537,
+     "total_s": 3.814213998,
+     "pide": [
+      "analyze_sentiment"
+     ]
+    },
+    {
+     "prompt_tokens": 3761,
+     "output_tokens": 206,
+     "load_s": 0.00319563,
+     "total_s": 7.257354107,
+     "pide": []
+    }
+   ],
+   "total_s": 11.158491176996904,
+   "pasos": [
+    {
+     "kind": "model",
+     "round": 1,
+     "content": "",
+     "tool_calls": [
+      "analyze_sentiment"
+     ],
+     "metrics": {
+      "prompt_tokens": 3696,
+      "output_tokens": 108,
+      "load_s": 0.001722537,
+      "total_s": 3.814213998
+     }
+    },
+    {
+     "kind": "tool",
+     "round": 1,
+     "name": "analyze_sentiment",
+     "arguments": {
+      "text": "This is the worst day ever"
+     },
+     "status": "ok",
+     "data": {
+      "label": "negative",
+      "score": 0.9260547757148743
+     },
+     "error": null,
+     "server": "tfg-mcp-server",
+     "duration_s": 0.02379468800063478
+    },
+    {
+     "kind": "model",
+     "round": 2,
+     "content": "El analizador de sentimiento clasifica el texto como negative con una confianza de 0.926. El modelo etiqueta este fragmento dentro de la categoría de tono negativo y otorga un alto nivel de certeza en dicha clasificación. La herramienta determina esta evaluación sin proporcionar explicaciones adicionales sobre los motivos del veredicto.",
+     "tool_calls": [],
+     "metrics": {
+      "prompt_tokens": 3761,
+      "output_tokens": 206,
+      "load_s": 0.00319563,
+      "total_s": 7.257354107
+     }
+    }
+   ],
+   "repeticion": 1,
+   "esperadas": [
+    "analyze_sentiment"
+   ],
+   "de_mas": [],
+   "sin_herramientas": false,
+   "marcadores": {
+    "nombres_internos": 1,
+    "posiciones": 0,
+    "decimales_largos": 0
+   }
+  },
+  {
+   "id": "B-04/especifica-8/r1",
+   "fuente": "B-04",
+   "categoria": "ESPECIFICA",
+   "consulta": "Analiza el tono emocional de 'A wonderful celebration took place'",
+   "historial": [],
+   "estado": "answered",
+   "detalle": null,
+   "respuesta": "El analizador de sentimiento clasifica el texto como positivo con una confianza de 0,979. Esta herramienta determina que el tono emocional predominante en la frase es claramente favorable debido a los términos presentes. No se detectan señales neutrales o negativas significativas en el análisis del modelo.",
+   "herramientas": [
+    "analyze_sentiment"
+   ],
+   "repetidas": [],
+   "vueltas": [
+    {
+     "prompt_tokens": 3697,
+     "output_tokens": 120,
+     "load_s": 0.004581773,
+     "total_s": 4.234068791,
+     "pide": [
+      "analyze_sentiment"
+     ]
+    },
+    {
+     "prompt_tokens": 3761,
+     "output_tokens": 160,
+     "load_s": 0.001861669,
+     "total_s": 5.697514954,
+     "pide": []
+    }
+   ],
+   "total_s": 10.049970010994002,
+   "pasos": [
+    {
+     "kind": "model",
+     "round": 1,
+     "content": "",
+     "tool_calls": [
+      "analyze_sentiment"
+     ],
+     "metrics": {
+      "prompt_tokens": 3697,
+      "output_tokens": 120,
+      "load_s": 0.004581773,
+      "total_s": 4.234068791
+     }
+    },
+    {
+     "kind": "tool",
+     "round": 1,
+     "name": "analyze_sentiment",
+     "arguments": {
+      "text": "A wonderful celebration took place"
+     },
+     "status": "ok",
+     "data": {
+      "label": "positive",
+      "score": 0.9791100025177002
+     },
+     "error": null,
+     "server": "tfg-mcp-server",
+     "duration_s": 0.02357744199980516
+    },
+    {
+     "kind": "model",
+     "round": 2,
+     "content": "El analizador de sentimiento clasifica el texto como positivo con una confianza de 0,979. Esta herramienta determina que el tono emocional predominante en la frase es claramente favorable debido a los términos presentes. No se detectan señales neutrales o negativas significativas en el análisis del modelo.",
+     "tool_calls": [],
+     "metrics": {
+      "prompt_tokens": 3761,
+      "output_tokens": 160,
+      "load_s": 0.001861669,
+      "total_s": 5.697514954
+     }
+    }
+   ],
+   "repeticion": 1,
+   "esperadas": [
+    "analyze_sentiment"
+   ],
+   "de_mas": [],
+   "sin_herramientas": false,
+   "marcadores": {
+    "nombres_internos": 0,
+    "posiciones": 0,
+    "decimales_largos": 0
+   }
+  },
+  {
+   "id": "B-04/otro_dominio-1/r1",
+   "fuente": "B-04",
+   "categoria": "OTRO_DOMINIO",
+   "consulta": "Dame noticias del New York Times sobre inteligencia artificial",
+   "historial": [],
+   "estado": "answered",
+   "detalle": null,
+   "respuesta": "He obtenido noticias del New York Times sobre inteligencia artificial. Los titulares incluyen artículos como \"OpenAI’s Systems Meddled With U.S. Government Sites After Going Rogue\", que relata cómo la tecnología de la empresa interferió en sitios web gubernamentales; \"Your A.I. Questions Answered\", un podcast que aborda el uso de IA sin saberlo y las advertencias de apocalipsis; y \"The Big Threat Has Been Climate Change. Now Comes A.I.\", que compara ambos problemas como amenazas humanas y temibles. También hay noticias sobre controversias en universidades, la postura del presidente Milei en Argentina respecto a la regulación de la IA, un encuentro entre Trump y el cofundador de Anthropic, y el lanzamiento de nuevos agentes de IA por parte de OpenAI. Adicionalmente, se menciona escepticismo chino hacia las advertencias de seguridad sobre la IA y opiniones sobre la necesidad de médicos humanos frente a la IA en medicina.",
+   "herramientas": [
+    "get_nyt_news"
+   ],
+   "repetidas": [],
+   "vueltas": [
+    {
+     "prompt_tokens": 3693,
+     "output_tokens": 99,
+     "load_s": 0.00185208,
+     "total_s": 3.50992063,
+     "pide": [
+      "get_nyt_news"
+     ]
+    },
+    {
+     "prompt_tokens": 5016,
+     "output_tokens": 196,
+     "load_s": 0.001703797,
+     "total_s": 7.909661556,
+     "pide": []
+    }
+   ],
+   "total_s": 11.84645753299992,
+   "pasos": [
+    {
+     "kind": "model",
+     "round": 1,
+     "content": "",
+     "tool_calls": [
+      "get_nyt_news"
+     ],
+     "metrics": {
+      "prompt_tokens": 3693,
+      "output_tokens": 99,
+      "load_s": 0.00185208,
+      "total_s": 3.50992063
+     }
+    },
+    {
+     "kind": "tool",
+     "round": 1,
+     "name": "get_nyt_news",
+     "arguments": {
+      "topic": "artificial intelligence"
+     },
+     "status": "ok",
+     "data": {
+      "result": [
+       {
+        "title": "OpenAI’s Systems Meddled With U.S. Government Sites After Going Rogue",
+        "print_headline": "Systems of OpenAI Go Rogue And Target Government Sites ",
+        "url": "https://www.nytimes.com/2026/09/25/technology/openais-ai-us-government-websites.html",
+        "date": "2026-09-25T23:16:40Z",
+        "content": "The company did not learn until recently that its technology had meddled with websites for the Education and Commerce Departments and the Securities and Exchange Commission."
+       },
+       {
+        "title": "Your A.I. Questions Answered",
+        "print_headline": "",
+        "url": "https://www.nytimes.com/2026/09/29/podcasts/the-headlines/ai-questions-answers.html",
+        "date": "2026-09-29T09:43:17Z",
+        "content": "Are you using artificial intelligence without even knowing it? And what’s behind the wave of doomsday warnings?"
+       },
+       {
+        "title": "The Big Threat Has Been Climate Change. Now Comes A.I.",
+        "print_headline": "A.I. Threat Grabs Attention From Climate Risks",
+        "url": "https://www.nytimes.com/2026/09/22/climate/climate-change-artificial-intelligence-global-threat.html",
+        "date": "2026-09-22T09:02:26Z",
+        "content": "Both are human-caused, both are frightening, and one of them has raced to the forefront of the global conversation."
+       },
+       {
+        "title": "College Leaders Are Using A.I. Students Call It Hypocrisy.",
+        "print_headline": "",
+        "url": "https://www.nytimes.com/2026/09/29/us/college-professors-administrators-ai-dartmouth.html",
+        "date": "2026-09-29T09:02:11Z",
+        "content": "Dartmouth said it would investigate its provost over A.I. accusations. Similar controversies on other campuses have prompted frustration among students."
+       },
+       {
+        "title": "As A.I. Fears Grow, President Milei Pitches Argentina as a Rules-Free Haven",
+        "print_headline": "",
+        "url": "https://www.nytimes.com/2026/09/29/world/americas/argentina-ai-rules-milei.html",
+        "date": "2026-09-29T09:03:12Z",
+        "content": "Mr. Milei wants to go all in on artificial intelligence even as other leaders struggle to get a handle on a technology many fear poses existential threats."
+       },
+       {
+        "title": "Trump to Dine With Anthropic Co-Founder, Who Has Warned of A.I.’s Risks",
+        "print_headline": "",
+        "url": "https://www.nytimes.com/2026/09/27/us/politics/trump-amodei-anthropic-artificial-intelligence.html",
+        "date": "2026-09-27T21:22:35Z",
+        "content": "Dario Amodei, who is also the company’s chief executive, will join the president at the White House for a private dinner. Mr. Trump has dismissed his cautions."
+       },
+       {
+        "title": "A New A.I. Agent Enters the Marketplace: OpenAI’s Dots",
+        "print_headline": "",
+        "url": "https://www.nytimes.com/2026/09/29/technology/openai-dots-ai-agents.html",
+        "date": "2026-09-29T17:15:06Z",
+        "content": "The ChatGPT maker unveiled agents that act as assistants, just weeks after Meta released Muse, as it faces scrutiny over incidents involving its technology."
+       },
+       {
+        "title": "The Surprising Reasons China Is Skeptical of A.I. Safety Calls",
+        "print_headline": "China Puts Little Stock In American Warnings About A.I. Doomsday",
+        "url": "https://www.nytimes.com/2026/09/27/world/asia/china-us-ai-distrust.html",
+        "date": "2026-09-27T04:01:25Z",
+        "content": "In China, A.I. doomsday warnings can feel distinctly Western or like a ploy to stop Chinese A.I. companies from trying to overtake their U.S. rivals."
+       },
+       {
+        "title": "A.I. Is Not a Doctor. We Need Human Ones.",
+        "print_headline": "A.I. Is Not a Doctor. We Need Human Ones.",
+        "url": "https://www.nytimes.com/2026/09/28/opinion/ai-doctor.html",
+        "date": "2026-09-28T16:36:07Z",
+        "content": "Readers respond to a front-page article, “Doctor A.I. Will See You, in Spite of Misgivings.” Also: Canada won’t yield; the lasting value of collective joy."
+       },
+       {
+        "title": "Job Titles Are Out. Now We’re All ‘Members of the Technical Staff.’",
+        "print_headline": "‘Member of the Technical Staff’",
+        "url": "https://www.nytimes.com/2026/09/27/business/members-of-technical-staff-artificial-intelligence.html",
+        "date": "2026-09-27T09:01:00Z",
+        "content": "Use of the generic title has risen by 50 percent in the last year among employees at Anthropic, OpenAI and other A.I. companies, an analysis found."
+       }
+      ]
+     },
+     "error": null,
+     "server": "tfg-mcp-server",
+     "duration_s": 0.2723159039960592
+    },
+    {
+     "kind": "model",
+     "round": 2,
+     "content": "He obtenido noticias del New York Times sobre inteligencia artificial. Los titulares incluyen artículos como \"OpenAI’s Systems Meddled With U.S. Government Sites After Going Rogue\", que relata cómo la tecnología de la empresa interferió en sitios web gubernamentales; \"Your A.I. Questions Answered\", un podcast que aborda el uso de IA sin saberlo y las advertencias de apocalipsis; y \"The Big Threat Has Been Climate Change. Now Comes A.I.\", que compara ambos problemas como amenazas humanas y temibles. También hay noticias sobre controversias en universidades, la postura del presidente Milei en Argentina respecto a la regulación de la IA, un encuentro entre Trump y el cofundador de Anthropic, y el lanzamiento de nuevos agentes de IA por parte de OpenAI. Adicionalmente, se menciona escepticismo chino hacia las advertencias de seguridad sobre la IA y opiniones sobre la necesidad de médicos humanos frente a la IA en medicina.",
+     "tool_calls": [],
+     "metrics": {
+      "prompt_tokens": 5016,
+      "output_tokens": 196,
+      "load_s": 0.001703797,
+      "total_s": 7.909661556
+     }
+    }
+   ],
+   "repeticion": 1,
+   "esperadas": [
+    "get_nyt_news"
+   ],
+   "de_mas": [],
+   "sin_herramientas": false,
+   "marcadores": {
+    "nombres_internos": 0,
+    "posiciones": 0,
+    "decimales_largos": 0
+   }
+  },
+  {
+   "id": "B-04/otro_dominio-2/r1",
+   "fuente": "B-04",
+   "categoria": "OTRO_DOMINIO",
+   "consulta": "¿Qué ha publicado The Guardian sobre cambio climático?",
+   "historial": [],
+   "estado": "answered",
+   "detalle": null,
+   "respuesta": "The Guardian ha publicado varias noticias recientes sobre cambio climático. Entre ellas destaca que el primer ministro de Nepal calificó las inundaciones repentinas como una advertencia para el mundo y reprendió a líderes en la ONU sobre cambio climático, estimando las necesidades de recuperación en aproximadamente el 10% del PIB. Otro artículo informa sobre un diputado laborista australiano que cubrió el logotipo de Woodside Energy en su camiseta de Fremantle antes de la gran final de AFL como parte de una campaña contra la compañía de combustibles fósiles. También se publica que Angus Taylor prometió derogar diversas políticas climáticas afirmando que Australia ya ha hecho su parte, mientras que expertos expresan preocupación porque el próximo jefe de la ONU podría degradar la acción climática. Además, se menciona que la administración Trump planea recortar las normas de vehículos limpios destinadas a reducir las emisiones climáticas, y aparece un documental sobre un adolescente que escribe cartas a activistas del clima encarcelados.",
+   "herramientas": [
+    "get_guardian_news"
+   ],
+   "repetidas": [],
+   "vueltas": [
+    {
+     "prompt_tokens": 3694,
+     "output_tokens": 108,
+     "load_s": 0.001454503,
+     "total_s": 3.848785043,
+     "pide": [
+      "get_guardian_news"
+     ]
+    },
+    {
+     "prompt_tokens": 4992,
+     "output_tokens": 295,
+     "load_s": 0.003191291,
+     "total_s": 11.252825011,
+     "pide": []
+    }
+   ],
+   "total_s": 15.822096289004548,
+   "pasos": [
+    {
+     "kind": "model",
+     "round": 1,
+     "content": "",
+     "tool_calls": [
+      "get_guardian_news"
+     ],
+     "metrics": {
+      "prompt_tokens": 3694,
+      "output_tokens": 108,
+      "load_s": 0.001454503,
+      "total_s": 3.848785043
+     }
+    },
+    {
+     "kind": "tool",
+     "round": 1,
+     "name": "get_guardian_news",
+     "arguments": {
+      "topic": "climate change",
+      "days": 7
+     },
+     "status": "ok",
+     "data": {
+      "result": [
+       {
+        "title": "Nepal’s PM says flash flood was ‘warning to world’ as he scolds leaders at UN over climate change",
+        "url": "https://www.theguardian.com/world/2026/sep/25/nepal-pm-flash-floods-warning-to-world-climate-change",
+        "date": "2026-09-25T05:17:46Z",
+        "content": "Shah ⁠said ​Nepal’s recovery and reconstruction needs were estimated at about 10% of GDP, as he appealed for more international support"
+       },
+       {
+        "title": "Labor MP covers up Woodside logo on Fremantle jumper ahead of AFL grand final ",
+        "url": "https://www.theguardian.com/environment/2026/sep/22/labor-mp-josh-wilson-covers-woodside-energy-logo-fremantle-jumper-afl-grand-final",
+        "date": "2026-09-22T08:00:28Z",
+        "content": "Josh Wilson, federal assistant minister for climate change and energy, joins peaceful campaign against fossil fuel company"
+       },
+       {
+        "title": "Angus Taylor pledges to repeal swathe of climate policies, saying ‘Australia has done its bit’",
+        "url": "https://www.theguardian.com/australia-news/2026/sep/23/angus-taylor-pledges-to-repeal-swathe-of-climate-policies-saying-australia-has-done-its-bit",
+        "date": "2026-09-23T06:45:12Z",
+        "content": "Several measures were previously introduced or supported by Coalition, prompting claim Liberals and Nationals would ‘let climate change rip’"
+       },
+       {
+        "title": "Why is the UK’s suppressed climate national security report significant?",
+        "url": "https://www.theguardian.com/environment/2026/sep/24/explainer-uk-climate-crisis-national-security-report-suppressed",
+        "date": "2026-09-24T18:27:58Z",
+        "content": "Warnings about the catastrophic effects of vital ecosystems collapsing were not published under previous prime minister"
+       },
+       {
+        "title": "Thomas Tuchel resists change against Czechia despite England defensive errors",
+        "url": "https://www.theguardian.com/football/2026/sep/28/thomas-tuchel-czechia-england-nations-league-spain",
+        "date": "2026-09-28T20:00:43Z",
+        "content": "The head coach, who has injury concerns over Nico O’Reilly and Ezri Konsa, said: ‘We defended well [against Spain] but we had big individual mistakes’"
+       },
+       {
+        "title": "Fears mount that next UN chief will downgrade climate action",
+        "url": "https://www.theguardian.com/world/2026/sep/23/fears-mount-that-next-un-chief-will-downgrade-climate-action",
+        "date": "2026-09-23T06:00:17Z",
+        "content": "Experts say some of António Guterres’s possible successors could be ‘disastrous’ for efforts to tackle crisis"
+       },
+       {
+        "title": "Prison Letters: the teenager writing letters to jailed climate activists – documentary",
+        "url": "https://www.theguardian.com/environment/ng-interactive/2026/sep/22/prison-letters-the-teenager-writing-letters-to-jailed-climate-activists-documentary",
+        "date": "2026-09-22T11:26:21Z",
+        "content": "A teenager struggling with climate anxiety searches for hope in an unexpected place – writing letters to imprisoned activists. Max, 14, is on a quest to understand the human stories behind direct action, and why so many climate protesters have spent time in prison​"
+       },
+       {
+        "title": "Trump administration to slash clean car rules aimed at cutting climate emissions",
+        "url": "https://www.theguardian.com/us-news/2026/sep/28/trump-administration-slashes-clean-car-rules",
+        "date": "2026-09-28T15:56:32Z",
+        "content": "Environmentalists decry move that relaxes requirements on automakers to control pollution from gas-powered cars"
+       },
+       {
+        "title": "Friday briefing: How a ​grassroots ​film ​is ​turning ​climate anxiety ​into ​action",
+        "url": "https://www.theguardian.com/world/2026/sep/25/friday-briefing-how-a-grassroots-film-is-turning-climate-anxiety-into-action",
+        "date": "2026-09-25T05:45:15Z",
+        "content": "In today’s newsletter: The People’s Emergency Briefing delivers a stark warning about ​o​ur future in a warming world. ​B​ut sharing difficult truths collectively​ shows us that there is still hope to be found"
+       },
+       {
+        "title": "Labour has its own role in this climate of hate and racism | Letters",
+        "url": "https://www.theguardian.com/politics/2026/sep/29/labour-has-its-own-role-in-this-climate-of-hate-and-racism",
+        "date": "2026-09-29T16:48:57Z",
+        "content": "<strong>Letters: </strong>Readers react to a piece by Polly Toynbee in which she argues that Andy Burnham is the person to lead Britain out of its cohesion crisis "
+       }
+      ]
+     },
+     "error": null,
+     "server": "tfg-mcp-server",
+     "duration_s": 0.7031851749998168
+    },
+    {
+     "kind": "model",
+     "round": 2,
+     "content": "The Guardian ha publicado varias noticias recientes sobre cambio climático. Entre ellas destaca que el primer ministro de Nepal calificó las inundaciones repentinas como una advertencia para el mundo y reprendió a líderes en la ONU sobre cambio climático, estimando las necesidades de recuperación en aproximadamente el 10% del PIB. Otro artículo informa sobre un diputado laborista australiano que cubrió el logotipo de Woodside Energy en su camiseta de Fremantle antes de la gran final de AFL como parte de una campaña contra la compañía de combustibles fósiles. También se publica que Angus Taylor prometió derogar diversas políticas climáticas afirmando que Australia ya ha hecho su parte, mientras que expertos expresan preocupación porque el próximo jefe de la ONU podría degradar la acción climática. Además, se menciona que la administración Trump planea recortar las normas de vehículos limpios destinadas a reducir las emisiones climáticas, y aparece un documental sobre un adolescente que escribe cartas a activistas del clima encarcelados.",
+     "tool_calls": [],
+     "metrics": {
+      "prompt_tokens": 4992,
+      "output_tokens": 295,
+      "load_s": 0.003191291,
+      "total_s": 11.252825011
+     }
+    }
+   ],
+   "repeticion": 1,
+   "esperadas": [
+    "get_guardian_news"
+   ],
+   "de_mas": [],
+   "sin_herramientas": false,
+   "marcadores": {
+    "nombres_internos": 0,
+    "posiciones": 0,
+    "decimales_largos": 0
+   }
+  },
+  {
+   "id": "B-04/otro_dominio-3/r1",
+   "fuente": "B-04",
+   "categoria": "OTRO_DOMINIO",
+   "consulta": "¿Qué modelos usas y qué limitaciones tienen?",
+   "historial": [],
+   "estado": "answered",
+   "detalle": null,
+   "respuesta": "El sistema emplea cinco señales: un modelo opaco `detect_clickbait` entrenado en tuits con etiqueta humana que mide la forma pero no sirve remotamente, y `analyze_sentiment` para el tono, ambos sin explicación intrínseca. Para la forma existen dos modelos interpretables (`detect_clickbait_lexical` y `detect_clickbait_linear`) que buscan pistas léxicas específicas; el primero falla en el 15.5% de los casos de noticias y el segundo no generaliza bien fuera de titulares periodísticos. La única señal de engaño es `detect_clickbait_incoherence`, híbrida y opaca en sus características, que compara titular y cuerpo pero requiere el texto completo y depende de una instalación local específica. Todas están limitadas al inglés y presentan umbrales o rendimientos variables según si el dominio son titulares de noticias o tuits de redes sociales.",
+   "herramientas": [
+    "describe_models"
+   ],
+   "repetidas": [],
+   "vueltas": [
+    {
+     "prompt_tokens": 3695,
+     "output_tokens": 82,
+     "load_s": 0.002261266,
+     "total_s": 2.937534189,
+     "pide": [
+      "describe_models"
+     ]
+    },
+    {
+     "prompt_tokens": 6628,
+     "output_tokens": 191,
+     "load_s": 0.001789268,
+     "total_s": 9.086583039,
+     "pide": []
+    }
+   ],
+   "total_s": 12.137229156003741,
+   "pasos": [
+    {
+     "kind": "model",
+     "round": 1,
+     "content": "",
+     "tool_calls": [
+      "describe_models"
+     ],
+     "metrics": {
+      "prompt_tokens": 3695,
+      "output_tokens": 82,
+      "load_s": 0.002261266,
+      "total_s": 2.937534189
+     }
+    },
+    {
+     "kind": "tool",
+     "round": 1,
+     "name": "describe_models",
+     "arguments": {},
+     "status": "ok",
+     "data": {
+      "result": [
+       {
+        "signal": "detect_clickbait",
+        "model_id": "Stremie/roberta-base-clickbait",
+        "name": "RoBERTa dedicado (entrenado en Webis-17)",
+        "task": "Clasifica el titular como clickbait vs factual con un modelo afinado específicamente para esta tarea.",
+        "type": "opaque",
+        "dimension": "form",
+        "limitations": [
+         "Caja negra: sin explicación intrínseca (post-hoc opcional, R3.11).",
+         "Solo inglés. Entrenado sobre `postText` de Webis-17, es decir TUITS de medios, no titulares de portada.",
+         "INDEPENDENCIA DESCONOCIDA, que no es lo mismo que buena: en Chakraborty coincide mucho con el par acoplado (kappa 0.726 con el léxico y 0.772 con el lineal), pero ahí tres clasificadores competentes coinciden por fuerza, así que ese número no informa. Medirla bien exige un corpus con etiqueta humana que el modelo no haya visto — candidato en #121: Webis-Clickbait-16.",
+         "SPLIT DE ENTRENAMIENTO DESCONOCIDO: su ficha dice «Webis-Clickbait-17» sin precisar cuál de los dos splits, que son disjuntos. Medido en ambos: F1 0.631 en `train170331` (2459) y 0.758 en `validation170630` (19484). Ninguno de los dos se parece a la puntuación de un modelo evaluado sobre su propio entrenamiento, así que NO se afirma contaminación — pero tampoco se descarta que viera uno de ellos.",
+         "Sustituye a `facebook/bart-large-mnli` (#115), elegido en E3-02 por eliminación y medido en #109 al 63.7%. La sustitución sí se decidió por medida: F1 0.946 en Chakraborty — corpus que NO vio — frente al 0.473 del anterior, y con la ambigüedad de `forma` cayendo del 37% al 15%.",
+         "A favor, y es lo que más pesa: entrenado con ETIQUETA HUMANA (`truthMean` de anotadores), no por fuente. Es la única señal del sistema con supervisión no sesgada por el medio que publicó el titular — el fallo que #76 destapó y #109 cuantificó.",
+         "No memoriza, verificado: rinde MEJOR fuera de su dominio (F1 0.946 en Chakraborty) que dentro (0.631 y 0.758 en los dos splits de Webis), el patrón inverso al de `elozano/bert-base-cased-clickbait-news`, descartado por 99.7% dentro y F1 0.185 fuera.",
+         "Ese 0.946 de Chakraborty NO significa que sea mejor ahí (#121): Chakraborty etiqueta por fuente y ese método no puede producir casos dudosos, así que mide sólo la mitad fácil del problema. Restringiendo Webis a los titulares donde los 5 anotadores coinciden — lo más parecido a Chakraborty que hay dentro de Webis — sube a F1 0.906, y el resto lo explica el balance de clases.",
+         "NO SE PUEDE SERVIR EN REMOTO, y es permanente: `hf-inference` responde `400 Model not supported by provider`. Detectado el 2026-09-03 al ejecutar la pantalla contra la API de verdad, y confirmado el 2026-09-07 contra el catálogo del proveedor: la ficha del Hub no declara ninguno (`inferenceProviderMapping` vacío) y NINGUNO de los 40 modelos de clickbait del Hub lo tiene. HuggingFace sirve por demanda, y éste tiene 59 descargas/mes frente a los 3.248.238 del de sentimiento, que sí responde por la misma vía y con el mismo token. Doce reintentos en dos minutos no lo reactivan. Con `nlp_backend=remote` esta señal sale SIEMPRE en `error` y el veredicto se emite con las otras cuatro.",
+         "Y la vía local, que es la única que queda, DEPENDE DE UN PAQUETE QUE `requirements.txt` NO TRAE: `torch`. No es un descuido —es lo que mantiene ligero al CI, que mockea los backends—, así que una instalación hecha sólo con `requirements.txt` no puede ejecutar esta señal por ninguna de las dos vías. El despliegue sí: la imagen instala la rueda CPU-only de torch (#162) y el compose fija `nlp_backend=local` (#164). Medido el 2026-09-08: con esa rueda (769 MB) la señal responde sin GPU, con 1.201 MB de RAM para los tres modelos y 0.11 s por análisis en caliente.",
+         "Contexto imprescindible para leer cualquiera de estos números: el techo humano de la tarea es F1 0.665, y sólo el 34.9% de los titulares tiene a los 5 anotadores de acuerdo (#121). Sus errores se concentran donde las personas discrepan (92.9% de los fallos en el 65.1% dudoso) y su confianza baja ahí (0.918 vs 0.834), sin haber visto nunca los juicios individuales."
+        ],
+        "backend": "local"
+       },
+       {
+        "signal": "analyze_sentiment",
+        "model_id": "cardiffnlp/twitter-roberta-base-sentiment-latest",
+        "name": "RoBERTa afinado en tuits (3 clases)",
+        "task": "Análisis de sentimiento en 3 clases (positivo / neutral / negativo).",
+        "type": "opaque",
+        "dimension": "tone",
+        "limitations": [
+         "Entrenado en tuits, no en titulares de noticias.",
+         "Caja negra.",
+         "Solo inglés."
+        ],
+        "backend": "remote | local"
+       },
+       {
+        "signal": "detect_clickbait_incoherence",
+        "model_id": "sentence-transformers/all-MiniLM-L6-v2",
+        "name": "MiniLM-L6-v2 (embeddings de frase)",
+        "task": "Similitud coseno titular↔contenido; una similitud baja indica posible clickbait por incoherencia.",
+        "type": "hybrid",
+        "dimension": "deception",
+        "limitations": [
+         "Decisión transparente (umbral sobre la similitud) pero feature opaca (embeddings).",
+         "Umbral 0.3 CALIBRADO en #92 sobre 19484 pares de Webis-17, eligiéndolo en una mitad y midiéndolo en la otra: es el punto de mayor precisión de la curva (0.649 en test) a cambio de pronunciarse sólo en el 7.4% de los titulares. ROC-AUC de la señal 0.720.",
+         "Sólo lee los primeros 1000 caracteres del cuerpo, porque el modelo trunca a 256 tokens de todas formas. Medido: trocear el artículo entero y quedarse con la mayor similitud da AUC 0.717 frente a 0.716 truncando — el resto del texto no aportaba nada.",
+         "REDUNDANTE con la señal dedicada: `dedicada ∨ incoherencia` BAJA la precisión de 0.709 a 0.673, así que los casos que añade son mayoritariamente falsos. Aporta en cambio a las señales débiles (`linear ∨ incoherencia` sube F1 de 0.448 a 0.517).",
+         "Precisión de sólo 0.12 en el subconjunto donde ninguna señal de forma dispara — que es justamente el hueco que esta dimensión existe para cubrir (titulares sobrios que engañan: 470 de 8793). No es culpa del umbral: con un 5.3% de positivos y AUC 0.628 ahí, la precisión alta es inalcanzable.",
+         "Necesita el cuerpo/teaser, no solo el titular.",
+         "DEPENDE DE UN PAQUETE QUE `requirements.txt` NO TRAE: `sentence-transformers`. Y esta señal no tiene vía remota, así que una instalación hecha sólo con `requirements.txt` falla con CUALQUIER `nlp_backend`. La imagen de despliegue lo instala (#162), así que en el despliegue responde; comprobado el 2026-09-08 que ponerlo después de la rueda CPU de torch no la sustituye por la variante CUDA.",
+         "Solo inglés. Calibrado sobre TUITS con su artículo enlazado, no sobre titulares de portada."
+        ],
+        "backend": "local"
+       },
+       {
+        "signal": "detect_clickbait_lexical",
+        "model_id": null,
+        "name": "Léxico por reglas (listas de cues de Chakraborty et al. 2016)",
+        "task": "Detecta pistas léxicas/estructurales de clickbait y devuelve qué cues dispararon y dónde.",
+        "type": "interpretable",
+        "dimension": "form",
+        "limitations": [
+         "Capta clickbait de forma/estilo, no de engaño semántico.",
+         "THRESHOLD=1 agresivo: el veredicto es EXACTAMENTE el indicador «¿disparó algún cue?» — verificado, coincide con `any(featurize_cues(h))` en el 100% de 6400 titulares de dev. El score pesa en la explicación, no en la decisión.",
+         "Superficial: no entiende el significado.",
+         "No generaliza fuera de dominio sin adaptación — medido: F1 0.843 en titulares de noticias (Chakraborty test) vs 0.498 en tuits (Webis-17).",
+         "Techo de recall por cobertura del léxico: el 15.5% de los positivos de Chakraborty dev y el 32.5% de los de Webis-17 no disparan ningún cue, así que son indetectables por construcción (techo 84.5% y 67.5%). Ampliar los rasgos es #75.",
+         "A favor, y medido: su recall sigue el juicio humano de intensidad casi linealmente en Webis-17 (51.6% / 75.8% / 85.5% por tercios de `truthMean`, n=62 por tramo). Es la señal que mejor generaliza fuera de dominio de las cuatro evaluadas, por delante incluso del lineal, que se estanca en los tramos altos (61.3% -> 62.9%).",
+         "Solo inglés."
+        ],
+        "backend": "local"
+       },
+       {
+        "signal": "detect_clickbait_linear",
+        "model_id": null,
+        "name": "Regresión logística sobre features léxicas (entrenada en Chakraborty)",
+        "task": "Clickbait ponderado: aprende el peso de cada pista y devuelve los cues que más contribuyeron al veredicto.",
+        "type": "interpretable",
+        "dimension": "form",
+        "limitations": [
+         "Detecta clickbait de ESTILO: entrenado con etiquetas por-fuente (Chakraborty) → puede señalar estilo editorial más que engaño (sesgo de fuente / shortcut learning).",
+         "NO generaliza fuera de dominio sin adaptación — medido: F1 0.865 en titulares de noticias (Chakraborty test) vs 0.476 en tuits (Webis-17).",
+         "No capta engaño semántico (usa las mismas pistas de superficie que el léxico).",
+         "ACOPLADA al léxico POR CONSTRUCCIÓN, no por correlación: `featurize_cues()` llama a `lexical.detect()`, así que el veredicto del léxico es una función determinista de su propio input. kappa 0.880 en Chakraborty dev, pero la mitad de ese acuerdo es punto ciego compartido — en el 50% de los titulares el vector sale vacío y ambas responden «no» sin mirar (acuerdo forzado del 100%). Donde el vector tiene contenido el acuerdo baja al 88.0%, y al 59.1% en Webis-17.",
+         "Techo de recall heredado del featurizado: 84.5% en Chakraborty y 67.5% en Webis-17, con un recall medido de 0.478. Reentrenar los pesos no puede superarlo, porque w·0 = 0 sea cual sea w — de ahí que #75 (featurización) sea prerrequisito de #78 (reentrenamiento).",
+         "Solo inglés."
+        ],
+        "backend": "local"
+       }
+      ]
+     },
+     "error": null,
+     "server": "tfg-mcp-server",
+     "duration_s": 0.024343507997400593
+    },
+    {
+     "kind": "model",
+     "round": 2,
+     "content": "El sistema emplea cinco señales: un modelo opaco `detect_clickbait` entrenado en tuits con etiqueta humana que mide la forma pero no sirve remotamente, y `analyze_sentiment` para el tono, ambos sin explicación intrínseca. Para la forma existen dos modelos interpretables (`detect_clickbait_lexical` y `detect_clickbait_linear`) que buscan pistas léxicas específicas; el primero falla en el 15.5% de los casos de noticias y el segundo no generaliza bien fuera de titulares periodísticos. La única señal de engaño es `detect_clickbait_incoherence`, híbrida y opaca en sus características, que compara titular y cuerpo pero requiere el texto completo y depende de una instalación local específica. Todas están limitadas al inglés y presentan umbrales o rendimientos variables según si el dominio son titulares de noticias o tuits de redes sociales.",
+     "tool_calls": [],
+     "metrics": {
+      "prompt_tokens": 6628,
+      "output_tokens": 191,
+      "load_s": 0.001789268,
+      "total_s": 9.086583039
+     }
+    }
+   ],
+   "repeticion": 1,
+   "esperadas": [
+    "describe_models"
+   ],
+   "de_mas": [],
+   "sin_herramientas": false,
+   "marcadores": {
+    "nombres_internos": 5,
+    "posiciones": 0,
+    "decimales_largos": 0
+   }
+  },
+  {
+   "id": "B-04/contraste-1/r1",
+   "fuente": "B-04",
+   "categoria": "CONTRASTE",
+   "consulta": "¿Cuántas papeletas tiene 'You Won't Guess What She Did' de ser clickbait, en porcentaje?",
+   "historial": [],
+   "estado": "answered",
+   "detalle": null,
+   "respuesta": "El modelo lineal indica que el titular tiene una probabilidad de 0.999 de ser clickbait, lo que equivale al 99.9%. Este veredicto se basa en pistas léxicas específicas: la referencia vaga \"you\" con un peso de 5.62, la palabra interrogativa \"what\" con 4.616 y la referencia a tercera persona \"she\" con 2.619. La herramienta señala que el titular cumple con los criterios para ser clasificado como clickbait debido a estas señales.",
+   "herramientas": [
+    "detect_clickbait_linear"
+   ],
+   "repetidas": [],
+   "vueltas": [
+    {
+     "prompt_tokens": 3711,
+     "output_tokens": 139,
+     "load_s": 0.002802774,
+     "total_s": 4.892078395,
+     "pide": [
+      "detect_clickbait_linear"
+     ]
+    },
+    {
+     "prompt_tokens": 3828,
+     "output_tokens": 122,
+     "load_s": 0.004630744,
+     "total_s": 4.5095485,
+     "pide": []
+    }
+   ],
+   "total_s": 9.574833653998212,
+   "pasos": [
+    {
+     "kind": "model",
+     "round": 1,
+     "content": "",
+     "tool_calls": [
+      "detect_clickbait_linear"
+     ],
+     "metrics": {
+      "prompt_tokens": 3711,
+      "output_tokens": 139,
+      "load_s": 0.002802774,
+      "total_s": 4.892078395
+     }
+    },
+    {
+     "kind": "tool",
+     "round": 1,
+     "name": "detect_clickbait_linear",
+     "arguments": {
+      "headline": "You Won't Guess What She Did"
+     },
+     "status": "ok",
+     "data": {
+      "is_clickbait": true,
+      "probability": 0.9999865892100555,
+      "top_cues": [
+       [
+        "you",
+        5.619727385247914
+       ],
+       [
+        "what",
+        4.6159794596177495
+       ],
+       [
+        "she",
+        2.6186654260021585
+       ]
+      ],
+      "headline": "You Won't Guess What She Did"
+     },
+     "error": null,
+     "server": "tfg-mcp-server",
+     "duration_s": 0.024046074999205302
+    },
+    {
+     "kind": "model",
+     "round": 2,
+     "content": "El modelo lineal indica que el titular tiene una probabilidad de 0.999 de ser clickbait, lo que equivale al 99.9%. Este veredicto se basa en pistas léxicas específicas: la referencia vaga \"you\" con un peso de 5.62, la palabra interrogativa \"what\" con 4.616 y la referencia a tercera persona \"she\" con 2.619. La herramienta señala que el titular cumple con los criterios para ser clasificado como clickbait debido a estas señales.",
+     "tool_calls": [],
+     "metrics": {
+      "prompt_tokens": 3828,
+      "output_tokens": 122,
+      "load_s": 0.004630744,
+      "total_s": 4.5095485
+     }
+    }
+   ],
+   "repeticion": 1,
+   "esperadas": [
+    "detect_clickbait_linear"
+   ],
+   "de_mas": [],
+   "sin_herramientas": false,
+   "marcadores": {
+    "nombres_internos": 0,
+    "posiciones": 0,
+    "decimales_largos": 0
+   }
+  },
+  {
+   "id": "B-04/contraste-2/r1",
+   "fuente": "B-04",
+   "categoria": "CONTRASTE",
+   "consulta": "Puntúa 'Ten Foods Doctors Never Eat' y dime qué pistas pesan más en la nota",
+   "historial": [],
+   "estado": "answered",
+   "detalle": null,
+   "respuesta": "El modelo lineal asigna una probabilidad de 0.163 a que el titular sea clickbait y no identifica pistas significativas entre las analizadas. Del mismo modo, el detector léxico no encuentra ninguna pista en el texto y obtiene un score de 0. Ambas herramientas coinciden en que no hay señales de formato que indiquen clickbait en este titular.",
+   "herramientas": [
+    "detect_clickbait_linear",
+    "detect_clickbait_lexical"
+   ],
+   "repetidas": [],
+   "vueltas": [
+    {
+     "prompt_tokens": 3703,
+     "output_tokens": 233,
+     "load_s": 0.002955107,
+     "total_s": 8.020199166,
+     "pide": [
+      "detect_clickbait_linear"
+     ]
+    },
+    {
+     "prompt_tokens": 3788,
+     "output_tokens": 181,
+     "load_s": 0.004213497,
+     "total_s": 6.479673839,
+     "pide": [
+      "detect_clickbait_lexical"
+     ]
+    },
+    {
+     "prompt_tokens": 3868,
+     "output_tokens": 82,
+     "load_s": 0.001896,
+     "total_s": 3.113524544,
+     "pide": []
+    }
+   ],
+   "total_s": 17.673107751994394,
+   "pasos": [
+    {
+     "kind": "model",
+     "round": 1,
+     "content": "",
+     "tool_calls": [
+      "detect_clickbait_linear"
+     ],
+     "metrics": {
+      "prompt_tokens": 3703,
+      "output_tokens": 233,
+      "load_s": 0.002955107,
+      "total_s": 8.020199166
+     }
+    },
+    {
+     "kind": "tool",
+     "round": 1,
+     "name": "detect_clickbait_linear",
+     "arguments": {
+      "headline": "Ten Foods Doctors Never Eat"
+     },
+     "status": "ok",
+     "data": {
+      "is_clickbait": false,
+      "probability": 0.16315547411568004,
+      "top_cues": [],
+      "headline": "Ten Foods Doctors Never Eat"
+     },
+     "error": null,
+     "server": "tfg-mcp-server",
+     "duration_s": 0.02028481799789006
+    },
+    {
+     "kind": "model",
+     "round": 2,
+     "content": "",
+     "tool_calls": [
+      "detect_clickbait_lexical"
+     ],
+     "metrics": {
+      "prompt_tokens": 3788,
+      "output_tokens": 181,
+      "load_s": 0.004213497,
+      "total_s": 6.479673839
+     }
+    },
+    {
+     "kind": "tool",
+     "round": 2,
+     "name": "detect_clickbait_lexical",
+     "arguments": {
+      "headline": "Ten Foods Doctors Never Eat"
+     },
+     "status": "ok",
+     "data": {
+      "score": 0,
+      "is_clickbait": false,
+      "matches": [],
+      "headline": "Ten Foods Doctors Never Eat"
+     },
+     "error": null,
+     "server": "tfg-mcp-server",
+     "duration_s": 0.01753548000124283
+    },
+    {
+     "kind": "model",
+     "round": 3,
+     "content": "El modelo lineal asigna una probabilidad de 0.163 a que el titular sea clickbait y no identifica pistas significativas entre las analizadas. Del mismo modo, el detector léxico no encuentra ninguna pista en el texto y obtiene un score de 0. Ambas herramientas coinciden en que no hay señales de formato que indiquen clickbait en este titular.",
+     "tool_calls": [],
+     "metrics": {
+      "prompt_tokens": 3868,
+      "output_tokens": 82,
+      "load_s": 0.001896,
+      "total_s": 3.113524544
+     }
+    }
+   ],
+   "repeticion": 1,
+   "esperadas": [
+    "detect_clickbait_linear"
+   ],
+   "de_mas": [
+    "detect_clickbait_lexical"
+   ],
+   "sin_herramientas": false,
+   "marcadores": {
+    "nombres_internos": 1,
+    "posiciones": 0,
+    "decimales_largos": 0
+   }
+  },
+  {
+   "id": "B-04/contraste-3/r1",
+   "fuente": "B-04",
+   "categoria": "CONTRASTE",
+   "consulta": "¿Con qué peso contribuye cada palabra de 'Amazing Secrets Revealed' al veredicto?",
+   "historial": [],
+   "estado": "answered",
+   "detalle": null,
+   "respuesta": "El modelo lineal devuelve una probabilidad de clickbait de 0.801 para el titular. La única palabra que aparece en las pistas explicativas con un peso significativo es \"amazing\", que contribuye con 3.027 al veredicto. Las palabras \"Secrets\" y \"Revealed\" no aparecen entre las principales señales detectadas por este modelo. Por lo tanto, según esta herramienta, solo \"amazing\" tiene un peso registrado en la determinación de clickbait.",
+   "herramientas": [
+    "detect_clickbait_linear"
+   ],
+   "repetidas": [],
+   "vueltas": [
+    {
+     "prompt_tokens": 3704,
+     "output_tokens": 124,
+     "load_s": 0.001816029,
+     "total_s": 4.377735555,
+     "pide": [
+      "detect_clickbait_linear"
+     ]
+    },
+    {
+     "prompt_tokens": 3797,
+     "output_tokens": 290,
+     "load_s": 0.002201646,
+     "total_s": 10.104625736,
+     "pide": []
+    }
+   ],
+   "total_s": 14.636852005001856,
+   "pasos": [
+    {
+     "kind": "model",
+     "round": 1,
+     "content": "",
+     "tool_calls": [
+      "detect_clickbait_linear"
+     ],
+     "metrics": {
+      "prompt_tokens": 3704,
+      "output_tokens": 124,
+      "load_s": 0.001816029,
+      "total_s": 4.377735555
+     }
+    },
+    {
+     "kind": "tool",
+     "round": 1,
+     "name": "detect_clickbait_linear",
+     "arguments": {
+      "headline": "Amazing Secrets Revealed"
+     },
+     "status": "ok",
+     "data": {
+      "is_clickbait": true,
+      "probability": 0.8008430623632814,
+      "top_cues": [
+       [
+        "amazing",
+        3.026506581948977
+       ]
+      ],
+      "headline": "Amazing Secrets Revealed"
+     },
+     "error": null,
+     "server": "tfg-mcp-server",
+     "duration_s": 0.021170482999878004
+    },
+    {
+     "kind": "model",
+     "round": 2,
+     "content": "El modelo lineal devuelve una probabilidad de clickbait de 0.801 para el titular. La única palabra que aparece en las pistas explicativas con un peso significativo es \"amazing\", que contribuye con 3.027 al veredicto. Las palabras \"Secrets\" y \"Revealed\" no aparecen entre las principales señales detectadas por este modelo. Por lo tanto, según esta herramienta, solo \"amazing\" tiene un peso registrado en la determinación de clickbait.",
+     "tool_calls": [],
+     "metrics": {
+      "prompt_tokens": 3797,
+      "output_tokens": 290,
+      "load_s": 0.002201646,
+      "total_s": 10.104625736
+     }
+    }
+   ],
+   "repeticion": 1,
+   "esperadas": [
+    "detect_clickbait_linear"
+   ],
+   "de_mas": [],
+   "sin_herramientas": false,
+   "marcadores": {
+    "nombres_internos": 0,
+    "posiciones": 0,
+    "decimales_largos": 0
+   }
+  },
+  {
+   "id": "B-04/contraste-4/r1",
+   "fuente": "B-04",
+   "categoria": "CONTRASTE",
+   "consulta": "Quiero la opinión de un modelo de caja negra sobre 'Stocks Fall After Fed Decision'",
+   "historial": [],
+   "estado": "answered",
+   "detalle": null,
+   "respuesta": "El modelo de caja negra clasifica el titular \"Stocks Fall After Fed Decision\" como factual news con una confianza de 0.962 en esta etiqueta. El sistema indica que, según su evaluación, se trata de una noticia factual y no de clickbait. Este veredicto proviene directamente del análisis realizado por la herramienta sin explicaciones adicionales sobre los motivos de la clasificación.",
+   "herramientas": [
+    "detect_clickbait"
+   ],
+   "repetidas": [],
+   "vueltas": [
+    {
+     "prompt_tokens": 3703,
+     "output_tokens": 118,
+     "load_s": 0.002069163,
+     "total_s": 4.1519101,
+     "pide": [
+      "detect_clickbait"
+     ]
+    },
+    {
+     "prompt_tokens": 3772,
+     "output_tokens": 170,
+     "load_s": 0.001653266,
+     "total_s": 6.088947168,
+     "pide": []
+    }
+   ],
+   "total_s": 10.232930671001668,
+   "pasos": [
+    {
+     "kind": "model",
+     "round": 1,
+     "content": "",
+     "tool_calls": [
+      "detect_clickbait"
+     ],
+     "metrics": {
+      "prompt_tokens": 3703,
+      "output_tokens": 118,
+      "load_s": 0.002069163,
+      "total_s": 4.1519101
+     }
+    },
+    {
+     "kind": "tool",
+     "round": 1,
+     "name": "detect_clickbait",
+     "arguments": {
+      "headline": "Stocks Fall After Fed Decision"
+     },
+     "status": "ok",
+     "data": {
+      "label": "factual news",
+      "score": 0.962186336517334
+     },
+     "error": null,
+     "server": "tfg-mcp-server",
+     "duration_s": 0.027436351003416348
+    },
+    {
+     "kind": "model",
+     "round": 2,
+     "content": "El modelo de caja negra clasifica el titular \"Stocks Fall After Fed Decision\" como factual news con una confianza de 0.962 en esta etiqueta. El sistema indica que, según su evaluación, se trata de una noticia factual y no de clickbait. Este veredicto proviene directamente del análisis realizado por la herramienta sin explicaciones adicionales sobre los motivos de la clasificación.",
+     "tool_calls": [],
+     "metrics": {
+      "prompt_tokens": 3772,
+      "output_tokens": 170,
+      "load_s": 0.001653266,
+      "total_s": 6.088947168
+     }
+    }
+   ],
+   "repeticion": 1,
+   "esperadas": [
+    "detect_clickbait"
+   ],
+   "de_mas": [],
+   "sin_herramientas": false,
+   "marcadores": {
+    "nombres_internos": 1,
+    "posiciones": 0,
+    "decimales_largos": 0
+   }
+  },
+  {
+   "id": "B-04/contraste-5/r1",
+   "fuente": "B-04",
+   "categoria": "CONTRASTE",
+   "consulta": "Sin explicaciones, sólo el veredicto de la red neuronal: 'This Dog Will Melt Your Heart'",
+   "historial": [],
+   "estado": "answered",
+   "detalle": null,
+   "respuesta": "La red neuronal clasifica el titular como clickbait con una confianza de 0.954.",
+   "herramientas": [
+    "detect_clickbait"
+   ],
+   "repetidas": [],
+   "vueltas": [
+    {
+     "prompt_tokens": 3707,
+     "output_tokens": 97,
+     "load_s": 0.001526374,
+     "total_s": 3.469504449,
+     "pide": [
+      "detect_clickbait"
+     ]
+    },
+    {
+     "prompt_tokens": 3777,
+     "output_tokens": 179,
+     "load_s": 0.004998039,
+     "total_s": 6.393130567,
+     "pide": []
+    }
+   ],
+   "total_s": 9.997542433004128,
+   "pasos": [
+    {
+     "kind": "model",
+     "round": 1,
+     "content": "",
+     "tool_calls": [
+      "detect_clickbait"
+     ],
+     "metrics": {
+      "prompt_tokens": 3707,
+      "output_tokens": 97,
+      "load_s": 0.001526374,
+      "total_s": 3.469504449
+     }
+    },
+    {
+     "kind": "tool",
+     "round": 1,
+     "name": "detect_clickbait",
+     "arguments": {
+      "headline": "This Dog Will Melt Your Heart"
+     },
+     "status": "ok",
+     "data": {
+      "label": "clickbait",
+      "score": 0.9538913369178772
+     },
+     "error": null,
+     "server": "tfg-mcp-server",
+     "duration_s": 0.02603498900134582
+    },
+    {
+     "kind": "model",
+     "round": 2,
+     "content": "La red neuronal clasifica el titular como clickbait con una confianza de 0.954.",
+     "tool_calls": [],
+     "metrics": {
+      "prompt_tokens": 3777,
+      "output_tokens": 179,
+      "load_s": 0.004998039,
+      "total_s": 6.393130567
+     }
+    }
+   ],
+   "repeticion": 1,
+   "esperadas": [
+    "detect_clickbait"
+   ],
+   "de_mas": [],
+   "sin_herramientas": false,
+   "marcadores": {
+    "nombres_internos": 0,
+    "posiciones": 0,
+    "decimales_largos": 0
+   }
+  },
+  {
+   "id": "B-04/contraste-6/r1",
+   "fuente": "B-04",
+   "categoria": "CONTRASTE",
+   "consulta": "Clasifica '5 Signs You Need a Vacation' con el clasificador afinado sobre anotación humana",
+   "historial": [],
+   "estado": "answered",
+   "detalle": null,
+   "respuesta": "El clasificador afinado sobre anotación humana etiqueta el titular como clickbait con una confianza de 0.966. Este modelo opaco devuelve su veredicto y la seguridad que tiene en él sin explicar las razones. La clasificación indica que el titular presenta las características típicas de este tipo de contenido según lo aprendido en los datos de entrenamiento.",
+   "herramientas": [
+    "detect_clickbait"
+   ],
+   "repetidas": [],
+   "vueltas": [
+    {
+     "prompt_tokens": 3705,
+     "output_tokens": 256,
+     "load_s": 0.001643126,
+     "total_s": 8.818598166,
+     "pide": [
+      "detect_clickbait"
+     ]
+    },
+    {
+     "prompt_tokens": 3774,
+     "output_tokens": 162,
+     "load_s": 0.002334257,
+     "total_s": 5.838345844,
+     "pide": []
+    }
+   ],
+   "total_s": 14.853814873000374,
+   "pasos": [
+    {
+     "kind": "model",
+     "round": 1,
+     "content": "",
+     "tool_calls": [
+      "detect_clickbait"
+     ],
+     "metrics": {
+      "prompt_tokens": 3705,
+      "output_tokens": 256,
+      "load_s": 0.001643126,
+      "total_s": 8.818598166
+     }
+    },
+    {
+     "kind": "tool",
+     "round": 1,
+     "name": "detect_clickbait",
+     "arguments": {
+      "headline": "5 Signs You Need a Vacation"
+     },
+     "status": "ok",
+     "data": {
+      "label": "clickbait",
+      "score": 0.9662641882896423
+     },
+     "error": null,
+     "server": "tfg-mcp-server",
+     "duration_s": 0.026515134995861445
+    },
+    {
+     "kind": "model",
+     "round": 2,
+     "content": "El clasificador afinado sobre anotación humana etiqueta el titular como clickbait con una confianza de 0.966. Este modelo opaco devuelve su veredicto y la seguridad que tiene en él sin explicar las razones. La clasificación indica que el titular presenta las características típicas de este tipo de contenido según lo aprendido en los datos de entrenamiento.",
+     "tool_calls": [],
+     "metrics": {
+      "prompt_tokens": 3774,
+      "output_tokens": 162,
+      "load_s": 0.002334257,
+      "total_s": 5.838345844
+     }
+    }
+   ],
+   "repeticion": 1,
+   "esperadas": [
+    "detect_clickbait"
+   ],
+   "de_mas": [],
+   "sin_herramientas": false,
+   "marcadores": {
+    "nombres_internos": 0,
+    "posiciones": 0,
+    "decimales_largos": 0
+   }
+  },
+  {
+   "id": "B-04/bucle-encadena-nyt/r1",
+   "fuente": "B-04",
+   "categoria": "BUCLE",
+   "consulta": "Busca una noticia del New York Times sobre inteligencia artificial y dime si su titular es clickbait.",
+   "historial": [],
+   "estado": "answered",
+   "detalle": null,
+   "respuesta": "El titular analizado es \"OpenAI's Systems Meddled With U.S. Government Sites After Going Rogue\". El modelo detect_clickbait lo clasifica como noticia factual con una confianza de 0.888, mientras el detector léxico no encontró pistas y el modelo lineal asigna una probabilidad de 0.163 a que sea clickbait. La verificación de incoherencia muestra una similitud de 0.404 entre titular y contenido, por encima del umbral de 0.3, sin engaño detectado. Todas las señales coinciden en que no es clickbait.",
+   "herramientas": [
+    "get_nyt_news",
+    "analyze_headline"
+   ],
+   "repetidas": [],
+   "vueltas": [
+    {
+     "prompt_tokens": 3705,
+     "output_tokens": 124,
+     "load_s": 0.001822329,
+     "total_s": 5.680514455,
+     "pide": [
+      "get_nyt_news"
+     ]
+    },
+    {
+     "prompt_tokens": 5040,
+     "output_tokens": 225,
+     "load_s": 0.003001318,
+     "total_s": 8.878776257,
+     "pide": [
+      "analyze_headline"
+     ]
+    },
+    {
+     "prompt_tokens": 5802,
+     "output_tokens": 1275,
+     "load_s": 0.002965717,
+     "total_s": 44.090764102,
+     "pide": []
+    }
+   ],
+   "total_s": 59.03995073700207,
+   "pasos": [
+    {
+     "kind": "model",
+     "round": 1,
+     "content": "",
+     "tool_calls": [
+      "get_nyt_news"
+     ],
+     "metrics": {
+      "prompt_tokens": 3705,
+      "output_tokens": 124,
+      "load_s": 0.001822329,
+      "total_s": 5.680514455
+     }
+    },
+    {
+     "kind": "tool",
+     "round": 1,
+     "name": "get_nyt_news",
+     "arguments": {
+      "topic": "artificial intelligence",
+      "days": 7
+     },
+     "status": "ok",
+     "data": {
+      "result": [
+       {
+        "title": "OpenAI’s Systems Meddled With U.S. Government Sites After Going Rogue",
+        "print_headline": "Systems of OpenAI Go Rogue And Target Government Sites ",
+        "url": "https://www.nytimes.com/2026/09/25/technology/openais-ai-us-government-websites.html",
+        "date": "2026-09-25T23:16:40Z",
+        "content": "The company did not learn until recently that its technology had meddled with websites for the Education and Commerce Departments and the Securities and Exchange Commission."
+       },
+       {
+        "title": "Your A.I. Questions Answered",
+        "print_headline": "",
+        "url": "https://www.nytimes.com/2026/09/29/podcasts/the-headlines/ai-questions-answers.html",
+        "date": "2026-09-29T09:43:17Z",
+        "content": "Are you using artificial intelligence without even knowing it? And what’s behind the wave of doomsday warnings?"
+       },
+       {
+        "title": "The Big Threat Has Been Climate Change. Now Comes A.I.",
+        "print_headline": "A.I. Threat Grabs Attention From Climate Risks",
+        "url": "https://www.nytimes.com/2026/09/22/climate/climate-change-artificial-intelligence-global-threat.html",
+        "date": "2026-09-22T09:02:26Z",
+        "content": "Both are human-caused, both are frightening, and one of them has raced to the forefront of the global conversation."
+       },
+       {
+        "title": "College Leaders Are Using A.I. Students Call It Hypocrisy.",
+        "print_headline": "",
+        "url": "https://www.nytimes.com/2026/09/29/us/college-professors-administrators-ai-dartmouth.html",
+        "date": "2026-09-29T09:02:11Z",
+        "content": "Dartmouth said it would investigate its provost over A.I. accusations. Similar controversies on other campuses have prompted frustration among students."
+       },
+       {
+        "title": "As A.I. Fears Grow, President Milei Pitches Argentina as a Rules-Free Haven",
+        "print_headline": "",
+        "url": "https://www.nytimes.com/2026/09/29/world/americas/argentina-ai-rules-milei.html",
+        "date": "2026-09-29T09:03:12Z",
+        "content": "Mr. Milei wants to go all in on artificial intelligence even as other leaders struggle to get a handle on a technology many fear poses existential threats."
+       },
+       {
+        "title": "Trump to Dine With Anthropic Co-Founder, Who Has Warned of A.I.’s Risks",
+        "print_headline": "",
+        "url": "https://www.nytimes.com/2026/09/27/us/politics/trump-amodei-anthropic-artificial-intelligence.html",
+        "date": "2026-09-27T21:22:35Z",
+        "content": "Dario Amodei, who is also the company’s chief executive, will join the president at the White House for a private dinner. Mr. Trump has dismissed his cautions."
+       },
+       {
+        "title": "A New A.I. Agent Enters the Marketplace: OpenAI’s Dots",
+        "print_headline": "",
+        "url": "https://www.nytimes.com/2026/09/29/technology/openai-dots-ai-agents.html",
+        "date": "2026-09-29T17:15:06Z",
+        "content": "The ChatGPT maker unveiled agents that act as assistants, just weeks after Meta released Muse, as it faces scrutiny over incidents involving its technology."
+       },
+       {
+        "title": "The Surprising Reasons China Is Skeptical of A.I. Safety Calls",
+        "print_headline": "China Puts Little Stock In American Warnings About A.I. Doomsday",
+        "url": "https://www.nytimes.com/2026/09/27/world/asia/china-us-ai-distrust.html",
+        "date": "2026-09-27T04:01:25Z",
+        "content": "In China, A.I. doomsday warnings can feel distinctly Western or like a ploy to stop Chinese A.I. companies from trying to overtake their U.S. rivals."
+       },
+       {
+        "title": "A.I. Is Not a Doctor. We Need Human Ones.",
+        "print_headline": "A.I. Is Not a Doctor. We Need Human Ones.",
+        "url": "https://www.nytimes.com/2026/09/28/opinion/ai-doctor.html",
+        "date": "2026-09-28T16:36:07Z",
+        "content": "Readers respond to a front-page article, “Doctor A.I. Will See You, in Spite of Misgivings.” Also: Canada won’t yield; the lasting value of collective joy."
+       },
+       {
+        "title": "Job Titles Are Out. Now We’re All ‘Members of the Technical Staff.’",
+        "print_headline": "‘Member of the Technical Staff’",
+        "url": "https://www.nytimes.com/2026/09/27/business/members-of-technical-staff-artificial-intelligence.html",
+        "date": "2026-09-27T09:01:00Z",
+        "content": "Use of the generic title has risen by 50 percent in the last year among employees at Anthropic, OpenAI and other A.I. companies, an analysis found."
+       }
+      ]
+     },
+     "error": null,
+     "server": "tfg-mcp-server",
+     "duration_s": 0.21695344299951103
+    },
+    {
+     "kind": "model",
+     "round": 2,
+     "content": "",
+     "tool_calls": [
+      "analyze_headline"
+     ],
+     "metrics": {
+      "prompt_tokens": 5040,
+      "output_tokens": 225,
+      "load_s": 0.003001318,
+      "total_s": 8.878776257
+     }
+    },
+    {
+     "kind": "tool",
+     "round": 2,
+     "name": "analyze_headline",
+     "arguments": {
+      "headline": "OpenAI's Systems Meddled With U.S. Government Sites After Going Rogue",
+      "content": "The company did not learn until recently that its technology had meddled with websites for the Education and Commerce Departments and the Securities and Exchange Commission."
+     },
+     "status": "ok",
+     "data": {
+      "headline": "OpenAI's Systems Meddled With U.S. Government Sites After Going Rogue",
+      "content": "The company did not learn until recently that its technology had meddled with websites for the Education and Commerce Departments and the Securities and Exchange Commission.",
+      "signals": [
+       {
+        "name": "detect_clickbait",
+        "label": "RoBERTa dedicado (entrenado en Webis-17)",
+        "status": "ok",
+        "dimension": "form",
+        "type": "opaque",
+        "is_clickbait": false,
+        "data": {
+         "label": "factual news",
+         "score": 0.8879929184913635
+        },
+        "detail": null
+       },
+       {
+        "name": "detect_clickbait_lexical",
+        "label": "Léxico por reglas (listas de cues de Chakraborty et al. 2016)",
+        "status": "ok",
+        "dimension": "form",
+        "type": "interpretable",
+        "is_clickbait": false,
+        "data": {
+         "score": 0,
+         "is_clickbait": false,
+         "matches": [],
+         "headline": "OpenAI's Systems Meddled With U.S. Government Sites After Going Rogue"
+        },
+        "detail": null
+       },
+       {
+        "name": "detect_clickbait_linear",
+        "label": "Regresión logística sobre features léxicas (entrenada en Chakraborty)",
+        "status": "ok",
+        "dimension": "form",
+        "type": "interpretable",
+        "is_clickbait": false,
+        "data": {
+         "is_clickbait": false,
+         "probability": 0.16315547411568004,
+         "top_cues": [],
+         "headline": "OpenAI's Systems Meddled With U.S. Government Sites After Going Rogue"
+        },
+        "detail": null
+       },
+       {
+        "name": "detect_clickbait_incoherence",
+        "label": "MiniLM-L6-v2 (embeddings de frase)",
+        "status": "ok",
+        "dimension": "deception",
+        "type": "hybrid",
+        "is_clickbait": false,
+        "data": {
+         "similarity": 0.40367478132247925,
+         "incoherent": false,
+         "threshold": 0.3,
+         "headline": "OpenAI's Systems Meddled With U.S. Government Sites After Going Rogue",
+         "content": "The company did not learn until recently that its technology had meddled with websites for the Education and Commerce Departments and the Securities and Exchange Commission."
+        },
+        "detail": null
+       },
+       {
+        "name": "analyze_sentiment",
+        "label": "RoBERTa afinado en tuits (3 clases)",
+        "status": "ok",
+        "dimension": "tone",
+        "type": "opaque",
+        "is_clickbait": null,
+        "data": {
+         "label": "neutral",
+         "score": 0.8222241401672363
+        },
+        "detail": null
+       }
+      ],
+      "dimensions": [
+       {
+        "dimension": "form",
+        "is_clickbait": false,
+        "contributing": [
+         "detect_clickbait",
+         "detect_clickbait_lexical",
+         "detect_clickbait_linear"
+        ]
+       },
+       {
+        "dimension": "deception",
+        "is_clickbait": false,
+        "contributing": [
+         "detect_clickbait_incoherence"
+        ]
+       }
+      ],
+      "verdict": "factual"
+     },
+     "error": null,
+     "server": "tfg-mcp-server",
+     "duration_s": 0.08599910700286273
+    },
+    {
+     "kind": "model",
+     "round": 3,
+     "content": "El titular analizado es \"OpenAI's Systems Meddled With U.S. Government Sites After Going Rogue\". El modelo detect_clickbait lo clasifica como noticia factual con una confianza de 0.888, mientras el detector léxico no encontró pistas y el modelo lineal asigna una probabilidad de 0.163 a que sea clickbait. La verificación de incoherencia muestra una similitud de 0.404 entre titular y contenido, por encima del umbral de 0.3, sin engaño detectado. Todas las señales coinciden en que no es clickbait.",
+     "tool_calls": [],
+     "metrics": {
+      "prompt_tokens": 5802,
+      "output_tokens": 1275,
+      "load_s": 0.002965717,
+      "total_s": 44.090764102
+     }
+    }
+   ],
+   "repeticion": 1,
+   "esperadas": [
+    "analyze_headline",
+    "detect_clickbait",
+    "detect_clickbait_lexical",
+    "detect_clickbait_linear",
+    "get_nyt_news"
+   ],
+   "de_mas": [],
+   "sin_herramientas": false,
+   "marcadores": {
+    "nombres_internos": 1,
+    "posiciones": 0,
+    "decimales_largos": 0
+   }
+  },
+  {
+   "id": "B-04/bucle-dos-senales/r1",
+   "fuente": "B-04",
+   "categoria": "BUCLE",
+   "consulta": "Del titular 'This Simple Trick Will Shock You': dime qué pistas léxicas tiene y también su probabilidad según el modelo entrenado.",
+   "historial": [],
+   "estado": "answered",
+   "detalle": null,
+   "respuesta": "El detector léxico encuentra dos pistas en el titular: una referencia anticipada \"this\" en la posición [0,4] y otra referencia anticipada \"you\" en la posición [29,32], con un score de 2 que clasifica el titular como clickbait. El modelo lineal entrenado devuelve una probabilidad de 0.999 de que sea clickbait, siendo las pistas que más pesan \"you\" con 5.62 y \"this\" con 3.861 en su cálculo ponderado. Ambas herramientas identifican las mismas referencias vagas como señales principales.",
+   "herramientas": [
+    "detect_clickbait_lexical",
+    "detect_clickbait_linear"
+   ],
+   "repetidas": [],
+   "vueltas": [
+    {
+     "prompt_tokens": 3712,
+     "output_tokens": 233,
+     "load_s": 0.002793335,
+     "total_s": 8.022978792,
+     "pide": [
+      "detect_clickbait_lexical",
+      "detect_clickbait_linear"
+     ]
+    },
+    {
+     "prompt_tokens": 3933,
+     "output_tokens": 351,
+     "load_s": 0.01003881,
+     "total_s": 12.258867847,
+     "pide": []
+    }
+   ],
+   "total_s": 20.31725302200357,
+   "pasos": [
+    {
+     "kind": "model",
+     "round": 1,
+     "content": "",
+     "tool_calls": [
+      "detect_clickbait_lexical",
+      "detect_clickbait_linear"
+     ],
+     "metrics": {
+      "prompt_tokens": 3712,
+      "output_tokens": 233,
+      "load_s": 0.002793335,
+      "total_s": 8.022978792
+     }
+    },
+    {
+     "kind": "tool",
+     "round": 1,
+     "name": "detect_clickbait_lexical",
+     "arguments": {
+      "headline": "This Simple Trick Will Shock You"
+     },
+     "status": "ok",
+     "data": {
+      "score": 2,
+      "is_clickbait": true,
+      "matches": [
+       {
+        "category": "forward_reference",
+        "cue": "this",
+        "span": [
+         0,
+         4
+        ]
+       },
+       {
+        "category": "forward_reference",
+        "cue": "you",
+        "span": [
+         29,
+         32
+        ]
+       }
+      ],
+      "headline": "This Simple Trick Will Shock You"
+     },
+     "error": null,
+     "server": "tfg-mcp-server",
+     "duration_s": 0.01852754599531181
+    },
+    {
+     "kind": "tool",
+     "round": 1,
+     "name": "detect_clickbait_linear",
+     "arguments": {
+      "headline": "This Simple Trick Will Shock You"
+     },
+     "status": "ok",
+     "data": {
+      "is_clickbait": true,
+      "probability": 0.9996088089831324,
+      "top_cues": [
+       [
+        "you",
+        5.619727385247914
+       ],
+       [
+        "this",
+        3.861130656757006
+       ]
+      ],
+      "headline": "This Simple Trick Will Shock You"
+     },
+     "error": null,
+     "server": "tfg-mcp-server",
+     "duration_s": 0.01576674499665387
+    },
+    {
+     "kind": "model",
+     "round": 2,
+     "content": "El detector léxico encuentra dos pistas en el titular: una referencia anticipada \"this\" en la posición [0,4] y otra referencia anticipada \"you\" en la posición [29,32], con un score de 2 que clasifica el titular como clickbait. El modelo lineal entrenado devuelve una probabilidad de 0.999 de que sea clickbait, siendo las pistas que más pesan \"you\" con 5.62 y \"this\" con 3.861 en su cálculo ponderado. Ambas herramientas identifican las mismas referencias vagas como señales principales.",
+     "tool_calls": [],
+     "metrics": {
+      "prompt_tokens": 3933,
+      "output_tokens": 351,
+      "load_s": 0.01003881,
+      "total_s": 12.258867847
+     }
+    }
+   ],
+   "repeticion": 1,
+   "esperadas": [
+    "detect_clickbait_lexical",
+    "detect_clickbait_linear"
+   ],
+   "de_mas": [],
+   "sin_herramientas": false,
+   "marcadores": {
+    "nombres_internos": 1,
+    "posiciones": 2,
+    "decimales_largos": 0
+   }
+  },
+  {
+   "id": "B-04/bucle-analisis-completo/r1",
+   "fuente": "B-04",
+   "categoria": "BUCLE",
+   "consulta": "Analiza a fondo el titular 'You Won't Believe What This Dog Did Next' con todas las señales del sistema.",
+   "historial": [],
+   "estado": "answered",
+   "detalle": null,
+   "respuesta": "El veredicto del sistema es `stylistic_clickbait` para el titular 'You Won't Believe What This Dog Did Next'. En la dimensión de forma, todas las señales coinciden en que es clickbait: el detector léxico reporta un score de 4 con pistas como forward_reference en 'you' [0,3], 'what' [18,22], 'this' [23,27] y 'dog' [28,31]; el modelo lineal asigna una probabilidad de 0.999 destacando las palabras 'you', 'what' y 'this' como las que más pesan; y la caja negra clasifica el titular como clickbait con 0.95 de confianza. Por su parte, la dimensión de engaño no es aplicable al no haberse proporcionado el cuerpo del artículo para evaluar la incoherencia. Finalmente, el análisis de sentimiento etiqueta el tono como negative con una confianza de 0.764.",
+   "herramientas": [
+    "analyze_headline"
+   ],
+   "repetidas": [],
+   "vueltas": [
+    {
+     "prompt_tokens": 3708,
+     "output_tokens": 172,
+     "load_s": 0.002700723,
+     "total_s": 5.965655289,
+     "pide": [
+      "analyze_headline"
+     ]
+    },
+    {
+     "prompt_tokens": 4426,
+     "output_tokens": 216,
+     "load_s": 0.001691067,
+     "total_s": 8.119979176,
+     "pide": []
+    }
+   ],
+   "total_s": 14.196310971005005,
+   "pasos": [
+    {
+     "kind": "model",
+     "round": 1,
+     "content": "",
+     "tool_calls": [
+      "analyze_headline"
+     ],
+     "metrics": {
+      "prompt_tokens": 3708,
+      "output_tokens": 172,
+      "load_s": 0.002700723,
+      "total_s": 5.965655289
+     }
+    },
+    {
+     "kind": "tool",
+     "round": 1,
+     "name": "analyze_headline",
+     "arguments": {
+      "headline": "You Won't Believe What This Dog Did Next",
+      "content": "None"
+     },
+     "status": "ok",
+     "data": {
+      "headline": "You Won't Believe What This Dog Did Next",
+      "content": null,
+      "signals": [
+       {
+        "name": "detect_clickbait",
+        "label": "RoBERTa dedicado (entrenado en Webis-17)",
+        "status": "ok",
+        "dimension": "form",
+        "type": "opaque",
+        "is_clickbait": true,
+        "data": {
+         "label": "clickbait",
+         "score": 0.9503374695777893
+        },
+        "detail": null
+       },
+       {
+        "name": "detect_clickbait_lexical",
+        "label": "Léxico por reglas (listas de cues de Chakraborty et al. 2016)",
+        "status": "ok",
+        "dimension": "form",
+        "type": "interpretable",
+        "is_clickbait": true,
+        "data": {
+         "score": 4,
+         "is_clickbait": true,
+         "matches": [
+          {
+           "category": "forward_reference",
+           "cue": "you",
+           "span": [
+            0,
+            3
+           ]
+          },
+          {
+           "category": "forward_reference",
+           "cue": "what",
+           "span": [
+            18,
+            22
+           ]
+          },
+          {
+           "category": "forward_reference",
+           "cue": "this",
+           "span": [
+            23,
+            27
+           ]
+          },
+          {
+           "category": "forward_reference",
+           "cue": "dog",
+           "span": [
+            28,
+            31
+           ]
+          }
+         ],
+         "headline": "You Won't Believe What This Dog Did Next"
+        },
+        "detail": null
+       },
+       {
+        "name": "detect_clickbait_linear",
+        "label": "Regresión logística sobre features léxicas (entrenada en Chakraborty)",
+        "status": "ok",
+        "dimension": "form",
+        "type": "interpretable",
+        "is_clickbait": true,
+        "data": {
+         "is_clickbait": true,
+         "probability": 0.9999991584263505,
+         "top_cues": [
+          [
+           "you",
+           5.619727385247914
+          ],
+          [
+           "what",
+           4.6159794596177495
+          ],
+          [
+           "this",
+           3.861130656757006
+          ],
+          [
+           "dog",
+           1.526088688773723
+          ]
+         ],
+         "headline": "You Won't Believe What This Dog Did Next"
+        },
+        "detail": null
+       },
+       {
+        "name": "detect_clickbait_incoherence",
+        "label": "MiniLM-L6-v2 (embeddings de frase)",
+        "status": "not_applicable",
+        "dimension": "deception",
+        "type": "hybrid",
+        "is_clickbait": null,
+        "data": null,
+        "detail": "Requiere el cuerpo o teaser de la noticia."
+       },
+       {
+        "name": "analyze_sentiment",
+        "label": "RoBERTa afinado en tuits (3 clases)",
+        "status": "ok",
+        "dimension": "tone",
+        "type": "opaque",
+        "is_clickbait": null,
+        "data": {
+         "label": "negative",
+         "score": 0.7640712857246399
+        },
+        "detail": null
+       }
+      ],
+      "dimensions": [
+       {
+        "dimension": "form",
+        "is_clickbait": true,
+        "contributing": [
+         "detect_clickbait",
+         "detect_clickbait_lexical",
+         "detect_clickbait_linear"
+        ]
+       }
+      ],
+      "verdict": "stylistic_clickbait"
+     },
+     "error": null,
+     "server": "tfg-mcp-server",
+     "duration_s": 0.05353021200426156
+    },
+    {
+     "kind": "model",
+     "round": 2,
+     "content": "El veredicto del sistema es `stylistic_clickbait` para el titular 'You Won't Believe What This Dog Did Next'. En la dimensión de forma, todas las señales coinciden en que es clickbait: el detector léxico reporta un score de 4 con pistas como forward_reference en 'you' [0,3], 'what' [18,22], 'this' [23,27] y 'dog' [28,31]; el modelo lineal asigna una probabilidad de 0.999 destacando las palabras 'you', 'what' y 'this' como las que más pesan; y la caja negra clasifica el titular como clickbait con 0.95 de confianza. Por su parte, la dimensión de engaño no es aplicable al no haberse proporcionado el cuerpo del artículo para evaluar la incoherencia. Finalmente, el análisis de sentimiento etiqueta el tono como negative con una confianza de 0.764.",
+     "tool_calls": [],
+     "metrics": {
+      "prompt_tokens": 4426,
+      "output_tokens": 216,
+      "load_s": 0.001691067,
+      "total_s": 8.119979176
+     }
+    }
+   ],
+   "repeticion": 1,
+   "esperadas": [
+    "analyze_headline",
+    "analyze_sentiment",
+    "detect_clickbait",
+    "detect_clickbait_incoherence",
+    "detect_clickbait_lexical",
+    "detect_clickbait_linear"
+   ],
+   "de_mas": [],
+   "sin_herramientas": false,
+   "marcadores": {
+    "nombres_internos": 4,
+    "posiciones": 4,
+    "decimales_largos": 0
+   }
+  },
+  {
+   "id": "B-04/bucle-incoherencia/r1",
+   "fuente": "B-04",
+   "categoria": "BUCLE",
+   "consulta": "¿El titular 'Miracle Cure Discovered' encaja con el texto 'A small trial found modest effects in mice after eight weeks'?",
+   "historial": [],
+   "estado": "answered",
+   "detalle": null,
+   "respuesta": "El detector opaco clasifica el titular como clickbait con una confianza de 0.893, mientras que los detectores interpretables de forma no encuentran pistas léxicas, dando un score de 0 y una probabilidad de 0.163 respectivamente. La señal híbrida de incoherencia sí detecta engaño al encontrar una similitud de 0.279 entre titular y cuerpo, por debajo del umbral de 0.3, marcándolo como incoherente. El análisis de sentimiento clasifica el tono como neutral con score 0.528. Ante estas discrepancias entre forma y engaño, el veredicto global resultante es deceptive.",
+   "herramientas": [
+    "analyze_headline"
+   ],
+   "repetidas": [],
+   "vueltas": [
+    {
+     "prompt_tokens": 3713,
+     "output_tokens": 330,
+     "load_s": 0.010478457,
+     "total_s": 11.302254035,
+     "pide": [
+      "analyze_headline"
+     ]
+    },
+    {
+     "prompt_tokens": 4367,
+     "output_tokens": 395,
+     "load_s": 0.002379788,
+     "total_s": 14.191766503,
+     "pide": []
+    }
+   ],
+   "total_s": 25.67006575000414,
+   "pasos": [
+    {
+     "kind": "model",
+     "round": 1,
+     "content": "",
+     "tool_calls": [
+      "analyze_headline"
+     ],
+     "metrics": {
+      "prompt_tokens": 3713,
+      "output_tokens": 330,
+      "load_s": 0.010478457,
+      "total_s": 11.302254035
+     }
+    },
+    {
+     "kind": "tool",
+     "round": 1,
+     "name": "analyze_headline",
+     "arguments": {
+      "headline": "Miracle Cure Discovered",
+      "content": "A small trial found modest effects in mice after eight weeks"
+     },
+     "status": "ok",
+     "data": {
+      "headline": "Miracle Cure Discovered",
+      "content": "A small trial found modest effects in mice after eight weeks",
+      "signals": [
+       {
+        "name": "detect_clickbait",
+        "label": "RoBERTa dedicado (entrenado en Webis-17)",
+        "status": "ok",
+        "dimension": "form",
+        "type": "opaque",
+        "is_clickbait": true,
+        "data": {
+         "label": "clickbait",
+         "score": 0.8931282758712769
+        },
+        "detail": null
+       },
+       {
+        "name": "detect_clickbait_lexical",
+        "label": "Léxico por reglas (listas de cues de Chakraborty et al. 2016)",
+        "status": "ok",
+        "dimension": "form",
+        "type": "interpretable",
+        "is_clickbait": false,
+        "data": {
+         "score": 0,
+         "is_clickbait": false,
+         "matches": [],
+         "headline": "Miracle Cure Discovered"
+        },
+        "detail": null
+       },
+       {
+        "name": "detect_clickbait_linear",
+        "label": "Regresión logística sobre features léxicas (entrenada en Chakraborty)",
+        "status": "ok",
+        "dimension": "form",
+        "type": "interpretable",
+        "is_clickbait": false,
+        "data": {
+         "is_clickbait": false,
+         "probability": 0.16315547411568004,
+         "top_cues": [],
+         "headline": "Miracle Cure Discovered"
+        },
+        "detail": null
+       },
+       {
+        "name": "detect_clickbait_incoherence",
+        "label": "MiniLM-L6-v2 (embeddings de frase)",
+        "status": "ok",
+        "dimension": "deception",
+        "type": "hybrid",
+        "is_clickbait": true,
+        "data": {
+         "similarity": 0.27864810824394226,
+         "incoherent": true,
+         "threshold": 0.3,
+         "headline": "Miracle Cure Discovered",
+         "content": "A small trial found modest effects in mice after eight weeks"
+        },
+        "detail": null
+       },
+       {
+        "name": "analyze_sentiment",
+        "label": "RoBERTa afinado en tuits (3 clases)",
+        "status": "ok",
+        "dimension": "tone",
+        "type": "opaque",
+        "is_clickbait": null,
+        "data": {
+         "label": "neutral",
+         "score": 0.5283191204071045
+        },
+        "detail": null
+       }
+      ],
+      "dimensions": [
+       {
+        "dimension": "form",
+        "is_clickbait": null,
+        "contributing": [
+         "detect_clickbait",
+         "detect_clickbait_lexical",
+         "detect_clickbait_linear"
+        ]
+       },
+       {
+        "dimension": "deception",
+        "is_clickbait": true,
+        "contributing": [
+         "detect_clickbait_incoherence"
+        ]
+       }
+      ],
+      "verdict": "deceptive"
+     },
+     "error": null,
+     "server": "tfg-mcp-server",
+     "duration_s": 0.09848158599925227
+    },
+    {
+     "kind": "model",
+     "round": 2,
+     "content": "El detector opaco clasifica el titular como clickbait con una confianza de 0.893, mientras que los detectores interpretables de forma no encuentran pistas léxicas, dando un score de 0 y una probabilidad de 0.163 respectivamente. La señal híbrida de incoherencia sí detecta engaño al encontrar una similitud de 0.279 entre titular y cuerpo, por debajo del umbral de 0.3, marcándolo como incoherente. El análisis de sentimiento clasifica el tono como neutral con score 0.528. Ante estas discrepancias entre forma y engaño, el veredicto global resultante es deceptive.",
+     "tool_calls": [],
+     "metrics": {
+      "prompt_tokens": 4367,
+      "output_tokens": 395,
+      "load_s": 0.002379788,
+      "total_s": 14.191766503
+     }
+    }
+   ],
+   "repeticion": 1,
+   "esperadas": [
+    "analyze_headline",
+    "detect_clickbait_incoherence"
+   ],
+   "de_mas": [],
+   "sin_herramientas": false,
+   "marcadores": {
+    "nombres_internos": 2,
+    "posiciones": 0,
+    "decimales_largos": 0
+   }
+  },
+  {
+   "id": "B-04/bucle-encadena-guardian/r1",
+   "fuente": "B-04",
+   "categoria": "BUCLE",
+   "consulta": "Busca en The Guardian una noticia sobre el clima y dime si su titular es clickbait.",
+   "historial": [],
+   "estado": "answered",
+   "detalle": null,
+   "respuesta": "El análisis del titular \"Why is the UK’s suppressed climate national security report significant?\" arroja un veredicto global ambiguo debido a discrepancias entre las señales. El detector opaco clasifica el titular como clickbait con una confianza de 0.543, y la herramienta léxica identifica una pista de tipo \"question\" en la posición [71, 72]. Sin embargo, el modelo lineal estima una probabilidad de ser clickbait de apenas 0.003, indicando que no lo es. Por otra parte, la medición de incoherencia entre titular y cuerpo muestra una similitud de 0.469, por lo que no detecta engaño en el contenido.",
+   "herramientas": [
+    "get_guardian_news",
+    "analyze_headline"
+   ],
+   "repetidas": [],
+   "vueltas": [
+    {
+     "prompt_tokens": 3704,
+     "output_tokens": 127,
+     "load_s": 0.004517472,
+     "total_s": 4.537206816,
+     "pide": [
+      "get_guardian_news"
+     ]
+    },
+    {
+     "prompt_tokens": 4953,
+     "output_tokens": 68,
+     "load_s": 0.002190875,
+     "total_s": 3.451989929,
+     "pide": [
+      "analyze_headline"
+     ]
+    },
+    {
+     "prompt_tokens": 5685,
+     "output_tokens": 157,
+     "load_s": 0.002325577,
+     "total_s": 6.169651112,
+     "pide": []
+    }
+   ],
+   "total_s": 15.012214800000947,
+   "pasos": [
+    {
+     "kind": "model",
+     "round": 1,
+     "content": "",
+     "tool_calls": [
+      "get_guardian_news"
+     ],
+     "metrics": {
+      "prompt_tokens": 3704,
+      "output_tokens": 127,
+      "load_s": 0.004517472,
+      "total_s": 4.537206816
+     }
+    },
+    {
+     "kind": "tool",
+     "round": 1,
+     "name": "get_guardian_news",
+     "arguments": {
+      "topic": "climate",
+      "days": 7
+     },
+     "status": "ok",
+     "data": {
+      "result": [
+       {
+        "title": "Why is the UK’s suppressed climate national security report significant?",
+        "url": "https://www.theguardian.com/environment/2026/sep/24/explainer-uk-climate-crisis-national-security-report-suppressed",
+        "date": "2026-09-24T18:27:58Z",
+        "content": "Warnings about the catastrophic effects of vital ecosystems collapsing were not published under previous prime minister"
+       },
+       {
+        "title": "Fears mount that next UN chief will downgrade climate action",
+        "url": "https://www.theguardian.com/world/2026/sep/23/fears-mount-that-next-un-chief-will-downgrade-climate-action",
+        "date": "2026-09-23T06:00:17Z",
+        "content": "Experts say some of António Guterres’s possible successors could be ‘disastrous’ for efforts to tackle crisis"
+       },
+       {
+        "title": "Prison Letters: the teenager writing letters to jailed climate activists – documentary",
+        "url": "https://www.theguardian.com/environment/ng-interactive/2026/sep/22/prison-letters-the-teenager-writing-letters-to-jailed-climate-activists-documentary",
+        "date": "2026-09-22T11:26:21Z",
+        "content": "A teenager struggling with climate anxiety searches for hope in an unexpected place – writing letters to imprisoned activists. Max, 14, is on a quest to understand the human stories behind direct action, and why so many climate protesters have spent time in prison​"
+       },
+       {
+        "title": "Trump administration to slash clean car rules aimed at cutting climate emissions",
+        "url": "https://www.theguardian.com/us-news/2026/sep/28/trump-administration-slashes-clean-car-rules",
+        "date": "2026-09-28T15:56:32Z",
+        "content": "Environmentalists decry move that relaxes requirements on automakers to control pollution from gas-powered cars"
+       },
+       {
+        "title": "Friday briefing: How a ​grassroots ​film ​is ​turning ​climate anxiety ​into ​action",
+        "url": "https://www.theguardian.com/world/2026/sep/25/friday-briefing-how-a-grassroots-film-is-turning-climate-anxiety-into-action",
+        "date": "2026-09-25T05:45:15Z",
+        "content": "In today’s newsletter: The People’s Emergency Briefing delivers a stark warning about ​o​ur future in a warming world. ​B​ut sharing difficult truths collectively​ shows us that there is still hope to be found"
+       },
+       {
+        "title": "Labour has its own role in this climate of hate and racism | Letters",
+        "url": "https://www.theguardian.com/politics/2026/sep/29/labour-has-its-own-role-in-this-climate-of-hate-and-racism",
+        "date": "2026-09-29T16:48:57Z",
+        "content": "<strong>Letters: </strong>Readers react to a piece by Polly Toynbee in which she argues that Andy Burnham is the person to lead Britain out of its cohesion crisis "
+       },
+       {
+        "title": "UK shares findings of damning climate crisis national security report suppressed under Starmer",
+        "url": "https://www.theguardian.com/environment/2026/sep/23/uk-climate-crisis-national-security-report-suppressed-starmer-ed-miliband",
+        "date": "2026-09-23T21:21:33Z",
+        "content": "El Niño poses critical threat to nations’ defences, says Ed Miliband in presentation to global foreign ministers"
+       },
+       {
+        "title": "Wasp spider seen in north of England latest ‘climate refugee’ amid global heating",
+        "url": "https://www.theguardian.com/environment/2026/sep/22/wasp-spider-climate-refugee-north-of-england",
+        "date": "2026-09-22T12:31:11Z",
+        "content": "The <em>Argiope bruennichi</em>, spotted in Cheshire for first time, part of worrying trend that could threaten native species"
+       },
+       {
+        "title": "The climate fight has one great ally. You just can’t look at it directly | Bill McKibben",
+        "url": "https://www.theguardian.com/commentisfree/2026/sep/23/climate-un-clean-energy-2030",
+        "date": "2026-09-23T10:00:46Z",
+        "content": "There is hope in solar power. As the UN meets, we are urging leaders to pursue a clear goal: clean energy for all by 2030"
+       },
+       {
+        "title": "Big-eyed bugs and praying mantises: climate crisis drives new visitors to UK shores ",
+        "url": "https://www.theguardian.com/environment/2026/sep/24/world-warms-up-insects-moving-northwards-uk",
+        "date": "2026-09-24T08:00:12Z",
+        "content": "Britain has seen an explosion of migrating insects – in some cases from as far as northern Africa"
+       }
+      ]
+     },
+     "error": null,
+     "server": "tfg-mcp-server",
+     "duration_s": 0.7360941529987031
+    },
+    {
+     "kind": "model",
+     "round": 2,
+     "content": "",
+     "tool_calls": [
+      "analyze_headline"
+     ],
+     "metrics": {
+      "prompt_tokens": 4953,
+      "output_tokens": 68,
+      "load_s": 0.002190875,
+      "total_s": 3.451989929
+     }
+    },
+    {
+     "kind": "tool",
+     "round": 2,
+     "name": "analyze_headline",
+     "arguments": {
+      "headline": "Why is the UK’s suppressed climate national security report significant?",
+      "content": "Warnings about the catastrophic effects of vital ecosystems collapsing were not published under previous prime minister"
+     },
+     "status": "ok",
+     "data": {
+      "headline": "Why is the UK’s suppressed climate national security report significant?",
+      "content": "Warnings about the catastrophic effects of vital ecosystems collapsing were not published under previous prime minister",
+      "signals": [
+       {
+        "name": "detect_clickbait",
+        "label": "RoBERTa dedicado (entrenado en Webis-17)",
+        "status": "ok",
+        "dimension": "form",
+        "type": "opaque",
+        "is_clickbait": true,
+        "data": {
+         "label": "clickbait",
+         "score": 0.542725145816803
+        },
+        "detail": null
+       },
+       {
+        "name": "detect_clickbait_lexical",
+        "label": "Léxico por reglas (listas de cues de Chakraborty et al. 2016)",
+        "status": "ok",
+        "dimension": "form",
+        "type": "interpretable",
+        "is_clickbait": true,
+        "data": {
+         "score": 1,
+         "is_clickbait": true,
+         "matches": [
+          {
+           "category": "question",
+           "cue": "?",
+           "span": [
+            71,
+            72
+           ]
+          }
+         ],
+         "headline": "Why is the UK’s suppressed climate national security report significant?"
+        },
+        "detail": null
+       },
+       {
+        "name": "detect_clickbait_linear",
+        "label": "Regresión logística sobre features léxicas (entrenada en Chakraborty)",
+        "status": "ok",
+        "dimension": "form",
+        "type": "interpretable",
+        "is_clickbait": false,
+        "data": {
+         "is_clickbait": false,
+         "probability": 0.0028548036503576396,
+         "top_cues": [
+          [
+           "question",
+           -4.22095859934778
+          ]
+         ],
+         "headline": "Why is the UK’s suppressed climate national security report significant?"
+        },
+        "detail": null
+       },
+       {
+        "name": "detect_clickbait_incoherence",
+        "label": "MiniLM-L6-v2 (embeddings de frase)",
+        "status": "ok",
+        "dimension": "deception",
+        "type": "hybrid",
+        "is_clickbait": false,
+        "data": {
+         "similarity": 0.4688683748245239,
+         "incoherent": false,
+         "threshold": 0.3,
+         "headline": "Why is the UK’s suppressed climate national security report significant?",
+         "content": "Warnings about the catastrophic effects of vital ecosystems collapsing were not published under previous prime minister"
+        },
+        "detail": null
+       },
+       {
+        "name": "analyze_sentiment",
+        "label": "RoBERTa afinado en tuits (3 clases)",
+        "status": "ok",
+        "dimension": "tone",
+        "type": "opaque",
+        "is_clickbait": null,
+        "data": {
+         "label": "negative",
+         "score": 0.571553647518158
+        },
+        "detail": null
+       }
+      ],
+      "dimensions": [
+       {
+        "dimension": "form",
+        "is_clickbait": null,
+        "contributing": [
+         "detect_clickbait",
+         "detect_clickbait_lexical",
+         "detect_clickbait_linear"
+        ]
+       },
+       {
+        "dimension": "deception",
+        "is_clickbait": false,
+        "contributing": [
+         "detect_clickbait_incoherence"
+        ]
+       }
+      ],
+      "verdict": "ambiguous"
+     },
+     "error": null,
+     "server": "tfg-mcp-server",
+     "duration_s": 0.08789754399913363
+    },
+    {
+     "kind": "model",
+     "round": 3,
+     "content": "El análisis del titular \"Why is the UK’s suppressed climate national security report significant?\" arroja un veredicto global ambiguo debido a discrepancias entre las señales. El detector opaco clasifica el titular como clickbait con una confianza de 0.543, y la herramienta léxica identifica una pista de tipo \"question\" en la posición [71, 72]. Sin embargo, el modelo lineal estima una probabilidad de ser clickbait de apenas 0.003, indicando que no lo es. Por otra parte, la medición de incoherencia entre titular y cuerpo muestra una similitud de 0.469, por lo que no detecta engaño en el contenido.",
+     "tool_calls": [],
+     "metrics": {
+      "prompt_tokens": 5685,
+      "output_tokens": 157,
+      "load_s": 0.002325577,
+      "total_s": 6.169651112
+     }
+    }
+   ],
+   "repeticion": 1,
+   "esperadas": [
+    "analyze_headline",
+    "detect_clickbait",
+    "detect_clickbait_lexical",
+    "detect_clickbait_linear",
+    "get_guardian_news"
+   ],
+   "de_mas": [],
+   "sin_herramientas": false,
+   "marcadores": {
+    "nombres_internos": 1,
+    "posiciones": 1,
+    "decimales_largos": 0
+   }
+  },
+  {
+   "id": "B-04/bucle-segundo-turno/r1",
+   "fuente": "B-04",
+   "categoria": "BUCLE",
+   "consulta": "¿Y qué dice el modelo de caja negra?",
+   "historial": [
+    {
+     "role": "user",
+     "content": "¿Es clickbait 'Scientists Discover New Species'?"
+    },
+    {
+     "role": "assistant",
+     "content": "El detector léxico no encontró ninguna pista en el titular."
+    }
+   ],
+   "estado": "answered",
+   "detalle": null,
+   "respuesta": "El modelo de caja negra clasifica el titular como 'factual news' con una confianza de 0.718. Esta etiqueta sugiere que, según sus patrones internos, no lo considera clickbait. Cabe destacar que este modelo opaco no ofrece ninguna explicación sobre los motivos de su clasificación. Su veredicto se basa exclusivamente en el titular sin analizar el contenido de la noticia.",
+   "herramientas": [
+    "detect_clickbait"
+   ],
+   "repetidas": [],
+   "vueltas": [
+    {
+     "prompt_tokens": 3727,
+     "output_tokens": 91,
+     "load_s": 0.001921251,
+     "total_s": 3.251265164,
+     "pide": [
+      "detect_clickbait"
+     ]
+    },
+    {
+     "prompt_tokens": 3794,
+     "output_tokens": 267,
+     "load_s": 0.00317013,
+     "total_s": 9.343523511,
+     "pide": []
+    }
+   ],
+   "total_s": 12.624097101994266,
+   "pasos": [
+    {
+     "kind": "model",
+     "round": 1,
+     "content": "",
+     "tool_calls": [
+      "detect_clickbait"
+     ],
+     "metrics": {
+      "prompt_tokens": 3727,
+      "output_tokens": 91,
+      "load_s": 0.001921251,
+      "total_s": 3.251265164
+     }
+    },
+    {
+     "kind": "tool",
+     "round": 1,
+     "name": "detect_clickbait",
+     "arguments": {
+      "headline": "Scientists Discover New Species"
+     },
+     "status": "ok",
+     "data": {
+      "label": "factual news",
+      "score": 0.7176514863967896
+     },
+     "error": null,
+     "server": "tfg-mcp-server",
+     "duration_s": 0.03327984399948036
+    },
+    {
+     "kind": "model",
+     "round": 2,
+     "content": "El modelo de caja negra clasifica el titular como 'factual news' con una confianza de 0.718. Esta etiqueta sugiere que, según sus patrones internos, no lo considera clickbait. Cabe destacar que este modelo opaco no ofrece ninguna explicación sobre los motivos de su clasificación. Su veredicto se basa exclusivamente en el titular sin analizar el contenido de la noticia.",
+     "tool_calls": [],
+     "metrics": {
+      "prompt_tokens": 3794,
+      "output_tokens": 267,
+      "load_s": 0.00317013,
+      "total_s": 9.343523511
+     }
+    }
+   ],
+   "repeticion": 1,
+   "esperadas": [
+    "detect_clickbait"
+   ],
+   "de_mas": [],
+   "sin_herramientas": false,
+   "marcadores": {
+    "nombres_internos": 1,
+    "posiciones": 0,
+    "decimales_largos": 0
+   }
+  }
+ ]
+}
