@@ -77,7 +77,9 @@ partes:
 6. `ventana`: las dos vueltas más pesadas de la comparación, con el historial
    máximo que admite la API, con `num_ctx` 8.192 y 16.384: si la pequeña
    recorta, y cuánta memoria cuesta la grande. Mide antes de cambiar el valor
-   por defecto del agente.
+   por defecto del agente. Con argumentos, repite las consultas que se le den
+   en las ventanas que se le den, y guarda cada traza entera con el
+   razonamiento del modelo, para explicar una respuesta vacía.
 
 Ejecutar desde la raíz, con el túnel abierto (la sesión la abre
 `spikes/fidelidad_a40.sh`):
@@ -90,6 +92,7 @@ Ejecutar desde la raíz, con el túnel abierto (la sesión la abre
     .venv/bin/python spikes/fidelidad.py validar <carpeta exportada>
     .venv/bin/python spikes/fidelidad.py calibrar
     NLP_BACKEND=local .venv/bin/python spikes/fidelidad.py ventana
+    NLP_BACKEND=local .venv/bin/python spikes/fidelidad.py ventana --ctx 16384 --veces 3 bucle-encadena-nyt
 
 Sin fuentes, las cuatro; los jueces, de uno en uno; `E:<prompt>` es la
 condición del perfil preciso sobre ese prompt. `OLLAMA_URL` cambia el servidor
@@ -264,11 +267,41 @@ class OllamaConMuestreo(OllamaClient):
         return await super().make_request(endpoint, method, params=params, json=json)
 
 
+class OllamaQueGuardaElRazonamiento(OllamaConMuestreo):
+    """El mismo cliente, guardando lo que Ollama devuelve y el agente descarta.
+
+    La traza del agente no lleva el razonamiento del modelo —el cliente no lo
+    lee—, y un `empty_answer` sólo se explica leyéndolo: en la primera medida
+    de `ventana` hubo uno que no era de la ventana, y no quedó nada con que
+    explicarlo. `done_reason` dice si paró el modelo (`stop`) o se acabó la
+    ventana (`length`).
+    """
+
+    def __init__(self, *args, muestreo: dict | None = None, **kwargs) -> None:
+        super().__init__(*args, muestreo=muestreo or {}, **kwargs)
+        self.crudo: list[dict] = []
+
+    async def make_request(self, endpoint, method, params=None, json=None):
+        resultado = await super().make_request(endpoint, method, params=params, json=json)
+        if resultado.success and isinstance(resultado.data, dict):
+            mensaje = resultado.data.get("message") or {}
+            self.crudo.append(
+                {
+                    "done_reason": resultado.data.get("done_reason"),
+                    "thinking": mensaje.get("thinking"),
+                    "content": mensaje.get("content"),
+                    "tool_calls": mensaje.get("tool_calls"),
+                }
+            )
+        return resultado
+
+
 def _config(
     fuente: Fuente,
     decimales: int | None = None,
     muestreo: dict | None = None,
     num_ctx: int = NUM_CTX,
+    clase: type[OllamaClient] | None = None,
 ) -> Configuracion:
     """La configuración del agente de producción, con el modelo, el prompt y el
     `think` de la fuente.
@@ -276,7 +309,7 @@ def _config(
     El redondeo va explícito: el corpus se generó antes de que existiera
     (`239a955`), y sin decirlo aquí, repetirlo hoy redondearía.
     """
-    clase = OllamaConMuestreo if muestreo else OllamaClient
+    clase = clase or (OllamaConMuestreo if muestreo else OllamaClient)
     extra = {"muestreo": muestreo} if muestreo else {}
     return Configuracion(
         backend=clase(
@@ -1089,7 +1122,28 @@ def _historial_maximo() -> list[dict]:
     return historial
 
 
-async def ventana() -> None:
+def _argumentos_ventana(argumentos: list[str]) -> tuple[tuple[int, ...], int, tuple[str, ...]]:
+    """`[--ctx 8192,16384] [--veces N] [consulta ...]`. Sin nada, la primera medida."""
+    ventanas, veces, elegidas = VENTANAS, 1, []
+    pendientes = iter(argumentos)
+    for argumento in pendientes:
+        if argumento == "--ctx":
+            ventanas = tuple(int(valor) for valor in next(pendientes).split(","))
+        elif argumento == "--veces":
+            veces = int(next(pendientes))
+        else:
+            elegidas.append(argumento)
+    return ventanas, veces, tuple(elegidas) or CONSULTAS_PESADAS
+
+
+def _ruta_ventana(ventanas: tuple[int, ...], veces: int, elegidas: tuple[str, ...]) -> Path:
+    """`ventana.json` para la primera medida; las repeticiones, en otro fichero."""
+    if (ventanas, veces, elegidas) == (VENTANAS, 1, CONSULTAS_PESADAS):
+        return CARPETA / "ventana.json"
+    return CARPETA / f"ventana-{'-'.join(elegidas)}-{'-'.join(map(str, ventanas))}-x{veces}.json"
+
+
+async def ventana(ventanas: tuple[int, ...], veces: int, elegidas: tuple[str, ...]) -> None:
     """Cuánto cuesta subir `num_ctx` de 8.192 a 16.384, y si con 8.192 se recorta.
 
     La comparación de #192 enseñó que la regla de #189 medía sólo el prompt: el
@@ -1101,6 +1155,12 @@ async def ventana() -> None:
 
     Con la configuración de producción desde #192: `05-llano` y el perfil
     preciso, que es lo que manda el agente.
+
+    Con argumentos, repite las consultas elegidas en las ventanas elegidas. Se
+    añadió tras la primera medida, que dio un `empty_answer` con 16.384 sin
+    llenar la ventana y no guardaba con qué explicarlo: desde entonces cada
+    medida guarda los pasos enteros de la traza y lo que devolvió Ollama en
+    cada vuelta, razonamiento incluido.
     """
     fuente = Fuente("ventana", "qwen3.5:27b", "05-llano", think=True)
     historial = _historial_maximo()
@@ -1113,53 +1173,74 @@ async def ventana() -> None:
             "decimales": 3,
             "muestreo": PERFIL_PRECISO,
             "historial": {"turnos": len(historial), "caracteres": caracteres},
-            "ventanas": VENTANAS,
+            "ventanas": ventanas,
+            "consultas": elegidas,
+            "veces": veces,
         },
         "medidas": [],
     }
     print(f"  historial: {len(historial)} turnos, {caracteres} caracteres")
     consultas = {clave: (consulta, esperadas) for clave, _, consulta, _, esperadas in _consultas()}
-    ruta = CARPETA / "ventana.json"
+    ruta = _ruta_ventana(ventanas, veces, elegidas)
     async with httpx.AsyncClient(timeout=10.0) as cliente:
-        for num_ctx in VENTANAS:
+        for num_ctx in ventanas:
             print(f"\n== num_ctx {num_ctx}")
-            for clave in CONSULTAS_PESADAS:
-                consulta, _ = consultas[clave]
-                resultado = await responder(consulta, historial, _config(fuente, 3, PERFIL_PRECISO, num_ctx))
-                cargado = await _pedir(cliente, "GET", "api/ps") or {}
-                memoria = next(
-                    (entrada for entrada in cargado.get("models", []) if entrada.get("name") == fuente.modelo), {}
-                )
-                vueltas = [paso["metrics"] for paso in resultado["steps"] if paso["kind"] == "model"]
-                medida = {
-                    "num_ctx": num_ctx,
-                    "consulta": clave,
-                    "estado": resultado["status"],
-                    "total_s": resultado["total_s"],
-                    "vueltas": [
-                        {
-                            "prompt_tokens": vuelta["prompt_tokens"],
-                            "output_tokens": vuelta["output_tokens"],
-                            "load_s": vuelta["load_s"],
-                            "total_s": vuelta["total_s"],
-                        }
-                        for vuelta in vueltas
-                    ],
-                    "ocupacion_max": max(
-                        ((vuelta["prompt_tokens"] or 0) + (vuelta["output_tokens"] or 0) for vuelta in vueltas), default=0
-                    ),
-                    "vram_mib": round((memoria.get("size_vram") or 0) / 2**20),
-                    "tamano_mib": round((memoria.get("size") or 0) / 2**20),
-                    "respuesta": resultado["answer"],
-                }
-                registro["medidas"].append(medida)
-                _guardar(registro, ruta)
-                print(
-                    f"  {clave:22} {medida['estado']:12} {medida['total_s']:6.1f} s · "
-                    f"prompt por vuelta {[vuelta['prompt_tokens'] for vuelta in medida['vueltas']]} · "
-                    f"ocupación máx {medida['ocupacion_max']} de {num_ctx} · VRAM {medida['vram_mib']} MiB"
-                )
+            for clave in elegidas:
+                for vez in range(1, veces + 1):
+                    await _medir_ventana(cliente, registro, ruta, fuente, historial, num_ctx, clave, vez, consultas[clave][0])
     print(f"\nLas medidas, en {ruta}")
+
+
+async def _medir_ventana(
+    cliente: httpx.AsyncClient,
+    registro: dict,
+    ruta: Path,
+    fuente: Fuente,
+    historial: list[dict],
+    num_ctx: int,
+    clave: str,
+    vez: int,
+    consulta: str,
+) -> None:
+    config = _config(fuente, 3, PERFIL_PRECISO, num_ctx, clase=OllamaQueGuardaElRazonamiento)
+    resultado = await responder(consulta, historial, config)
+    crudo = config.backend.crudo if isinstance(config.backend, OllamaQueGuardaElRazonamiento) else []
+    cargado = await _pedir(cliente, "GET", "api/ps") or {}
+    memoria = next((entrada for entrada in cargado.get("models", []) if entrada.get("name") == fuente.modelo), {})
+    vueltas = [paso["metrics"] for paso in resultado["steps"] if paso["kind"] == "model"]
+    medida = {
+        "num_ctx": num_ctx,
+        "consulta": clave,
+        "vez": vez,
+        "estado": resultado["status"],
+        "total_s": resultado["total_s"],
+        "vueltas": [
+            {
+                "prompt_tokens": vuelta["prompt_tokens"],
+                "output_tokens": vuelta["output_tokens"],
+                "load_s": vuelta["load_s"],
+                "total_s": vuelta["total_s"],
+            }
+            for vuelta in vueltas
+        ],
+        "ocupacion_max": max(
+            ((vuelta["prompt_tokens"] or 0) + (vuelta["output_tokens"] or 0) for vuelta in vueltas), default=0
+        ),
+        "vram_mib": round((memoria.get("size_vram") or 0) / 2**20),
+        "tamano_mib": round((memoria.get("size") or 0) / 2**20),
+        "respuesta": resultado["answer"],
+        "pasos": resultado["steps"],
+        "ollama": crudo,
+    }
+    registro["medidas"].append(medida)
+    _guardar(registro, ruta)
+    herramientas = [paso["name"] for paso in resultado["steps"] if paso["kind"] == "tool"]
+    print(
+        f"  {clave:22} #{vez} {medida['estado']:12} {medida['total_s']:6.1f} s · "
+        f"prompt por vuelta {[vuelta['prompt_tokens'] for vuelta in medida['vueltas']]} · "
+        f"ocupación máx {medida['ocupacion_max']} de {num_ctx} · VRAM {medida['vram_mib']} MiB · "
+        f"fin {[vuelta['done_reason'] for vuelta in crudo]} · herramientas {herramientas}"
+    )
 
 
 async def _con_mcp(corrutina) -> None:
@@ -1197,7 +1278,7 @@ async def main(parte: str, argumentos: list[str]) -> None:
         calibrar()
         return
     if parte == "ventana":
-        await _con_mcp(ventana())
+        await _con_mcp(ventana(*_argumentos_ventana(argumentos)))
         return
 
     fuentes = [fuente for fuente in FUENTES if fuente.nombre in argumentos]
@@ -1227,9 +1308,17 @@ if __name__ == "__main__":
     elif parte == "validar":
         if len(argumentos) != 1:
             sys.exit("Uso: fidelidad.py validar <carpeta con la exportación de la página>")
-    elif parte not in ("resumen", "calibrar", "ventana"):
+    elif parte == "ventana":
+        try:
+            _, _, elegidas = _argumentos_ventana(argumentos)
+        except (StopIteration, ValueError):
+            sys.exit("Uso: fidelidad.py ventana [--ctx 8192,16384] [--veces N] [consulta ...]")
+        existentes = {clave for clave, *_ in _consultas()}
+        if desconocidas := [clave for clave in elegidas if clave not in existentes]:
+            sys.exit(f"Consultas desconocidas: {desconocidas}. Hay: {sorted(existentes)}")
+    elif parte not in ("resumen", "calibrar"):
         sys.exit(
             "Uso: fidelidad.py corpus | jueces <modelo> [fichero] | comparar <condición ...>"
-            " | resumen | validar <carpeta> | calibrar | ventana"
+            " | resumen | validar <carpeta> | calibrar | ventana [--ctx N,N] [--veces N] [consulta ...]"
         )
     asyncio.run(main(parte, argumentos))

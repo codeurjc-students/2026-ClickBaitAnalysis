@@ -1,0 +1,134 @@
+{
+ "condiciones": {
+  "fecha": "2026-09-30T10:27:09+02:00",
+  "commit": "e11ad48",
+  "guion": "47bdd56cacb3",
+  "ollama": "0.34.2",
+  "servidor": "http://127.0.0.1:11500",
+  "modelos": {
+   "qwen3.5:27b": {
+    "id": "7653528ba5cb",
+    "parametros": "temperature                    1\ntop_k                          20\ntop_p                          0.95\npresence_penalty               1.5"
+   }
+  },
+  "prompt": "05-llano",
+  "prompt_huella": "cb03dab24e21",
+  "decimales": 3,
+  "muestreo": {
+   "temperature": 0.6,
+   "presence_penalty": 0.0
+  },
+  "historial": {
+   "turnos": 14,
+   "caracteres": 3674
+  },
+  "ventanas": [
+   8192,
+   16384
+  ]
+ },
+ "medidas": [
+  {
+   "num_ctx": 8192,
+   "consulta": "otro_dominio-3",
+   "estado": "empty_answer",
+   "total_s": 20.48742515899994,
+   "vueltas": [
+    {
+     "prompt_tokens": 4885,
+     "output_tokens": 66,
+     "load_s": 0.003699257,
+     "total_s": 6.447590555
+    },
+    {
+     "prompt_tokens": 7818,
+     "output_tokens": 374,
+     "load_s": 0.002933185,
+     "total_s": 15.044366323
+    }
+   ],
+   "ocupacion_max": 8192,
+   "vram_mib": 15959,
+   "tamano_mib": 15959,
+   "respuesta": ""
+  },
+  {
+   "num_ctx": 8192,
+   "consulta": "bucle-encadena-nyt",
+   "estado": "answered",
+   "total_s": 10.7580652380002,
+   "vueltas": [
+    {
+     "prompt_tokens": 4895,
+     "output_tokens": 126,
+     "load_s": 0.001857528,
+     "total_s": 5.272232569
+    },
+    {
+     "prompt_tokens": 6249,
+     "output_tokens": 128,
+     "load_s": 0.004554501,
+     "total_s": 5.486747223
+    }
+   ],
+   "ocupacion_max": 6377,
+   "vram_mib": 15959,
+   "tamano_mib": 15959,
+   "respuesta": "El análisis del titular «OpenAI’s Systems Meddled With U.S. Government Sites After Going Rogue» indica que es informativo y no es clickbait. El clasificador entrenado lo etiqueta como noticia informativa con una confianza del 85 %, y el detector de pistas no encontró exageraciones ni frases gancho. El modelo de pesos calcula una probabilidad muy baja del 8 % de ser clickbait. Además, al comparar el titular con el resumen de la noticia, no se detecta engaño, ya que el texto confirma que los sistemas de OpenAI intervinieron en sitios gubernamentales."
+  },
+  {
+   "num_ctx": 16384,
+   "consulta": "otro_dominio-3",
+   "estado": "answered",
+   "total_s": 39.649303789999976,
+   "vueltas": [
+    {
+     "prompt_tokens": 4885,
+     "output_tokens": 86,
+     "load_s": 13.669721992,
+     "total_s": 20.6016954
+    },
+    {
+     "prompt_tokens": 7818,
+     "output_tokens": 553,
+     "load_s": 0.004144544,
+     "total_s": 21.066948273
+    }
+   ],
+   "ocupacion_max": 8371,
+   "vram_mib": 16487,
+   "tamano_mib": 16487,
+   "respuesta": "El sistema emplea cinco señales: el clasificador entrenado que etiqueta como clickbait o informativo sin explicar por qué; el detector de pistas que busca palabras típicas y explica sus hallazgos; el modelo de pesos que da una probabilidad destacando las palabras más decisivas; el comparador de titular y texto que mide si el cuerpo cumple lo prometido; y el análisis del tono que clasifica en positivo, neutro o negativo. Todas las herramientas están entrenadas con titulares en inglés, por lo que no son fiables en otros idiomas. Algunas solo detectan la forma del clickbait sin evaluar si hay engaño real, y el comparador necesita el texto completo de la noticia para funcionar. El clasificador y el análisis del tono son cajas negras que no revelan su razonamiento interno."
+  },
+  {
+   "num_ctx": 16384,
+   "consulta": "bucle-encadena-nyt",
+   "estado": "empty_answer",
+   "total_s": 97.51266927199958,
+   "vueltas": [
+    {
+     "prompt_tokens": 4895,
+     "output_tokens": 124,
+     "load_s": 0.005786919,
+     "total_s": 5.243309171
+    },
+    {
+     "prompt_tokens": 6249,
+     "output_tokens": 167,
+     "load_s": 0.004008002,
+     "total_s": 6.872276893
+    },
+    {
+     "prompt_tokens": 7011,
+     "output_tokens": 854,
+     "load_s": 0.005620356,
+     "total_s": 29.286671877
+    }
+   ],
+   "ocupacion_max": 7865,
+   "vram_mib": 16487,
+   "tamano_mib": 16487,
+   "respuesta": ""
+  }
+ ]
+}

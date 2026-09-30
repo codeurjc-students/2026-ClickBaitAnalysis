@@ -1721,7 +1721,7 @@
           "content"
         ],
         "title": "Turno",
-        "description": "Un turno anterior de la conversación, sólo con su texto.\n\nSin los resultados de las herramientas: la ventana es de 8.192 tokens y el\ncatálogo ya ocupa 2.629 (decidido al definir H5). El servidor no guarda nada\nentre turnos; el historial lo manda el cliente."
+        "description": "Un turno anterior de la conversación, sólo con su texto.\n\nSin los resultados de las herramientas: la ventana era de 8.192 tokens y el\ncatálogo ya ocupaba 2.629 (decidido al definir H5; la ventana es de 16.384\ndesde #192). El servidor no guarda nada entre turnos; el historial lo manda\nel cliente."
       },
       "ValidationError": {
         "properties": {

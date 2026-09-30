@@ -22,9 +22,10 @@ from backend.integrations.llm.base import Medidas
 class Turno(TypedDict):
     """Un turno anterior de la conversación, sólo con su texto.
 
-    Sin los resultados de las herramientas: la ventana es de 8.192 tokens y el
-    catálogo ya ocupa 2.629 (decidido al definir H5). El servidor no guarda nada
-    entre turnos; el historial lo manda el cliente.
+    Sin los resultados de las herramientas: la ventana era de 8.192 tokens y el
+    catálogo ya ocupaba 2.629 (decidido al definir H5; la ventana es de 16.384
+    desde #192). El servidor no guarda nada entre turnos; el historial lo manda
+    el cliente.
     """
 
     role: Literal["user", "assistant"]
