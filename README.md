@@ -7194,6 +7194,8 @@ Sin juez se cuentan las tres quejas de la validación —nombres internos, posic
 
 El redondeo hace lo suyo (los decimales largos pasan de 32 a 0 entre A y B), y `05-llano` quita los tres marcadores en las 27 respuestas. A tuvo una respuesta vacía.
 
+**Llamadas repetidas**, el otro criterio que dejó #191 —la misma herramienta con los mismos argumentos dentro de una conversación—: ninguna en las 135 conversaciones de las cinco condiciones, ni en las 54 del 27B del corpus. Sólo el 2B repitió una vez (`detect_clickbait` con el mismo titular, en `contraste-5`). La repetición que se vio en producción en #191 no se reprodujo aquí. Lo cuentan `comparar` y `resumen` (`con_repetidas`).
+
 **La regla para decidir se fijó ANTES de juzgar**, como el tope de #189:
 
 1. Un prompt queda fuera si su tasa de infieles, según `gemma4:31b` sobre las 27 respuestas de cada condición, supera en más de 5 puntos a la de B.
@@ -7283,6 +7285,7 @@ Todo con `05-llano`, `num_ctx` 16.384 y los mismos 14 turnos, en la A40, Ollama 
 
 - **Respuestas vacías con el razonamiento lleno**: en las dos que guardaron la traza, el modelo escribió la respuesta entera dentro del razonamiento, acabó con «la respuesta está lista» y no la sacó como texto; unas 3 de cada 60 con historial. La pantalla enseña las tarjetas igual. El autor lo deja como mejora futura; lo más sencillo sería pedirle una vuelta más cuando contesta sin texto ni llamadas.
 - **Vueltas desbocadas**: con historial, algunas últimas vueltas razonaron entre 11.000 y 31.000 caracteres (116–311 s), y una agotó los 300 s de `llm_timeout`, así que la conversación falló. Con 8.192 no habrían cabido.
+- **La prueba en producción, al cierre de H5 (#193)**, decidido por el autor. Esta rama acabó tocando la API (`Turno.tools` y su validación) y la pantalla, que manda los nombres, aunque la issue no dependía de ellas. Está cubierto por tests y por las 60 conversaciones medidas en el backend, pero no se ha visto en la pantalla real: hace falta redesplegar y abrir una sesión de GPU.
 - Fuera de esta issue, anotado: los enlaces de las noticias en la pantalla, sacados de la traza y no del texto del modelo (idea del autor); las fichas de `describe_models` mezclan los límites de cada señal con detalles de operación que el agente repite a cualquiera (nota del autor al validar); y el léxico no encuentra ninguna pista en «Top 5 Secrets Finally Revealed», un ejemplo del techo de cobertura que midió #121, para #75.
 
 
