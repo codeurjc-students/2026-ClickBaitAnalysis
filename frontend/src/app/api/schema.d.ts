@@ -503,7 +503,7 @@ export interface components {
             message: string;
             /**
              * History
-             * @description Los turnos anteriores, del más antiguo al más reciente, sólo con su texto. El rol es `user` o `assistant`: el de sistema lo pone el servidor, y un cliente no puede colar otro. Tiene un tope en caracteres que da la configuración; por encima, 422, y hay que quitar los turnos más antiguos.
+             * @description Los turnos anteriores, del más antiguo al más reciente, sólo con su texto. El rol es `user` o `assistant`: el de sistema lo pone el servidor, y un cliente no puede colar otro. Los del asistente pueden llevar en `tools` los nombres de las herramientas que usaron (como mucho 12), sin sus resultados. Tiene un tope en caracteres, texto y nombres, que da la configuración; por encima, 422, y hay que quitar los turnos más antiguos.
              */
             history?: components["schemas"]["Turno"][];
         };
@@ -1031,6 +1031,11 @@ export interface components {
          *     catálogo ya ocupaba 2.629 (decidido al definir H5; la ventana es de 16.384
          *     desde #192). El servidor no guarda nada entre turnos; el historial lo manda
          *     el cliente.
+         *
+         *     `tools`, sólo en los del asistente, son los NOMBRES de las herramientas que
+         *     usó (#192). Con el texto solo, el modelo veía respuestas con veredictos sin
+         *     ninguna llamada delante y las imitaba: traía una noticia y narraba un
+         *     análisis inventado, con cifras, sin llamar a ninguna señal.
          */
         Turno: {
             /**
@@ -1040,6 +1045,8 @@ export interface components {
             role: "user" | "assistant";
             /** Content */
             content: string;
+            /** Tools */
+            tools?: string[];
         };
         /** ValidationError */
         ValidationError: {

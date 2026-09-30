@@ -91,6 +91,10 @@ AVISO_HISTORIAL = (
     "hayas analizado otros antes."
 )
 
+# Lo que devuelve, en el historial, cada herramienta de un turno anterior: el
+# nombre de la llamada sí llega (`Turno.tools`), su resultado no (#192).
+RESULTADO_DE_OTRO_TURNO = "(Resultado de un turno anterior: ya no está disponible.)"
+
 
 @dataclass(frozen=True)
 class Configuracion:
@@ -185,7 +189,7 @@ async def responder(
     )
     mensajes: list[Mensaje] = [
         {"role": "system", "content": config.prompt},
-        *({"role": turno["role"], "content": turno["content"]} for turno in historial),
+        *(mensaje for turno in historial for mensaje in _turno_anterior(turno)),
         *aviso,
         {"role": "user", "content": consulta},
     ]
@@ -243,6 +247,30 @@ async def responder(
             )
 
     return terminar("max_rounds", rounds=config.max_rounds)
+
+
+def _turno_anterior(turno: Turno) -> list[Mensaje]:
+    """Un turno del historial, como lo leerá el modelo.
+
+    Una respuesta que usó herramientas va con sus llamadas delante —sin
+    argumentos— y un resultado que dice que ya no está, que es la forma que
+    tuvo cuando se generó (#192). Sin `tools`, sólo el texto, como hasta #192.
+    """
+    nombres = turno.get("tools") or []
+    if turno["role"] != "assistant" or not nombres:
+        return [{"role": turno["role"], "content": turno["content"]}]
+    return [
+        {
+            "role": "assistant",
+            "content": "",
+            "tool_calls": [{"name": nombre, "arguments": {}} for nombre in nombres],
+        },
+        *(
+            {"role": "tool", "tool_name": nombre, "content": RESULTADO_DE_OTRO_TURNO}
+            for nombre in nombres
+        ),
+        {"role": "assistant", "content": turno["content"]},
+    ]
 
 
 async def _descubrir(config: Configuracion) -> Catalogo:

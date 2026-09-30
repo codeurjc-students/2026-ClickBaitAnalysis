@@ -14,7 +14,7 @@ la ventana.
 herramienta tiene la forma que declare ella, igual que el de cada señal.
 """
 
-from typing import Any, Literal, TypedDict
+from typing import Any, Literal, NotRequired, TypedDict
 
 from backend.integrations.llm.base import Medidas
 
@@ -26,10 +26,16 @@ class Turno(TypedDict):
     catálogo ya ocupaba 2.629 (decidido al definir H5; la ventana es de 16.384
     desde #192). El servidor no guarda nada entre turnos; el historial lo manda
     el cliente.
+
+    `tools`, sólo en los del asistente, son los NOMBRES de las herramientas que
+    usó (#192). Con el texto solo, el modelo veía respuestas con veredictos sin
+    ninguna llamada delante y las imitaba: traía una noticia y narraba un
+    análisis inventado, con cifras, sin llamar a ninguna señal.
     """
 
     role: Literal["user", "assistant"]
     content: str
+    tools: NotRequired[list[str]]
 
 
 class PasoModelo(TypedDict):

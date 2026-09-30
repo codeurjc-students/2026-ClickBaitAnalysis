@@ -30,6 +30,7 @@ from structlog.testing import capture_logs
 from backend.agent.agente import (
     AVISO_HISTORIAL,
     MAX_VUELTAS,
+    RESULTADO_DE_OTRO_TURNO,
     SIN_HERRAMIENTAS,
     Configuracion,
     responder,
@@ -322,6 +323,42 @@ async def test_el_aviso_del_historial_se_puede_quitar(monkeypatch):
         "user",
         "assistant",
         "user",
+    ]
+
+
+@pytest.mark.asyncio
+async def test_las_herramientas_de_un_turno_anterior_van_delante_de_su_respuesta(
+    monkeypatch,
+):
+    """#192: con sólo el texto, el modelo veía respuestas con veredictos y
+    ninguna llamada delante, y las imitaba sin llamar a nada. Van los nombres,
+    con un resultado que dice que ya no está: la forma que tuvo el turno."""
+    modelo = ModeloGuionado(_responde("Hola."))
+    historial: list[Turno] = [
+        {"role": "user", "content": "¿Es clickbait este titular?"},
+        {"role": "assistant", "content": "No lo es.", "tools": ["eco", "cifras"]},
+    ]
+
+    async with mcp_en_proceso(monkeypatch):
+        await responder(
+            "¿Y este otro?", historial, _config(modelo, aviso_historial=None)
+        )
+
+    assert modelo.conversaciones[0] == [
+        {"role": "system", "content": "Eres un asistente de prueba."},
+        {"role": "user", "content": "¿Es clickbait este titular?"},
+        {
+            "role": "assistant",
+            "content": "",
+            "tool_calls": [
+                {"name": "eco", "arguments": {}},
+                {"name": "cifras", "arguments": {}},
+            ],
+        },
+        {"role": "tool", "tool_name": "eco", "content": RESULTADO_DE_OTRO_TURNO},
+        {"role": "tool", "tool_name": "cifras", "content": RESULTADO_DE_OTRO_TURNO},
+        {"role": "assistant", "content": "No lo es."},
+        {"role": "user", "content": "¿Y este otro?"},
     ]
 
 

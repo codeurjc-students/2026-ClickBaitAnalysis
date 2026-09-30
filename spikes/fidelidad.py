@@ -82,8 +82,10 @@ partes:
    razonamiento del modelo, para explicar una respuesta vacía. Y con
    `--variantes`, con o sin historial y con el muestreo preciso o el del
    Modelfile, intercaladas: con historial, el modelo narró análisis que no
-   había hecho. `preciso-con-aviso` mide el arreglo, el aviso del agente
-   sobre el historial (`aviso_historial`).
+   había hecho. `preciso-con-aviso` mide el primer arreglo, el aviso del
+   agente sobre el historial (`aviso_historial`), y
+   `preciso-con-herramientas-aviso` el segundo, los nombres de las
+   herramientas en cada respuesta del historial (`Turno.tools`).
 
 Ejecutar desde la raíz, con el túnel abierto (la sesión la abre
 `spikes/fidelidad_a40.sh`):
@@ -101,6 +103,8 @@ Ejecutar desde la raíz, con el túnel abierto (la sesión la abre
         --variantes preciso-con,modelfile-con,preciso-sin bucle-encadena-nyt
     NLP_BACKEND=local .venv/bin/python spikes/fidelidad.py ventana --ctx 16384 --veces 20 \
         --variantes preciso-con-aviso,preciso-con bucle-encadena-nyt
+    NLP_BACKEND=local .venv/bin/python spikes/fidelidad.py ventana --ctx 16384 --veces 20 \
+        --variantes preciso-con-herramientas-aviso,preciso-con-aviso bucle-encadena-nyt
 
 Sin fuentes, las cuatro; los jueces, de uno en uno; `E:<prompt>` es la
 condición del perfil preciso sobre ese prompt. `OLLAMA_URL` cambia el servidor
@@ -123,6 +127,7 @@ from collections import Counter
 from dataclasses import asdict, dataclass
 from datetime import datetime
 from pathlib import Path
+from typing import NamedTuple
 
 import httpx
 import structlog
@@ -1115,17 +1120,23 @@ CONSULTAS_PESADAS = ("otro_dominio-3", "bucle-encadena-nyt")
 HISTORIAL_MAXIMO = 4000
 
 
-def _historial_maximo() -> list[dict]:
+def _historial_maximo(con_herramientas: bool = False) -> list[dict]:
     """Turnos reales —preguntas y respuestas de `05-llano` en la comparación— hasta
-    el tope de caracteres que admite la API, como lo recortaría la interfaz."""
+    el tope de caracteres que admite la API, como lo recortaría la interfaz.
+
+    Con `con_herramientas`, cada respuesta lleva los nombres de las herramientas
+    que usó, sin repetir y en orden (`Turno.tools`, #192). Los turnos son los
+    mismos que sin ellas, para que la comparación sea sólo de eso: los nombres
+    suman unos cien caracteres y siguen cabiendo en el tope.
+    """
     conversaciones = json.loads((CARPETA / "comparacion-C-05.json").read_text(encoding="utf-8"))["conversaciones"]
     historial: list[dict] = []
     caracteres = 0
     for conversacion in conversaciones:
-        pareja = [
-            {"role": "user", "content": conversacion["consulta"]},
-            {"role": "assistant", "content": conversacion["respuesta"]},
-        ]
+        respuesta: dict = {"role": "assistant", "content": conversacion["respuesta"]}
+        if con_herramientas and conversacion["herramientas"]:
+            respuesta["tools"] = list(dict.fromkeys(conversacion["herramientas"]))
+        pareja = [{"role": "user", "content": conversacion["consulta"]}, respuesta]
         tamano = sum(len(turno["content"]) for turno in pareja)
         if caracteres + tamano > HISTORIAL_MAXIMO:
             break
@@ -1134,18 +1145,30 @@ def _historial_maximo() -> list[dict]:
     return historial
 
 
+class Variante(NamedTuple):
+    """Qué se manda en una variante de `ventana`."""
+
+    muestreo: dict | None  # `None` es el del Modelfile
+    historial: bool
+    aviso: bool  # `aviso_historial` del agente
+    herramientas: bool = False  # los nombres en cada respuesta del historial
+
+
 # Qué se manda en cada variante: el muestreo (`None` es el del Modelfile), si
 # va el historial y si va el aviso del agente sobre él. Se añadieron tras la
 # segunda medida, en la que con historial el modelo narró dos veces de tres un
 # análisis que no había hecho: para saber si es del historial, del muestreo o
 # de los dos. El aviso llegó después, como arreglo (`aviso_historial`), y las
-# variantes sin él lo apagan explícitamente, como se midieron.
+# variantes sin él lo apagan explícitamente, como se midieron. El aviso solo
+# bajó de 10 a 4 inventadas de 20; el segundo arreglo manda con cada respuesta
+# del historial los nombres de las herramientas que usó.
 VARIANTES = {
-    "preciso-con": (PERFIL_PRECISO, True, False),
-    "modelfile-con": (None, True, False),
-    "preciso-sin": (PERFIL_PRECISO, False, False),
-    "modelfile-sin": (None, False, False),
-    "preciso-con-aviso": (PERFIL_PRECISO, True, True),
+    "preciso-con": Variante(PERFIL_PRECISO, historial=True, aviso=False),
+    "modelfile-con": Variante(None, historial=True, aviso=False),
+    "preciso-sin": Variante(PERFIL_PRECISO, historial=False, aviso=False),
+    "modelfile-sin": Variante(None, historial=False, aviso=False),
+    "preciso-con-aviso": Variante(PERFIL_PRECISO, historial=True, aviso=True),
+    "preciso-con-herramientas-aviso": Variante(PERFIL_PRECISO, historial=True, aviso=True, herramientas=True),
 }
 VARIANTE_DE_PRODUCCION = ("preciso-con",)
 
@@ -1206,6 +1229,7 @@ async def ventana(
     """
     fuente = Fuente("ventana", "qwen3.5:27b", "05-llano", think=True)
     historial = _historial_maximo()
+    historial_con_herramientas = _historial_maximo(con_herramientas=True)
     caracteres = sum(len(turno["content"]) for turno in historial)
     registro: dict = {
         "condiciones": await _condiciones({fuente.modelo})
@@ -1215,9 +1239,10 @@ async def ventana(
             "decimales": 3,
             "variantes": {
                 nombre: {
-                    "muestreo": VARIANTES[nombre][0],
-                    "historial": VARIANTES[nombre][1],
-                    "aviso_historial": AVISO_HISTORIAL if VARIANTES[nombre][2] else None,
+                    "muestreo": VARIANTES[nombre].muestreo,
+                    "historial": VARIANTES[nombre].historial,
+                    "aviso_historial": AVISO_HISTORIAL if VARIANTES[nombre].aviso else None,
+                    "herramientas_en_el_historial": VARIANTES[nombre].herramientas,
                 }
                 for nombre in variantes
             },
@@ -1237,20 +1262,22 @@ async def ventana(
             for clave in elegidas:
                 for vez in range(1, veces + 1):
                     for variante in variantes:
-                        muestreo, con_historial, con_aviso = VARIANTES[variante]
+                        elegida = VARIANTES[variante]
                         await _medir_ventana(
                             cliente,
                             registro,
                             ruta,
                             fuente,
-                            historial if con_historial else [],
+                            (historial_con_herramientas if elegida.herramientas else historial)
+                            if elegida.historial
+                            else [],
                             num_ctx,
                             clave,
                             vez,
                             consultas[clave][0],
                             variante,
-                            muestreo,
-                            con_aviso,
+                            elegida.muestreo,
+                            elegida.aviso,
                         )
     print(f"\nLas medidas, en {ruta}")
 
