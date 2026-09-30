@@ -8,17 +8,20 @@ Version de Python: 3.12.3
 
 ## Plan de trabajo — hitos hasta la entrega
 
-**Estado actual (septiembre 2026): `v0.5.0`.** El núcleo NLP está completo y
+**Estado actual (septiembre 2026): `v0.6.0`.** El núcleo NLP está completo y
 validado —cuatro señales de clickbait contrastables, un modelo lineal
 interpretable propio, divulgación de modelos y una evaluación metodológicamente
-cerrada (split train/dev/test + validación externa)—, la capa web sirve las tres
-pantallas del camino determinista sobre un contrato generado, y **el sistema está
-desplegado**: tres contenedores levantados con un comando en la máquina de la
-universidad, servidos por HTTPS en
+cerrada (split train/dev/test + validación externa)—, la capa web sirve sus
+cuatro pantallas sobre un contrato generado, y **el sistema está desplegado**:
+tres contenedores levantados con un comando en la máquina de la universidad,
+servidos por HTTPS en
 [`gongarcia.tfg.etsii.urjc.es`](https://gongarcia.tfg.etsii.urjc.es), con las
-cinco señales respondiendo y el historial sobreviviendo a los redespliegues. Lo
-que resta es el **agente conversacional** (R13) y la memoria. **Entrega: febrero
-2027.**
+cinco señales respondiendo y el historial sobreviviendo a los redespliegues. Y
+el **agente conversacional** (R13), que da nombre al TFG, contesta en lenguaje
+natural desde la pantalla del asistente: elige las herramientas por MCP, las
+tarjetas salen de sus resultados y no de su texto, y el modelo corre en la A40
+de la universidad, que se enciende bajo demanda. Lo que resta es la memoria.
+**Entrega: febrero 2027.**
 
 **El agente conversacional (R13) es H5.** Hasta el 7 de septiembre no estaba en
 ninguna fila de esta tabla, que es un hueco grande: **el agente da nombre al
@@ -32,18 +35,20 @@ tenía fecha ni versión.
 | **H2 · `v0.3` API REST** | octubre | **15 ago** | FastAPI: exposición de las tools, catálogo con metadatos, historial **persistente**, OpenAPI, CORS, tests | **R4, R5, R9** |
 | **H3 · `v0.4` SPA funcional** | noviembre | **7 sep** | Angular: análisis con explicabilidad visual, catálogo de tools, historial, responsive y gestión de errores | **R6** |
 | **H4 · `v0.5` Docker y despliegue** | diciembre | **20 sep** | Docker Compose (MCP + API / web), **volumen** para el historial, HTTPS y pruebas E2E | **R7, R8** |
-| **H5 · `v0.6` Agente conversacional** | — | *nov–dic* | Bucle del agente, `POST /chat` con sondeo, pantalla de chat y traza de herramientas | **R13**, R6.10/12/13 |
-| **H6 · `v1.0` Memoria y defensa** | ene–feb 2027 | *dic–feb* | Redacción de la memoria y preparación de la defensa | — |
+| **H5 · `v0.6` Agente conversacional** | — | **30 sep** | Bucle del agente, `POST /chat` con sondeo, pantalla de chat y traza de herramientas | **R13**, R6.10/12/13 |
+| **H6 · `v1.0` Memoria y defensa** | ene–feb 2027 | *oct–feb* | Redacción de la memoria y preparación de la defensa | — |
 
 **El proyecto va casi tres meses por delante de esta previsión.** H2 se cerró en
 agosto donde se planificó octubre, H3 en septiembre donde se planificó noviembre,
 y **H4 en septiembre donde se planificó diciembre** — trece días después de H3,
 porque las dos máquinas llegaron el 16 de septiembre y el despliegue dependía de
-ellas. La columna «previsto» se conserva a propósito: el desfase es un dato del
-proyecto —dice que la estimación de agosto era conservadora— y no un error que
-tapar. La columna «real» de H5 y H6 es la **re-previsión hecha con ese
-adelanto**: deja alrededor de un mes de colchón antes de febrero, que es lo que
-se come el agente si sale como en el spike.
+ellas. **H5 se cerró diez días después de H4**, el 30 de septiembre, cuando la
+re-previsión le daba noviembre y diciembre. La columna «previsto» se conserva a
+propósito: el desfase es un dato del proyecto —dice que la estimación de agosto
+era conservadora— y no un error que tapar. La columna «real» de H6 es la
+**re-previsión hecha con ese adelanto**: la memoria tiene de octubre a febrero,
+en vez del mes de colchón que dejaba la previsión anterior si el agente salía
+como en el spike.
 
 **Reparto de H4 a H6, decidido el 2026-09-07.** El H5 original era «responsive,
 gestión de errores, pruebas E2E y despliegue», y #130 se llevó las dos primeras
@@ -58,14 +63,16 @@ modelo se apaga cuando no se usa; esa propiedad se demuestra desplegando
 primero. Y el agente vive en la máquina 2 por SSH desde la 1, así que necesita
 que la 1 exista. El contraargumento —el agente es lo único de resultado
 incierto, y el riesgo se ataca antes— se acepta pero pesa menos: los dos meses
-de adelanto son el colchón que lo absorbe.
+de adelanto son el colchón que lo absorbe. *(Revisado en #193: el agente acabó
+viviendo en la máquina 1, dentro de la API; en la 2 sólo corre el modelo. Y el
+túnel lo abre la 2 hacia la 1, no al revés (#181).)*
 
 _(Corrección de la tabla, 2026-08-11: **R9 —la persistencia— no figuraba en ninguna fila**. H2 pedía «historial de ejecución» y H4 «historial persistente», pero el requisito que los sostiene no estaba listado en ninguno de los dos. Se asigna a H2: hacer el historial en memoria ahora y persistirlo en diciembre sería construirlo dos veces y entregar una pantalla que pierde los datos al reiniciar. A H4 le queda lo que de verdad le corresponde — montar el volumen (R7.6) para que ese fichero sobreviva al contenedor.)_
 
 **Criterios de priorización:**
 
 - **El backlog de NLP queda congelado** como opcional (multi-dominio #78, featurización alternativa #75, fine-tuning neural E5-05, meta-tool de contraste, post-hoc LIME/SHAP). El límite de generalización ya está **medido y documentado** (#76), que es lo que exige el rigor; resolverlo no es condición para la entrega.
-- **La memoria arranca en diciembre**, en paralelo con H4. Esta sección de épicas actúa como **borrador y diario de desarrollo** desde el inicio del proyecto.
+- **La memoria arranca en octubre**, con H5 cerrado *(hasta #193 decía diciembre, en paralelo con H4, que se cerró en septiembre)*. Esta sección de épicas actúa como **borrador y diario de desarrollo** desde el inicio del proyecto.
 - El stack está fijado en [requisitos.md](docs/requisitos.md): **FastAPI** (R4) + **Angular/TypeScript** (R6) + **Docker Compose** (R7).
 
 ---
@@ -6282,6 +6289,8 @@ La cabecera lo deja fechado: *revisado entero contra el árbol en #173*. La segu
 | **R12** | ◑ faltaba sanear el texto de excepción | ✅ con #89, #165 y #169, y el matiz de que un límite por IP no para el abuso desde muchas IPs |
 | **R13** | ⬜ | ⬜ sin construir, con el spike rehecho y el diseño declarado como plano en §12 |
 
+*(Revisado en #193: R6 y R13 pasan a ✅, con R13.6 matizado y R13.8 fuera de H5; ver «El cierre de H5».)*
+
 **R7.4 merece una nota.** Pide arrancar los servicios «en el orden correcto», y el compose no tiene `depends_on`, a propósito desde #164: con la API caída la web sigue sirviendo y el indicador de salud explica el 502, y con el MCP caído sólo se degrada la pantalla de Sistema. Se da por cumplido con una lectura que conviene dejar escrita: **si ningún servicio depende de otro para arrancar, cualquier orden es el correcto**, y `up --wait` deja sanos a los tres. No es el caso de R8.5: allí la letra no se podía cumplir; aquí sí se cumple, sólo que con una lectura.
 
 ### El CI, fijado a su sistema y fuera de Node 20 (#178, 24 sep 2026)
@@ -7285,8 +7294,88 @@ Todo con `05-llano`, `num_ctx` 16.384 y los mismos 14 turnos, en la A40, Ollama 
 
 - **Respuestas vacías con el razonamiento lleno**: en las dos que guardaron la traza, el modelo escribió la respuesta entera dentro del razonamiento, acabó con «la respuesta está lista» y no la sacó como texto; unas 3 de cada 60 con historial. La pantalla enseña las tarjetas igual. El autor lo deja como mejora futura; lo más sencillo sería pedirle una vuelta más cuando contesta sin texto ni llamadas.
 - **Vueltas desbocadas**: con historial, algunas últimas vueltas razonaron entre 11.000 y 31.000 caracteres (116–311 s), y una agotó los 300 s de `llm_timeout`, así que la conversación falló. Con 8.192 no habrían cabido.
-- **La prueba en producción, al cierre de H5 (#193)**, decidido por el autor. Esta rama acabó tocando la API (`Turno.tools` y su validación) y la pantalla, que manda los nombres, aunque la issue no dependía de ellas. Está cubierto por tests y por las 60 conversaciones medidas en el backend, pero no se ha visto en la pantalla real: hace falta redesplegar y abrir una sesión de GPU.
+- **La prueba en producción, al cierre de H5 (#193)**, decidido por el autor. Esta rama acabó tocando la API (`Turno.tools` y su validación) y la pantalla, que manda los nombres, aunque la issue no dependía de ellas. Está cubierto por tests y por las 60 conversaciones medidas en el backend, pero no se ha visto en la pantalla real: hace falta redesplegar y abrir una sesión de GPU. *(Hecha en #193: el historial llegó con los nombres y la segunda respuesta analizó la noticia; ver «El cierre de H5».)*
 - Fuera de esta issue, anotado: los enlaces de las noticias en la pantalla, sacados de la traza y no del texto del modelo (idea del autor); las fichas de `describe_models` mezclan los límites de cada señal con detalles de operación que el agente repite a cualquiera (nota del autor al validar); y el léxico no encuentra ninguna pista en «Top 5 Secrets Finally Revealed», un ejemplo del techo de cobertura que midió #121, para #75.
+
+### El cierre de H5: el plano contra lo construido, y el agente en producción (#193, 30 sep 2026)
+
+La última issue de H5 cierra el hito con tres cosas: contrastar el plano que se dibujó antes de construir el agente con lo que se construyó, hacer en producción la prueba que dejó #192 y poner al día los requisitos. La release `v0.6` va después, en su propia PR de `dev` a `main`.
+
+#### El plano, contra lo construido
+
+El plano se declaró el 23 de septiembre, en #173, en [`docs/arquitectura.md`](docs/arquitectura.md): el agente y el cliente del modelo punteados en §7, la máquina 2 en §10 y la secuencia entera en §12, con dos listas, «Lo decidido» y «Lo que el plano todavía NO decide». Se dibujó para contrastarlo aquí, y el autor decidió cómo: **los diagramas del plano no se corrigen**. Junto a cada uno hay otro con lo construido, en trazo continuo y con lo que se desvió en naranja, para que el antes y el después se vean uno al lado del otro. En §7 y §10, que describen el sistema de hoy, va primero lo construido; en §12, que es la historia del hito, primero el plano. La tabla de desviaciones, con el motivo de cada una, está en [§12](docs/arquitectura.md#12--el-agente-conversacional-el-plano-y-lo-construido). En resumen:
+
+- **Se mantuvo casi todo lo decidido**: `POST /chat` asíncrono con sondeo, los trabajos en memoria, el resultado de cada herramienta a dos sitios (al modelo y a la traza), la traza acumulada, el 27B, `num_ctx` explícito, el descubrimiento por MCP y el veredicto de las herramientas, nunca del texto del modelo.
+- **Cambió con una medida**: el prompt, `05-llano` en vez de `04-preciso` o `03-estricto` (#192); razonar siempre (#188); el muestreo, ahora explícito (#192); la ventana, 16.384 (#192); las cifras que lee el modelo, a tres decimales (#192); y lo que ve de los turnos anteriores: el texto, los nombres de sus herramientas y un aviso, en vez de sólo el texto (#192). El modo guiado (R13.8) quedó fuera.
+- **Se añadió lo que el plano no dibujaba**: la cola, en la API (#189); `GET /agent` y el tope del historial (#189, #191); el `SignalResult` de cada paso de señal (#191); y las vueltas del modelo en la traza (#188).
+- **Lo que el plano no decidía, resuelto**: el túnel inverso y `gpu-sesion` (#181), las descripciones separadas (PR #183) y la ficha del agente (#187). El arranque con la caché de disco fría sigue sin medir.
+- **Y una flecha que no existe**: el agente no importa `analysis/`. Conoce el dominio sólo por el prompt, y quien lo cablea —la configuración, el backend del modelo y las tarjetas— es la API.
+
+#### Los diagramas, revisados contra el código
+
+A petición del autor, los tres diagramas nuevos se cotejaron con el código conexión a conexión, y les faltaban varias, que se añadieron antes de la PR:
+
+- **§12**: las respuestas de Ollama a las dos comprobaciones de disponibilidad y la del trabajo cuando la API lo lee; que el trabajo espera su turno en la cola antes de lanzar el agente, y que crearlo devuelve el id o «cola llena»; que el agente anota en la traza cada vuelta del modelo; y que **devuelve su resultado al trabajo**, que lo guarda. La petición HTTP no espera al agente, pero el trabajo sí: la primera leyenda decía lo contrario.
+- **§10**: quien pregunta si el modelo está es la API, no el agente.
+- **§7**: `evaluation/`, y la única dependencia hacia arriba, de `core/` a `integrations/`: `core/health.py` declara su categoría de herramienta con `tool_meta`, de `integrations/metadata.py`, desde #99. Es la tensión 3 de [`estructura.md`](docs/estructura.md). Se recorrieron con `ast` los imports de todo `backend/`, y con esas dos flechas cada import real entre capas queda cubierto por un camino del dibujo.
+
+Los diagramas antiguos también tenían huecos, y para ellos el autor fijó una regla: **uno que se quedó viejo porque el código cambió después no se toca; uno que ya estaba mal cuando se dibujó, sí**. Con `git log -S` se fechó cada diagrama y cada conexión que le falta:
+
+| Diagrama | Dibujado | Lo que le falta | Desde |
+|---|---|---|---|
+| §1, qué cruza la frontera MCP | 4 sep | el agente, que pasa por el protocolo | H5 |
+| §2, quién toca el historial | 4 sep | `GET /history/{id}` | 5 sep (#133) |
+| §3, `POST /analyze` | 4 sep | que el id vuelve en `AnalyzeResult`; dice «que hoy se descarta», y ese día era verdad | 5 sep (#133) |
+| §6, el dominio | 4 sep | `label`, el sobre `AnalyzeResult` y el paso de la traza con su `SignalResult` | #133 y H5 |
+| §8, de dónde salen los tipos | 7 sep, 09:49 (PR #151) | los servicios `health` y `chat` | 7 sep, 18:29 (#147), y H5 |
+| §7, capas | 4 sep | `core/` → `integrations/` y `evaluation/` | 6 ago y 28 jun |
+
+Los cinco primeros se quedan como están. El último estaba mal al dibujarse, pero hoy es el diagrama del plano, y el autor prefirió dejarlo intacto: lo dice una nota bajo el de lo construido.
+
+#### La prueba en producción que dejó #192
+
+#192 cambió cómo viaja el historial —cada respuesta anterior lleva los nombres de sus herramientas (`Turno.tools`), la API los valida y la pantalla los manda— y lo midió contra el backend, pero no en la pantalla real ([comentario en #193](https://github.com/codeurjc-students/2026-ClickBaitAnalysis/issues/193#issuecomment-5911811305)). Con permiso del autor se redesplegó la máquina 1 con `dev` y se abrió una sesión de GPU, y el autor hizo desde su navegador una conversación de dos turnos.
+
+| Condiciones | |
+|---|---|
+| Fecha | 2026-09-30, de 16:03 a 16:08 (hora de Madrid) |
+| Código | `dev` en `66fed98`, tras #204; redesplegado a las 16:03 con `sudo docker compose up --build --wait` (23 s: todo estaba en la caché de compilación) |
+| Camino | el navegador → `https://gongarcia.tfg.etsii.urjc.es/asistente` → Caddy → API → túnel de `gpu-sesion` (`6ad6a751d636`, 30 min como máximo) → Ollama 0.34.2 en la A40 |
+| Modelo | `qwen3.5:27b` (ID `7653528ba5cb`), `num_ctx` 16.384, `think=True`, prompt `05-llano`, temperatura 0,6 y `presence_penalty` 0; sin precargar |
+| Registros | el de la API, con [`spikes/chat_registro.sh`](spikes/chat_registro.sh), y el de Ollama, con [`spikes/ollama_registro.sh`](spikes/ollama_registro.sh), nuevo. Los dos se pierden —el de la API al redesplegar, el de Ollama al abrir otra sesión—, así que se leyeron en seguida |
+
+```bash
+bash spikes/chat_registro.sh 2026-09-30T14:03:00Z 2026-09-30T14:10:00Z
+bash spikes/ollama_registro.sh
+```
+
+| Turno | Pregunta | Vueltas | Herramientas | Total | Prompt de la primera vuelta |
+|---|---|---|---|---|---|
+| 1 | ¿Es clickbait «Federal Reserve Holds Interest Rates Steady»? | 2 | `analyze_headline` | 39,5 s | 3.942 |
+| 2 | Busca una noticia del New York Times sobre inteligencia artificial y dime si su titular es clickbait | 3 | `get_nyt_news` → `analyze_headline` | 18,7 s | 4.199 |
+
+- **El historial llega con los nombres.** Ni la traza ni el registro de la API guardan lo que manda la pantalla —el comentario de #193 decía que sí, y no—, así que el autor lo comprobó en las herramientas de desarrollo del navegador: el `POST /chat` del segundo turno lleva en `history` el turno del asistente con `"tools": ["analyze_headline"]`.
+- **La segunda respuesta no se inventa el análisis**: trae la noticia y llama a `analyze_headline` antes de contestar. Una conversación no mide una tasa —eso fueron los 0 de 60 de #192—; comprueba que el camino entero funciona, de la pantalla al modelo.
+- **La ventana**: la primera vuelta del segundo turno lee 257 tokens más que la del primero —el historial, el aviso y una consulta más larga—, y lo más que leyó una vuelta fueron 6.286 de 16.384.
+- **El primer turno pagó dos arranques en frío.** El modelo estuvo listo unos 8 s después de la primera petición: hasta 3 s en una búsqueda de la GPU que acabó por tiempo, con el modo persistente desactivado, y 5,2 s cargándolo. Y `analyze_headline` tardó 6,8 s, la primera llamada al MCP tras el despliegue (6,9 s en #191). El segundo turno no pagó ninguno: 4,2 s, 0,6 s, 8,3 s, 0,7 s y 4,9 s.
+- **Ollama tardó 26,3 s en responder desde que arrancó** (de las 16:03:45 a las 16:04:12), cerca de los 27,2 s que midió #181 con el modo persistente desactivado, y la API lo vio en su siguiente comprobación.
+- **Lo que no se vio**: la cola, con una sola persona; una respuesta vacía; y un historial largo. Los cubren los tests y las medidas de #189 y #192.
+
+#### Los requisitos
+
+| | Antes (#173) | Ahora |
+|---|---|---|
+| **R6** | ◑ las tres pantallas del camino determinista; R6.10, R6.12 y R6.13 esperaban al asistente | ✅ con la pantalla del asistente (#191): la pestaña sólo si está configurado (R6.10), cada herramienta con su tarjeta junto a la traza (R6.12), también si la respuesta llega vacía (R6.13), y sin formulario si el asistente está apagado (R6.14) |
+| **R13** | ⬜ sin construir | ✅ construido en #187–#192 y probado en producción, con R13.6 matizado y R13.8 fuera de H5 |
+
+**R13.6, matizado en [`docs/requisitos.md`](docs/requisitos.md).** Pide el backend del modelo «intercambiable por configuración (local vía Ollama o API externa)», siguiendo el patrón de `nlp_backend`. Por configuración se cambian el backend (`llm_backend`), el servidor (`llm_url`) y el modelo (`llm_model`), con una factoría como la de `nlp_backend`, pero sólo existe la implementación de Ollama: usar una API externa exige escribir otra clase que implemente `LLMBackend`, que es código, aunque no toca el agente. El autor eligió matizarlo, como R8.5 en #173, en vez de poner un ✅ sobre una letra que no se cumple entera. Lo que más se ha movido en H5 —el modelo y dónde corre— sí se cambia sin tocar código.
+
+**R13.8, el modo guiado, fuera de H5.** Es un «PODRÁ»: una degradación para cuando el modelo no elige bien las herramientas. Se dejó fuera al definir el hito, el 25 de septiembre, con el 20 de 20 del 27B tras separar las descripciones (PR #183), y #188 lo confirmó razonando y con el catálogo real de 12 herramientas: 25 de 26 y 24 de 26. `requisitos.md` no cambia.
+
+#### Lo que queda
+
+- **La release `v0.6`**, con esta PR en `dev`: la PR de `dev` a `main`, mergeada con merge commit, que será la primera ejecución de `only-from-dev` sobre `ubuntu-24.04` desde #178; el tag anotado `v0.6.0`, por consola; y las notas de la release.
+- **Lo que H5 deja abierto**, con su condición en la sección de cada issue: las respuestas vacías con el razonamiento lleno y las vueltas desbocadas (#192); el historial, que se pierde al recargar (#191); el arranque con la caché de disco fría, el modo persistente —una pregunta al administrador sin respuesta— y el túnel, que no se reconecta si se cae (#181); y los enlaces de las noticias y las fichas de `describe_models` (#192).
 
 
 
