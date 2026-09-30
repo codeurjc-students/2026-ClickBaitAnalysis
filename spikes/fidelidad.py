@@ -79,7 +79,10 @@ partes:
    recorta, y cuánta memoria cuesta la grande. Mide antes de cambiar el valor
    por defecto del agente. Con argumentos, repite las consultas que se le den
    en las ventanas que se le den, y guarda cada traza entera con el
-   razonamiento del modelo, para explicar una respuesta vacía.
+   razonamiento del modelo, para explicar una respuesta vacía. Y con
+   `--variantes`, con o sin historial y con el muestreo preciso o el del
+   Modelfile, intercaladas: con historial, el modelo narró análisis que no
+   había hecho.
 
 Ejecutar desde la raíz, con el túnel abierto (la sesión la abre
 `spikes/fidelidad_a40.sh`):
@@ -93,6 +96,8 @@ Ejecutar desde la raíz, con el túnel abierto (la sesión la abre
     .venv/bin/python spikes/fidelidad.py calibrar
     NLP_BACKEND=local .venv/bin/python spikes/fidelidad.py ventana
     NLP_BACKEND=local .venv/bin/python spikes/fidelidad.py ventana --ctx 16384 --veces 3 bucle-encadena-nyt
+    NLP_BACKEND=local .venv/bin/python spikes/fidelidad.py ventana --ctx 16384 --veces 5 \
+        --variantes preciso-con,modelfile-con,preciso-sin bucle-encadena-nyt
 
 Sin fuentes, las cuatro; los jueces, de uno en uno; `E:<prompt>` es la
 condición del perfil preciso sobre ese prompt. `OLLAMA_URL` cambia el servidor
@@ -1122,28 +1127,51 @@ def _historial_maximo() -> list[dict]:
     return historial
 
 
-def _argumentos_ventana(argumentos: list[str]) -> tuple[tuple[int, ...], int, tuple[str, ...]]:
-    """`[--ctx 8192,16384] [--veces N] [consulta ...]`. Sin nada, la primera medida."""
-    ventanas, veces, elegidas = VENTANAS, 1, []
+# Qué se manda en cada variante: el muestreo (`None` es el del Modelfile) y si
+# va el historial. Se añadieron tras la segunda medida, en la que con historial
+# el modelo narró dos veces de tres un análisis que no había hecho: para saber
+# si es del historial, del muestreo o de los dos.
+VARIANTES = {
+    "preciso-con": (PERFIL_PRECISO, True),
+    "modelfile-con": (None, True),
+    "preciso-sin": (PERFIL_PRECISO, False),
+    "modelfile-sin": (None, False),
+}
+VARIANTE_DE_PRODUCCION = ("preciso-con",)
+
+
+def _argumentos_ventana(
+    argumentos: list[str],
+) -> tuple[tuple[int, ...], int, tuple[str, ...], tuple[str, ...]]:
+    """`[--ctx 8192,16384] [--veces N] [--variantes a,b] [consulta ...]`. Sin
+    nada, la primera medida."""
+    ventanas, veces, elegidas, variantes = VENTANAS, 1, [], VARIANTE_DE_PRODUCCION
     pendientes = iter(argumentos)
     for argumento in pendientes:
         if argumento == "--ctx":
             ventanas = tuple(int(valor) for valor in next(pendientes).split(","))
         elif argumento == "--veces":
             veces = int(next(pendientes))
+        elif argumento == "--variantes":
+            variantes = tuple(next(pendientes).split(","))
+            if desconocidas := [nombre for nombre in variantes if nombre not in VARIANTES]:
+                raise ValueError(f"variantes desconocidas: {desconocidas}")
         else:
             elegidas.append(argumento)
-    return ventanas, veces, tuple(elegidas) or CONSULTAS_PESADAS
+    return ventanas, veces, tuple(elegidas) or CONSULTAS_PESADAS, variantes
 
 
-def _ruta_ventana(ventanas: tuple[int, ...], veces: int, elegidas: tuple[str, ...]) -> Path:
+def _ruta_ventana(ventanas: tuple[int, ...], veces: int, elegidas: tuple[str, ...], variantes: tuple[str, ...]) -> Path:
     """`ventana.json` para la primera medida; las repeticiones, en otro fichero."""
-    if (ventanas, veces, elegidas) == (VENTANAS, 1, CONSULTAS_PESADAS):
+    if (ventanas, veces, elegidas, variantes) == (VENTANAS, 1, CONSULTAS_PESADAS, VARIANTE_DE_PRODUCCION):
         return CARPETA / "ventana.json"
-    return CARPETA / f"ventana-{'-'.join(elegidas)}-{'-'.join(map(str, ventanas))}-x{veces}.json"
+    sufijo = "" if variantes == VARIANTE_DE_PRODUCCION else "-" + "-".join(variantes)
+    return CARPETA / f"ventana-{'-'.join(elegidas)}-{'-'.join(map(str, ventanas))}-x{veces}{sufijo}.json"
 
 
-async def ventana(ventanas: tuple[int, ...], veces: int, elegidas: tuple[str, ...]) -> None:
+async def ventana(
+    ventanas: tuple[int, ...], veces: int, elegidas: tuple[str, ...], variantes: tuple[str, ...]
+) -> None:
     """Cuánto cuesta subir `num_ctx` de 8.192 a 16.384, y si con 8.192 se recorta.
 
     La comparación de #192 enseñó que la regla de #189 medía sólo el prompt: el
@@ -1161,6 +1189,10 @@ async def ventana(ventanas: tuple[int, ...], veces: int, elegidas: tuple[str, ..
     llenar la ventana y no guardaba con qué explicarlo: desde entonces cada
     medida guarda los pasos enteros de la traza y lo que devolvió Ollama en
     cada vuelta, razonamiento incluido.
+
+    Con varias variantes, se intercalan repetición a repetición, como en
+    `comparar`: las noticias cambian con las horas, y así el cambio no cae
+    sobre una sola variante.
     """
     fuente = Fuente("ventana", "qwen3.5:27b", "05-llano", think=True)
     historial = _historial_maximo()
@@ -1171,7 +1203,7 @@ async def ventana(ventanas: tuple[int, ...], veces: int, elegidas: tuple[str, ..
             "prompt": fuente.prompt,
             "prompt_huella": _huella(prompts.cargar(fuente.prompt)),
             "decimales": 3,
-            "muestreo": PERFIL_PRECISO,
+            "variantes": {nombre: {"muestreo": VARIANTES[nombre][0], "historial": VARIANTES[nombre][1]} for nombre in variantes},
             "historial": {"turnos": len(historial), "caracteres": caracteres},
             "ventanas": ventanas,
             "consultas": elegidas,
@@ -1179,15 +1211,29 @@ async def ventana(ventanas: tuple[int, ...], veces: int, elegidas: tuple[str, ..
         },
         "medidas": [],
     }
-    print(f"  historial: {len(historial)} turnos, {caracteres} caracteres")
+    print(f"  historial: {len(historial)} turnos, {caracteres} caracteres · variantes: {', '.join(variantes)}")
     consultas = {clave: (consulta, esperadas) for clave, _, consulta, _, esperadas in _consultas()}
-    ruta = _ruta_ventana(ventanas, veces, elegidas)
+    ruta = _ruta_ventana(ventanas, veces, elegidas, variantes)
     async with httpx.AsyncClient(timeout=10.0) as cliente:
         for num_ctx in ventanas:
             print(f"\n== num_ctx {num_ctx}")
             for clave in elegidas:
                 for vez in range(1, veces + 1):
-                    await _medir_ventana(cliente, registro, ruta, fuente, historial, num_ctx, clave, vez, consultas[clave][0])
+                    for variante in variantes:
+                        muestreo, con_historial = VARIANTES[variante]
+                        await _medir_ventana(
+                            cliente,
+                            registro,
+                            ruta,
+                            fuente,
+                            historial if con_historial else [],
+                            num_ctx,
+                            clave,
+                            vez,
+                            consultas[clave][0],
+                            variante,
+                            muestreo,
+                        )
     print(f"\nLas medidas, en {ruta}")
 
 
@@ -1201,8 +1247,10 @@ async def _medir_ventana(
     clave: str,
     vez: int,
     consulta: str,
+    variante: str,
+    muestreo: dict | None,
 ) -> None:
-    config = _config(fuente, 3, PERFIL_PRECISO, num_ctx, clase=OllamaQueGuardaElRazonamiento)
+    config = _config(fuente, 3, muestreo, num_ctx, clase=OllamaQueGuardaElRazonamiento)
     resultado = await responder(consulta, historial, config)
     crudo = config.backend.crudo if isinstance(config.backend, OllamaQueGuardaElRazonamiento) else []
     cargado = await _pedir(cliente, "GET", "api/ps") or {}
@@ -1212,6 +1260,8 @@ async def _medir_ventana(
         "num_ctx": num_ctx,
         "consulta": clave,
         "vez": vez,
+        "variante": variante,
+        "historial_turnos": len(historial),
         "estado": resultado["status"],
         "total_s": resultado["total_s"],
         "vueltas": [
@@ -1236,7 +1286,7 @@ async def _medir_ventana(
     _guardar(registro, ruta)
     herramientas = [paso["name"] for paso in resultado["steps"] if paso["kind"] == "tool"]
     print(
-        f"  {clave:22} #{vez} {medida['estado']:12} {medida['total_s']:6.1f} s · "
+        f"  {clave:22} #{vez} {variante:14} {medida['estado']:12} {medida['total_s']:6.1f} s · "
         f"prompt por vuelta {[vuelta['prompt_tokens'] for vuelta in medida['vueltas']]} · "
         f"ocupación máx {medida['ocupacion_max']} de {num_ctx} · VRAM {medida['vram_mib']} MiB · "
         f"fin {[vuelta['done_reason'] for vuelta in crudo]} · herramientas {herramientas}"
@@ -1310,9 +1360,12 @@ if __name__ == "__main__":
             sys.exit("Uso: fidelidad.py validar <carpeta con la exportación de la página>")
     elif parte == "ventana":
         try:
-            _, _, elegidas = _argumentos_ventana(argumentos)
-        except (StopIteration, ValueError):
-            sys.exit("Uso: fidelidad.py ventana [--ctx 8192,16384] [--veces N] [consulta ...]")
+            _, _, elegidas, _ = _argumentos_ventana(argumentos)
+        except (StopIteration, ValueError) as error:
+            sys.exit(
+                f"{str(error) or 'Falta un valor.'} Uso: fidelidad.py ventana [--ctx 8192,16384] [--veces N]"
+                f" [--variantes {','.join(VARIANTES)}] [consulta ...]"
+            )
         existentes = {clave for clave, *_ in _consultas()}
         if desconocidas := [clave for clave in elegidas if clave not in existentes]:
             sys.exit(f"Consultas desconocidas: {desconocidas}. Hay: {sorted(existentes)}")
