@@ -8,7 +8,7 @@ Version de Python: 3.12.3
 
 ## Plan de trabajo — hitos hasta la entrega
 
-**Estado actual (septiembre 2026): `v0.6.0`.** El núcleo NLP está completo y
+**Estado actual (octubre 2026): `v0.6.0`.** El núcleo NLP está completo y
 validado —cuatro señales de clickbait contrastables, un modelo lineal
 interpretable propio, divulgación de modelos y una evaluación metodológicamente
 cerrada (split train/dev/test + validación externa)—, la capa web sirve sus
@@ -35,14 +35,14 @@ tenía fecha ni versión.
 | **H2 · `v0.3` API REST** | octubre | **15 ago** | FastAPI: exposición de las tools, catálogo con metadatos, historial **persistente**, OpenAPI, CORS, tests | **R4, R5, R9** |
 | **H3 · `v0.4` SPA funcional** | noviembre | **7 sep** | Angular: análisis con explicabilidad visual, catálogo de tools, historial, responsive y gestión de errores | **R6** |
 | **H4 · `v0.5` Docker y despliegue** | diciembre | **20 sep** | Docker Compose (MCP + API / web), **volumen** para el historial, HTTPS y pruebas E2E | **R7, R8** |
-| **H5 · `v0.6` Agente conversacional** | — | **30 sep** | Bucle del agente, `POST /chat` con sondeo, pantalla de chat y traza de herramientas | **R13**, R6.10/12/13 |
+| **H5 · `v0.6` Agente conversacional** | — | **1 oct** | Bucle del agente, `POST /chat` con sondeo, pantalla de chat y traza de herramientas | **R13**, R6.10/12/13 |
 | **H6 · `v1.0` Memoria y defensa** | ene–feb 2027 | *oct–feb* | Redacción de la memoria y preparación de la defensa | — |
 
 **El proyecto va casi tres meses por delante de esta previsión.** H2 se cerró en
 agosto donde se planificó octubre, H3 en septiembre donde se planificó noviembre,
 y **H4 en septiembre donde se planificó diciembre** — trece días después de H3,
 porque las dos máquinas llegaron el 16 de septiembre y el despliegue dependía de
-ellas. **H5 se cerró diez días después de H4**, el 30 de septiembre, cuando la
+ellas. **H5 se cerró once días después de H4**, el 1 de octubre, cuando la
 re-previsión le daba noviembre y diciembre. La columna «previsto» se conserva a
 propósito: el desfase es un dato del proyecto —dice que la estimación de agosto
 era conservadora— y no un error que tapar. La columna «real» de H6 es la
@@ -7371,6 +7371,18 @@ bash spikes/ollama_registro.sh
 **R13.6, matizado en [`docs/requisitos.md`](docs/requisitos.md).** Pide el backend del modelo «intercambiable por configuración (local vía Ollama o API externa)», siguiendo el patrón de `nlp_backend`. Por configuración se cambian el backend (`llm_backend`), el servidor (`llm_url`) y el modelo (`llm_model`), con una factoría como la de `nlp_backend`, pero sólo existe la implementación de Ollama: usar una API externa exige escribir otra clase que implemente `LLMBackend`, que es código, aunque no toca el agente. El autor eligió matizarlo, como R8.5 en #173, en vez de poner un ✅ sobre una letra que no se cumple entera. Lo que más se ha movido en H5 —el modelo y dónde corre— sí se cambia sin tocar código.
 
 **R13.8, el modo guiado, fuera de H5.** Es un «PODRÁ»: una degradación para cuando el modelo no elige bien las herramientas. Se dejó fuera al definir el hito, el 25 de septiembre, con el 20 de 20 del 27B tras separar las descripciones (PR #183), y #188 lo confirmó razonando y con el catálogo real de 12 herramientas: 25 de 26 y 24 de 26. `requisitos.md` no cambia.
+
+#### Cómo se enciende y se apaga, escrito
+
+Al preparar la release se vio que no estaba escrito en ningún sitio cómo se opera el sistema. [`despliegue/README.md`](despliegue/README.md) explicaba cómo instalar el túnel y `gpu-sesion`, pero no el día a día, y los comandos de la prueba de arriba estaban en una carpeta temporal. Ahora tiene una sección, «El día a día», con el orden —primero la máquina 1, después la sesión de GPU, y al terminar se cierra la sesión y se comprueba que la GPU queda libre— y los comandos para desplegar y parar la máquina 1 y para abrir y cerrar la sesión, con una terminal delante o sin ella.
+
+Se probaron como quedaron escritos:
+
+- **Con terminal**, el autor, desde PowerShell: abrió como se esperaba, con Ollama en marcha, el túnel abierto y el límite de 30 min. No la pudo cerrar, por lo que se cuenta abajo, y se cerró sola al agotar el límite: la conexión figura en `last`, en la máquina 2, de las 17:40 a las 18:11, y el asistente pasó a apagado sin que nadie hiciera nada. Es el caso para el que #181 puso el tope. El registro de Ollama no sirve para fechar el cierre: no escribe nada al cerrarse, y su última línea es la última petición que recibió.
+- **Sin terminal**, desde WSL, el 1 de octubre: el comando volvió en el acto, el asistente pasó a disponible, el testigo lo apagó y la GPU quedó a 0 MiB, con el registro de `gpu-sesion` terminando en «GPU liberada.». La víspera, con la sesión del autor abierta, el mismo comando se había negado a abrir otra, como debe. Y dejó a la vista por qué el comando de abrir empieza borrando el testigo: el de la prueba fallida seguía allí, y sin borrarlo la sesión nueva se habría cerrado nada más abrir.
+- **La comprobación de la máquina 1 desde WSL** dio «Host key verification failed», porque allí `known_hosts` la conoce por su IP y no por su nombre. El documento lo dice.
+
+**Y una lección que salió de probarlo.** El guion de prueba comprobaba por SSH, cada segundo, si la sesión había terminado. La máquina 2 empezó a cortar las conexiones, y después la universidad bloqueó la IP de casa para las dos máquinas: la web no cargaba desde casa y sí desde el móvil con datos, y la terminal de la sesión del autor se quedó congelada. A la máquina 2 no se la sondea en bucle: lo que se espera se pregunta a la API, y a la máquina se entra una vez al abrir la sesión y otra al comprobar que se cerró. El documento lo avisa.
 
 #### Lo que queda
 
