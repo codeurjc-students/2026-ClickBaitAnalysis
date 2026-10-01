@@ -2,13 +2,14 @@
 News API for The Guardian
 """
 
-from typing import TypedDict
+from typing import Annotated, TypedDict
 
 from mcp.server.fastmcp import FastMCP
 from mcp.server.fastmcp.exceptions import ToolError
 from pydantic import Field
 
 from backend.core.observability import log_tool_invocation
+from backend.core.texto import TextoOpcional
 from backend.integrations.guardian.client import GuardianAPI
 from backend.integrations.metadata import tool_meta
 
@@ -34,10 +35,13 @@ def register(mcp: FastMCP):
     @mcp.tool(meta=tool_meta("Fuentes de contenido", __name__))
     @log_tool_invocation
     async def get_guardian_news(
-        topic: str | None = Field(
-            default=None,
-            description="Palabra(s) clave del tema a buscar, en inglés (ej. 'artificial intelligence', 'climate change'). Si se omite, devuelve las noticias más recientes.",
-        ),
+        # «None» escrito como tema es buscar sin tema, no buscar la palabra (#197).
+        topic: Annotated[
+            TextoOpcional,
+            Field(
+                description="Palabra(s) clave del tema a buscar, en inglés (ej. 'artificial intelligence', 'climate change'). Si se omite, devuelve las noticias más recientes.",
+            ),
+        ] = None,
         days: int = Field(
             default=7, ge=1, le=30, description="Días hacia atrás desde hoy (1-30)."
         ),

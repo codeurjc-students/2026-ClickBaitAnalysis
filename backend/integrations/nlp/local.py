@@ -1,7 +1,21 @@
+"""Backend NLP local: `transformers` en el propio proceso (`LocalNLPClient`).
+
+Implementa `NLPBackend` con `pipeline()`, cacheado por `(tarea, modelo)` y
+cargado la primera vez que se pide, o al arrancar con `preheat_models` (#125).
+Corre en CPU: no pasa `device`, y la imagen lleva torch sin CUDA (#162).
+
+Lo que falla sin ser una avería se dice con claridad (#158, #162): que falte
+torch, o que un modelo no esté descargado con la descarga desactivada. El resto
+se registra entero y sale con la frase pública de `core/errores.py` (#89).
+"""
+
 import asyncio
 from collections.abc import Callable
 from typing import Any
 
+import structlog
+
+from backend.core.errores import mensaje_publico
 from backend.core.models import ToolResult
 from backend.integrations.nlp.base import NLPBackend
 from backend.integrations.nlp.dependencias import (
@@ -16,6 +30,26 @@ from backend.integrations.nlp.dependencias import (
 # nadie veía (#139). `Any` en el retorno es honesto: cada tarea devuelve una
 # forma distinta, y quien la lee ya la interpreta a su manera.
 Pipeline = Callable[..., Any]
+
+log = structlog.get_logger()
+
+
+def _fallo(tarea: str, model: str, error: Exception) -> ToolResult:
+    """Registra el fallo entero y devuelve lo único que puede salir fuera (#89).
+
+    El texto de `transformers` o de torch puede traer rutas del contenedor y
+    detalles de su implementación, y esto se publica: sale por `/analyze`, por
+    `/tools/.../execute` y por la tool MCP. Al log va completo, que es donde
+    sirve para depurar.
+    """
+    log.warning(
+        "nlp.local.fallo",
+        tarea=tarea,
+        modelo=model,
+        tipo=type(error).__name__,
+        detalle=str(error),
+    )
+    return ToolResult.fail(f"El modelo `{model}` {mensaje_publico(error)}.")
 
 
 class LocalNLPClient(NLPBackend):
@@ -77,8 +111,8 @@ class LocalNLPClient(NLPBackend):
             # Su mensaje ya está redactado para quien mira: envolverlo en «Error
             # inesperado» sería justo lo que se vino a arreglar.
             return ToolResult.fail(str(falta))
-        except Exception as e:
-            return ToolResult.fail(f"Error inesperado usando el modelo {model}: {e}")
+        except Exception as error:
+            return _fallo("text-classification", model, error)
 
     async def zero_shot(self, text: str, model: str, labels: list[str]) -> ToolResult:
         try:
@@ -90,5 +124,5 @@ class LocalNLPClient(NLPBackend):
             return ToolResult.ok(result)  # Etiqueta, valor (ganadores)
         except FaltaDependencia as falta:
             return ToolResult.fail(str(falta))
-        except Exception as e:
-            return ToolResult.fail(f"Error inesperado usando el modelo {model}: {e}")
+        except Exception as error:
+            return _fallo("zero-shot-classification", model, error)

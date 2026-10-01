@@ -1,0 +1,116 @@
+#!/usr/bin/env bash
+# Levanta Ollama para una sesión de trabajo, abre el túnel hacia la máquina 1 y
+# LO SUELTA TODO AL SALIR. Se instala en ~/bin de la máquina 2 (despliegue/README.md).
+#
+# La norma del administrador es no dejar la GPU bloqueada, y el peligro real no
+# es olvidarse: es que un servidor lanzado desde una terminal remota sobrevive a
+# cerrar la ventana. El `trap` lo suelta todo pase lo que pase —salida normal,
+# Ctrl-C o cierre de la terminal—, que es la única forma de que no dependa de
+# acordarse.
+#
+# Y la sesión tiene una DURACIÓN MÁXIMA (#181). Ollama se arranca sólo bajo
+# demanda, nunca se deja corriendo (decidido el 2026-09-25), y el tope cubre
+# también el caso que el `trap` no ve: una sesión SSH sin terminal no recibe
+# ninguna señal cuando se corta la conexión, y lo que haya dentro seguiría vivo.
+#
+#   gpu-sesion            -> abre una shell con Ollama y el túnel detrás
+#   gpu-sesion <comando>  -> ejecuta el comando y lo suelta todo al terminar
+#
+# Variables:
+#   GPU_SESION_MAX    duración máxima, en el formato de `timeout` (defecto: 2h)
+#   GPU_SESION_TUNEL  0 para no abrir el túnel: los spikes llegan por su propio
+#                     túnel desde WSL y no lo necesitan
+#
+# El túnel es INVERSO: lo abre esta máquina hacia la 1, como el usuario `tunel`,
+# que sólo puede escuchar en 172.17.0.1:11434 (despliegue/maquina1/70-tunel.conf).
+# Ahí lo alcanza el contenedor de la API, como `host.docker.internal`. Así la
+# máquina 1, que está en internet, no guarda ninguna llave de ésta.
+set -u
+OLLAMA="$HOME/.local/ollama/bin/ollama"
+REGISTRO="$HOME/.ollama-serve.log"
+MAXIMO="${GPU_SESION_MAX:-2h}"
+CON_TUNEL="${GPU_SESION_TUNEL:-1}"
+CLAVE_TUNEL="$HOME/.ssh/tunel_ollama"
+DESTINO_TUNEL="tunel@192.168.116.96" # la máquina 1, por la red privada
+ESCUCHA_TUNEL="172.17.0.1:11434"     # en la máquina 1: lo que alcanza el contenedor
+
+ocupada=$(nvidia-smi --query-compute-apps=pid --format=csv,noheader | wc -l)
+if [ "$ocupada" -gt 0 ]; then
+  echo "Hay $ocupada proceso(s) usando la GPU. Comprueba antes de seguir:"
+  nvidia-smi --query-compute-apps=pid,process_name,used_memory --format=csv
+  # Sin terminal, `read` recibe fin de fichero y la respuesta queda vacía: una
+  # sesión lanzada por guion no se abre nunca sobre una GPU ocupada.
+  printf '¿Seguir igualmente? [s/N] '
+  read -r respuesta
+  [ "${respuesta:-}" = "s" ] || exit 1
+fi
+
+if curl -s --max-time 2 http://127.0.0.1:11434/api/version > /dev/null; then
+  echo "Ya hay un Ollama escuchando en 127.0.0.1:11434 (¿otra sesión?). No se abre otra."
+  exit 1
+fi
+
+SERVIDOR=""
+TUNEL=""
+soltar() {
+  # Primero el túnel: que la API deje de ver un agente que se va a ir.
+  if [ -n "$TUNEL" ]; then kill "$TUNEL" 2>/dev/null; wait "$TUNEL" 2>/dev/null; fi
+  if [ -n "$SERVIDOR" ]; then kill "$SERVIDOR" 2>/dev/null; wait "$SERVIDOR" 2>/dev/null; fi
+  echo "GPU liberada."
+}
+# La limpieza va en EXIT; las señales sólo provocan la salida. Con la limpieza
+# directamente en INT, el guion la haría y después SEGUIRÍA ejecutándose.
+trap soltar EXIT
+trap 'exit 130' INT
+trap 'exit 143' TERM HUP
+
+OLLAMA_HOST=127.0.0.1:11434 "$OLLAMA" serve > "$REGISTRO" 2>&1 &
+SERVIDOR=$!
+
+# 60 s y no 30: con el modo persistente de la GPU desactivado, el servidor
+# tarda ~27 s en responder (medido en #181), demasiado cerca del tope de antes.
+listo=""
+for _ in $(seq 1 60); do
+  if curl -sf --max-time 2 http://127.0.0.1:11434/api/version > /dev/null; then
+    listo=1
+    break
+  fi
+  kill -0 "$SERVIDOR" 2>/dev/null || break
+  sleep 1
+done
+if [ -z "$listo" ]; then
+  echo "Ollama no respondió en 60 s. Registro: $REGISTRO"
+  exit 1
+fi
+echo "Ollama en marcha (pid $SERVIDOR). Registro: $REGISTRO"
+
+if [ "$CON_TUNEL" != "0" ]; then
+  # `-n` y `< /dev/null`: en segundo plano, ssh no debe leer la terminal de la
+  # shell de la sesión. `ExitOnForwardFailure` hace que un túnel rechazado
+  # termine en vez de quedarse conectado sin reenviar nada.
+  ssh -n -N -i "$CLAVE_TUNEL" -o BatchMode=yes -o ConnectTimeout=10 \
+    -o ExitOnForwardFailure=yes -o ServerAliveInterval=30 -o ServerAliveCountMax=3 \
+    -R "$ESCUCHA_TUNEL:127.0.0.1:11434" "$DESTINO_TUNEL" < /dev/null &
+  TUNEL=$!
+  sleep 3
+  if ! kill -0 "$TUNEL" 2>/dev/null; then
+    TUNEL=""
+    echo "El túnel NO se abrió: la API no vería el agente. Se cierra la sesión."
+    exit 1
+  fi
+  echo "Túnel abierto: la máquina 1 ve a Ollama en $ESCUCHA_TUNEL."
+fi
+
+echo "La sesión se cierra sola, como mucho, en $MAXIMO."
+# `--foreground` deja que la shell use la terminal; `--kill-after` hace falta
+# porque una shell interactiva IGNORA la señal TERM con la que corta `timeout`.
+if [ $# -gt 0 ]; then
+  timeout --foreground --kill-after=10s "$MAXIMO" "$@"
+else
+  timeout --foreground --kill-after=10s "$MAXIMO" "${SHELL:-bash}"
+fi
+codigo=$?
+if [ "$codigo" -eq 124 ] || [ "$codigo" -eq 137 ]; then
+  echo "Se agotó la duración máxima de la sesión ($MAXIMO)."
+fi
+exit "$codigo"

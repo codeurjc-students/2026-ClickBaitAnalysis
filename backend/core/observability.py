@@ -1,4 +1,10 @@
-# Decorador que registra cada invocación de una tool
+"""`log_tool_invocation`: el decorador que registra cada invocación de una tool.
+
+Una línea `tool.invoke` por llamada, con los argumentos, la duración y el
+resultado; si falla, `tool.invoke.failed` con la traza completa, y **relanza**.
+El decorador observa, no decide qué se responde: antes devolvía el error como
+texto, y MCP lo daba por un resultado válido, con `isError` a false (#100).
+"""
 
 import functools
 import time

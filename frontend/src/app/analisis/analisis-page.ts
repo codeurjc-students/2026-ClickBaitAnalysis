@@ -11,20 +11,9 @@ import { Router } from '@angular/router';
 
 import { AnalyzeService } from '../api/analyze.service';
 import { HistoryService } from '../api/history.service';
-import { comoAnalisis, type AnalisisGuardado } from './formas';
-import { comoLexico, type Pista } from './datos';
+import { comoAnalisis, type AnalisisGuardado } from '../senales/formas';
+import { ResultadoAnalisis } from '../senales/resultado-analisis';
 import { mensajeDeError } from './errores';
-import { SenalCard } from './senal-card';
-import { TitularResaltado } from './titular-resaltado';
-import {
-  estadoDeSenal,
-  nombreDeDimension,
-  funciono,
-  nombreCortoDeSenal,
-  nombreDeSenal,
-  nombreDeVeredicto,
-  resumenDimension,
-} from './vocabulario';
 
 /** Espeja `NonBlankStr` del backend: recorta antes de medir. */
 function noEnBlanco(control: AbstractControl<string>): ValidationErrors | null {
@@ -33,7 +22,7 @@ function noEnBlanco(control: AbstractControl<string>): ValidationErrors | null {
 
 @Component({
   selector: 'app-analisis-page',
-  imports: [ReactiveFormsModule, TitularResaltado, SenalCard],
+  imports: [ReactiveFormsModule, ResultadoAnalisis],
   templateUrl: './analisis-page.html',
   styleUrl: './analisis-page.scss',
 })
@@ -86,19 +75,6 @@ export class AnalisisPage {
       timeStyle: 'short',
     });
   });
-
-  readonly veredicto = computed(() => {
-    const analisis = this.resultado();
-    return analisis ? nombreDeVeredicto(analisis.verdict) : null;
-  });
-
-  // La plantilla sólo ve miembros de la clase, no imports del módulo.
-  protected readonly nombre = nombreDeSenal;
-  protected readonly nombreCorto = nombreCortoDeSenal;
-  protected readonly estado = estadoDeSenal;
-  protected readonly funciono = funciono;
-  protected readonly dimension = nombreDeDimension;
-  protected readonly resumen = resumenDimension;
 
   constructor() {
     // Un `effect` y no una carga en el constructor porque el id puede CAMBIAR
@@ -204,19 +180,6 @@ export class AnalisisPage {
 
   ejemplo(titular: string): void {
     this.formulario.controls.headline.setValue(titular);
-  }
-
-  /**
-   * Las pistas léxicas con las que se resalta el titular.
-   *
-   * Vacío si la señal falló o si su `data` no tiene la forma esperada: el
-   * titular se pinta entero y sin marcas, que es degradar, no romperse.
-   */
-  pistasDe(analisis: AnalisisGuardado): Pista[] {
-    const lexica = analisis.signals.find(
-      (senal) => senal.name === 'detect_clickbait_lexical',
-    );
-    return comoLexico(lexica?.data)?.matches ?? [];
   }
 
   /** La condición se usa dos veces: el mensaje y el `aria-invalid`. */

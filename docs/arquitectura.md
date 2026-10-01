@@ -1,8 +1,18 @@
 # Arquitectura
 
-> **Documento vivo.** Refleja el estado tras cerrar **H2** (API REST completa) y
-> la primera pantalla de H3. Para los requisitos, ver [`requisitos.md`](requisitos.md);
-> para dónde vive cada cosa y con qué criterio, [`estructura.md`](estructura.md).
+> **Documento vivo.** Refleja el estado tras cerrar **H5** (`v0.6.0`): el agente
+> conversacional, construido y contrastado con su plano. Revisado entero en #173,
+> y §7, §10 y §12 otra vez en #193, al cerrar H5. Para los requisitos,
+> ver [`requisitos.md`](requisitos.md); para dónde vive cada cosa y con qué
+> criterio, [`estructura.md`](estructura.md).
+>
+> **Lo punteado es el plano de H5, y se conserva.** Los elementos con borde o
+> flecha discontinuos son el diseño declarado el 2026-09-23, después de rehacer
+> el spike del agente en la A40 y antes de construirlo. Al cerrar el hito (#193)
+> no se corrigieron: junto a cada uno hay otro con lo construido, en trazo
+> continuo, y **en naranja lo que se desvió del plano**. Lo que salió distinto
+> es tan informativo como lo que salió igual. Todo lo demás describe el sistema
+> de hoy.
 >
 > **Formato.** Los diagramas de flujo van en **Mermaid**: GitHub los renderiza,
 > viven junto al texto y se revisan en el diff de una pull request. Los dos SVG
@@ -24,12 +34,20 @@ cómo se analiza un titular, y no sabe quién lo llama. Encima hay dos formas de
 consumirlo:
 
 - **El servidor MCP** (`backend/main.py`, FastMCP), que expone las herramientas a
-  un cliente MCP: hoy Claude Desktop, mañana el agente de R13. El transporte es
+  un cliente MCP: Claude Desktop y, desde H5, el agente de R13. El transporte es
   configurable (`stdio` o `streamable-http`).
 - **La API REST** (`backend/api/`, FastAPI), que sirve a la SPA de Angular.
 
 No es una encima de la otra: son **dos fachadas sobre el mismo núcleo**. Esa
 decisión explica la asimetría del primer diagrama, que es lo que más se malinterpreta.
+
+Desde H4 las dos fachadas y la web corren en **tres contenedores** en la máquina 1
+([§10](#10--despliegue)), abiertos a internet sólo a través de Caddy
+([§11](#11--el-camino-de-una-petición-en-despliegue)). Desde H5 hay un tercer
+consumidor, **el agente** ([§12](#12--el-agente-conversacional-el-plano-y-lo-construido)),
+que corre dentro del proceso de la API: habla con el núcleo **por MCP, como
+cliente**, y con un modelo de lenguaje servido en la máquina 2, que se enciende
+bajo demanda.
 
 ## 1 · Las dos fachadas: qué cruza la frontera MCP
 
@@ -266,16 +284,96 @@ salieron los tres huecos de contrato de la issue 133.
 
 ## 7 · Capas y dirección de dependencias
 
+### Hoy, en `v0.6`
+
 ```mermaid
 flowchart TD
     FACH["Fachadas<br/>api/ · main.py<br/>saben que sirven a alguien"]
+    AGT["agent/<br/>el bucle, la traza y los prompts<br/>conoce el dominio sólo por el prompt"]
     ANA["analysis/<br/>domain · orchestrator<br/>qué es el clickbait"]
     INT["integrations/<br/>nlp · nyt · guardian · weather"]
+    LLM["integrations/llm/<br/>interfaz · Ollama · factoría · ficha"]
+    CORE["core/<br/>BaseAPI · ToolResult · mcp · errores · logging"]
+    CONF["config/<br/>settings"]
+    EVAL["evaluation/<br/>entrenar y medir, no se sirve"]
+
+    FACH --> ANA --> INT --> CORE --> CONF
+    FACH -->|"api/ monta Configuracion y lo lanza"| AGT
+    FACH -->|"api/ pide el backend y la ficha a la factoría"| LLM
+    AGT -->|"cliente MCP y errores"| CORE
+    AGT -->|"sólo la interfaz, base.py"| LLM
+    LLM --> CORE
+    LLM -->|"sólo factory.py"| CONF
+    CORE -->|"sólo health.py, con tool_meta de metadata.py"| INT
+    EVAL --> INT
+
+    linkStyle 5 stroke:#d9822b,stroke-width:3px
+```
+
+*En naranja, lo que el plano de debajo no tenía. Y falta una flecha que él sí
+dibujaba: la del agente a `analysis/`.*
+
+*Las dos últimas flechas tampoco estaban en el plano, pero no son de H5: ya
+existían cuando se dibujó, y salieron al recorrer los imports de `backend/` en
+#193. `evaluation/` son los guiones de entrenar y medir, que no se sirven. Y la
+única flecha hacia arriba es la de `core/` a `integrations/`: `core/health.py`
+se registra como herramienta MCP y declara su categoría con `tool_meta`, de
+`integrations/metadata.py`, desde #99. Es la tensión 3 de
+[`estructura.md`](estructura.md): `metadata.py` no envuelve nada, y encajaría
+mejor en `core/`. Con ellas, cada import real entre capas
+queda cubierto por un camino del dibujo.*
+
+### El plano del 23 sep 2026
+
+```mermaid
+flowchart TD
+    FACH["Fachadas<br/>api/ · main.py<br/>saben que sirven a alguien"]
+    AGT["agent/<br/>el bucle y el prompt<br/>conoce el dominio"]
+    ANA["analysis/<br/>domain · orchestrator<br/>qué es el clickbait"]
+    INT["integrations/<br/>nlp · nyt · guardian · weather"]
+    LLM["integrations/llm/<br/>cliente de Ollama"]
     CORE["core/<br/>BaseAPI · ToolResult · mcp · logging"]
     CONF["config/<br/>settings"]
 
     FACH --> ANA --> INT --> CORE --> CONF
+    FACH -.-> AGT
+    AGT -.-> ANA
+    AGT -.->|"cliente MCP"| CORE
+    AGT -.-> LLM
+    LLM -.-> CORE
+
+    classDef plan stroke-dasharray: 5 5
+    class AGT,LLM plan
 ```
+
+**Lo punteado es H5.** `agent/` va de primer nivel, hermano de `analysis/`,
+porque **conoce el dominio** —el prompt codifica qué es cada señal— y por eso no
+puede ir en `core/`; y no envuelve nada externo, así que tampoco es una
+integración. El cliente de Ollama sí lo es, y por eso va a `integrations/llm/`,
+con cliente y factoría como `nlp/`.
+
+**Qué cambió al construirlo** (#193). Los dos sitios se mantuvieron; cambiaron
+dos flechas:
+
+- **El agente no importa `analysis/`.** Conoce el dominio sólo por el prompt,
+  que dice qué es cada señal, y lo que necesita del análisis lo pide por MCP,
+  como cualquier otra herramienta. La flecha a `analysis/` es de la API: al
+  publicar la traza, le pone a cada paso de señal su `SignalResult` con
+  `senal_de` (issue 191), porque calcularlo en la pantalla habría sido una
+  segunda copia de la regla de voto.
+- **Quien cablea el agente es la API**, en `api/chat.py`: monta la
+  `Configuracion` con los ajustes y pide el backend a la factoría de
+  `integrations/llm/`, que usan también `POST /chat` y `GET /agent` para saber
+  si el modelo está y publicar su ficha (issue 189). El agente sólo ve la
+  interfaz, `LLMBackend`: ni sabe qué servidor hay detrás ni lee la
+  configuración —está en la regla de abajo con **ningún** módulo exceptuado—.
+
+### Las reglas que no se dibujan
+
+La regla que el agente tiene que respetar es la primera de abajo: **habla con las
+herramientas por MCP, importando `core/mcp/`, nunca a través de `api/`**. No hace
+falta tocar el test para que lo vigile: su lista es de excepciones, y `agent/`
+no está en ella.
 
 Las flechas son la **dirección permitida**, no cada import concreto. La regla que
 sostiene el diseño es la inversa, y no se dibuja porque no existe:
@@ -287,8 +385,9 @@ sostiene el diseño es la inversa, y no se dibuja porque no existe:
   cualquier paquete nuevo, y `backend/agent/` llega con R13 siendo justo el caso
   donde reutilizar `api/` tienta.
 - **Los detectores no conocen la configuración.** `lexical`, `linear`,
-  `incoherence` y `dedicated` no importan `settings`; sólo lo hacen `client.py`,
-  que necesita el token, y `factory.py`, cuyo trabajo es leer configuración. Eso
+  `incoherence` y `dedicated` no importan `settings`; sólo lo hacen `remote.py`
+  (`client.py` hasta la issue 108), que necesita el token, y `factory.py`, cuyo
+  trabajo es leer configuración. Eso
   es lo que permite probarlos sin montar nada, y lo que hay que preservar al
   parametrizar sus umbrales.
 
@@ -400,6 +499,435 @@ Tres decisiones que el diagrama no puede enseñar solo:
   corriente; por eso el código está declarado en el contrato desde #129 y la
   pantalla lo explica con esas palabras en vez de decir «no se pudo cargar».
 
+## 10 · Despliegue
+
+### Hoy, en `v0.6`
+
+```mermaid
+flowchart TB
+    NAV["Navegador"]
+    EXT["APIs de noticias<br/>NYT · Guardian · weather.gov"]
+    PER["Una persona<br/>abre la sesión de GPU"]
+
+    subgraph M1["Máquina 1 · la aplicación · 15 GiB, sin GPU"]
+        subgraph PUB["Publicado: 80, 443 y 443/udp"]
+            WEB["web · Caddy 2.11.4<br/>la SPA en /srv · TLS · tope de 1 MB"]
+        end
+        subgraph RED["Red interna de compose · nada publicado"]
+            API["api · uvicorn :8000<br/>--root-path /api · limitador<br/>5 señales, 3 modelos en local"]
+            MCP["mcp · FastMCP :8765<br/>streamable-http"]
+            AGT["agente · backend/agent/<br/>dentro del proceso de la API"]
+        end
+        TUN["172.17.0.1:11434<br/>boca del túnel<br/>escucha el usuario tunel"]
+        CERT[("/etc/clickbait/tls<br/>certificado autofirmado")]
+        HIST[("volumen historial<br/>/app/var/history.db")]
+    end
+
+    subgraph M2["Máquina 2 · A40 de 46 GB · compartida · bajo demanda"]
+        GS["gpu-sesion<br/>2 h como mucho<br/>lo suelta todo al salir"]
+        OLL["Ollama 0.34.2<br/>qwen3.5:27b · num_ctx 16.384"]
+    end
+
+    NAV -->|HTTPS| WEB
+    WEB -->|"/api/* sin el prefijo"| API
+    API -->|"/tools y execute"| MCP
+    API -->|"/health"| EXT
+    MCP -->|"herramientas de noticias"| EXT
+    API --- HIST
+    WEB --- CERT
+    API -->|"POST /chat<br/>1 en marcha, 2 en cola"| AGT
+    AGT -->|"descubrimiento y llamadas"| MCP
+    AGT -->|"el chat, por host.docker.internal:11434"| TUN
+    TUN -->|"túnel SSH inverso"| OLL
+    PER --> GS
+    GS -->|"arranca"| OLL
+    GS -->|"abre el túnel hacia la 1"| TUN
+    API -->|"GET /agent y POST /chat<br/>preguntan si el modelo está"| TUN
+
+    classDef desvio stroke:#d9822b,stroke-width:3px
+    class PER,GS,TUN desvio
+    linkStyle 7,9,10,11,12,13,14 stroke:#d9822b,stroke-width:3px
+```
+
+*En naranja, lo que el plano de debajo no tenía o dejaba sin decidir.*
+
+### El plano del 23 sep 2026
+
+```mermaid
+flowchart TB
+    NAV["Navegador"]
+    EXT["APIs de noticias<br/>NYT · Guardian · weather.gov"]
+
+    subgraph M1["Máquina 1 · la aplicación · 15 GiB, sin GPU"]
+        subgraph PUB["Publicado: 80, 443 y 443/udp"]
+            WEB["web · Caddy 2.11.4<br/>la SPA en /srv · TLS · tope de 1 MB"]
+        end
+        subgraph RED["Red interna de compose · nada publicado"]
+            API["api · uvicorn :8000<br/>--root-path /api · limitador<br/>5 señales, 3 modelos en local"]
+            MCP["mcp · FastMCP :8765<br/>streamable-http"]
+            AGT["agente · backend/agent/<br/>dentro del proceso de la API"]
+        end
+        CERT[("/etc/clickbait/tls<br/>certificado autofirmado")]
+        HIST[("volumen historial<br/>/app/var/history.db")]
+    end
+
+    subgraph M2["Máquina 2 · A40 de 46 GB · compartida · bajo demanda"]
+        OLL["Ollama 0.34.2<br/>qwen3.5:27b"]
+    end
+
+    NAV -->|HTTPS| WEB
+    WEB -->|"/api/* sin el prefijo"| API
+    API -->|"/tools y execute"| MCP
+    API -->|"/health"| EXT
+    MCP -->|"herramientas de noticias"| EXT
+    API --- HIST
+    WEB --- CERT
+    API -.->|"POST /chat"| AGT
+    AGT -.->|"descubrimiento y llamadas"| MCP
+    AGT -.->|"cómo llega: sin decidir"| OLL
+
+    classDef plan stroke-dasharray: 5 5
+    class AGT,OLL plan
+    style M2 stroke-dasharray: 5 5
+```
+
+**Lo punteado es H5**, y el despliegue tiene que seguir funcionando **sin ello**:
+la máquina 2 se apaga cuando no se usa, así que el análisis no puede depender del
+agente. Si no hay agente, la interfaz no ofrece el chat (R6.14).
+
+**Qué cambió al construirlo** (#193): cómo llega la API a la A40, quién enciende
+Ollama y dónde espera una conversación cuando la GPU está ocupada. Los tres
+están en naranja arriba, y el porqué de cada uno, en los tres últimos párrafos
+de la sección.
+
+### Por qué está así
+
+**Tres contenedores y dos imágenes.** `api` y `mcp` son **la misma imagen** con
+otro comando (issue 162): los modelos van horneados en ella y el proceso arranca
+con `HF_HUB_OFFLINE=1`, así que analizar un titular **no necesita red**. Lo único
+que sale a internet son las APIs de noticias —y `/health`, que las sondea con una
+caché de 30 s—.
+
+**Sólo se publica Caddy.** `api` y `mcp` no tienen ningún puerto publicado, y no
+es un detalle de limpieza: es lo que hace creíble la cabecera con la IP del
+cliente, y con ella el límite de velocidad ([§11](#11--el-camino-de-una-petición-en-despliegue)).
+Lo vigila `tests/test_compose.py`.
+
+**El certificado vive fuera de la imagen y del repositorio**, en la máquina, y
+Caddy lo lee de un directorio montado. Caduca el 2027-05-18, y renovarlo es
+`caddy reload --force`: sin `--force`, Caddy ve la misma configuración y sigue
+sirviendo el viejo sin avisar.
+
+**Sin `depends_on`, a propósito.** Con la API caída, la web sigue sirviendo la
+aplicación y el indicador de salud explica el 502; con el MCP caído, sólo se
+degrada la pantalla de Sistema. Ningún servicio necesita a otro para arrancar, y
+por eso R7.4 —«en el orden correcto»— se cumple sin orden: `up --wait` los deja
+sanos a los tres.
+
+**La máquina 1 no guarda ninguna llave de la 2.** La máquina 2 sólo acepta el
+puerto 22, así que el único camino es SSH, y el túnel lo abre ella, hacia la 1,
+como un usuario `tunel` que sólo puede escuchar en `172.17.0.1:11434` (issue
+181). Esa dirección es la del puente de Docker: el contenedor de la API no
+alcanza el `127.0.0.1` del host, y sí `host.docker.internal`, que `extra_hosts`
+resuelve ahí. El túnel añade ~2 ms por petición, frente a los segundos de una
+vuelta del modelo.
+
+**Ollama no está nunca encendido sin una persona delante.** Lo arranca
+`gpu-sesion` (en `despliegue/maquina2/`), que abre también el túnel y lo suelta
+todo al salir —con 2 h como mucho, para el caso de una conexión que se corta sin
+avisar—. La API sólo **detecta** si el modelo está: sin sesión, `GET /agent`
+dice que el asistente está apagado y por qué, y la pantalla lo explica en vez de
+ofrecer un formulario que fallaría (R6.14). El análisis no se entera.
+
+**La cola es de la API, no de Ollama** (issue 189): una conversación en marcha,
+dos esperando a la vista (`queued`), y un 503 con la cola llena. En Ollama la
+espera sería invisible y se comería el `llm_timeout` de cada llamada, que cuenta
+desde que se envía.
+
+## 11 · El camino de una petición en despliegue
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant NAV as Navegador
+    participant CAD as Caddy
+    participant UVI as uvicorn
+    participant LIM as limitador
+    participant RUT as FastAPI
+    participant ORQ as orchestrator
+
+    NAV->>CAD: POST /api/analyze por HTTPS
+    CAD->>CAD: cuerpo de más de 1 MB, 413 y no pasa
+    CAD->>CAD: quita /api y sobrescribe X-Forwarded-For con la IP real
+    CAD->>UVI: POST /analyze
+    UVI->>UVI: --root-path lo VUELVE a poner, path = /api/analyze
+    UVI->>UVI: --forwarded-allow-ips, client.host = la IP real
+    UVI->>LIM: la petición, antes de enrutar
+    LIM->>LIM: quita el prefijo, /analyze, grupo de las caras
+    alt cupo agotado
+        LIM-->>NAV: 429 con Retry-After y las cabeceras de CORS
+    else cabe
+        LIM->>RUT: Starlette quita /api al enrutar
+        RUT->>ORQ: analyze(request)
+        ORQ-->>RUT: cinco señales, con los modelos de la imagen
+        RUT-->>NAV: 200
+    end
+```
+
+Lo que este diagrama enseña y el código no, porque está repartido entre tres
+ficheros de dos lenguajes distintos:
+
+- **El prefijo `/api` viaja.** Caddy lo quita, uvicorn lo vuelve a poner en el
+  `scope` y Starlette lo quita al enrutar. Un middleware corre **entre** lo
+  segundo y lo tercero, así que lo ve: es el fallo que dejó el límite de
+  velocidad sin efecto en la primera versión de la issue 169, con toda la suite
+  en verde.
+- **La IP del cliente son tres eslabones**: Caddy la escribe (sobrescribiendo, no
+  añadiendo), uvicorn se fía de ella y la API no se publica. Si uno se suelta, el
+  límite pasa a ser uno para todo internet.
+- **Cada tope vive donde es más barato**: el tamaño del cuerpo, en Caddy (R12.5),
+  para que lo rechazado no llegue a ocupar memoria en la API; el ritmo, en la API
+  (R12.4), porque depende de la ruta y hay que probarlo en el CI.
+
+## 12 · El agente conversacional: el plano y lo construido
+
+El plano se declaró el 2026-09-23, antes de escribir una línea del agente, y se
+contrastó con lo construido al cerrar H5 (#193). Va primero tal como se dibujó;
+debajo, lo construido, qué se desvió y por qué, y qué fue de lo que el plano
+dejaba sin decidir.
+
+### El plano (23 sep 2026)
+
+**Esto es un plano, no el sistema.** Declarado el 2026-09-23 a partir de las
+decisiones de H1 —`POST /chat` con sondeo, `backend/agent/`,
+`integrations/llm/`— y de las medidas del spike rehecho en la A40 (PR 176). Se
+contrastará con lo construido al cerrar H5.
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant SPA as SPA · chat
+    participant API as FastAPI
+    participant TRA as trabajo en memoria
+    participant AGT as agente
+    participant MCP as servidor MCP
+    participant LLM as Ollama en la A40
+
+    Note over SPA,LLM: PLANO de H5, declarado el 2026-09-23. Se contrasta al cerrar el hito.
+    SPA->>API: POST /chat
+    API->>TRA: crea el trabajo
+    API-->>SPA: 202 con el id del trabajo, al instante
+    API->>AGT: lanza el agente sobre ese trabajo
+    par el agente trabaja
+        AGT->>MCP: list_tools
+        MCP-->>AGT: el catálogo, unos 2.438 tokens hoy
+        loop como mucho 6 vueltas
+            AGT->>LLM: mensajes, catálogo y prompt versionado, con num_ctx explícito
+            alt el modelo pide herramientas
+                LLM-->>AGT: llamadas a herramientas
+                AGT->>MCP: call_tool
+                MCP-->>AGT: resultado estructurado
+                AGT->>TRA: anota la llamada y su resultado en la traza
+                Note over AGT,LLM: y el resultado vuelve al modelo en la vuelta siguiente
+            else el modelo responde
+                LLM-->>AGT: el texto final
+                AGT->>TRA: guarda la respuesta y da el trabajo por terminado
+            end
+        end
+    and la SPA sondea mientras tanto
+        loop hasta que el trabajo termine
+            SPA->>API: GET /chat/id
+            API->>TRA: lee el estado y la traza
+            API-->>SPA: estado, traza y resultado de cada herramienta
+        end
+    end
+    Note over SPA,TRA: las tarjetas se pintan con el JSON de la traza, no con el texto del modelo
+```
+
+**Lo decidido, y de dónde sale:**
+
+- **Asíncrono**: `POST /chat` devuelve un id y la SPA sondea. Un bucle completo
+  con el 27B tarda **13–36 s**, y la máquina 2 se arranca bajo demanda. SSE se
+  descartó porque dejaría el único endpoint fuera del contrato generado.
+- **Los trabajos, en memoria del proceso**: el backend va con un solo worker
+  desde la issue 125, porque cada proceso carga sus propios modelos.
+- **El resultado estructurado va a dos sitios**: de vuelta al modelo, como
+  mensaje de rol `tool` en la vuelta siguiente, para que pueda narrarlo; y a la
+  **traza del trabajo**, que es lo que lee la SPA. Las tarjetas salen de la
+  traza (R13.3, R6.13), así que **el veredicto nunca pasa por el texto del
+  modelo** (R13.4) — que es justo donde el spike vio al modelo inventarse
+  detalles.
+- **La SPA sondea mientras el agente trabaja**, no cuando termina: la traza crece
+  entre sondeo y sondeo, y por eso es «acumulada». Cada herramienta que acaba se
+  puede enseñar antes de que el modelo haya escrito una palabra.
+- **`qwen3.5:27b` con el prompt `04-preciso` o `03-estricto`**. El 2B es cinco
+  veces más rápido, pero **se inventa detalles que una criba automática no ve**:
+  0 marcas y 2 errores de 2 con el mismo prompt.
+- **`num_ctx` explícito, nunca el valor por defecto.** El catálogo cuesta 2.438
+  tokens contados por el propio modelo, y con 2048 **Ollama lo recorta en
+  silencio**: el modelo elige mal sin que nada falle.
+- **Descubrimiento por MCP** (R13.2): añadir una herramienta no toca el agente.
+- **El veredicto sale de las herramientas** (R13.4) y las tarjetas se pintan con
+  su JSON (R6.13). El modelo narra y contrasta; no decide.
+- **Modo guiado** (R13.8) como degradación: si el *tool calling* falla, el
+  backend elige las herramientas y el modelo sólo narra.
+
+**Lo que el plano todavía NO decide**, y H5 tendrá que resolver:
+
+- **Cómo llega la API a la A40**: un túnel SSH desde la máquina 1 o un puerto en
+  la red de la universidad. Ni decidido ni medido.
+- **Quién arranca Ollama y cuándo suelta la GPU**, con las normas de una máquina
+  compartida. Hoy existe `~/bin/gpu-sesion` para uso a mano.
+- **Separar las descripciones de `detect_clickbait` y `detect_clickbait_linear`**:
+  es el único fallo de selección que quedaba con la ventana entera, idéntico en
+  los dos modelos, y es de los docstrings.
+- **La ficha de modelo del agente** (R13.7) y dónde vive.
+- **El arranque real de la máquina 2**, con la caché de disco fría.
+
+### Lo construido (`v0.6`)
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant SPA as SPA · asistente
+    participant API as FastAPI
+    participant TRA as trabajos en memoria
+    participant AGT as agente
+    participant MCP as servidor MCP
+    participant LLM as Ollama en la A40
+
+    Note over SPA,LLM: LO CONSTRUIDO en H5, v0.6. En naranja, lo que el plano no tenía.
+    rect rgba(217, 130, 43, 0.18)
+        SPA->>API: GET /agent
+        API->>LLM: pregunta si el modelo está
+        LLM-->>API: su versión y sus modelos, o la conexión rechazada al instante
+        API-->>SPA: disponibilidad, ficha, prompt<br/>y tope del historial
+        SPA->>SPA: recorta el historial al tope,<br/>con los nombres de las herramientas
+    end
+    SPA->>API: POST /chat con el mensaje y el historial
+    rect rgba(217, 130, 43, 0.18)
+        API->>LLM: pregunta si el modelo está
+        LLM-->>API: si está, y si tiene el modelo
+        API->>TRA: crea el trabajo, en cola<br/>si hay otro en marcha
+        TRA-->>API: el trabajo y su id,<br/>o que la cola está llena
+        Note over SPA,API: 503 sin modelo o con la cola llena,<br/>y 422 si el historial pasa del tope
+    end
+    API-->>SPA: 202 con el id del trabajo, al instante
+    par el agente trabaja
+        rect rgba(217, 130, 43, 0.18)
+            TRA->>TRA: espera su turno en la cola, en queued,<br/>y al tocarle pasa a running
+        end
+        TRA->>AGT: lanza el agente
+        AGT->>MCP: list_tools
+        MCP-->>AGT: el catálogo, 12 herramientas y 2.846 tokens
+        rect rgba(217, 130, 43, 0.18)
+            AGT->>AGT: monta los turnos anteriores,<br/>con sus llamadas sin resultado, y un aviso
+        end
+        loop como mucho 6 vueltas
+            AGT->>LLM: mensajes, catálogo y 05-llano, razonando,<br/>num_ctx 16.384 y perfil preciso
+            LLM-->>AGT: llamadas a herramientas, o el texto final
+            rect rgba(217, 130, 43, 0.18)
+                AGT->>TRA: anota la vuelta, con lo que pidió,<br/>sus tokens y su tiempo
+            end
+            alt el modelo pide herramientas
+                AGT->>MCP: call_tool, una por cada llamada
+                MCP-->>AGT: resultado estructurado
+                AGT->>TRA: anota la llamada y su resultado<br/>entero en la traza
+                rect rgba(217, 130, 43, 0.18)
+                    Note over AGT,LLM: al modelo vuelve con las cifras a tres decimales
+                end
+            else responde sin pedir ninguna
+                Note over AGT,LLM: sale del bucle, con texto o vacío
+            end
+        end
+        AGT-->>TRA: el resultado, answered, empty_answer,<br/>max_rounds o failed
+        TRA->>TRA: lo guarda y da el trabajo por terminado
+    and la SPA sondea cada 2 s
+        loop hasta que el trabajo termine
+            SPA->>API: GET /chat/id
+            API->>TRA: lee el estado y la traza
+            TRA-->>API: el estado y los pasos hasta ahora
+            rect rgba(217, 130, 43, 0.18)
+                API->>API: a cada paso de señal<br/>le añade su SignalResult
+            end
+            API-->>SPA: queued, running o done, con la traza
+        end
+    end
+    Note over SPA,TRA: las tarjetas se pintan con el SignalResult de la traza, no con el texto del modelo
+```
+
+*Las flechas continuas sin respuesta son anotaciones en la traza del trabajo:
+el agente avisa de cada paso y no espera nada a cambio. La petición HTTP no
+espera al agente —el 202 sale al instante—, pero el trabajo sí: recoge su
+resultado y lo guarda.*
+
+**Lo que se mantuvo** de «Lo decidido»: asíncrono con sondeo, los trabajos en
+memoria, el resultado a dos sitios, la traza acumulada, el 27B, `num_ctx`
+explícito, el descubrimiento por MCP y el veredicto de las herramientas.
+Cambiaron el prompt y el modo guiado, y se añadió lo que está en naranja:
+
+- **`GET /agent`** (issue 189) reúne la disponibilidad (R6.14), la ficha
+  (R13.7), el prompt (R13.5) y el tope del historial, que la pantalla aplica
+  **antes** de enviar, quitando los turnos más antiguos (issue 191).
+- **La cola** (issue 189): la GPU es una, así que hay una conversación en
+  marcha y las demás esperan a la vista, con el estado `queued`.
+- **Los turnos anteriores llevan los nombres de sus herramientas, y hay un
+  aviso** (issue 192). Cada respuesta anterior se monta como las llamadas que
+  hizo, con un resultado «ya no está disponible», seguidas de su texto; y
+  delante de la consulta, un aviso de que de esos turnos sólo queda eso. Con
+  sólo el texto, el modelo traía la noticia y narraba un veredicto sin llamar a
+  ninguna señal.
+- **La traza lleva también cada vuelta del modelo** (issue 188), con lo que
+  pidió, sus tokens y su tiempo: sin ellas no se sabe cuánto ocupó cada una de
+  la ventana. La pantalla las usa para decir en qué fase está una espera larga y
+  cuánto lleva (issue 191).
+- **Las cifras, a tres decimales**, pero sólo en lo que lee el modelo (issue
+  192): la traza va entera, y las tarjetas no cambian.
+- **El `SignalResult` de cada paso de señal**, que la API calcula al leer
+  (issue 191): es lo que pinta las tarjetas, con la misma regla de voto que
+  `/analyze`.
+
+### Qué se desvió y por qué
+
+| Qué | El plano | Lo construido | Por qué |
+| :--- | :--- | :--- | :--- |
+| Cómo llega la API a la A40 | Sin decidir: un túnel desde la máquina 1 o un puerto | Un túnel SSH **inverso**: lo abre la máquina 2 hacia `172.17.0.1:11434` de la 1 | La 2 sólo acepta el 22, y así la 1, que está en internet, no guarda llaves de la compartida (#181) |
+| Quién arranca Ollama | Sin decidir | Una persona, con `gpu-sesion`, 2 h como mucho; la API sólo detecta si está | Máquina compartida: nada encendido sin alguien delante. Cuesta el arranque en frío (#181) |
+| Dónde espera una conversación | No se dibujó | En la API: una en marcha, dos en cola visible y un 503 con la cola llena | En Ollama la espera sería invisible y se comería el `llm_timeout` (#189) |
+| El estado del agente | No se dibujó | `GET /agent`: disponibilidad, ficha, prompt y tope del historial | Una ruta para R6.14, R13.7 y R13.5, y el tope que aplica la pantalla (#189, #191) |
+| El tamaño del historial | No se dibujó | 4.000 caracteres, publicados y aplicados antes de enviar | Fijado con una regla anterior a la medida: por debajo de 7.500 tokens (#189) |
+| Qué guarda la traza | Cada llamada y su resultado | También cada vuelta del modelo: lo que pidió, sus tokens y su tiempo | Sin ellas no se sabe cuánto ocupó cada vuelta de la ventana (#188); la pantalla las usa para decir en qué fase va una espera larga (#191) |
+| Las tarjetas | Del JSON de la traza | La API añade a cada paso de señal su `SignalResult` | En la pantalla habría sido una segunda copia de la regla de voto (#191) |
+| Qué ve el modelo de los turnos anteriores | Sólo el texto *(decidido al definir las issues, el 25 sep)* | El texto, los nombres de sus herramientas y un aviso | Con sólo el texto se inventaba el análisis 10 veces de 20; con las dos cosas, 0 de 60 (#192) |
+| Razonar | No se decía | `think=True`, siempre | Sin razonar se inventaba los resultados de las herramientas: eligió bien 13 de 26 (#188) |
+| El prompt | `04-preciso` o `03-estricto` | `05-llano` | Sin jerga técnica y sin perder fidelidad según el juez calibrado (#192) |
+| El muestreo | No se decía | El perfil preciso (temperatura 0,6 y `presence_penalty` 0), enviado siempre | El del Modelfile (1 y 1,5) era una condición que nadie mandaba: 5 respuestas infieles de 27, frente a 1 (#192) |
+| La ventana | `num_ctx` explícito, 8.192 en el spike; el catálogo, 2.438 tokens | 16.384; el catálogo, 2.846 con las 12 herramientas | La salida también ocupa ventana: con 8.192 y el historial máximo, una respuesta salió vacía (#188, #192) |
+| Lo que lee el modelo de cada resultado | El resultado estructurado | El mismo, con las cifras a tres decimales; la traza, entera | Copiaba los decimales enteros, como 0,99998 (#192) |
+| Modo guiado (R13.8) | La degradación prevista | Fuera de H5 | El 27B eligió bien 25 de 26 consultas razonando (#188) |
+| Las dependencias del agente ([§7](#7--capas-y-dirección-de-dependencias)) | Importa `analysis/` | Sólo `core/` y la interfaz de `integrations/llm/`; lo cablea la API | Conoce el dominio por el prompt, y lo demás lo pide por MCP (#188, #189) |
+
+### Lo que el plano no decidía
+
+- **Cómo llega la API a la A40**: por el túnel inverso de la tabla (#181). Añade
+  ~2 ms por petición.
+- **Quién arranca Ollama y cuándo suelta la GPU**: una persona, con
+  `gpu-sesion`, que lo suelta todo al salir o a las 2 h (#181). Dentro de una
+  sesión, el modelo se descarga tras 10 min sin uso (`llm_keep_alive`).
+- **Separar las descripciones de `detect_clickbait` y
+  `detect_clickbait_linear`**: hecho antes de empezar el agente (PR #183), con
+  20 de 20 en tres tandas y con los dos modelos.
+- **La ficha de modelo del agente**: en `integrations/llm/model_card.py` (#187),
+  con lo medido en #188 y #192, y publicada por `GET /agent` (#189).
+- **El arranque real de la máquina 2, con la caché de disco fría**: sigue sin
+  medir, porque sin `sudo` no se vacía la caché. En la prueba en producción del
+  cierre (30 sep), con la caché como estuviera, Ollama tardó 26,3 s en
+  responder desde que arrancó —buscando la GPU, con el modo persistente
+  desactivado; #181 midió 27,2 s—, y la primera conversación, unos 8 s más en
+  poner el modelo en marcha: hasta 3 s en otra búsqueda de la GPU, que acabó
+  por tiempo, y 5,2 s cargándolo (del registro de Ollama, con
+  `spikes/ollama_registro.sh`).
+
 ## Los diagramas de la Fase A
 
 Se conservan como estaban. Describen **el servidor MCP**, que sigue siendo cierto
@@ -414,7 +942,7 @@ como componente aunque ya no sea el sistema entero.
   directos con su propio `httpx` y agrega `ok` / `degraded` / `down`.
 - El patrón **`tool.py` (registro) + `client.py` (lógica)** se repite idéntico en
   las integraciones, así que la estructura es predecible.
-- **El rótulo «MCP Server (STDIO)» ya no describe el despliegue**: el transporte es configurable desde #90 y hoy se sirve por `streamable-http`. El diagrama se conserva porque lo demás sigue siendo cierto, y mover un dibujo congelado por una etiqueta costaría más de lo que aclara — pero conviene leerlo con esta nota delante.
+- **El rótulo «MCP Server (STDIO)» ya no describe el despliegue**: el transporte es configurable desde #90 y hoy se sirve por `streamable-http`, **en su propio contenedor y sólo dentro de la red de compose** ([§10](#10--despliegue)). El diagrama se conserva porque lo demás sigue siendo cierto, y mover un dibujo congelado por una etiqueta costaría más de lo que aclara — pero conviene leerlo con esta nota delante. *(Revisado en #173: con el despliegue dibujado aparte, la nota basta.)*
 
 ![Diagrama de secuencia del flujo get_nyt_news](img/secuencia.svg)
 
@@ -429,14 +957,14 @@ como componente aunque ya no sea el sistema entero.
 | :--- | :--- |
 | **R1** Infraestructura MCP | ✅ transporte configurable y registro automático de integraciones |
 | **R2** Tools de APIs públicas | ✅ con validación, rate-limit, tracking y cuota |
-| **R3** NLP y explicabilidad | ◑ cinco señales contrastadas, incoherencia (R3.7) y fichas de modelo (R3.9) ✅; **sólo inglés**, y R3.9 a medias — los modelos no son intercambiables por configuración (issue 119) |
+| **R3** NLP y explicabilidad | ✅ cinco señales contrastadas, incoherencia (R3.7), fichas de modelo y **modelo de cada señal intercambiable por configuración** (R3.9, completo desde #119 y #87). Sólo en inglés, que es lo que pide R3.4: el español quedó como mejora futura |
 | **R4** API REST | ✅ análisis, catálogo, ejecución, historial, CORS y OpenAPI |
 | **R5** Catálogo y transparencia | ✅ catálogo por handshake MCP, con procedencia y ficha de modelo |
-| **R6** Interfaz web | ◑ las tres pantallas del camino determinista ✅ (127–130): análisis, catálogo e historial, con errores entendibles (R6.7), escritorio y tabletas (R6.8) y sin controles que no funcionen (R6.14). Pendiente lo que depende del asistente: R6.10, R6.12 y R6.13 llegan con R13 |
-| **R7** Docker | ⬜ H4 |
-| **R8** CI/CD | ◑ integración continua ✅ (Python y frontend); despliegue continuo ⬜ |
+| **R6** Interfaz web | ✅ las tres pantallas del camino determinista (127–130) —análisis, catálogo e historial— y la del asistente (#191), con errores entendibles (R6.7), escritorio y tabletas (R6.8) y sin controles que no funcionen (R6.14): la pestaña del asistente sólo aparece si está configurado (R6.10, matizado), y con la sesión de GPU cerrada la pantalla explica por qué no hay formulario. El resultado de cada herramienta se pinta con su tarjeta junto a la traza (R6.12), también cuando la respuesta llega vacía (R6.13) |
+| **R7** Docker | ✅ compose con `api`, `mcp` y `web`, red interna, volumen del historial, 80 y 443 publicados y configuración por entorno (#162–#165). R7.4 se cumple **sin `depends_on`, a propósito**: ningún servicio necesita a otro para arrancar ([§10](#10--despliegue)) |
+| **R8** CI/CD | ◑ integración continua ✅ (Python y frontend), y **las dos imágenes construidas en cada PR sin publicarlas** (R8.4, #173); R8.5 **matizado** —la compilación correcta la marcan el check del commit y el tag de la release, porque no se publica ninguna imagen—; R8.6 **a revisar**: pull requests y `main` comparten `ci.yml`; despliegue continuo ⬜ |
 | **R9** Persistencia e historial | ✅ SQLite con filtros y retención configurable |
 | **R10** Errores y logging | ✅ logging estructurado, invocaciones y health check |
 | **R11** Configuración | ✅ `pydantic-settings`, *fail-fast*, sin secretos en logs |
-| **R12** Seguridad y validación | ◑ validación de entrada y de API keys al arranque; falta sanear el texto de excepción que se expone (issue 89) |
-| **R13** Agente conversacional | ⬜ *tool calling* validado en el spike 82; sin construir |
+| **R12** Seguridad y validación | ✅ validación de entrada y de claves al arranque, texto de excepción saneado (#89), tope de 1 MB en Caddy (R12.5, #165) y límite de velocidad por cliente (R12.4, #169). Un límite por IP no para el abuso desde muchas IPs |
+| **R13** Agente conversacional | ✅ construido en H5 (#187–#192) y probado en producción: *tool calling* con descubrimiento MCP (R13.1, R13.2), la traza con el resultado de cada herramienta (R13.3), el veredicto de las herramientas y no del modelo (R13.4), los prompts versionados y publicados por `GET /agent` (R13.5) y la ficha del modelo (R13.7). **R13.6, matizado**: el modelo y el servidor se cambian por configuración, pero sólo existe el backend de Ollama, y usar una API externa exige escribir otra clase de `LLMBackend`, sin tocar el agente. **R13.8** (un «PODRÁ», el modo guiado), fuera de H5: el 27B eligió bien 25 de 26 consultas razonando. El plano y lo construido, en [§12](#12--el-agente-conversacional-el-plano-y-lo-construido) |

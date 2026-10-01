@@ -1,7 +1,7 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { Component, computed, inject, signal } from '@angular/core';
 
-import { SIN_RESPUESTA } from '../api/errores';
+import { mensajeDeLimite, SIN_RESPUESTA } from '../api/errores';
 import { HealthService } from '../api/health.service';
 import type { HealthResult, Sonda } from '../api/models';
 
@@ -177,6 +177,11 @@ export class IndicadorSalud {
     if (fallo.status === 0 || DE_PASARELA.includes(fallo.status)) {
       return SIN_RESPUESTA;
     }
+    // El 429 es el más probable de todos AQUÍ (#169): este indicador consulta
+    // al cargar cualquier pantalla, así que es el que más se acerca al límite
+    // de `/health`. Decir «la API no pudo informar de su estado» sería falso:
+    // pudo, y decidió que se lo estaban preguntando demasiado.
+    if (fallo.status === 429) return mensajeDeLimite(fallo);
     return `La API no pudo informar de su estado (${fallo.status}).`;
   }
 }

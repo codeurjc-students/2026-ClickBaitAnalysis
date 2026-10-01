@@ -1,5 +1,10 @@
-# Esta clase abstracta sirve como base para las distintas manera de implementar el NLP  (En otro caso, BaseAPI si llama a sus propios métodos para hacer peticiones)
+"""El contrato común de los backends NLP: `NLPBackend`.
 
+Dos implementaciones de la misma interfaz, que elige `nlp_backend` en
+`factory.py`: `remote.py`, la Inference API de Hugging Face, y `local.py`,
+`transformers` en el propio proceso. Las señales llaman a `classify` o a
+`zero_shot` sin saber dónde corre el modelo.
+"""
 
 from abc import ABC, abstractmethod
 

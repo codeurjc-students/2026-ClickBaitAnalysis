@@ -49,7 +49,7 @@ export type DimensionVerdict = Esquemas['DimensionVerdict'];
 //
 // `data` es un diccionario libre en el contrato, así que estos tipos NO se
 // aplican solos: hay que comprobar en ejecución, y de eso se encargan los
-// guardianes de `analisis/datos.ts`. Lo que aportan es que esos guardianes
+// guardianes de `senales/datos.ts`. Lo que aportan es que esos guardianes
 // validen contra una forma DERIVADA del backend en vez de contra una copia
 // escrita a mano, que es lo que había hasta #133.
 export type SalidaLexica = Esquemas['SalidaLexica'];
@@ -151,3 +151,27 @@ export type Sonda = Esquemas['Sonda'];
 // --- Errores de validación de FastAPI (422) ---
 export type HTTPValidationError = Esquemas['HTTPValidationError'];
 export type ValidationError = Esquemas['ValidationError'];
+
+// --- El asistente (POST /chat, GET /chat/{job_id} y GET /agent, #189) ---
+//
+// De `paths`, como toda ruta. `POST /chat` responde 202, no 200: la
+// conversación sólo queda ACEPTADA, y lo que la cuenta se sondea aparte.
+type Chat = paths['/chat']['post'];
+export type ChatBody = Chat['requestBody']['content']['application/json'];
+export type ChatAceptada = Chat['responses'][202]['content']['application/json'];
+
+type ChatLectura = paths['/chat/{job_id}']['get'];
+export type ChatJob = ChatLectura['responses'][200]['content']['application/json'];
+
+type Agente = paths['/agent']['get'];
+export type AgentInfo = Agente['responses'][200]['content']['application/json'];
+
+// Piezas de dentro. Los pasos son una unión con discriminante (`kind`), así
+// que se distinguen sin guardián: el contrato ya dice qué forma tiene cada uno.
+// El `data` de una herramienta, en cambio, sigue siendo libre, y se comprueba.
+export type PasoDeLaTraza = ChatJob['steps'][number];
+export type PasoModelo = Esquemas['PasoModelo'];
+export type PasoHerramienta = Esquemas['PasoHerramientaPublicado'];
+export type Turno = Esquemas['Turno'];
+export type ChatOutcome = Esquemas['ChatOutcome'];
+export type Disponibilidad = Esquemas['Disponibilidad'];

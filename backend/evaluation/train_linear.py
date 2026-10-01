@@ -1,5 +1,4 @@
 import json
-from collections import Counter
 
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import precision_recall_fscore_support
@@ -7,26 +6,6 @@ from sklearn.metrics import precision_recall_fscore_support
 from backend.evaluation.splits import load_split
 from backend.integrations.nlp import lexical
 from backend.integrations.nlp.linear import JSON_FILE, featurize_cues
-
-
-def featurize(headline) -> list[int]:  # -> vector
-    # Similar a Bag of Words, debemos contar cuanto hay de cada categoria léxica.
-    result = lexical.detect(headline)  # "10 AMAZING Things You Won't Believe"
-
-    categories_list = []
-    for match in result.data["matches"]:
-        categories_list.append(match["category"])
-
-    # Matches = {category, cue, span} Usamos categorias
-
-    contador = Counter(categories_list)
-    vector = [contador[cat] for cat in lexical.CATEGORIES]
-    return vector
-    # Devuelve lista de int en orden de CATEGORIES
-
-
-# En vez de modificar la anterior, dejo para que se puedan usar PATTERNS ya que sí es categórica, resto por cues y sumamos. (como una pveriosn avanzada)
-
 
 if __name__ == "__main__":
     # Splits FÍSICOS (issue #72): mismos ficheros para todos los modelos.

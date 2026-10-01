@@ -148,7 +148,7 @@ Este documento define los requisitos para un Trabajo de Fin de Grado (TFG) que i
 2. CUANDO se envía el código al repositorio, EL CI_Pipeline DEBERÁ ejecutar pruebas automatizadas.
 3. DONDE se considere beneficioso, EL CI_Pipeline PODRÁ realizar comprobaciones de linting y calidad del código en Python y JavaScript.
 4. EL CI_Pipeline DEBERÁ crear imágenes Docker tanto para el backend como para el frontend.
-5. CUANDO las pruebas se superen, EL CI_Pipeline DEBERÁ etiquetar las compilaciones correctas.
+5. CUANDO las pruebas se superen, EL CI_Pipeline DEBERÁ construir las imágenes y dejar la compilación marcada como correcta en el estado del commit; las versiones publicadas se identifican por su tag `vX.Y.Z`. _(Matizado en #173: las imágenes se construyen para comprobarlas, no se publican en un registro —se construyen en la máquina de despliegue—, así que no queda una imagen que etiquetar. Justificado en el README.)_
 6. EL CI_Pipeline DEBERÁ incluir flujos de trabajo separados para pull requests y commits de la rama main.
 7. SI falla algún paso, ENTONCES EL CI_Pipeline DEBERÁ informar del fallo con registros detallados.
 
@@ -217,6 +217,6 @@ Este documento define los requisitos para un Trabajo de Fin de Grado (TFG) que i
 3. EL Agent_Orchestrator DEBERÁ devolver, junto a su respuesta en lenguaje natural, la **traza** de herramientas invocadas y el **resultado estructurado** de cada una.
 4. EL veredicto de clickbait NO DEBERÁ emitirlo el modelo de lenguaje: DEBERÁ proceder de las MCP_Tools, limitándose el modelo a narrar y contrastar. _(Salvaguarda de R3.8: la explicabilidad no puede depender de un modelo opaco.)_
 5. EL **prompt de sistema** DEBERÁ ser un artefacto de configuración **versionado y consultable**, no código embebido. _(R3.9: transparencia de sistema.)_
-6. EL LLM_Backend DEBERÁ ser **intercambiable por configuración** (local vía Ollama o API externa), siguiendo el patrón ya usado para `nlp_backend`. _(R3.9.)_
+6. EL LLM_Backend DEBERÁ ser **intercambiable por configuración** (local vía Ollama o API externa), siguiendo el patrón ya usado para `nlp_backend`. _(R3.9.)_ _(Matizado en #193: se cambian por configuración el backend (`llm_backend`), el servidor (`llm_url`) y el modelo (`llm_model`), con una factoría como la de `nlp_backend`, pero sólo existe la implementación de Ollama. Usar una API externa exige escribir otra clase que implemente `LLMBackend`: es código, aunque no toca el agente. Justificado en el README.)_
 7. EL Agent_Orchestrator DEBERÁ disponer de su propia **ficha de modelo**, declarando su naturaleza opaca y sus limitaciones conocidas. _(R3.9.)_
 8. SI el modelo no soporta *tool calling* de forma fiable, ENTONCES el sistema PODRÁ operar en **modo guiado**: la selección de herramientas la decide el backend de forma determinista y el modelo solo narra. _(Degradación prevista para modelos locales pequeños.)_

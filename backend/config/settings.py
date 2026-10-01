@@ -1,6 +1,18 @@
-# Base Settings: Base class for settings, allowing values to be overridden by environment variables.
+"""La configuración del sistema, leída del entorno o del `.env`.
 
-# This is useful in production for secrets you do not wish to save in code, it plays nicely with docker(-compose),
+Una clase, `Settings`, y una instancia, `settings`, que se valida AL IMPORTAR:
+si falta una clave de API, el proceso no arranca. Que se lea del entorno es lo
+que permite dar los secretos en despliegue sin escribirlos en el código ni en
+la imagen (con compose, por `env_file`).
+
+Las claves son campos obligatorios, y eso tiene una consecuencia fuera de este
+fichero: los detectores NLP no pueden importarlo, porque dejarían de poder
+importarse sin un `.env`. Lo vigila `tests/test_arquitectura.py`.
+
+Cada campo lleva al lado el motivo de su valor por defecto. Desde el entorno,
+las listas y los diccionarios se pasan como JSON.
+"""
+
 from typing import Literal
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -153,6 +165,108 @@ class Settings(BaseSettings):
     # 50 000 entradas cada petición gasta 50 ms sólo en contar.
     history_max_entries: int = 1000
     history_max_days: int = 30
+
+    # Limitación de velocidad de las peticiones ENTRANTES (R12.4, #169).
+    #
+    # TRES presupuestos, por lo que cuesta atender cada ruta, y no uno global:
+    # con un límite único habría que elegir entre proteger `/analyze` —que ocupa
+    # la CPU durante segundos— y dejar navegar por el historial, que sólo lee
+    # SQLite. La ventana es común a los tres: lo que cambia es cuántas caben.
+    #
+    # Se apaga entero con `RATE_LIMIT_ENABLED=false`. Lo hacen las pruebas, que
+    # lanzan cientos de peticiones desde el mismo cliente y no van de esto.
+    rate_limit_enabled: bool = True
+    rate_limit_window_s: float = 60.0
+    rate_limit_analyze: int = 10  # `POST /analyze`, `/tools/{name}/execute` y `/chat`
+    rate_limit_health: int = 20  # `/health`: tres peticiones externas por sondeo
+    rate_limit_default: int = 60  # el resto, que sólo lee disco o memoria
+
+    # Cuánto vale un sondeo de salud antes de repetirlo (#169).
+    #
+    # El límite de velocidad reparte el abuso pero NO acota la cuota: cien
+    # clientes distintos, con 20 por minuto cada uno, agotan igual las 500
+    # llamadas diarias que admite NYT. Esto sí la acota pase lo que pase — como
+    # mucho dos sondeos por minuto en todo el proceso, vengan de donde vengan.
+    #
+    # Y no engaña a nadie, porque `Salud` lleva el `timestamp` DEL SONDEO y no
+    # el de la respuesta: quien la lee puede ver que es de hace medio minuto.
+    # `0` desactiva la caché.
+    health_cache_s: float = 30.0
+
+    # El modelo de lenguaje del agente (#187, R13.6).
+    #
+    # `None` por defecto: SIN AGENTE. Es el estado «sin configurar» de R6.10 y
+    # R6.14, y el de cualquier entorno que no lo pida; el compose lo enciende en
+    # despliegue. No confundirlo con «apagado»: configurado, pero sin nadie con
+    # una sesión abierta en la máquina de la GPU, que es lo normal (#181).
+    llm_backend: Literal["ollama"] | None = None
+    # En despliegue, `http://host.docker.internal:11434`: el túnel inverso de
+    # #181 escucha en 172.17.0.1:11434 del host, que es lo que ve el contenedor.
+    llm_url: str = "http://127.0.0.1:11434"
+    # El punto de partida del spike rehecho en la A40 (PR #176). Su ficha, con
+    # las medidas, en `integrations/llm/model_card.py`.
+    llm_model: str = "qwen3.5:27b"
+    # SIEMPRE explícito, nunca el defecto de Ollama: la 0.34.2 lo elige según la
+    # VRAM (32.768 en la A40), y con 2048 el catálogo —2.629 tokens desde #183—
+    # se recortaba en silencio y el modelo elegía mal (9/20 frente a 20/20).
+    # 16.384 desde #192, porque la SALIDA también ocupa ventana: con 8.192 y el
+    # historial máximo, la consulta de las fichas de los modelos llegó a 7.818
+    # tokens de prompt, el razonamiento se comió los 374 que quedaban y la
+    # respuesta salió vacía; con 16.384 escribió 553 y contestó. Cuesta 528 MiB
+    # más de VRAM en la A40 (`spikes/fidelidad.py ventana`, 2026-09-30).
+    llm_num_ctx: int = 16384
+    # El muestreo, también explícito (#192). Sin mandarlo decide el Modelfile
+    # de Ollama —temperatura 1 y `presence_penalty` 1,5, el perfil que los
+    # autores de Qwen3.5 dan para tareas generales—, y con ése se midió todo
+    # hasta #192 sin decirlo. Éste es el que dan para tareas precisas: con el
+    # prompt `05-llano`, el juez calibrado marcó 1 respuesta infiel de 27,
+    # frente a 5 con el del Modelfile, y el modelo tardó un 11 % menos en
+    # mediana (una repetición; `spikes/fidelidad.py`, A40, 2026-09-29).
+    llm_temperature: float = 0.6
+    llm_presence_penalty: float = 0.0
+    # Cuánto sigue el modelo en la GPU tras la última petición. Pasado ese
+    # tiempo la suelta, aunque la sesión siga abierta: el servidor sin modelo
+    # ocupa 0 MiB (#181). Diez minutos cubren una conversación con pausas.
+    llm_keep_alive: str = "10m"
+    # Por LLAMADA al modelo, no por conversación: la primera de una sesión paga
+    # además la carga (~9 s, #181). Era 120 s hasta #188: razonando, que es
+    # como tiene que ir el agente, una sola vuelta generó 2.812 tokens en 96 s
+    # (A40, 2026-09-26), y si el corte salta se pierde la conversación entera.
+    # El diseño asíncrono de `/chat` (#189) absorbe la espera.
+    llm_timeout: float = 300.0
+    # Qué prompt de sistema usa el agente, de los versionados en
+    # `backend/agent/prompts/` (R13.5). Un `Literal` y no una cadena libre para
+    # que un nombre mal escrito falle AL ARRANCAR y no en la primera
+    # conversación; `tests/agent/test_prompts.py` comprueba que la lista es la
+    # de los ficheros. `04-preciso` fue el punto de partida del spike (PR #176)
+    # y con el que se aceptó #188. Desde #192 es `05-llano`, que ganó la
+    # comparación con una regla fijada antes de medir: 0 nombres internos,
+    # posiciones o decimales largos en 27 respuestas (1,78 por respuesta con
+    # `04-preciso`), sin pasar de su infidelidad más 5 puntos.
+    llm_prompt: Literal["03-estricto", "04-preciso", "05-llano"] = "05-llano"
+
+    # Los trabajos del chat, en memoria del proceso (#189).
+    #
+    # Una conversación EN EJECUCIÓN y las demás en una cola visible: la GPU es
+    # una, y si la cola la hiciera Ollama, la espera sería invisible para quien
+    # sondea y se comería el `llm_timeout` de cada llamada. Esto es cuántas
+    # esperan como mucho; con la cola llena, `POST /chat` responde 503.
+    chat_queue_size: int = 2
+    # Cuánto se guarda un trabajo TERMINADO antes de olvidarlo, y cuántos se
+    # guardan como mucho. La interfaz sondea cada 2 s, así que quince minutos
+    # sobran para leer el final; lo que caduca da 404.
+    chat_job_ttl_s: float = 900.0
+    chat_max_jobs: int = 20
+    # Tope del historial que manda el cliente, en caracteres (sólo el texto de
+    # los turnos, decidido al definir H5). Un historial que desborde la
+    # ventana (`llm_num_ctx`) lo RECORTA Ollama en silencio, y el modelo elige
+    # mal sin que nada falle (PR #176): por encima, 422, y la interfaz quita los
+    # turnos más antiguos. Medido en la A40 a través de la máquina 1
+    # (`spikes/chat_maquina1.py`, 2026-09-26): la conversación más larga de
+    # #188 llegó a 5.766 tokens sin historial y a 6.907 con 4.000 caracteres,
+    # por debajo del 7.500 fijado antes de medir. Esa regla miraba sólo el
+    # prompt, y con 8.192 no bastó: ver `llm_num_ctx` (#192).
+    chat_max_history_chars: int = 4000
 
 
 # Activa la validación al importar: si falta una clave, el proceso no arranca.

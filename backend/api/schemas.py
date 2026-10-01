@@ -1,4 +1,4 @@
-"""Contrato de la API REST: análisis, catálogo, ejecución e historial.
+"""Contrato de la API REST: análisis, catálogo, ejecución, historial y asistente.
 
 Lo que hay aquí describe **el sistema que sirve el análisis** —qué servidores MCP
 están conectados, qué herramientas exponen, cómo se ejecuta una y qué quedó
@@ -20,13 +20,29 @@ hablando de sus componentes, o sea sistema— pero usa ``SignalType`` y
 ``Dimension``, que son dominio.)
 """
 
+import re
 from datetime import datetime
 from enum import Enum
-from typing import Any
+from typing import Annotated, Any
 
-from pydantic import BaseModel, Field, computed_field
+from pydantic import (
+    BaseModel,
+    Field,
+    StringConstraints,
+    computed_field,
+    model_validator,
+)
 
-from backend.analysis.domain import AnalyzeResponse, Dimension, SignalType
+from backend.agent.traza import EstadoFinal, PasoHerramienta, PasoModelo, Turno
+from backend.analysis.domain import (
+    AnalyzeResponse,
+    Dimension,
+    SignalResult,
+    SignalType,
+)
+from backend.config.settings import settings
+from backend.integrations.llm.base import Disponibilidad
+from backend.integrations.llm.model_card import FichaLLM
 
 # --------------------------------------------------------------------------
 # Análisis — POST /analyze
@@ -367,3 +383,181 @@ class HistoryPage(BaseModel):
     limit: int
     offset: int
     retention: RetentionPolicy
+
+
+# --------------------------------------------------------------------------
+# El asistente — POST /chat, GET /chat/{id} y GET /agent (#189)
+#
+# Los pasos de la traza, el historial, la disponibilidad y la ficha son los
+# tipos del agente y del cliente del modelo, NO copias: la API los publica tal
+# cual se producen, así que el contrato no puede separarse de lo que hay detrás.
+# Es la dirección de siempre: `api/` importa de ellos, y ellos no saben que se
+# les sirve.
+# --------------------------------------------------------------------------
+
+
+# Las herramientas de un turno del historial (#192): nombres como los del
+# catálogo, y como mucho tantos como tiene el catálogo entero (12, #188).
+NOMBRE_DE_HERRAMIENTA = re.compile(r"[A-Za-z0-9_\-]{1,64}")
+MAX_HERRAMIENTAS_POR_TURNO = 12
+
+
+class ChatRequest(BaseModel):
+    """Un mensaje al asistente, con el texto de los turnos anteriores.
+
+    El servidor no guarda nada entre turnos: el historial lo manda el cliente,
+    y sólo con el texto, sin los resultados de las herramientas (decidido al
+    definir H5, por la ventana del modelo).
+    """
+
+    message: Annotated[
+        str, StringConstraints(strip_whitespace=True, min_length=1, max_length=2000)
+    ] = Field(description="Lo que se le pregunta al asistente.")
+    history: list[Turno] = Field(
+        default_factory=list,
+        description=(
+            "Los turnos anteriores, del más antiguo al más reciente, sólo con su "
+            "texto. El rol es `user` o `assistant`: el de sistema lo pone el "
+            "servidor, y un cliente no puede colar otro. Los del asistente "
+            "pueden llevar en `tools` los nombres de las herramientas que usaron "
+            f"(como mucho {MAX_HERRAMIENTAS_POR_TURNO}), sin sus resultados. "
+            "Tiene un tope en caracteres, texto y nombres, que da la "
+            "configuración; por encima, 422, y hay que quitar los turnos más "
+            "antiguos."
+        ),
+    )
+
+    @model_validator(mode="after")
+    def _historial_dentro_de_la_ventana(self) -> "ChatRequest":
+        """Un historial que desborde la ventana, Ollama lo recorta en SILENCIO
+        y el modelo elige mal sin que nada falle (PR #176): se rechaza antes.
+
+        Los nombres de las herramientas también llegan al modelo (#192), así
+        que cuentan; y son NOMBRES, así que por ahí no entra texto libre."""
+        for turno in self.history:
+            nombres = turno.get("tools") or []
+            if nombres and turno["role"] != "assistant":
+                raise ValueError("Sólo los turnos del asistente llevan herramientas.")
+            if len(nombres) > MAX_HERRAMIENTAS_POR_TURNO:
+                raise ValueError(
+                    f"Un turno lleva {len(nombres)} herramientas y el tope es "
+                    f"{MAX_HERRAMIENTAS_POR_TURNO}."
+                )
+            if not all(NOMBRE_DE_HERRAMIENTA.fullmatch(nombre) for nombre in nombres):
+                raise ValueError(
+                    "Una herramienta del historial no tiene forma de nombre."
+                )
+        caracteres = sum(
+            len(turno["content"])
+            + sum(len(nombre) for nombre in turno.get("tools") or [])
+            for turno in self.history
+        )
+        tope = settings.chat_max_history_chars
+        if caracteres > tope:
+            raise ValueError(
+                f"El historial tiene {caracteres} caracteres y el tope es {tope}: "
+                "quita los turnos más antiguos."
+            )
+        return self
+
+
+class ChatAccepted(BaseModel):
+    """La conversación, aceptada: con este id se sondea `GET /chat/{id}`."""
+
+    id: str = Field(
+        description=(
+            "Imposible de adivinar a propósito: la aplicación no tiene "
+            "autenticación, y quien tiene el id puede leer la conversación."
+        )
+    )
+
+
+class ChatStatus(str, Enum):
+    """En qué punto está una conversación."""
+
+    QUEUED = "queued"  # esperando a que termine otra: la GPU es una
+    RUNNING = "running"
+    DONE = "done"  # terminada; cómo, lo dice `result.status`
+
+
+class ChatOutcome(BaseModel):
+    """Cómo acabó una conversación, sin los pasos, que van en `ChatJob.steps`.
+
+    `status` distingue cuatro finales (`agent/traza.py`): `answered`,
+    `empty_answer` y `max_rounds` tienen pasos que enseñar aunque no haya texto
+    (R6.13); `failed` trae en `detail` una frase que se puede publicar.
+    """
+
+    status: EstadoFinal
+    answer: str
+    detail: str | None = None
+    rounds: int
+    total_s: float
+
+
+class PasoHerramientaPublicado(PasoHerramienta):
+    """Una herramienta de la traza, tal como la publica la API.
+
+    Es el paso del agente, sin copiarlo, más `signal`: si la herramienta es una
+    señal y funcionó, el `SignalResult` que produciría el orquestador con su
+    `data`, para que la interfaz la pinte con la misma tarjeta que el análisis
+    (#191). La regla del voto se queda en `analysis/`; el agente no la conoce y
+    la interfaz no la repite.
+    """
+
+    signal: SignalResult | None
+
+
+# Cada paso es una vuelta del modelo o una herramienta, y `kind` dice cuál: así
+# el cliente generado recibe una unión con discriminante en vez de un objeto
+# libre.
+PasoDeLaTraza = Annotated[
+    PasoModelo | PasoHerramientaPublicado, Field(discriminator="kind")
+]
+
+
+class ChatJob(BaseModel):
+    """Una conversación, tal como está AHORA: se sondea mientras trabaja.
+
+    La traza es **acumulada**: crece entre sondeo y sondeo, así que cada
+    herramienta que acaba se puede enseñar antes de que el modelo haya escrito
+    una palabra (§12 de `docs/arquitectura.md`). Las tarjetas salen del `data`
+    de cada paso de herramienta, nunca de `result.answer` (R13.4).
+    """
+
+    id: str
+    status: ChatStatus
+    created_at: datetime
+    steps: list[PasoDeLaTraza]
+    result: ChatOutcome | None = Field(
+        default=None, description="`null` mientras `status` no sea `done`."
+    )
+
+
+class AgentPrompt(BaseModel):
+    """El prompt de sistema en uso, versionado y consultable (R13.5)."""
+
+    name: str = Field(description="El fichero de `backend/agent/prompts/`.")
+    text: str
+
+
+class AgentInfo(BaseModel):
+    """Todo lo que la interfaz necesita saber del asistente antes de usarlo.
+
+    Si se puede usar ahora y por qué no (R6.14: sin controles que no puedan
+    funcionar), qué modelo es y sus límites medidos (R13.7), y qué
+    instrucciones recibe (R13.5). No es `describe_models`: ésa la sirve el MCP,
+    que no conoce la configuración del agente.
+    """
+
+    availability: Disponibilidad
+    model_card: FichaLLM
+    prompt: AgentPrompt
+    max_history_chars: int = Field(
+        description=(
+            "Cuántos caracteres de historial admite `POST /chat`, sumando el "
+            "texto de todos los turnos. Va aquí, y no escrito en la interfaz, "
+            "para que ésta recorte los turnos más antiguos ANTES de enviar y el "
+            "número salga de la configuración real (#191)."
+        )
+    )

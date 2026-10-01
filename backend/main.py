@@ -80,6 +80,8 @@ def main():
         # existen y el sistema queda degradado en silencio: aquí es donde se ve.
         integraciones=list(integraciones.registered),
         integraciones_fallidas=integraciones.failed or None,
+        # Las que no publican herramientas, como `llm/`: no es un fallo (#187).
+        integraciones_sin_herramientas=list(integraciones.without_tools) or None,
     )
     mcp.run(transport=settings.mcp_transport)
 

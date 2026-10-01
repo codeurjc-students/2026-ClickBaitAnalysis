@@ -4,7 +4,7 @@ import httpx
 from mcp.shared.exceptions import McpError
 from mcp.types import ErrorData
 
-from backend.core.errores import describir_error
+from backend.core.errores import describir_error, mensaje_publico
 
 URL_CON_SECRETO = "https://ejemplo.invalido/search?api-key=clave-de-prueba-7f3a9c"
 
@@ -53,6 +53,43 @@ def test_un_timeout_llega_sin_grupo():
     """Medido: un servidor que acepta la conexión y no contesta da un
     `TimeoutError` suelto, no envuelto."""
     assert describir_error(TimeoutError()) == "TimeoutError"
+
+
+def test_el_mensaje_publico_no_dice_el_tipo_ni_el_texto_de_la_libreria():
+    """La diferencia con `describir_error`: éste lo lee quien mira un resultado,
+    no quien inspecciona el sistema. Un `KeyError: 'is_clickbait'` le cuenta a un
+    tercero cómo está estructurado el código (#89)."""
+    motivo = mensaje_publico(KeyError("is_clickbait"))
+
+    assert motivo.startswith("falló por un motivo no previsto")
+    assert "KeyError" not in motivo
+    assert "is_clickbait" not in motivo
+
+
+def test_las_familias_que_cambian_lo_que_puede_hacer_quien_lee():
+    """Tres familias, porque tres respuestas distintas: esperar, mirar si el
+    servicio está caído, o mirar el log."""
+    assert mensaje_publico(TimeoutError()) == "tardó demasiado en responder"
+    assert (
+        mensaje_publico(httpx.ConnectTimeout("")) == "tardó demasiado en responder"
+    ), "un timeout de httpx hereda de TransportError: el orden de comprobación importa"
+    assert (
+        mensaje_publico(httpx.ConnectError("sin ruta"))
+        == "no pudo contactar con el servicio externo"
+    )
+    assert (
+        mensaje_publico(_error_http(503))
+        == "recibió un HTTP 503 Service Unavailable del servicio externo"
+    )
+
+
+def test_el_mensaje_publico_tambien_abre_los_grupos():
+    grupo = ExceptionGroup("varios", [_error_http(503), TimeoutError()])
+
+    assert mensaje_publico(grupo) == (
+        "recibió un HTTP 503 Service Unavailable del servicio externo, "
+        "tardó demasiado en responder"
+    )
 
 
 def test_varios_errores_juntan_sus_motivos_sin_repetir_y_en_orden():

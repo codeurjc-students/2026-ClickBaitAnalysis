@@ -29,14 +29,21 @@ import structlog
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 
+from backend.agent import prompts
 from backend.analysis.domain import AnalyzeRequest
 from backend.analysis.orchestrator import analyze, precalentar
-from backend.api import history
+from backend.api import chat, history
 from backend.api.catalog import fetch_catalog
 from backend.api.execute import execute_tool
+from backend.api.ratelimit import RESPUESTA_429, limitar_peticiones
 from backend.api.schemas import (
+    AgentInfo,
+    AgentPrompt,
     AnalyzeResult,
     CatalogResponse,
+    ChatAccepted,
+    ChatJob,
+    ChatRequest,
     ExecuteRequest,
     ExecuteResponse,
     HistoryEntry,
@@ -52,6 +59,7 @@ from backend.core.logging import configure_logging
 # Las tres excepciones son vocabulario del MECANISMO, no de la fachada: viven
 # donde se lanzan (#137). Importarlas de `api.execute` las haría parecer suyas.
 from backend.core.mcp.tools import InvalidArguments, ToolNotFound, ToolTimeout
+from backend.integrations.llm.factory import disponibilidad, ficha_efectiva
 
 log = structlog.get_logger()
 
@@ -103,7 +111,25 @@ app = FastAPI(
     ),
     version="0.3.0-dev",
     lifespan=lifespan,
+    # El 429 del límite de velocidad (#169) se declara UNA vez, aquí, porque el
+    # límite es de la aplicación entera: no hay ruta exenta. FastAPI mezcla
+    # estas respuestas en todas las operaciones —comprobado— y se suman a las
+    # que declare cada una, así que el 404 del historial sigue en su sitio.
+    # Repetirlo ruta por ruta era la otra opción, y envejece mal: la primera
+    # ruta nueva que alguien añada se lo dejaría, y el contrato mentiría por
+    # omisión justo donde se genera el cliente.
+    responses=RESPUESTA_429,
 )
+
+# El limitador de velocidad (R12.4, #169) se registra ANTES que el de CORS, y
+# el orden no es cosmético: en Starlette el último middleware añadido es el de
+# FUERA, así que poniendo CORS después queda envolviendo a éste y un 429 sale
+# con sus cabeceras. Al revés, el navegador recibiría una respuesta sin
+# `Access-Control-Allow-Origin`, la daría por bloqueada y la pantalla diría «no
+# se pudo contactar con la API» en vez del límite — el diagnóstico equivocado.
+# Hoy todo se sirve del mismo origen a través de Caddy y no se notaría; deja de
+# no notarse justo el día que eso cambie.
+app.middleware("http")(limitar_peticiones)
 
 # `allow_credentials` concede permiso para que viajen cookies, autenticación
 # HTTP y certificados de cliente en peticiones de otro origen (por defecto el
@@ -119,6 +145,11 @@ app.add_middleware(
     allow_credentials=False,
     allow_methods=["GET", "POST"],
     allow_headers=["*"],
+    # `Retry-After` hay que EXPONERLO aparte: `allow_headers` habla de las que
+    # el navegador puede mandar, y una cabecera de RESPUESTA no la ve el
+    # JavaScript si no se declara aquí. Sin esto, la pantalla sabría que la
+    # rechazaron pero no cuánto tiene que esperar.
+    expose_headers=["Retry-After"],
 )
 
 
@@ -397,3 +428,111 @@ async def get_health() -> Salud:
     la tool MCP `health_check`.
     """
     return await check_health()
+
+
+@app.post(
+    "/chat",
+    status_code=202,
+    response_model=ChatAccepted,
+    tags=["asistente"],
+    responses={
+        503: {
+            "description": (
+                "No hay asistente ahora —sin configurar, apagado o sin el "
+                "modelo—, o está atendiendo otras conversaciones y no caben más "
+                "en espera. `detail` dice cuál, con una frase que se puede "
+                "enseñar tal cual."
+            )
+        }
+    },
+)
+async def post_chat(request: ChatRequest) -> ChatAccepted:
+    """Pregunta al asistente. Responde **al instante** con un id, y la
+    conversación sigue en segundo plano: se sondea con `GET /chat/{id}`.
+
+    Ni SSE ni una petición bloqueante (decidido en H1, §12 de
+    `docs/arquitectura.md`): SSE dejaría la ruta fuera del contrato generado, y
+    un bucle con el 27B tarda 13–36 s, más ~36 s si Ollama arranca en frío.
+
+    **Antes de aceptar, pregunta si hay asistente**, y si no, responde 503 con
+    el motivo en vez de aceptar una conversación que va a fallar. Cuesta poco:
+    que no haya nadie escuchando se sabe en 0,2 ms (#181).
+
+    **Una conversación a la vez**, porque la GPU es una: las siguientes esperan
+    su turno en `queued`, y con la cola llena también es 503. No se guarda en
+    el historial, que es de `/analyze` (decidido al definir H5).
+    """
+    config = chat.configuracion()
+    estado = await disponibilidad()
+    if config is None or estado.status != "available":
+        raise HTTPException(status_code=503, detail=estado.detail)
+
+    try:
+        trabajo = chat.obtener_trabajos().lanzar(
+            request.message, request.history, config
+        )
+    except chat.ColaLlena:
+        raise HTTPException(
+            status_code=503,
+            detail=(
+                "El asistente está atendiendo otras conversaciones y no caben más "
+                "en espera. Vuelve a intentarlo en un momento."
+            ),
+        ) from None
+    return ChatAccepted(id=trabajo.id)
+
+
+@app.get(
+    "/chat/{job_id}",
+    response_model=ChatJob,
+    tags=["asistente"],
+    # Declarado por lo mismo que el del historial: aquí el 404 es funcionamiento
+    # NORMAL, porque las conversaciones terminadas caducan.
+    responses={
+        404: {"description": "No hay ninguna conversación con ese id, o caducó."}
+    },
+)
+async def get_chat(job_id: str) -> ChatJob:
+    """Una conversación tal como está ahora: su estado, la traza hasta este
+    momento y, al terminar, cómo acabó.
+
+    La traza crece entre sondeo y sondeo, así que cada herramienta que acaba se
+    puede enseñar antes de que el modelo escriba nada. Las tarjetas se pintan
+    con el `data` de cada paso de herramienta, nunca con la respuesta del
+    modelo (R13.4).
+
+    Una conversación terminada se guarda un rato y después **caduca** (404):
+    vive en memoria, no en el historial.
+    """
+    trabajo = chat.obtener_trabajos().leer(job_id)
+    if trabajo is None:
+        raise HTTPException(
+            status_code=404,
+            detail="No hay ninguna conversación con ese id; puede que haya caducado.",
+        )
+    return chat.como_respuesta(trabajo)
+
+
+@app.get("/agent", response_model=AgentInfo, tags=["asistente"])
+async def get_agent() -> AgentInfo:
+    """Si el asistente se puede usar ahora, qué modelo es y qué instrucciones
+    recibe.
+
+    - `availability`: uno de los cuatro estados, con una frase que explica por
+      qué no, si no se puede (R6.14: la interfaz no debe ofrecer controles que
+      no puedan funcionar). Se pregunta en el momento, sin caché: un servidor
+      apagado se detecta en 0,2 ms (#181).
+    - `model_card`: la ficha del modelo, con sus límites medidos (R13.7). Si se
+      configuró otro modelo, se publica ése y sin las medidas, que eran de otro.
+    - `prompt`: el prompt de sistema en uso, entero (R13.5).
+    - `max_history_chars`: el tope del historial de `POST /chat`, para que la
+      interfaz recorte antes de enviar en vez de recibir un 422 (#191).
+    """
+    return AgentInfo(
+        availability=await disponibilidad(),
+        model_card=ficha_efectiva(),
+        prompt=AgentPrompt(
+            name=settings.llm_prompt, text=prompts.cargar(settings.llm_prompt)
+        ),
+        max_history_chars=settings.chat_max_history_chars,
+    )

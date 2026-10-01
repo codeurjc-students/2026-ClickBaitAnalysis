@@ -85,42 +85,7 @@
 }
 
 @if (resultado(); as analisis) {
-  <section class="veredicto">
-    <h2>{{ veredicto() }}</h2>
-
-    <app-titular-resaltado
-      [titular]="analisis.headline"
-      [pistas]="pistasDe(analisis)"
-    />
-
-    <ul class="dimensiones">
-      @for (porDimension of analisis.dimensions; track porDimension.dimension) {
-        <li>
-          {{ dimension(porDimension.dimension) }}: {{ resumen(porDimension) }}
-        </li>
-      }
-    </ul>
-  </section>
-
-  <h2 class="seccion">Señales contrastadas ({{ analisis.signals.length }})</h2>
-
-  <!-- Índice compacto, y lo es porque la pastilla usa el nombre CORTO: con el
-       `label` entero una sola ocupaba 531 px de 1024 (medido en #130). El
-       nombre completo está en la tarjeta, dos dedos más abajo. -->
-  <ul class="pastillas">
-    @for (senal of analisis.signals; track senal.name) {
-      <li
-        class="pastilla"
-        [class.atenuada]="!funciono(senal)"
-        [attr.data-tipo]="senal.type"
-      >
-        <strong>{{ nombreCorto(senal) }}</strong>
-        <span>{{ estado(senal) }}</span>
-      </li>
-    }
-  </ul>
-
-  @for (senal of analisis.signals; track senal.name) {
-    <app-senal-card [senal]="senal" />
-  }
+  <!-- El bloque vive en `senales/` desde #191: el asistente pinta lo mismo
+       cuando el agente llama a `analyze_headline`. -->
+  <app-resultado-analisis [analisis]="analisis" />
 }

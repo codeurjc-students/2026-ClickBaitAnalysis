@@ -79,6 +79,33 @@ def test_el_cuerpo_es_opcional(tool):
     assert "content" not in requeridos
 
 
+@pytest.mark.asyncio
+async def test_un_cuerpo_none_llega_como_ausencia(monkeypatch):
+    """#197, por la vía del agente: el modelo mandó `content="None"`, y la
+    herramienta lo pasaba tal cual como el cuerpo de la noticia."""
+    recibido = {}
+
+    async def falso_analyze(request):
+        recibido["request"] = request
+        return AnalyzeResponse(
+            headline=request.headline,
+            content=request.content,
+            signals=[],
+            dimensions=[],
+            verdict=OverallVerdict.NO_DATA,
+        )
+
+    monkeypatch.setattr(analysis_tool, "analyze", falso_analyze)
+    mcp = FastMCP("test")
+    analysis_tool.register(mcp)
+
+    await mcp.call_tool(
+        "analyze_headline", {"headline": "Un titular", "content": "None"}
+    )
+
+    assert recibido["request"].content is None
+
+
 def test_las_dos_fachadas_comparten_implementacion():
     """La garantía de fondo: que no haya dos jerarquías de veredicto capaces de
     divergir. La tool no reimplementa nada — llama a la misma función que

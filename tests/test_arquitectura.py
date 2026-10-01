@@ -24,6 +24,8 @@ día hay cinco contratos de capas, se reconsidera.
 import ast
 from pathlib import Path
 
+import pytest
+
 BACKEND = Path(__file__).resolve().parents[1] / "backend"
 
 # Las fachadas: saben que están sirviendo a alguien. El núcleo no debe conocerlas.
@@ -44,13 +46,27 @@ FACHADAS = ("backend.api", "backend.main")
 FUERA_DEL_NUCLEO = {"api", "main.py"}
 
 # Únicos módulos de la capa NLP a los que se les permite leer configuración:
-# `client.py` necesita el token y el trabajo de `factory.py` ES leer settings.
+# `remote.py` necesita el token y el trabajo de `factory.py` ES leer settings.
+# (`remote.py` se llamaba `client.py` hasta #108: la excepción va por NOMBRE de
+# fichero, así que un renombrado tiene que traerla consigo o este test falla.)
 #
 # La lista es de EXCEPCIONES, no de detectores, y eso es deliberado: un detector
 # nuevo queda cubierto sin tocar nada, y meter `settings` en un módulo nuevo
 # obliga a editar esta línea a mano — que es la decisión consciente que se quiere
 # forzar cuando llegue la parametrización de umbrales.
-LEEN_CONFIGURACION = {"client.py", "factory.py"}
+#
+# Por paquete, desde #187: el cliente del modelo de lenguaje sigue la misma
+# regla, y ahí sólo lee la configuración su factoría. El cliente de Ollama la
+# recibe.
+#
+# Por RUTA dentro de `backend/`, desde #188: el agente tampoco la lee —recibe
+# backend, servidores, prompt y cortes, y lo monta la API (#189)—, y sin
+# ninguna excepción. Es la misma regla fuera de `integrations/`.
+LEEN_CONFIGURACION = {
+    "integrations/nlp": {"remote.py", "factory.py"},
+    "integrations/llm": {"factory.py"},
+    "agent": set(),
+}
 
 CONFIGURACION = "backend.config.settings"
 
@@ -101,23 +117,31 @@ def test_el_nucleo_no_importa_de_las_fachadas():
     )
 
 
-def test_los_detectores_no_conocen_la_configuracion():
-    """Los detectores son lógica pura: se prueban sin montar nada.
+@pytest.mark.parametrize("paquete", sorted(LEEN_CONFIGURACION))
+def test_reciben_su_configuracion_y_no_la_leen(paquete):
+    """Los detectores, los clientes de modelos y el agente se prueban sin montar
+    nada.
 
     En cuanto uno lea `settings`, probarlo exige un entorno con las claves
     puestas y deja de poder usarse como biblioteca suelta.
     """
-    nlp = BACKEND / "integrations" / "nlp"
+    ficheros = sorted((BACKEND / paquete).glob("*.py"))
+
+    # Una ruta mal escrita en la lista daría una carpeta vacía, y la prueba
+    # pasaría sin comprobar nada.
+    assert ficheros, (
+        f"`backend/{paquete}/` no tiene módulos: la regla no comprueba nada."
+    )
 
     infracciones = [
-        f"{fichero.name} importa {CONFIGURACION}"
-        for fichero in sorted(nlp.glob("*.py"))
-        if fichero.name not in LEEN_CONFIGURACION
+        f"{paquete}/{fichero.name} importa {CONFIGURACION}"
+        for fichero in ficheros
+        if fichero.name not in LEEN_CONFIGURACION[paquete]
         and any(modulo.startswith(CONFIGURACION) for modulo in _importes(fichero))
     ]
 
     assert not infracciones, (
-        "Un módulo de la capa NLP que no debería lee la configuración:\n"
+        f"Un módulo de `{paquete}/` que no debería lee la configuración:\n"
         + "\n".join(infracciones)
         + "\n\nSi es deliberado, añádelo a LEEN_CONFIGURACION y explica por qué."
     )

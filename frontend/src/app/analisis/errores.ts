@@ -1,6 +1,6 @@
 import { HttpErrorResponse } from '@angular/common/http';
 
-import { detalleDeValidacion, SIN_RESPUESTA } from '../api/errores';
+import { detalleDeValidacion, mensajeDeLimite, SIN_RESPUESTA } from '../api/errores';
 
 /**
  * Traduce el fallo a algo que se pueda leer (R6.7).
@@ -11,6 +11,7 @@ import { detalleDeValidacion, SIN_RESPUESTA } from '../api/errores';
  */
 export function mensajeDeError(fallo: HttpErrorResponse): string {
   if (fallo.status === 0) return SIN_RESPUESTA;
+  if (fallo.status === 429) return mensajeDeLimite(fallo);
   if (fallo.status === 422) {
     const detalle = detalleDeValidacion(fallo.error);
     return detalle

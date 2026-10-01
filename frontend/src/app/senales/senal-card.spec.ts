@@ -37,7 +37,10 @@ const CAIDA: SignalResult = {
   dimension: 'form',
   type: 'opaque',
   data: null,
-  detail: 'HTTP error: 400 - Model not supported by provider hf-inference',
+  // Desde #89 el backend publica una frase que se entiende: el volcado técnico
+  // —«HTTP error: 400 - Model not supported by provider hf-inference»— se quedó
+  // en el log del servidor.
+  detail: 'La señal recibió un HTTP 400 Bad Request del servicio externo.',
 };
 
 /**
@@ -101,7 +104,7 @@ describe('SenalCard', () => {
       'false',
     );
     expect(html.querySelector('.motivo')?.textContent).toContain(
-      'Model not supported',
+      'HTTP 400 Bad Request',
     );
   });
 
@@ -168,23 +171,22 @@ describe('SenalCard', () => {
   });
 
   // R6.7 pide que el error del backend llegue entendible y no como un volcado.
-  // El `detail` de esta señal es literalmente
-  // «HTTP error: 400 - {"error":"Model not supported by provider hf-inference"}»,
-  // así que se antepone la frase que se entiende y el volcado se queda marcado
-  // como técnico: esconderlo dejaría sin nada a quien tenga que diagnosticar.
-  it('una señal caída explica primero, y vuelca después', async () => {
+  // Hasta #89 el `detail` de una caída era «HTTP error: 400 - {"error":"Model
+  // not supported by provider hf-inference"}», y esta tarjeta le anteponía una
+  // frase y marcaba el resto como técnico. Ahora el backend ya publica la frase
+  // —el volcado vive en el log del servidor—, así que se enseña tal cual y no
+  // queda nada que marcar.
+  it('una señal caída enseña su motivo tal cual, sin volcado', async () => {
     const raiz = await montar(CAIDA);
 
-    expect(raiz.querySelector('.motivo__resumen')?.textContent).toContain(
-      'no llegó a ejecutarse',
+    expect(raiz.querySelector('.motivo')?.textContent).toContain(
+      'recibió un HTTP 400 Bad Request',
     );
-    expect(raiz.querySelector('.motivo__tecnico')?.textContent).toContain(
-      'hf-inference',
-    );
+    expect(raiz.querySelector('.motivo__resumen')).toBeNull();
+    expect(raiz.querySelector('.motivo__tecnico')).toBeNull();
   });
 
-  // En `not_applicable` el detalle YA es la frase que se entiende, así que no
-  // se le antepone nada: sería ruido sobre algo que no ha fallado.
+  // Y una no aplicable se comporta igual: su detalle siempre fue una frase.
   it('una no aplicable usa su detalle tal cual', async () => {
     const raiz = await montar(NO_APLICABLE);
 

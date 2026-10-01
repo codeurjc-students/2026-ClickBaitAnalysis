@@ -1,4 +1,20 @@
+"""La salud de las integraciones: ¿responden las APIs de noticias?
+
+Sondea `weather`, `guardian` y `nyt` en paralelo, con una petición ligera a
+cada una, y lo publica por dos fachadas que comparten `check_health`: `GET
+/health` de la API REST y la tool MCP `health_check`, que se registra aquí.
+
+Dos límites que el nombre no dice:
+
+- **No cubre las señales NLP** (#147). Un verde aquí no dice nada de
+  `detect_clickbait`; la sonda útil sería por modelo, y no existe.
+- **Cada sondeo son tres peticiones externas reales**, con NYT limitado a 500
+  al día. Por eso se cachea `health_cache_s` (#169), y por eso el healthcheck
+  de compose no usa `/health` (#164).
+"""
+
 import asyncio
+import time
 from datetime import UTC, datetime
 from typing import Literal, TypedDict
 
@@ -81,13 +97,8 @@ def _aggregate_status(integrations: dict) -> Literal["ok", "degraded", "down"]:
     return "degraded"
 
 
-async def check_health() -> Salud:
-    """Sondea todas las integraciones y agrega su estado.
-
-    Vive fuera de ``register`` porque lo consumen DOS fachadas: la tool MCP de
-    abajo y ``GET /health`` de la API REST. Duplicar el sondeo llevaría a
-    que las dos respondieran cosas distintas.
-    """
+async def _sondear() -> Salud:
+    """Pregunta de verdad a las tres APIs, en paralelo."""
     results = await asyncio.gather(*(_probe(**cfg) for cfg in PROBES.values()))
     integrations = dict(zip(PROBES, results, strict=True))
     return {
@@ -95,6 +106,64 @@ async def check_health() -> Salud:
         "timestamp": datetime.now(UTC).isoformat(),
         "integrations": integrations,
     }
+
+
+_CERROJO = asyncio.Lock()
+_ultimo: Salud | None = None
+_vale_hasta: float = 0.0
+
+
+async def check_health() -> Salud:
+    """El estado de las integraciones, sondeado como mucho cada `health_cache_s`.
+
+    Vive fuera de ``register`` porque lo consumen DOS fachadas: la tool MCP de
+    abajo y ``GET /health`` de la API REST. Duplicar el sondeo llevaría a que
+    las dos respondieran cosas distintas.
+
+    **La caché es lo único que acota la cuota** (#169). Cada sondeo son tres
+    peticiones externas reales y el indicador de la cabecera lo pide al cargar
+    cualquier pantalla, con NYT limitado a 500 llamadas diarias. El límite de
+    velocidad por cliente reparte el abuso pero no lo acota: cien clientes
+    distintos agotan la cuota igual. Esto la acota pase lo que pase.
+
+    **No enmascara nada**, porque el ``timestamp`` es el DEL SONDEO: una
+    respuesta cacheada dice su propia edad y quien la lea puede decidir si le
+    vale. Por eso no hizo falta tocar el contrato.
+
+    Ojo: la caché es **de este proceso**. La API y el servidor MCP son dos, así
+    que cada uno tiene la suya y entre los dos pueden sondear el doble.
+    """
+    global _ultimo, _vale_hasta
+
+    if settings.health_cache_s <= 0:
+        return await _sondear()
+
+    if _ultimo is not None and time.monotonic() < _vale_hasta:
+        return _ultimo
+
+    async with _CERROJO:
+        # Se vuelve a mirar ya dentro: si llegan diez peticiones a la vez, las
+        # nueve que esperaban aquí encuentran el sondeo hecho. Sin esta segunda
+        # comprobación harían diez sondeos en fila, que es el caso que más
+        # importa —una pantalla que se abre en varias pestañas a la vez.
+        if _ultimo is not None and time.monotonic() < _vale_hasta:
+            return _ultimo
+
+        _ultimo = await _sondear()
+        _vale_hasta = time.monotonic() + settings.health_cache_s
+        return _ultimo
+
+
+def olvidar_sondeo() -> None:
+    """Tira la caché.
+
+    La usan las pruebas: es estado de módulo, así que sin esto lo que sondea un
+    test se lo encuentra el siguiente y los dobles de `respx` del segundo no
+    llegarían a usarse nunca.
+    """
+    global _ultimo, _vale_hasta
+    _ultimo = None
+    _vale_hasta = 0.0
 
 
 def register(mcp: FastMCP):

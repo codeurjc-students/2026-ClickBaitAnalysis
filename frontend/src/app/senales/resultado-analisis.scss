@@ -1,0 +1,81 @@
+:host {
+  display: block;
+}
+
+.veredicto {
+  margin-top: 1.5rem;
+  padding: 1.1rem 1.3rem;
+  border: 1px solid var(--hybrid);
+  border-radius: 8px;
+  background: var(--hybrid-fondo);
+}
+
+.veredicto h2 {
+  margin: 0;
+  color: var(--aviso);
+  font-size: 1.6rem;
+  text-transform: uppercase;
+}
+
+.dimensiones {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 1.25rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  color: var(--texto-suave);
+  font-size: 0.9rem;
+}
+
+.seccion {
+  margin: 1.75rem 0 0.75rem;
+  font-size: 1.1rem;
+}
+
+.pastillas {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.pastilla {
+  display: flex;
+  gap: 0.5rem;
+  align-items: baseline;
+  padding: 0.4rem 0.9rem;
+  border: 1px solid var(--borde);
+  border-radius: 999px;
+  font-size: 0.85rem;
+}
+
+/* El color es el TIPO de señal, no su veredicto. */
+.pastilla[data-tipo='interpretable'] {
+  border-color: var(--interpretable);
+  background: var(--interpretable-fondo);
+}
+
+.pastilla[data-tipo='hybrid'] {
+  border-color: var(--hybrid);
+  background: var(--hybrid-fondo);
+}
+
+.pastilla[data-tipo='opaque'] {
+  border-color: var(--opaque);
+  background: var(--opaque-fondo);
+}
+
+/* Y la pastilla se apaga con su tarjeta: el índice tiene que decir de un
+   vistazo cuáles votaron. Mismo truco de especificidad. */
+.pastilla.atenuada[data-tipo] {
+  border-color: var(--borde);
+  background: var(--fondo-suave);
+  color: var(--texto-suave);
+}
+
+.pastilla span {
+  color: var(--texto-suave);
+}

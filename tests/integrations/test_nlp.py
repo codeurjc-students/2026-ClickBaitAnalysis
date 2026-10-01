@@ -1,4 +1,6 @@
 import asyncio
+import builtins
+import importlib
 import json
 import sys
 import types
@@ -8,11 +10,13 @@ import respx  # Usamos en vez de htttp, ya que no hacemos llamadas de verdad, mo
 from httpx import Response, TimeoutException
 from huggingface_hub.errors import LocalEntryNotFoundError
 from mcp.server.fastmcp import FastMCP
+from mcp.server.fastmcp.exceptions import ToolError
+from structlog.testing import capture_logs
 
 from backend.config.settings import settings
+from backend.core.models import ToolResult
 from backend.integrations.nlp import dependencias, lexical, linear, model_cards
 from backend.integrations.nlp import tool as nlp_tool
-from backend.integrations.nlp.client import HFClient
 from backend.integrations.nlp.factory import (
     ficha_efectiva,
     get_incoherence_detector,
@@ -21,6 +25,7 @@ from backend.integrations.nlp.factory import (
 )
 from backend.integrations.nlp.incoherence import IncoherenceDetector
 from backend.integrations.nlp.local import LocalNLPClient
+from backend.integrations.nlp.remote import HFClient
 
 MODELS_URL = "https://router.huggingface.co/hf-inference/models/"
 
@@ -57,6 +62,42 @@ async def test_classify_unexpected_shape_returns_fail():
 
     assert not result.success
     assert result.error
+
+
+# Una respuesta con forma inesperada NO se publica: sale por `/analyze`, por
+# `/tools/.../execute` y por MCP, que leerá el LLM del agente. Era la quinta
+# puerta de #89, y el test de arriba no la veía: sólo pedía que hubiera error.
+MARCA_DEL_PROVEEDOR = "detalle-interno-del-proveedor"
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "llamar",
+    [
+        lambda cliente, modelo: cliente.classify("text", modelo),
+        lambda cliente, modelo: cliente.zero_shot(
+            "text", modelo, ["clickbait", "factual news"]
+        ),
+    ],
+    ids=["classify", "zero_shot"],
+)
+async def test_una_respuesta_inesperada_de_hf_no_se_publica(llamar):
+    modelo = "some/model"
+    with respx.mock, capture_logs() as registrado:
+        respx.post(f"{MODELS_URL}{modelo}").mock(
+            return_value=Response(200, json={"inesperado": MARCA_DEL_PROVEEDOR})
+        )
+        result = await llamar(HFClient(), modelo)
+
+    assert not result.success
+    assert MARCA_DEL_PROVEEDOR not in result.error
+    assert modelo in result.error
+    assert "no previsto" in result.error
+    # Y lo que no se publica se registra: sanear sin registrar ciega la
+    # depuración (#89).
+    fallo = next(linea for linea in registrado if linea["event"] == "nlp.remoto.fallo")
+    assert fallo["modelo"] == modelo
+    assert MARCA_DEL_PROVEEDOR in fallo["respuesta"]
 
 
 @pytest.mark.asyncio
@@ -388,7 +429,13 @@ async def test_detector_error_returns_fail(monkeypatch):
     result = await detector.detect("error", "no movie")
 
     assert not result.success
-    assert "Error inesperado calculando incoherencia" in result.error
+    # Desde #89 el mensaje dice qué pasó y no arrastra el texto de la librería,
+    # que puede traer rutas del contenedor: eso se queda en el log.
+    assert (
+        result.error
+        == "La incoherencia falló por un motivo no previsto; el detalle técnico queda en el log del servidor."
+    )
+    assert "modelo no encontrado" not in result.error
 
 
 # --Léxico
@@ -470,6 +517,22 @@ def test_linear_detector_no_headline():
     result1 = linear.predict(" ")
     result2 = linear.predict("")
     assert not result1.success and not result2.success
+
+
+def test_importar_la_senal_lineal_no_lee_los_pesos(monkeypatch):
+    """Importar `linear` no abre ningún fichero: los pesos se leen en el primer
+    uso (#108). Antes se leían a nivel de módulo, y cualquier import —aunque
+    fuera para inspeccionar la señal— dependía de que el JSON estuviera."""
+
+    def abrir_prohibido(*argumentos, **opciones):
+        raise AssertionError("importar la señal lineal ha abierto un fichero")
+
+    monkeypatch.setattr(builtins, "open", abrir_prohibido)
+    importlib.reload(linear)
+    monkeypatch.undo()
+
+    # Y la carga perezosa funciona: el primer uso lee los pesos.
+    assert linear.predict("10 amazing things you won't believe").success
 
 
 # --Model cards (R3.9, divulgación de modelos)
@@ -591,6 +654,46 @@ async def test_las_dos_fachadas_usan_el_id_de_la_ficha(monkeypatch):
         == get_model_id("detect_clickbait_incoherence")
         == fichas["detect_clickbait_incoherence"]["model_id"]
     )
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("ausente", ["None", "null", "   "])
+async def test_la_incoherencia_sin_cuerpo_se_niega_en_vez_de_medir(
+    monkeypatch, ausente
+):
+    """#197, por otra puerta: esta herramienta EXIGE el cuerpo, y con «None»
+    medía la similitud del titular contra esa palabra, que da un «incoherente»
+    inventado. Ahora se niega, y el error vuelve al modelo del agente para que
+    lo corrija, sin llegar al detector."""
+    llamadas = []
+
+    class _Detector:
+        async def detect(self, headline, content):
+            llamadas.append(content)
+            return ToolResult.ok(
+                {
+                    "similarity": 0.1,
+                    "incoherent": True,
+                    "threshold": 0.3,
+                    "headline": headline,
+                    "content": content,
+                }
+            )
+
+    monkeypatch.setattr(nlp_tool, "get_incoherence_detector", lambda: _Detector())
+    mcp = FastMCP("test")
+    nlp_tool.register(mcp)
+
+    # `capture_logs`: el decorador de la herramienta registra el fallo con su
+    # traza, y con la configuración de structlog por defecto eso avisa.
+    with capture_logs() as registrado, pytest.raises(ToolError, match="cuerpo"):
+        await mcp.call_tool(
+            "detect_clickbait_incoherence",
+            {"headline": "Miracle Cure Discovered", "content": ausente},
+        )
+    assert llamadas == []
+    # El rechazo queda registrado como cualquier fallo de una herramienta.
+    assert any(linea["event"] == "tool.invoke.failed" for linea in registrado)
 
 
 def test_model_cards_serializable_and_cover_signals():

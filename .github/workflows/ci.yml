@@ -9,13 +9,24 @@ on:
   push:
     branches: [main, dev]
 
+# Los tres trabajos corren FIJADOS a `ubuntu-24.04`, no a `ubuntu-latest` (#178).
+# `latest` pasa a Ubuntu 26 el 2026-10-19, y con él habría cambiado el sistema
+# del CI sin que nadie tocara el repositorio. 24.04 es lo que había detrás de
+# `latest` al fijarlo, el sistema de la máquina 1 y el de `medir-imagenes.yml`.
+# Pasar a 26.04 será una decisión con su propia ejecución, no una fecha.
+#
+# Ojo con lo que fija y lo que no: la etiqueta fija el SISTEMA, no el software
+# del runner. GitHub renueva la imagen a menudo (su versión sale en el log, en
+# «Runner Image»), así que Docker, git o el propio runner siguen cambiando.
+# Python y Node no, porque los instalan `setup-python` y `setup-node` en la
+# versión que se les pide.
 jobs:
   test:
     env: #Usar env para evadir fallo fail fast por falta de keys
       GUARDIAN_API_KEY: dummy
       NYT_API_KEY: dummy
       HF_TOKEN: dummy
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v5 # usando organización actions por defecto
       - uses: actions/setup-python@v6
@@ -77,13 +88,13 @@ jobs:
   # de herramientas independientes y así un fallo de TypeScript no oculta el
   # resultado de pytest, ni al revés. Además corren en paralelo.
   frontend:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     defaults:
       run:
         working-directory: frontend
     steps:
       - uses: actions/checkout@v5
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: "22"
           cache: npm
@@ -128,3 +139,44 @@ jobs:
       # de las dos caras del silencio de zoneless.
       - name: Comprobando estilo y accesibilidad...
         run: npm run lint
+
+  # R8.4: construir las imágenes del backend y de la web en cada PR, SIN
+  # publicarlas. Hasta #173 un Dockerfile roto sólo se habría notado al
+  # desplegar; ahora se ve en la PR.
+  #
+  # SIN caché, a propósito, y decidido con números (#173, ver el README). La
+  # primera ejecución real se hizo con la caché de GitHub Actions y tardó
+  # 4 min 31 s en el backend: ~75 s construyendo y 175 s SUBIENDO la caché. Con
+  # la caché caliente, una PR se ahorra unos 30 s; a cambio, cada vez que hay que
+  # rehacerla —la primera vez, al cambiar dependencias o tras 7 días sin uso—
+  # vuelven los 4 min y medio, y hay que entender qué ramas pueden leer la de
+  # cuál. Sin caché, el backend tarda ~75 s siempre y la web ~20 s: el peor caso
+  # es mejor que el peor caso con caché, y no hay nada que explicar.
+  #
+  # `needs`: sólo se construye si las pruebas pasan. Es la lectura literal de
+  # R8.5 —«cuando las pruebas se superen»— y no gasta minutos en una PR que ya
+  # está roja. El precio es que no corre en paralelo con ellas: hasta un minuto
+  # más de reloj.
+  imagenes:
+    needs: [test, frontend]
+    runs-on: ubuntu-24.04
+    strategy:
+      # Que falle una imagen no debe esconder si la otra construye.
+      fail-fast: false
+      matrix:
+        imagen: [backend, web]
+    steps:
+      - uses: actions/checkout@v5
+      - uses: docker/setup-buildx-action@v4
+      # Sin `push` y sin `load`: comprobar que la imagen construye no necesita
+      # sacarla de BuildKit, y cargarla en Docker costaba 72-87 s medidos.
+      #
+      # La etiqueta lleva el commit aunque la imagen no se guarde, para que el
+      # registro de la ejecución diga qué se construyó.
+      - name: Construyendo la imagen ${{ matrix.imagen }}...
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: docker/${{ matrix.imagen }}.Dockerfile
+          tags: clickbait-${{ matrix.imagen }}:${{ github.sha }}
+          push: false

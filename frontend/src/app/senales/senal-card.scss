@@ -96,20 +96,10 @@
   margin: 0 0.9rem 0.6rem;
 }
 
-.motivo__resumen {
-  display: block;
-}
-
-/* El volcado se ve como lo que es —texto de máquina—, para que nadie lo lea
-   esperando una explicación. */
-.motivo__tecnico {
-  display: block;
-  margin-top: 0.35rem;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  font-size: 0.75rem;
-  color: var(--texto-suave);
-  overflow-wrap: anywhere;
-}
+/* Se han ido `.motivo__resumen` y `.motivo__tecnico`, que daban forma de
+   volcado al detalle de una señal caída. Desde #89 ese detalle es una frase
+   normal, escrita para quien lee el resultado: el texto de máquina se quedó en
+   el log del servidor y aquí no llega nada que haya que marcar como tal. */
 
 .motivo {
   padding: 0.5rem 0.7rem;

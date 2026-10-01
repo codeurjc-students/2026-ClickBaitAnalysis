@@ -1,3 +1,12 @@
+"""La configuración de structlog, común a la API y al servidor MCP.
+
+`configure_logging` la llaman el arranque de la API (su `lifespan`) y el de
+`main.py`, nunca el import: así los tests no heredan la configuración global.
+Escribe por **stderr** porque el transporte stdio de MCP usa stdout, y baja
+`httpx` a WARNING porque sus trazas de nivel INFO llevan la URL entera, con la
+clave de Guardian y de NYT dentro.
+"""
+
 import logging
 import sys
 

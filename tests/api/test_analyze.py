@@ -19,6 +19,7 @@ from typing import ClassVar
 
 import pytest
 from pydantic import ValidationError
+from structlog.testing import capture_logs
 
 from backend.analysis import orchestrator
 from backend.analysis.domain import (
@@ -350,6 +351,27 @@ async def test_cuerpo_en_blanco_equivale_a_no_tenerlo(señales, cuerpo):
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize("ausente", ["None", "none", " None ", "null"])
+async def test_un_cuerpo_que_solo_dice_none_no_es_un_cuerpo(señales, ausente):
+    """#197: el modelo del agente mandó `content="None"`, la incoherencia comparó
+    el titular con esa palabra y el veredicto salió `deceptive`. La similitud
+    baja del doble es la que habría salido: si la señal llegara a medirse, lo
+    marcaría como engaño."""
+    señales(similarity=0.12)
+
+    resultado = await orchestrator.analyze(
+        AnalyzeRequest(
+            headline="You Won't Believe What This Dog Did Next", content=ausente
+        )
+    )
+
+    signals = {s.name: s for s in resultado.signals}
+    assert signals["detect_clickbait_incoherence"].status == SignalStatus.NOT_APPLICABLE
+    assert resultado.verdict != OverallVerdict.DECEPTIVE
+    assert resultado.content is None
+
+
+@pytest.mark.asyncio
 async def test_una_señal_que_revienta_no_tumba_a_las_demas(señales, monkeypatch):
     dobles = señales()
 
@@ -370,7 +392,10 @@ async def test_una_señal_que_revienta_no_tumba_a_las_demas(señales, monkeypatc
     caida = signals["detect_clickbait"]
     assert caida.status == SignalStatus.ERROR
     assert caida.is_clickbait is None
-    assert "TimeoutError" in caida.detail  # tipo + mensaje, para depurar
+    # Desde #89 el detalle dice QUÉ pasó, no CÓMO está hecho esto: el tipo de la
+    # excepción y su mensaje van al log, que es donde se depura.
+    assert caida.detail == "La señal tardó demasiado en responder."
+    assert "TimeoutError" not in caida.detail
     # Las otras cuatro sobreviven: ese es el punto de return_exceptions=True.
     otras = [s for n, s in signals.items() if n != "detect_clickbait"]
     assert all(s.status == SignalStatus.OK for s in otras)
@@ -396,8 +421,59 @@ async def test_un_formato_inesperado_se_aisla_como_error(señales, monkeypatch):
     monkeypatch.setattr(lexical, "detect", lambda h: ToolResult.ok({"otra_clave": 1}))
 
     signals = {s.name: s for s in await _run_signals("Un titular", "Un cuerpo")}
-    assert signals["detect_clickbait_lexical"].status == SignalStatus.ERROR
-    assert "KeyError" in signals["detect_clickbait_lexical"].detail
+    caida = signals["detect_clickbait_lexical"]
+    assert caida.status == SignalStatus.ERROR
+    # `KeyError: 'is_clickbait'` le contaba a cualquiera cómo está estructurado
+    # el código por dentro (#89). Ahora eso vive en el log.
+    assert "KeyError" not in caida.detail
+    assert "no previsto" in caida.detail
+
+
+@pytest.mark.asyncio
+async def test_el_fallo_entero_se_registra_aunque_no_se_publique(señales, monkeypatch):
+    """Lo que sale de la respuesta tiene que aparecer en el log (#89).
+
+    Sanear sin registrar no arregla, destruye: hasta esta issue el `detail` era
+    el ÚNICO sitio donde existía el motivo de un fallo imprevisto, porque el
+    orquestador no registraba nada.
+    """
+    señales()
+    monkeypatch.setattr(lexical, "detect", lambda h: ToolResult.ok({"otra_clave": 1}))
+
+    with capture_logs() as registrado:
+        signals = {s.name: s for s in await _run_signals("Un titular", "Un cuerpo")}
+
+    caida = signals["detect_clickbait_lexical"]
+    fallo = next(linea for linea in registrado if linea["event"] == "senal.fallo")
+
+    assert fallo["signal"] == "detect_clickbait_lexical"
+    assert fallo["tipo"] == "KeyError"
+    assert "is_clickbait" in fallo["detalle"]
+    assert "Traceback" in fallo["traza"]
+    # Y nada de eso está en lo que se publica.
+    assert "KeyError" not in caida.detail
+    assert "is_clickbait" not in caida.detail
+
+
+@pytest.mark.asyncio
+async def test_la_respuesta_no_publica_interioridad(señales, monkeypatch):
+    """Sobre la respuesta ENTERA, no sobre un campo: un sitio nuevo que vuelque
+    el texto de una excepción queda cubierto sin acordarse de él."""
+    dobles = señales()
+
+    async def revienta(text, model):
+        raise RuntimeError("/app/backend/integrations/nlp/local.py falló")
+
+    monkeypatch.setattr(dobles.api, "classify", revienta)
+    monkeypatch.setattr(lexical, "detect", lambda h: ToolResult.ok({"otra_clave": 1}))
+
+    respuesta = await orchestrator.analyze(
+        AnalyzeRequest(headline="Un titular", content="Un cuerpo")
+    )
+    entera = respuesta.model_dump_json()
+
+    for rastro in ("RuntimeError", "KeyError", "Traceback", "/app/backend", ".py"):
+        assert rastro not in entera, rastro
 
 
 @pytest.mark.asyncio
@@ -582,3 +658,58 @@ async def test_la_tarjeta_rotula_el_modelo_que_se_ejecuto(señales, monkeypatch)
     assert "Webis" not in dedicada.label
     # Lo que describe a la señal y no al modelo no cambia.
     assert dedicada.dimension == Dimension.FORM
+
+
+# ----- Una señal suelta, fuera del análisis (#191) -----
+
+
+@pytest.mark.parametrize(
+    ("nombre", "datos", "voto"),
+    [
+        ("detect_clickbait", {"label": "clickbait", "score": 0.97}, True),
+        (
+            "detect_clickbait_lexical",
+            {"score": 0, "is_clickbait": False, "matches": [], "headline": "x"},
+            False,
+        ),
+        (
+            "detect_clickbait_incoherence",
+            {
+                "similarity": 0.12,
+                "incoherent": True,
+                "threshold": 0.3,
+                "headline": "x",
+                "content": "y",
+            },
+            True,
+        ),
+        # El tono no vota, tampoco suelto.
+        ("analyze_sentiment", {"label": "neutral", "score": 0.7}, None),
+    ],
+)
+def test_una_senal_suelta_se_envuelve_con_la_regla_del_analisis(nombre, datos, voto):
+    """El agente llama a veces a una señal sola, y su traza sólo trae el `data`.
+    Para pintarla con la misma tarjeta que el análisis, el voto sale de la MISMA
+    regla (`verdict`) y el rótulo, la dimensión y el tipo, de la misma ficha."""
+    senal = orchestrator.senal_de(nombre, datos)
+
+    assert senal is not None
+    assert senal == _build(
+        _SPECS[nombre], SignalStatus.OK, is_clickbait=voto, data=datos
+    )
+
+
+@pytest.mark.parametrize(
+    ("nombre", "datos"),
+    [
+        ("get_nyt_news", {"result": []}),  # no es una señal
+        ("analyze_headline", {"headline": "x"}),  # es un análisis entero
+        ("detect_clickbait_lexical", {"inesperado": True}),  # forma rota
+        ("detect_clickbait", None),
+    ],
+    ids=["noticias", "analisis", "forma_rota", "sin_datos"],
+)
+def test_lo_que_no_es_una_senal_no_se_envuelve(nombre, datos):
+    """`None` y no una tarjeta a medias: la interfaz lo pinta en crudo, que es
+    degradar, no afirmar un voto que nadie ha calculado."""
+    assert orchestrator.senal_de(nombre, datos) is None

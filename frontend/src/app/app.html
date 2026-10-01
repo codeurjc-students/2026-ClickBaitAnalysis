@@ -2,6 +2,9 @@
   <a class="marca" routerLink="/analizar">ClickBait Analysis</a>
 
   <nav class="nav">
+    @if (hayAsistente()) {
+      <a routerLink="/asistente" routerLinkActive="activo">Asistente</a>
+    }
     <a routerLink="/analizar" routerLinkActive="activo">Analizar</a>
     <a routerLink="/historial" routerLinkActive="activo">Historial</a>
     <a routerLink="/sistema" routerLinkActive="activo">Sistema</a>

@@ -11,12 +11,15 @@ cuerpo de la función no se ejecutaba nunca donde importa, y con él las dos ram
 que deciden si una integración responde.
 """
 
+import asyncio
 import json
 
 import httpx
 import pytest
 import respx
 
+from backend.config.settings import settings
+from backend.core import health
 from backend.core.health import PROBES, _aggregate_status, _probe, check_health
 
 URL = "https://ejemplo.invalido/sonda"
@@ -194,6 +197,88 @@ async def test_check_health_sondea_todas_y_agrega():
     # La marca de tiempo lleva zona horaria: sin ella, dos despliegues en husos
     # distintos producirían historiales que no se pueden ordenar entre sí.
     assert salud["timestamp"].endswith("+00:00")
+
+
+# ----- La caché del sondeo (#169) -----
+
+
+class RelojDeMentira:
+    """Ocupa el sitio del módulo `time` dentro de `health`.
+
+    Sólo se le pide `monotonic`, así que basta con eso. Se sustituye el atributo
+    del módulo y no la función global: un test que retrase el reloj de todo el
+    proceso es un test que estropea a los demás.
+    """
+
+    def __init__(self) -> None:
+        self.ahora = 1_000.0
+
+    def monotonic(self) -> float:
+        return self.ahora
+
+
+def _sondas_que_responden() -> list:
+    """Las tres APIs contestando 200. Se llama DENTRO de `respx.mock`."""
+    return [
+        respx.get(configuracion["url"]).mock(return_value=httpx.Response(200, json={}))
+        for configuracion in PROBES.values()
+    ]
+
+
+@pytest.mark.asyncio
+async def test_dos_sondeos_seguidos_preguntan_una_sola_vez(monkeypatch):
+    """Lo ÚNICO que acota la cuota diaria de NYT (#169).
+
+    El límite de velocidad reparte el abuso entre clientes, pero cien clientes
+    distintos agotan las 500 llamadas igual. Esto no depende de cuántos sean.
+    """
+    monkeypatch.setattr(settings, "health_cache_s", 30.0)
+    health.olvidar_sondeo()
+
+    with respx.mock:
+        rutas = _sondas_que_responden()
+        primera = await check_health()
+        segunda = await check_health()
+
+    assert [ruta.call_count for ruta in rutas] == [1, 1, 1]
+    # Con el MISMO `timestamp`: una respuesta cacheada dice su propia edad en
+    # vez de fingir que se acaba de sondear. Por eso no hizo falta tocar el
+    # contrato para que la interfaz pueda decidir si le vale.
+    assert segunda["timestamp"] == primera["timestamp"]
+
+
+@pytest.mark.asyncio
+async def test_pasado_el_plazo_vuelve_a_sondear(monkeypatch):
+    reloj = RelojDeMentira()
+    monkeypatch.setattr(health, "time", reloj)
+    monkeypatch.setattr(settings, "health_cache_s", 30.0)
+    health.olvidar_sondeo()
+
+    with respx.mock:
+        rutas = _sondas_que_responden()
+        await check_health()
+        reloj.ahora += 31
+        await check_health()
+
+    assert [ruta.call_count for ruta in rutas] == [2, 2, 2]
+
+
+@pytest.mark.asyncio
+async def test_diez_peticiones_a_la_vez_sondean_una_sola_vez(monkeypatch):
+    """El caso que de verdad dispara la cuota: varias pantallas a la vez.
+
+    Sin el cerrojo, las diez encontrarían la caché vacía antes de que la primera
+    terminara y saldrían treinta peticiones externas en lugar de tres.
+    """
+    monkeypatch.setattr(settings, "health_cache_s", 30.0)
+    health.olvidar_sondeo()
+
+    with respx.mock:
+        rutas = _sondas_que_responden()
+        resultados = await asyncio.gather(*(check_health() for _ in range(10)))
+
+    assert [ruta.call_count for ruta in rutas] == [1, 1, 1]
+    assert all(resultado == resultados[0] for resultado in resultados)
 
 
 @pytest.mark.integration
