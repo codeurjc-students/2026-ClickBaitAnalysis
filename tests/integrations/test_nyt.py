@@ -73,17 +73,40 @@ async def test_search_articles_missing_docs_key():
 
 
 @pytest.mark.asyncio
-async def test_search_articles_http_error():
+@pytest.mark.parametrize("estado", [401, 429, 500])
+async def test_un_fallo_de_la_api_no_se_disfraza_de_sin_noticias(estado):
+    """#212, lo que #196 arregló en Guardian: con una clave mala, la cuota
+    agotada o un error del servidor, el cliente decía «No articles found», y
+    el agente, creyéndolo, gastaría cuota probando otros temas. El mensaje de
+    `make_request` ya es público (#89): se devuelve ése."""
     with respx.mock:
         respx.get(f"{NYTAPI.BASE_URL}articlesearch.json").mock(
-            return_value=Response(500, json={"response": {}})
+            return_value=Response(estado, json={"response": {}})
         )
-
         api = NYTAPI()
         result = await api.search_articles("anything")
 
-        assert not result.success
-        assert "No articles found" in result.error
+    assert not result.success
+    assert "No articles found" not in result.error
+    assert str(estado) in result.error
+
+
+@pytest.mark.asyncio
+async def test_el_error_publicado_no_lleva_la_clave_ni_la_url(monkeypatch):
+    """El error sale por la tool MCP y por `/tools/.../execute`, así que es una
+    salida pública (#163). La clave de NYT va en la URL, y el proveedor puede
+    repetirla en su respuesta: no puede salir ni una cosa ni la otra."""
+    monkeypatch.setattr(NYTAPI, "API_KEY", "clave-de-prueba-212")
+    with respx.mock:
+        respx.get(f"{NYTAPI.BASE_URL}articlesearch.json").mock(
+            return_value=Response(401, text="Invalid ApiKey: clave-de-prueba-212")
+        )
+        api = NYTAPI()
+        result = await api.search_articles("anything")
+
+    assert not result.success
+    assert "clave-de-prueba-212" not in result.error
+    assert "nytimes.com" not in result.error
 
 
 @pytest.mark.asyncio
@@ -160,6 +183,22 @@ async def test_search_articles_invalid_topic():
     assert not result.success
     assert result.error
     assert "No articles found" in result.error
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_una_clave_mala_da_el_error_real(monkeypatch):
+    """#212, contra la API real: con una clave que no existe, NYT responde 401
+    (medido el 2026-10-02), y eso no es «no hay noticias». La clave tampoco
+    puede salir."""
+    monkeypatch.setattr(NYTAPI, "API_KEY", "clave-que-no-existe-212")
+    api = NYTAPI()
+    result = await api.search_articles("technology")
+
+    assert not result.success
+    assert "No articles found" not in result.error, result.error
+    assert "401" in result.error
+    assert "clave-que-no-existe-212" not in result.error
 
 
 @pytest.mark.asyncio

@@ -20,7 +20,8 @@ cinco señales respondiendo y el historial sobreviviendo a los redespliegues. Y
 el **agente conversacional** (R13), que da nombre al TFG, contesta en lenguaje
 natural desde la pantalla del asistente: elige las herramientas por MCP, las
 tarjetas salen de sus resultados y no de su texto, y el modelo corre en la A40
-de la universidad, que se enciende bajo demanda. Lo que resta es la memoria.
+de la universidad, que se enciende bajo demanda. Lo que resta es la memoria,
+con las mejoras de `v0.7` en paralelo hasta el 15 de diciembre.
 **Entrega: febrero 2027.**
 
 **El agente conversacional (R13) es H5.** Hasta el 7 de septiembre no estaba en
@@ -36,6 +37,7 @@ tenía fecha ni versión.
 | **H3 · `v0.4` SPA funcional** | noviembre | **7 sep** | Angular: análisis con explicabilidad visual, catálogo de tools, historial, responsive y gestión de errores | **R6** |
 | **H4 · `v0.5` Docker y despliegue** | diciembre | **20 sep** | Docker Compose (MCP + API / web), **volumen** para el historial, HTTPS y pruebas E2E | **R7, R8** |
 | **H5 · `v0.6` Agente conversacional** | — | **1 oct** | Bucle del agente, `POST /chat` con sondeo, pantalla de chat y traza de herramientas | **R13**, R6.10/12/13 |
+| **`v0.7` · Mejoras** *(en paralelo con H6)* | — | *oct–15 dic* | Lo que H5 dejó abierto y no bloquea la memoria: la última vuelta del agente con historial, el historial que sobrevive a recargar, los enlaces de las noticias, las fichas, el fallo disfrazado de NYT y el certificado (#208 a #213) | — |
 | **H6 · `v1.0` Memoria y defensa** | ene–feb 2027 | *oct–feb* | Redacción de la memoria y preparación de la defensa | — |
 
 **El proyecto va casi tres meses por delante de esta previsión.** H2 se cerró en
@@ -49,6 +51,18 @@ era conservadora— y no un error que tapar. La columna «real» de H6 es la
 **re-previsión hecha con ese adelanto**: la memoria tiene de octubre a febrero,
 en vez del mes de colchón que dejaba la previsión anterior si el agente salía
 como en el spike.
+
+**`v0.7` va en paralelo, no delante (decidido el 2026-10-01).** Al cerrar H5
+quedaban mejoras que el autor quería hacer sin que frenaran la memoria, así que
+van en un hito propio y **sin «H»** a propósito: no es una etapa del plan, sino
+trabajo que corre a la vez que H6. Lo acota una **congelación el martes 15 de
+diciembre de 2026**, el día en que vence el hito: desde entonces sólo entran
+arreglos y lo que pida la defensa, lo que no esté cerrado pasa a trabajo futuro
+(#217), y la versión de ese día es la que describe la memoria. Si compiten por
+tiempo, primero la memoria. Que no espera a la congelación: empieza en octubre
+con lo que no depende de la versión final, y sus issues (#214 a #216) son lo que
+necesita del sistema —el guion de la demostración, las medidas finales y el
+estado final de los requisitos—.
 
 **Reparto de H4 a H6, decidido el 2026-09-07.** El H5 original era «responsive,
 gestión de errores, pruebas E2E y despliegue», y #130 se llevó las dos primeras
@@ -6354,6 +6368,8 @@ Los tiempos no se movieron: `test` 65 s, `frontend` 33 s, las imágenes 38 s (we
 
 `only-from-dev` no corre en una PR a `dev`: su cambio de runner se comprobará en la PR de la release `v0.6`, que es la primera a `main`.
 
+*(Comprobado en la PR #207, la de la release `v0.6.0`, el 1 de octubre: `only-from-dev` salió en verde en 3 s sobre `ubuntu-24.04`, con la imagen `20260920.314.1` (Ubuntu 24.04.5). En su registro aparece una línea `::error::…`, pero es el guion del paso, que el registro enseña antes de ejecutarlo: esa rama no se ejecutó.)*
+
 ### Cómo llega la API a la A40: la red, el túnel y lo que cuesta arrancar Ollama (#181, 24 sep 2026)
 
 §12 de [`docs/arquitectura.md`](docs/arquitectura.md), el plano de H5, dejaba sin decidir dos cosas que condicionan todo lo demás: **cómo llega la API, en la máquina 1, a Ollama, en la máquina 2**, y **quién arranca Ollama y cuándo suelta la GPU**, en una máquina compartida cuya norma es no dejarla bloqueada. Esta issue, la primera de H5, las mide antes de diseñar nada. No construye nada: en el código entran tres guiones en `spikes/`.
@@ -6955,7 +6971,7 @@ Dos cambios en `search_articles`, con el test primero: dos tests con `respx`, ej
 
 #### Lo que queda
 
-- **NYT tiene el mismo disfraz**, y un test lo fija: `test_search_articles_http_error` exige que un error HTTP salga como «No articles found». La issue dejaba NYT fuera; queda anotado.
+- **NYT tiene el mismo disfraz**, y un test lo fija: `test_search_articles_http_error` exige que un error HTTP salga como «No articles found». La issue dejaba NYT fuera; queda anotado. *(Hecho en #212: ver «NYT: el mismo disfraz».)*
 - **No se repitió con el agente.** La aceptación es el guion contra la API real. El docstring de la herramienta, que es lo que lee el modelo, no cambia.
 - **La cuota que da la cabecera no cuadra con las llamadas**: 480, 477 y 455 restantes tras tandas de 32, 37 y 37. Observado, sin explicar; es lo que publica `remaining_quota` (R2.7).
 
@@ -7386,8 +7402,50 @@ Se probaron como quedaron escritos:
 
 #### Lo que queda
 
-- **La release `v0.6`**, con esta PR en `dev`: la PR de `dev` a `main`, mergeada con merge commit, que será la primera ejecución de `only-from-dev` sobre `ubuntu-24.04` desde #178; el tag anotado `v0.6.0`, por consola; y las notas de la release.
-- **Lo que H5 deja abierto**, con su condición en la sección de cada issue: las respuestas vacías con el razonamiento lleno y las vueltas desbocadas (#192); el historial, que se pierde al recargar (#191); el arranque con la caché de disco fría, el modo persistente —una pregunta al administrador sin respuesta— y el túnel, que no se reconecta si se cae (#181); y los enlaces de las noticias y las fichas de `describe_models` (#192).
+- **La release `v0.6`**, con esta PR en `dev`: la PR de `dev` a `main`, mergeada con merge commit, que será la primera ejecución de `only-from-dev` sobre `ubuntu-24.04` desde #178; el tag anotado `v0.6.0`, por consola; y las notas de la release. *(Publicada el 1 de octubre; `only-from-dev`, en verde: ver la nota en la sección de #178.)*
+- **Lo que H5 deja abierto**, con su condición en la sección de cada issue: las respuestas vacías con el razonamiento lleno y las vueltas desbocadas (#192); el historial, que se pierde al recargar (#191); el arranque con la caché de disco fría, el modo persistente —una pregunta al administrador sin respuesta— y el túnel, que no se reconecta si se cae (#181); y los enlaces de las noticias y las fichas de `describe_models` (#192). *(Pasado a issues el 2 de octubre: #208 a #213 en `v0.7`, y el resto en #217, el trabajo futuro. El modo persistente se descartó: no se pide.)*
+
+### NYT: el mismo disfraz (#212, 2 oct 2026)
+
+#196 le quitó a Guardian un disfraz: cuando la petición fallaba —una clave mala, la cuota agotada, la red—, el cliente decía «No articles found», lo mismo que cuando de verdad no hay noticias. NYT tenía el mismo, y un test lo exigía (`test_search_articles_http_error`). Importa por el agente, que decide con ese mensaje: en #188, creyendo que no había noticias, probó tres temas más. Y en NYT, que admite 500 llamadas al día, el fallo más probable es justo la cuota agotada: el agente daría vueltas probando temas para acabar diciendo que no hay noticias, cuando lo que pasa es que hoy no se puede preguntar.
+
+#### El arreglo
+
+El mismo que en Guardian. Si la petición falla, `search_articles` devuelve el mensaje de `make_request`, que es público desde #89 y dice qué pasó sin decir cómo está hecho por dentro; «No articles found» queda para una respuesta que llega bien y sin artículos. La herramienta no cambia: su docstring ya decía «si no hay resultados o la API falla», así que el catálogo del agente es el mismo y no hace falta repetir las 26 consultas de #188.
+
+Los tests, primero:
+
+- `test_search_articles_http_error`, que exigía el disfraz, pasa a ser `test_un_fallo_de_la_api_no_se_disfraza_de_sin_noticias`, con un 401, un 429 y un 500: el error trae el código y no dice «No articles found». **Contra el código de antes falló en los tres.**
+- `test_el_error_publicado_no_lleva_la_clave_ni_la_url`: con un 401 cuyo cuerpo repite la clave, el error no lleva ni la clave ni `nytimes.com`, porque sale por la herramienta y es una salida pública (#163). Éste **pasa también con el código de antes**, porque el disfraz lo tapaba todo: no demuestra el arreglo, sino que el error nuevo no filtra nada.
+- Que una respuesta correcta sin artículos siga diciendo «No articles found» ya lo cubrían `test_search_articles_no_results` y `test_search_articles_missing_docs_key`.
+
+**417 tests**, y pyright sin errores.
+
+#### Contra la API real
+
+Con un test nuevo marcado `integration` —que el CI no ejecuta—, `test_una_clave_mala_da_el_error_real`, junto a los dos que ya había:
+
+| Condiciones | |
+|---|---|
+| Fecha | 2026-10-02: antes del arreglo a las 15:28:29 UTC y después a las 15:28:57 UTC |
+| Código | `0e9da56`, la base de la rama; la segunda tanda, con el arreglo sin commitear |
+| Máquina | WSL (Ubuntu) en el portátil |
+| API | Article Search de NYT (`articlesearch.json`), con la ventana del defecto: 7 días |
+| Coste | 3 llamadas por tanda |
+
+```bash
+.venv/bin/python -m pytest tests/integrations/test_nyt.py -m integration
+```
+
+| Test | Antes | Después |
+|---|---|---|
+| `test_search_articles_valid_use`: un tema con noticias | pasa | pasa |
+| `test_search_articles_invalid_topic`: un tema que no existe | pasa, «No articles found» | pasa, «No articles found» |
+| `test_una_clave_mala_da_el_error_real`: una clave que no existe | **falla**: «No articles found» | pasa: «La API externa respondió HTTP 401 Unauthorized.» |
+
+NYT responde **401** a una clave que no existe, y el test lo fija desde entonces; la clave no aparece en el mensaje. Los temas con noticias siguen trayéndolas, y uno que no existe sigue diciendo que no hay.
+
+**No se miró en la pantalla de Sistema**, como pedía la issue: exigía redesplegar la máquina 1, y el autor lo dio por comprobado con estos tests, que usan el mismo `NYTAPI` que la herramienta. Se verá con el próximo despliegue.
 
 
 
