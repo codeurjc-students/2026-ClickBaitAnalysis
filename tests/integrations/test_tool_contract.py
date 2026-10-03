@@ -10,6 +10,7 @@ Se habla el protocolo real contra la app en el mismo proceso, con
 `ASGITransport`. Se usan sólo tools locales y deterministas: nada de red.
 """
 
+import json
 from contextlib import asynccontextmanager
 
 import httpx
@@ -87,6 +88,30 @@ async def test_una_lista_declara_el_tipo_de_sus_elementos(servidor_mcp):
     assert esquema["properties"]["result"]["type"] == "array"
     articulo = esquema["$defs"]["Articulo"]
     assert "print_headline" in articulo["properties"]
+
+
+@pytest.mark.asyncio
+async def test_describe_models_no_publica_las_notas_de_operacion(servidor_mcp):
+    """#211: lo que el agente recibe de `describe_models` son los límites de cada
+    señal, no cómo se instala o se sirve. Las notas de operación —`torch` y
+    `sentence-transformers` fuera de `requirements.txt`, la vía remota que no
+    existe— se las repetía a cualquiera que preguntara. Se mira lo que entrega
+    el protocolo, en sus dos formas: la estructurada y el texto, que FastMCP
+    manda en un bloque por ficha."""
+    from backend.integrations.nlp.model_cards import MODEL_CARDS
+
+    notas = {nota for ficha in MODEL_CARDS for nota in ficha["operation"]}
+    assert notas  # si no, el test no comprobaría nada
+
+    async with sesion(servidor_mcp) as s:
+        resultado = await s.call_tool("describe_models", {})
+
+    assert resultado.isError is False
+    fichas = resultado.structuredContent["result"]
+    assert fichas == [json.loads(bloque.text) for bloque in resultado.content]
+    for ficha in fichas:
+        assert "operation" not in ficha, ficha["signal"]
+        assert notas.isdisjoint(ficha["limitations"]), ficha["signal"]
 
 
 # ----- El eje éxito/fallo lo lleva el protocolo -----

@@ -18,7 +18,11 @@ from backend.config.settings import settings
 from backend.integrations.nlp.base import NLPBackend
 from backend.integrations.nlp.incoherence import IncoherenceDetector
 from backend.integrations.nlp.local import LocalNLPClient  # local.py
-from backend.integrations.nlp.model_cards import cards_by_signal, model_id_de
+from backend.integrations.nlp.model_cards import (
+    FichaDeclarada,
+    cards_by_signal,
+    model_id_de,
+)
 from backend.integrations.nlp.outputs import FichaModelo
 from backend.integrations.nlp.remote import HFClient  # remote.py
 
@@ -102,18 +106,42 @@ def ficha_efectiva(signal: str) -> FichaModelo:
     Lo que SÍ sobrevive es lo que describe **el hueco** y no a su ocupante: qué
     dimensión mide, de qué tipo es y qué tarea cumple. Por eso se conserva el
     resto de la ficha en vez de devolverla vacía.
+
+    Y en las dos ramas, **las notas de operación no salen** (#211): son de quien
+    opera el sistema, no de quien lee la señal. Por aquí pasan
+    ``describe_models``, el catálogo y el orquestador, así que ésta es la única
+    puerta entre la ficha declarada y la publicada.
     """
     ficha = cards_by_signal()[signal]
     configurado = settings.nlp_models.get(signal)
 
     if not configurado or configurado == ficha["model_id"]:
-        return ficha
+        return _publicable(ficha)
 
     return {
-        **ficha,
+        **_publicable(ficha),
         "model_id": configurado,
         "name": f"{configurado} (puesto por configuración)",
         "limitations": [
             f"SIN EVALUAR EN ESTE PROYECTO. Este modelo se ha puesto por configuración en lugar de `{ficha['model_id']}`, así que las limitaciones medidas de aquél no se publican aquí: eran suyas. Lo que sigue siendo cierto es lo que describe la señal y no al modelo — mide `{ficha['dimension']}` y es de tipo `{ficha['type']}`.",
         ],
+    }
+
+
+def _publicable(ficha: FichaDeclarada) -> FichaModelo:
+    """La ficha sin las notas de operación (#211).
+
+    Clave a clave y no copiando el diccionario: así no se cuela nada que se
+    declare de más, y si ``FichaModelo`` gana un campo, pyright exige
+    añadirlo aquí.
+    """
+    return {
+        "signal": ficha["signal"],
+        "model_id": ficha["model_id"],
+        "name": ficha["name"],
+        "task": ficha["task"],
+        "type": ficha["type"],
+        "dimension": ficha["dimension"],
+        "limitations": ficha["limitations"],
+        "backend": ficha["backend"],
     }

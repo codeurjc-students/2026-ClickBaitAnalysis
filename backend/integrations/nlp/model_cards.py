@@ -50,9 +50,27 @@ Es lo que permite a ``/analyze`` agrupar los veredictos por dimensión en vez de
 promediar señales que miden cosas distintas: tres señales de *forma* de acuerdo
 no significan que el titular engañe. Sin este campo, el backend tendría que
 cablear qué señal es cuál — justo lo que se evita.
+
+DOS PÚBLICOS, Y SÓLO UNO LEE LO QUE SE PUBLICA (#211)
+
+``limitations`` es lo que una señal no sabe hacer, medido: es de quien lee un
+resultado, y sale por ``describe_models``, el catálogo y la pantalla de Sistema
+(R3.9). ``operation`` es cómo se instala o se sirve —paquetes que
+``requirements.txt`` no trae, la vía remota que no existe—: es de quien opera
+el sistema, y **no se publica**. Estaban mezclados, y el agente le repetía a
+cualquiera que ``torch`` no viene en ``requirements.txt``. Van en la misma ficha
+para que, si el modelo cambia, se vean en el mismo sitio; la que se publica la
+construye ``factory.ficha_efectiva``, que es la única puerta.
 """
 
 from backend.integrations.nlp.outputs import FichaModelo
+
+
+class FichaDeclarada(FichaModelo):
+    """La ficha tal como se escribe aquí: la publicada más las notas de quien
+    opera el sistema (#211), que no salen por ninguna vía pública."""
+
+    operation: list[str]
 
 
 def model_id_de(signal: str) -> str:
@@ -73,7 +91,7 @@ def model_id_de(signal: str) -> str:
     return identificador
 
 
-def cards_by_signal() -> dict[str, FichaModelo]:
+def cards_by_signal() -> dict[str, FichaDeclarada]:
     """Índice de fichas por nombre de tool.
 
     Vive aquí y no en quien lo usa porque lo necesitan DOS consumidores —la
@@ -84,7 +102,7 @@ def cards_by_signal() -> dict[str, FichaModelo]:
     return {card["signal"]: card for card in MODEL_CARDS}
 
 
-MODEL_CARDS: list[FichaModelo] = [
+MODEL_CARDS: list[FichaDeclarada] = [
     {
         "signal": "detect_clickbait",
         "model_id": "Stremie/roberta-base-clickbait",
@@ -101,12 +119,14 @@ MODEL_CARDS: list[FichaModelo] = [
             "A favor, y es lo que más pesa: entrenado con ETIQUETA HUMANA (`truthMean` de anotadores), no por fuente. Es la única señal del sistema con supervisión no sesgada por el medio que publicó el titular — el fallo que #76 destapó y #109 cuantificó.",
             "No memoriza, verificado: rinde MEJOR fuera de su dominio (F1 0.946 en Chakraborty) que dentro (0.631 y 0.758 en los dos splits de Webis), el patrón inverso al de `elozano/bert-base-cased-clickbait-news`, descartado por 99.7% dentro y F1 0.185 fuera.",
             "Ese 0.946 de Chakraborty NO significa que sea mejor ahí (#121): Chakraborty etiqueta por fuente y ese método no puede producir casos dudosos, así que mide sólo la mitad fácil del problema. Restringiendo Webis a los titulares donde los 5 anotadores coinciden — lo más parecido a Chakraborty que hay dentro de Webis — sube a F1 0.906, y el resto lo explica el balance de clases.",
-            "NO SE PUEDE SERVIR EN REMOTO, y es permanente: `hf-inference` responde `400 Model not supported by provider`. Detectado el 2026-09-03 al ejecutar la pantalla contra la API de verdad, y confirmado el 2026-09-07 contra el catálogo del proveedor: la ficha del Hub no declara ninguno (`inferenceProviderMapping` vacío) y NINGUNO de los 40 modelos de clickbait del Hub lo tiene. HuggingFace sirve por demanda, y éste tiene 59 descargas/mes frente a los 3.248.238 del de sentimiento, que sí responde por la misma vía y con el mismo token. Doce reintentos en dos minutos no lo reactivan. Con `nlp_backend=remote` esta señal sale SIEMPRE en `error` y el veredicto se emite con las otras cuatro.",
-            "Y la vía local, que es la única que queda, DEPENDE DE UN PAQUETE QUE `requirements.txt` NO TRAE: `torch`. No es un descuido —es lo que mantiene ligero al CI, que mockea los backends—, así que una instalación hecha sólo con `requirements.txt` no puede ejecutar esta señal por ninguna de las dos vías. El despliegue sí: la imagen instala la rueda CPU-only de torch (#162) y el compose fija `nlp_backend=local` (#164). Medido el 2026-09-08: con esa rueda (769 MB) la señal responde sin GPU, con 1.201 MB de RAM para los tres modelos y 0.11 s por análisis en caliente.",
             "Contexto imprescindible para leer cualquiera de estos números: el techo humano de la tarea es F1 0.665, y sólo el 34.9% de los titulares tiene a los 5 anotadores de acuerdo (#121). Sus errores se concentran donde las personas discrepan (92.9% de los fallos en el 65.1% dudoso) y su confianza baja ahí (0.918 vs 0.834), sin haber visto nunca los juicios individuales.",
         ],
+        "operation": [
+            "NO SE PUEDE SERVIR EN REMOTO, y es permanente: `hf-inference` responde `400 Model not supported by provider`. Detectado el 2026-09-03 al ejecutar la pantalla contra la API de verdad, y confirmado el 2026-09-07 contra el catálogo del proveedor: la ficha del Hub no declara ninguno (`inferenceProviderMapping` vacío) y NINGUNO de los 40 modelos de clickbait del Hub lo tiene. HuggingFace sirve por demanda, y éste tiene 59 descargas/mes frente a los 3.248.238 del de sentimiento, que sí responde por la misma vía y con el mismo token. Doce reintentos en dos minutos no lo reactivan. Con `nlp_backend=remote` esta señal sale SIEMPRE en `error` y el veredicto se emite con las otras cuatro.",
+            "Y la vía local, que es la única que queda, DEPENDE DE UN PAQUETE QUE `requirements.txt` NO TRAE: `torch`. No es un descuido —es lo que mantiene ligero al CI, que mockea los backends—, así que una instalación hecha sólo con `requirements.txt` no puede ejecutar esta señal por ninguna de las dos vías. El despliegue sí: la imagen instala la rueda CPU-only de torch (#162) y el compose fija `nlp_backend=local` (#164). Medido el 2026-09-08: con esa rueda (769 MB) la señal responde sin GPU, con 1.201 MB de RAM para los tres modelos y 0.11 s por análisis en caliente.",
+        ],
         # Era "remote | local" hasta el 2026-09-07. La vía remota no existe: ver
-        # el límite de arriba.
+        # la primera nota de operación de arriba.
         "backend": "local",
     },
     {
@@ -121,6 +141,7 @@ MODEL_CARDS: list[FichaModelo] = [
             "Caja negra.",
             "Solo inglés.",
         ],
+        "operation": [],
         "backend": "remote | local",
     },
     {
@@ -137,8 +158,10 @@ MODEL_CARDS: list[FichaModelo] = [
             "REDUNDANTE con la señal dedicada: `dedicada ∨ incoherencia` BAJA la precisión de 0.709 a 0.673, así que los casos que añade son mayoritariamente falsos. Aporta en cambio a las señales débiles (`linear ∨ incoherencia` sube F1 de 0.448 a 0.517).",
             "Precisión de sólo 0.12 en el subconjunto donde ninguna señal de forma dispara — que es justamente el hueco que esta dimensión existe para cubrir (titulares sobrios que engañan: 470 de 8793). No es culpa del umbral: con un 5.3% de positivos y AUC 0.628 ahí, la precisión alta es inalcanzable.",
             "Necesita el cuerpo/teaser, no solo el titular.",
-            "DEPENDE DE UN PAQUETE QUE `requirements.txt` NO TRAE: `sentence-transformers`. Y esta señal no tiene vía remota, así que una instalación hecha sólo con `requirements.txt` falla con CUALQUIER `nlp_backend`. La imagen de despliegue lo instala (#162), así que en el despliegue responde; comprobado el 2026-09-08 que ponerlo después de la rueda CPU de torch no la sustituye por la variante CUDA.",
             "Solo inglés. Calibrado sobre TUITS con su artículo enlazado, no sobre titulares de portada.",
+        ],
+        "operation": [
+            "DEPENDE DE UN PAQUETE QUE `requirements.txt` NO TRAE: `sentence-transformers`. Y esta señal no tiene vía remota, así que una instalación hecha sólo con `requirements.txt` falla con CUALQUIER `nlp_backend`. La imagen de despliegue lo instala (#162), así que en el despliegue responde; comprobado el 2026-09-08 que ponerlo después de la rueda CPU de torch no la sustituye por la variante CUDA.",
         ],
         "backend": "local",
     },
@@ -159,6 +182,7 @@ MODEL_CARDS: list[FichaModelo] = [
             "A favor, y medido: su recall sigue el juicio humano de intensidad casi linealmente en Webis-17 (51.6% / 75.8% / 85.5% por tercios de `truthMean`, n=62 por tramo). Es la señal que mejor generaliza fuera de dominio de las cuatro evaluadas, por delante incluso del lineal, que se estanca en los tramos altos (61.3% -> 62.9%).",
             "Solo inglés.",
         ],
+        "operation": [],
         "backend": "local",
     },
     {
@@ -177,6 +201,7 @@ MODEL_CARDS: list[FichaModelo] = [
             "Techo de recall heredado del featurizado: 84.5% en Chakraborty y 67.5% en Webis-17, con un recall medido de 0.478. Reentrenar los pesos no puede superarlo, porque w·0 = 0 sea cual sea w — de ahí que #75 (featurización) sea prerrequisito de #78 (reentrenamiento).",
             "Solo inglés.",
         ],
+        "operation": [],
         "backend": "local",
     },
 ]
