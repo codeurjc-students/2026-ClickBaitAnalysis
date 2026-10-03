@@ -7134,7 +7134,7 @@ bash spikes/chat_registro.sh 2026-09-28T18:22:00Z 2026-09-28T18:24:00Z
 
 #### Lo que queda
 
-- **El historial se pierde al recargar**: vive en la memoria de la pantalla, y el servidor no guarda las conversaciones (decidido al definir H5). Hay dos caminos para más adelante: `sessionStorage`, sin tocar el backend, o guardarlas en el historial del servidor, que reabre esa decisión.
+- **El historial se pierde al recargar**: vive en la memoria de la pantalla, y el servidor no guarda las conversaciones (decidido al definir H5). Hay dos caminos para más adelante: `sessionStorage`, sin tocar el backend, o guardarlas en el historial del servidor, que reabre esa decisión. *(Hecho en #209, con `sessionStorage`: ver «La conversación del asistente sobrevive a recargar».)*
 - **Las respuestas son demasiado técnicas** para quien no conoce las señales (observado por el autor). El prompt `04-preciso` pide cifras exactas y nombres de señales, y el modelo copia los decimales enteros (#188). Se itera en #192, con las 26 consultas como examen, para que un prompt más llano no pierda fidelidad sin que se note.
 - **Una llamada repetida**: en la vuelta de 98,8 s, el modelo volvió a pedir `analyze_headline` con el mismo titular. Costó 0,27 s y una vuelta más. Para #192.
 - **La primera conversación tras un despliegue paga el MCP en frío**, 6,9 s las dos veces (aceptado en H4).
@@ -7479,6 +7479,79 @@ La issue se redujo a lo que de verdad faltaba (decidido por el autor):
 #### Lo que queda
 
 - **Verlo en producción con el próximo despliegue.** El aviso no se ve: se comprueba con un lector de pantalla o con el inspector del navegador.
+
+### La conversación del asistente sobrevive a recargar (#209, 3 oct 2026)
+
+Hasta ahora la conversación vivía en la memoria de la pantalla: recargar, o ir a otra sección y volver, la borraba (visto en #191). En una demostración, un recargar sin querer se la lleva por delante, y el momento en que más tienta recargar es justo una vuelta larga del modelo, que en #191 se leyó como un cuelgue.
+
+#### Por qué en el navegador y no en el servidor
+
+Al definir H5 se decidió que las conversaciones no fueran al historial, y lo que se escribió entonces fue sólo que el historial es de `/analyze`. Los motivos completos, que la issue dejó por escrito:
+
+- **El historial se diseñó para análisis**: cada fila es un `POST /analyze` con su resultado, y `/analisis/:id` lo vuelve a pintar. Una conversación es otra cosa —turnos, traza y narración—, con otra forma y otra pantalla.
+- **La exposición**: la aplicación es pública y sin autenticación, y `GET /history` le enseña a cualquiera todo lo guardado. Guardar ahí las conversaciones publicaría lo que escribió cada visitante. Los ids de las conversaciones son aleatorios (16 bytes, #189) justo para que nadie lea las ajenas.
+- **El servidor no guarda nada entre turnos**: el historial lo manda la pantalla, y los trabajos caducan a los 15 minutos de terminar.
+
+Tampoco `localStorage`: sobreviviría a cerrar el navegador, y en un ordenador compartido la siguiente persona vería la conversación. `sessionStorage` dura lo que la pestaña y no sale del navegador.
+
+#### Qué se guarda, y qué pasa al volver
+
+- **La conversación entera**, con la traza de cada pregunta, que es de donde salen las tarjetas (R13.4). Se guarda con cada cambio, bajo la clave `asistente.conversacion.v1`. La versión va en la clave: si un día cambia de verdad la forma de lo guardado, se sube, y lo viejo se ignora entero.
+- **El id de cada conversación, en cuanto `POST /chat` contesta**, antes de la primera lectura. Con él, **una pregunta en marcha se retoma** al volver: el servidor no se enteró de la recarga, siguió trabajando, y la sirve hasta 15 minutos después de terminar. Si se salió antes de que `POST /chat` contestara, no hay id con el que preguntar por ella, y la pantalla dice «Se salió de la página antes de que el asistente aceptara la pregunta».
+- **Lo guardado se lee con un guardián**, como el historial de análisis con `comoAnalisis` (#129): puede venir de una versión anterior de la pantalla, así que un intercambio que la plantilla no sabría pintar se descarta y los demás se quedan.
+- **«Empezar una conversación nueva»** vacía la pantalla y lo guardado: con la conversación persistente, sería la única forma de empezar otra sin cerrar la pestaña. Está desactivado con una pregunta en marcha —el servidor seguiría trabajando en algo que ya nadie miraría—, y devuelve el foco al campo de la pregunta, porque el botón desaparece con la conversación.
+- **Si el navegador no deja guardar** —navegación privada, almacenamiento bloqueado o lleno—, la pantalla funciona como antes de esta issue.
+
+**Y se avisa de lo que no se conserva** (decidido con el autor, repasando los flujos): sin almacenamiento, «Este navegador no deja guardar la conversación: se perderá si recargas la página o vas a otra sección»; con el tope, «Las N preguntas más antiguas ya no se guardan, por espacio». La alternativa, quitar de la pantalla lo que no cabe para que pantalla y almacenamiento coincidieran siempre, borraría lo que se está leyendo, que es justo lo que la issue quería evitar.
+
+Cómo queda cada caso:
+
+| Situación | Qué se ve |
+|---|---|
+| Recargar, o ir a otra sección y volver, con la respuesta ya dada | La conversación entera; la pregunta siguiente la lleva como historial |
+| Recargar mientras el modelo razona | Los pasos que ya habían llegado y la espera, que sigue contando desde el envío; la respuesta llega como si nada |
+| Recargar justo al pulsar «Enviar», antes de que el servidor la acepte | La pregunta con el aviso de que se salió antes de que se aceptara |
+| Volver más de 15 minutos después, o tras un redespliegue, con una pregunta a medias | Lo terminado, y en esa pregunta, «la conversación ya no está en el servidor» (el 404 de #191) |
+| Volver con el asistente apagado | El aviso de siempre, sin campo de texto, y debajo la conversación |
+| Cerrar la pestaña o abrir otra | Vacía: `sessionStorage` es de cada pestaña |
+| Navegación privada o almacenamiento bloqueado | La pantalla de antes, con el aviso de que no se guardará |
+| Una conversación que pasa del tope | Todo, mientras no se recargue, con el aviso de cuántas de las más antiguas se perderán |
+
+#### El tope, medido
+
+Los resultados de las herramientas van enteros, y `sessionStorage` tiene un límite por origen, del orden de 5 MB según el navegador. La regla se fijó **antes de medir** (decidida por el autor): el tope es de **1.000.000 de caracteres** de JSON, una quinta parte de ese límite, y se queda si caben al menos 20 intercambios de tamaño mediano.
+
+[`spikes/historial_tamano.py`](spikes/historial_tamano.py) lo mide con las conversaciones que guardó #192 en `spikes/fidelidad/` —las del corpus y las de cada condición comparada—, con los pasos tal como los produce el agente. A cada paso de señal le añade su tarjeta con `senal_de`, la misma función que usa `api/chat.py` al servir `GET /chat/{id}`, y monta cada intercambio con la forma que guarda la pantalla.
+
+| Condiciones | |
+|---|---|
+| Fecha | 2026-10-03, 09:50 UTC |
+| Máquina | WSL (Ubuntu) en el portátil, sin GPU ni red |
+| Datos | 228 conversaciones de `spikes/fidelidad/`: `corpus.json` y los cinco `comparacion-*.json` de #192 |
+| Código | `d6aac4b`, la base de la rama, con el guion sin commitear |
+
+```bash
+.venv/bin/python spikes/historial_tamano.py
+```
+
+| Caracteres por intercambio | |
+|---|---|
+| Mínimo | 685 |
+| Mediana | 2.422 |
+| p95 | 9.426 |
+| Máximo | 21.174 |
+
+Con el tope caben **412 intercambios medianos**, o 47 del más grande: **la regla se cumple**, y el aviso del tope no debería verse en una sesión normal. Los tres más grandes llevan `describe_models`, y uno sólo con esa herramienta ya ocupa 12.087 caracteres: las fichas de las señales son el resultado más largo. (El guion cuenta puntos de código y el navegador unidades UTF-16; sólo difieren en los caracteres fuera del plano básico, como los emojis.)
+
+#### Comprobado
+
+- **18 specs nuevos**: 11 de `conversacion.ts` —guardar y leer de vuelta, el tope por intercambios enteros, lo que no encaja, la pregunta a medias con y sin id, el aviso— y 7 de la pantalla —recargar, con lo recuperado como historial de la pregunta siguiente; retomar una en marcha; la caducada; la que no se llegó a aceptar; sin almacenamiento; empezar de nuevo, y que no se pueda con una pregunta en marcha—. Se escribieron antes del código, y contra el de antes no compilaban: las funciones no existían. **178 specs**, y el lint y el build, en verde.
+- **Visto en local con el asistente apagado** (la API en el 8001 con el agente configurado y apagado, y el frontend en el 4200), metiendo una conversación en `sessionStorage` y recargando: vuelve entera, con la tarjeta de la señal y la narración, debajo de «Ahora mismo no se puede usar»; «Empezar una conversación nueva» la vacía y borra la clave; y una pregunta sin id sale con su aviso. Sin errores en la consola.
+
+#### Lo que queda
+
+- **Probarlo con el modelo, en producción**: recargar a mitad de una pregunta y después de la respuesta. Exige redesplegar la máquina 1, y con una sola sesión de GPU se comprobaría también lo que dejaron pendiente #212 y #210.
+- **Duplicar la pestaña copia lo guardado**: la copia enseña la misma conversación y, si había una pregunta en marcha, las dos la sondean. No hace daño, pero son dos lecturas cada 2 s dentro del presupuesto de 60 por minuto.
 
 
 

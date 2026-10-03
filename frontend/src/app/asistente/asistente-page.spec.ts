@@ -9,6 +9,7 @@ import { provideRouter } from '@angular/router';
 import { SONDEO_MS } from '../api/chat.service';
 import type { AgentInfo, ChatJob, Disponibilidad, PasoDeLaTraza } from '../api/models';
 import { AsistentePage } from './asistente-page';
+import { CLAVE_GUARDADO } from './conversacion';
 
 function agente(status: Disponibilidad['status'], detalle = 'Motivo publicable.'): AgentInfo {
   return {
@@ -119,6 +120,9 @@ describe('AsistentePage', () => {
     // zonas repinta con `setTimeout`, y ése se deja de verdad: falseado,
     // `whenStable` no terminaría nunca.
     vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval', 'Date'] });
+    // La pantalla guarda la conversación en `sessionStorage` (#209), y jsdom lo
+    // comparte entre los tests de un fichero.
+    sessionStorage.clear();
     await TestBed.configureTestingModule({
       imports: [AsistentePage],
       providers: [provideRouter([]), provideHttpClient(), provideHttpClientTesting()],
@@ -131,7 +135,25 @@ describe('AsistentePage', () => {
     fixture.destroy();
     http.verify();
     vi.useRealTimers();
+    vi.restoreAllMocks();
+    sessionStorage.clear();
   });
+
+  /**
+   * Como recargar la página o volver a la sección: una pantalla nueva, con lo
+   * que dejó guardado la anterior.
+   */
+  async function recargar() {
+    fixture.destroy();
+    fixture = TestBed.createComponent(AsistentePage);
+    await conAgente('available');
+  }
+
+  function boton(texto: string): HTMLButtonElement {
+    return [...html().querySelectorAll('button')].find((candidato) =>
+      candidato.textContent?.includes(texto),
+    )!;
+  }
 
   async function conAgente(status: Disponibilidad['status'], detalle?: string) {
     http.expectOne('/api/agent').flush(agente(status, detalle));
@@ -256,6 +278,123 @@ describe('AsistentePage', () => {
 
     expect(sinEnlace.querySelector('a')).toBeNull();
     expect(sinEnlace.querySelector('[lang="en"]')?.textContent).toBe('A Headline Without Link');
+  });
+
+  // ----- Lo que sobrevive a recargar (#209) -----
+
+  it('al recargar o volver a la sección, la conversación sigue ahí', async () => {
+    await conAgente('available');
+    await preguntar('¿Es clickbait «Top 5 Secrets»?');
+    http.expectOne('/api/chat').flush({ id: 'abc' });
+    await sondeo(respondida('Es clickbait de forma.'), 0);
+
+    await recargar();
+
+    expect(html().querySelector('.pregunta')?.textContent).toContain('Top 5 Secrets');
+    expect(html().querySelectorAll('app-senal-card').length).toBe(1);
+    expect(html().querySelector('.narracion')?.textContent).toContain('Es clickbait de forma.');
+    // Sale del navegador: lo terminado no se le vuelve a pedir al servidor.
+    vi.advanceTimersByTime(SONDEO_MS);
+    http.expectNone('/api/chat/abc');
+
+    // Y la pregunta siguiente lleva lo recuperado como historial.
+    await preguntar('¿Y por qué?');
+    expect(http.expectOne('/api/chat').request.body).toEqual({
+      message: '¿Y por qué?',
+      history: [
+        { role: 'user', content: '¿Es clickbait «Top 5 Secrets»?' },
+        { role: 'assistant', content: 'Es clickbait de forma.', tools: ['detect_clickbait_lexical'] },
+      ],
+    });
+  });
+
+  it('una pregunta en marcha se sigue tras recargar', async () => {
+    await conAgente('available');
+    await preguntar('¿Es clickbait?');
+    http.expectOne('/api/chat').flush({ id: 'abc' });
+    await sondeo(lectura('running', PASOS), 0);
+
+    await recargar();
+
+    expect(texto()).toContain('Leyendo los resultados');
+    await sondeo(respondida('Es clickbait de forma.'), 0);
+    expect(html().querySelector('.narracion')?.textContent).toContain('Es clickbait de forma.');
+  });
+
+  it('si la conversación ya caducó en el servidor, lo dice', async () => {
+    await conAgente('available');
+    await preguntar('¿Es clickbait?');
+    http.expectOne('/api/chat').flush({ id: 'abc' });
+    await sondeo(lectura('running', PASOS), 0);
+
+    await recargar();
+    vi.advanceTimersByTime(0);
+    http
+      .expectOne('/api/chat/abc')
+      .flush({ detail: 'Not Found' }, { status: 404, statusText: 'Not Found' });
+    await fixture.whenStable();
+
+    expect(texto()).toContain('ya no está en el servidor');
+    expect(html().querySelector<HTMLButtonElement>('button[type=submit]')!.disabled).toBe(false);
+  });
+
+  it('una pregunta que el servidor no llegó a aceptar se marca, y se puede volver a preguntar', async () => {
+    await conAgente('available');
+    sessionStorage.setItem(
+      CLAVE_GUARDADO,
+      JSON.stringify([
+        { pregunta: '¿Hola?', id: null, trabajo: null, error: null, enviadaEl: 0, leidaEl: null },
+      ]),
+    );
+
+    await recargar();
+
+    expect(texto()).toContain('antes de que el asistente aceptara la pregunta');
+    expect(html().querySelector<HTMLButtonElement>('button[type=submit]')!.disabled).toBe(false);
+  });
+
+  it('sin almacenamiento, funciona como hoy y avisa de que no se guardará', async () => {
+    await conAgente('available');
+    const lleno = () => {
+      throw new DOMException('No se puede guardar.', 'QuotaExceededError');
+    };
+    vi.spyOn(Storage.prototype, 'getItem').mockImplementation(lleno);
+    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(lleno);
+
+    await recargar();
+    await preguntar('¿Es clickbait?');
+    http.expectOne('/api/chat').flush({ id: 'abc' });
+    await sondeo(respondida('Es clickbait de forma.'), 0);
+
+    expect(html().querySelector('.narracion')?.textContent).toContain('Es clickbait de forma.');
+    const aviso = html().querySelector('.aviso--guardado');
+    expect(aviso?.textContent).toContain('no deja guardar la conversación');
+    expect(aviso?.getAttribute('role')).toBeNull(); // informa, no interrumpe
+  });
+
+  it('empezar de nuevo vacía la conversación y lo guardado', async () => {
+    await conAgente('available');
+    await preguntar('¿Es clickbait?');
+    http.expectOne('/api/chat').flush({ id: 'abc' });
+    await sondeo(respondida('Es clickbait de forma.'), 0);
+
+    boton('Empezar una conversación nueva').click();
+    await fixture.whenStable();
+
+    expect(html().querySelector('.conversacion')).toBeNull();
+    expect(sessionStorage.getItem(CLAVE_GUARDADO)).toBeNull();
+    expect(document.activeElement).toBe(html().querySelector('textarea'));
+    expect(boton('Empezar una conversación nueva')).toBeUndefined();
+  });
+
+  // El servidor seguiría trabajando en una pregunta que ya nadie miraría.
+  it('con una pregunta en marcha, no se puede empezar de nuevo', async () => {
+    await conAgente('available');
+    await preguntar('¿Es clickbait?');
+    http.expectOne('/api/chat').flush({ id: 'abc' });
+    await sondeo(lectura('running', PASOS), 0);
+
+    expect(boton('Empezar una conversación nueva').disabled).toBe(true);
   });
 
   // Lo que destapó la aceptación de #191: tras un resultado, una vuelta de

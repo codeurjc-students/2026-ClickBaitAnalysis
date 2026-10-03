@@ -42,6 +42,13 @@
   }
 
   @if (intercambios().length) {
+    <!-- Si algo de lo que se ve no está guardado, se dice: la pantalla lo enseña
+         todo hasta que se recarga o se cambia de sección (#209). Informa, no
+         interrumpe: sin `role="alert"`. -->
+    @if (avisoGuardado(); as aviso) {
+      <p class="aviso aviso--guardado">{{ aviso }}</p>
+    }
+
     <ol class="conversacion" aria-label="Conversación">
       @for (intercambio of intercambios(); track $index) {
         <li class="intercambio">
@@ -171,12 +178,26 @@
         </li>
       }
     </ol>
+
+    <!-- Con la conversación guardada (#209), la única forma de empezar otra sin
+         cerrar la pestaña. No con una pregunta en marcha. -->
+    <p class="nueva-conversacion">
+      <button
+        type="button"
+        class="secundario"
+        (click)="empezarDeNuevo()"
+        [disabled]="ocupado()"
+      >
+        Empezar una conversación nueva
+      </button>
+    </p>
   }
 
   @if (disponible()) {
     <form [formGroup]="formulario" (ngSubmit)="enviar()">
       <label for="mensaje">Tu pregunta</label>
       <textarea
+        #campo
         id="mensaje"
         rows="3"
         maxlength="2000"
