@@ -1,10 +1,14 @@
 import type { ChatJob, PasoHerramienta, SignalResult } from '../api/models';
 import {
+  alRecuperar,
+  avisoDeGuardado,
+  comoIntercambios,
   comoNoticias,
   duracionLegible,
   esperaDe,
   ESPERA_LARGA_MS,
   historialQueCabe,
+  paraGuardar,
   usoHerramientas,
   vistaDePaso,
   type Intercambio,
@@ -45,7 +49,7 @@ function terminado(pregunta: string, respuesta: string, pasos: ChatJob['steps'] 
     steps: pasos,
     result: { status: 'answered', answer: respuesta, detail: null, rounds: 1, total_s: 3 },
   };
-  return { pregunta, trabajo, error: null, enviadaEl: 0, leidaEl: 3000 };
+  return { pregunta, id: trabajo.id, trabajo, error: null, enviadaEl: 0, leidaEl: 3000 };
 }
 
 describe('vistaDePaso', () => {
@@ -153,6 +157,7 @@ describe('historialQueCabe', () => {
   it('se salta los intercambios sin respuesta', () => {
     const fallido: Intercambio = {
       pregunta: '¿Hola?',
+      id: null,
       trabajo: null,
       error: 'Falló.',
       enviadaEl: 0,
@@ -209,6 +214,7 @@ describe('esperaDe', () => {
   function enMarcha(pasos: ChatJob['steps'], transcurrido: number): Intercambio {
     return {
       pregunta: '¿Es clickbait?',
+      id: 'abc',
       trabajo: {
         id: 'abc',
         status: 'running',
@@ -244,6 +250,7 @@ describe('esperaDe', () => {
   it('antes de la primera lectura, está enviando', () => {
     const recienEnviada: Intercambio = {
       pregunta: '¿Hola?',
+      id: null,
       trabajo: null,
       error: null,
       enviadaEl: 1_000,
@@ -271,5 +278,100 @@ describe('usoHerramientas', () => {
     expect(usoHerramientas(conHerramienta)).toBe(false);
     conHerramienta.steps = [herramienta('detect_clickbait', { label: 'clickbait', score: 1 })];
     expect(usoHerramientas(conHerramienta)).toBe(true);
+  });
+});
+
+// ----- Lo que sobrevive a recargar (#209) -----
+
+describe('paraGuardar y comoIntercambios', () => {
+  it('lo guardado se lee de vuelta tal cual', () => {
+    const lista = [
+      terminado('uno', 'Sí.', [herramienta('detect_clickbait_lexical', {}, SENAL)]),
+      terminado('dos', 'No.'),
+    ];
+    const { texto, guardados } = paraGuardar(lista);
+    expect(guardados).toBe(2);
+    expect(comoIntercambios(texto)).toEqual(lista);
+  });
+
+  it('con el tope, quita intercambios enteros, de los más antiguos', () => {
+    const lista = [
+      terminado('uno', 'x'.repeat(100)),
+      terminado('dos', 'y'.repeat(100)),
+      terminado('tres', 'z'.repeat(100)),
+    ];
+    const caben = paraGuardar(lista.slice(1)).texto.length; // los dos últimos, justos
+    const { texto, guardados } = paraGuardar(lista, caben);
+    expect(guardados).toBe(2);
+    expect(comoIntercambios(texto).map((intercambio) => intercambio.pregunta)).toEqual([
+      'dos',
+      'tres',
+    ]);
+  });
+
+  it('si ni el último cabe, no guarda ninguno', () => {
+    const { texto, guardados } = paraGuardar([terminado('uno', 'x'.repeat(100))], 10);
+    expect(guardados).toBe(0);
+    expect(comoIntercambios(texto)).toEqual([]);
+  });
+
+  it('lo que no es una lista en JSON se lee como una conversación vacía', () => {
+    expect(comoIntercambios(null)).toEqual([]);
+    expect(comoIntercambios('{roto')).toEqual([]);
+    expect(comoIntercambios('{"pregunta": "x"}')).toEqual([]);
+  });
+
+  // Lo guardado puede venir de una versión anterior de la pantalla: lo que la
+  // plantilla no sabría pintar se descarta, y lo demás se queda.
+  it('un intercambio que no encaja se descarta, y los demás se quedan', () => {
+    const bueno = terminado('bueno', 'Sí.');
+    const sinPregunta = { ...terminado('x', 'y'), pregunta: 42 };
+    const conPasoRaro = terminado('raro', 'z');
+    conPasoRaro.trabajo!.steps = [{ kind: 'otra cosa' } as unknown as ChatJob['steps'][number]];
+    const sinRespuestaDeTexto = terminado('sin texto', 'w');
+    Object.assign(sinRespuestaDeTexto.trabajo!.result!, { answer: null });
+
+    const texto = JSON.stringify([sinPregunta, bueno, conPasoRaro, sinRespuestaDeTexto]);
+    expect(comoIntercambios(texto)).toEqual([bueno]);
+  });
+});
+
+describe('alRecuperar', () => {
+  /** Una pregunta enviada que todavía no ha terminado. */
+  function aMedias(id: string | null): Intercambio {
+    return { pregunta: '¿Hola?', id, trabajo: null, error: null, enviadaEl: 1_000, leidaEl: null };
+  }
+
+  it('una pregunta a medias con id se deja como está, para seguirla', () => {
+    expect(alRecuperar([aMedias('abc')])).toEqual([aMedias('abc')]);
+  });
+
+  // Se salió de la página entre el «Enviar» y la respuesta de `POST /chat`:
+  // no hay id con el que preguntar por ella.
+  it('sin id no hay nada que seguir, y se dice', () => {
+    const [recuperado] = alRecuperar([aMedias(null)]);
+    expect(recuperado.error).toContain('antes de que el asistente aceptara la pregunta');
+  });
+
+  it('lo terminado y lo que ya falló no se toca', () => {
+    const fallido = { ...aMedias(null), error: 'Falló.' };
+    const lista = [terminado('uno', 'Sí.'), fallido];
+    expect(alRecuperar(lista)).toEqual(lista);
+  });
+});
+
+describe('avisoDeGuardado', () => {
+  it('no dice nada si se guarda todo, o si no hay conversación', () => {
+    expect(avisoDeGuardado(3, 3, true)).toBeNull();
+    expect(avisoDeGuardado(0, 0, false)).toBeNull();
+  });
+
+  it('sin almacenamiento, avisa de que se perderá toda', () => {
+    expect(avisoDeGuardado(2, 0, false)).toContain('no deja guardar la conversación');
+  });
+
+  it('con el tope, dice cuántas de las más antiguas no se guardan', () => {
+    expect(avisoDeGuardado(5, 4, true)).toContain('La pregunta más antigua ya no se guarda');
+    expect(avisoDeGuardado(5, 2, true)).toContain('Las 3 preguntas más antiguas ya no se guardan');
   });
 });
