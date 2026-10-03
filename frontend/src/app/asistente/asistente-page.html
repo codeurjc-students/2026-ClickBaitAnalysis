@@ -58,7 +58,7 @@
           </p>
 
           @if (intercambio.trabajo; as trabajo) {
-            @if (trabajo.steps.length) {
+            @if (trazaVisible(trabajo)) {
               <!-- `aria-live` educado: cada paso nuevo se anuncia cuando el
                    lector de pantalla termina lo que estaba diciendo, sin
                    interrumpir. -->

@@ -559,6 +559,41 @@ def test_model_cards_wellformed():
         assert isinstance(card["limitations"], list) and card["limitations"]
 
 
+def test_las_notas_de_operacion_van_aparte_de_los_limites():
+    """#211: lo que una señal no sabe hacer es público (R3.9); cómo se instala o
+    se sirve es de quien la opera. Las tres notas se movieron, no se borraron:
+    siguen junto al modelo al que se refieren, para que si cambia se vea en el
+    mismo sitio."""
+    fichas = model_cards.cards_by_signal()
+    for ficha in model_cards.MODEL_CARDS:
+        assert isinstance(ficha["operation"], list), ficha["signal"]
+        assert set(ficha["operation"]).isdisjoint(ficha["limitations"]), ficha["signal"]
+
+    dedicada = fichas["detect_clickbait"]["operation"]
+    assert any("hf-inference" in nota for nota in dedicada)
+    assert any("torch" in nota for nota in dedicada)
+    incoherencia = fichas["detect_clickbait_incoherence"]["operation"]
+    assert any("sentence-transformers" in nota for nota in incoherencia)
+    # Ningún límite habla ya de cómo se instala.
+    for ficha in model_cards.MODEL_CARDS:
+        for limite in ficha["limitations"]:
+            assert "requirements.txt" not in limite, ficha["signal"]
+
+
+def test_la_ficha_efectiva_no_publica_las_notas_de_operacion(monkeypatch):
+    """`ficha_efectiva` es la única puerta entre lo declarado y lo publicado: por
+    ella salen `describe_models`, el catálogo y el orquestador. Con el modelo de
+    la ficha y con otro puesto por configuración."""
+    assert "operation" not in ficha_efectiva("detect_clickbait")
+    monkeypatch.setattr(settings, "nlp_models", {"detect_clickbait": "otra/cosa"})
+    assert "operation" not in ficha_efectiva("detect_clickbait")
+
+
+def _sin_notas_de_operacion(ficha):
+    """La ficha declarada, tal como se publica (#211)."""
+    return {clave: valor for clave, valor in ficha.items() if clave != "operation"}
+
+
 def test_model_id_es_id_de_maquina_o_None():
     # `model_id` es lo que se le pasa al backend, así que o es un identificador
     # de la Hub («org/modelo») o es None. Una etiqueta legible colada aquí
@@ -971,9 +1006,9 @@ def test_el_backend_se_reutiliza_dentro_de_la_misma_configuracion(monkeypatch):
 
 
 def test_la_ficha_sin_configurar_no_cambia():
-    assert (
-        ficha_efectiva("detect_clickbait")
-        == (model_cards.cards_by_signal()["detect_clickbait"])
+    # Salvo las notas de operación, que no se publican nunca (#211).
+    assert ficha_efectiva("detect_clickbait") == _sin_notas_de_operacion(
+        model_cards.cards_by_signal()["detect_clickbait"]
     )
 
 
@@ -1015,4 +1050,4 @@ def test_configurar_el_mismo_id_que_la_ficha_no_borra_las_medidas(monkeypatch):
         settings, "nlp_models", {"detect_clickbait": declarada["model_id"]}
     )
 
-    assert ficha_efectiva("detect_clickbait") == declarada
+    assert ficha_efectiva("detect_clickbait") == _sin_notas_de_operacion(declarada)

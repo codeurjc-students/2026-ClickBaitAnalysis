@@ -32,6 +32,7 @@ import {
   esperaDe,
   historialQueCabe,
   paraGuardar,
+  trazaVisible,
   usoHerramientas,
   vistaDePaso,
   type Intercambio,
@@ -113,6 +114,7 @@ export class AsistentePage {
   // La plantilla sólo ve miembros de la clase, no imports del módulo.
   protected readonly vista = vistaDePaso;
   protected readonly usoHerramientas = usoHerramientas;
+  protected readonly trazaVisible = trazaVisible;
   protected readonly espera = esperaDe;
 
   constructor() {

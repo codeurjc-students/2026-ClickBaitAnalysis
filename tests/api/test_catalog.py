@@ -145,6 +145,23 @@ async def test_las_senales_traen_su_ficha_de_modelo(monkeypatch, servidor_mcp):
 
 
 @pytest.mark.asyncio
+async def test_el_catalogo_no_publica_las_notas_de_operacion(monkeypatch, servidor_mcp):
+    """#211: las fichas separan lo que una señal no sabe hacer, que es público
+    (R3.9), de cómo se instala o se sirve, que es de quien la opera. El
+    catálogo es una de las puertas por las que sale una ficha (#116), y la
+    pantalla de Sistema lo pinta tal cual."""
+    tools = await _tools(monkeypatch, servidor_mcp)
+    notas = {
+        nota for ficha in cards_by_signal().values() for nota in ficha["operation"]
+    }
+    assert notas  # si no, el test no comprobaría nada
+
+    for nombre, herramienta in tools.items():
+        if herramienta.model_card is not None:
+            assert notas.isdisjoint(herramienta.model_card.limitations), nombre
+
+
+@pytest.mark.asyncio
 async def test_un_model_id_nulo_es_informacion_y_viaja(monkeypatch, servidor_mcp):
     """`model_id` es `None` en el léxico y el lineal, y ese None se publica.
 

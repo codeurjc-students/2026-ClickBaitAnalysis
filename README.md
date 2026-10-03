@@ -7311,7 +7311,7 @@ Todo con `05-llano`, `num_ctx` 16.384 y los mismos 14 turnos, en la A40, Ollama 
 - **Respuestas vacías con el razonamiento lleno**: en las dos que guardaron la traza, el modelo escribió la respuesta entera dentro del razonamiento, acabó con «la respuesta está lista» y no la sacó como texto; unas 3 de cada 60 con historial. La pantalla enseña las tarjetas igual. El autor lo deja como mejora futura; lo más sencillo sería pedirle una vuelta más cuando contesta sin texto ni llamadas.
 - **Vueltas desbocadas**: con historial, algunas últimas vueltas razonaron entre 11.000 y 31.000 caracteres (116–311 s), y una agotó los 300 s de `llm_timeout`, así que la conversación falló. Con 8.192 no habrían cabido.
 - **La prueba en producción, al cierre de H5 (#193)**, decidido por el autor. Esta rama acabó tocando la API (`Turno.tools` y su validación) y la pantalla, que manda los nombres, aunque la issue no dependía de ellas. Está cubierto por tests y por las 60 conversaciones medidas en el backend, pero no se ha visto en la pantalla real: hace falta redesplegar y abrir una sesión de GPU. *(Hecha en #193: el historial llegó con los nombres y la segunda respuesta analizó la noticia; ver «El cierre de H5».)*
-- Fuera de esta issue, anotado: los enlaces de las noticias en la pantalla, sacados de la traza y no del texto del modelo (idea del autor) *(ya estaban desde #191: ver «Los enlaces de las noticias, que ya estaban», #210)*; las fichas de `describe_models` mezclan los límites de cada señal con detalles de operación que el agente repite a cualquiera (nota del autor al validar); y el léxico no encuentra ninguna pista en «Top 5 Secrets Finally Revealed», un ejemplo del techo de cobertura que midió #121, para #75.
+- Fuera de esta issue, anotado: los enlaces de las noticias en la pantalla, sacados de la traza y no del texto del modelo (idea del autor) *(ya estaban desde #191: ver «Los enlaces de las noticias, que ya estaban», #210)*; las fichas de `describe_models` mezclan los límites de cada señal con detalles de operación que el agente repite a cualquiera (nota del autor al validar) *(separados en #211)*; y el léxico no encuentra ninguna pista en «Top 5 Secrets Finally Revealed», un ejemplo del techo de cobertura que midió #121, para #75.
 
 ### El cierre de H5: el plano contra lo construido, y el agente en producción (#193, 30 sep 2026)
 
@@ -7562,8 +7562,59 @@ El autor probó todos los casos, y salieron bien: **recargar a mitad de una preg
 
 #### Lo que queda
 
-- **Una lista vacía en la traza**: si la única vuelta del modelo no llama a ninguna herramienta, la pantalla pinta un «1.» vacío, la lista de la traza sin pasos que enseñar. Viene de #191, y se arregla pintando la lista sólo cuando haya algo en ella.
+- **Una lista vacía en la traza**: si la única vuelta del modelo no llama a ninguna herramienta, la pantalla pinta un «1.» vacío, la lista de la traza sin pasos que enseñar. Viene de #191, y se arregla pintando la lista sólo cuando haya algo en ella. *(Hecho en #211: ver «Las fichas: los límites, para quien las lee; la operación, aparte».)*
 - **Duplicar la pestaña copia lo guardado**: la copia enseña la misma conversación y, si había una pregunta en marcha, las dos la sondean. No hace daño, pero son dos lecturas cada 2 s dentro del presupuesto de 60 por minuto.
+
+### Las fichas: los límites, para quien las lee; la operación, aparte (#211, 3 oct 2026)
+
+Validando #192, el autor vio que el agente le contaba a quien preguntaba por los modelos que `torch` no viene en `requirements.txt`. Salía de las `limitations` de `backend/integrations/nlp/model_cards.py`, que mezclaban dos cosas para dos públicos: **lo que una señal no sabe hacer**, medido y público por R3.9, y **cómo se instala o se sirve**, que es de quien opera el sistema. `describe_models`, el catálogo REST y la pantalla de Sistema lo publicaban todo junto.
+
+#### Qué frase es cada cosa
+
+Leídas una a una, y validadas por el autor antes de mover nada, de las cinco fichas sólo tres frases son de operación:
+
+| Señal | Nota de operación |
+|---|---|
+| `detect_clickbait` | No se puede servir en remoto: `hf-inference` responde 400, así que con `nlp_backend=remote` la señal sale siempre en error |
+| `detect_clickbait` | La vía local depende de `torch`, que `requirements.txt` no trae; la imagen lo instala |
+| `detect_clickbait_incoherence` | Depende de `sentence-transformers`, que `requirements.txt` no trae; la imagen lo instala |
+
+- **Una dudosa, que se queda**: «Sustituye a `facebook/bart-large-mnli` (#115)…» es historia del proyecto, pero trae la medida que justifica el modelo (F1 0.946 frente a 0.473).
+- **La ficha del modelo de lenguaje no tiene ninguna.** La más cercana, «sólo está disponible mientras hay una sesión abierta en la máquina de la GPU», le dice a quien pregunta cuándo puede usarlo.
+- **El campo `backend` de cada ficha también es de operación**, pero forma parte del contrato, y quitarlo sería otra issue: se deja.
+
+#### Cómo
+
+- **Las tres notas se mueven tal cual a un campo `operation` de la misma ficha**, para que si el modelo cambia se vean en el mismo sitio (decidido al definir la issue). Se movieron, no se borraron. La ficha escrita en el código es ahora una `FichaDeclarada`: la publicada más ese campo.
+- **Lo que se publica sigue siendo `FichaModelo`, sin cambios**, así que el contrato no se toca y no hay que regenerarlo.
+- **`ficha_efectiva` construye la ficha publicada clave a clave** (`_publicable`), en sus dos ramas. Hasta ahora, sin un modelo puesto por configuración, devolvía el mismo diccionario declarado: con el campo nuevo, lo habría publicado. Es la única puerta: por ella salen `describe_models`, el catálogo y el orquestador, igual que el modelo efectivo desde #119.
+- **Los tests, escritos antes:** que las notas siguen declaradas y fuera de los límites; que no salen por `describe_models` —hablando el protocolo, como lo recibe el agente— ni por el catálogo REST, dos de las puertas que #116 enseñó a probar una a una; y que tampoco salen con un modelo puesto por configuración. Los tres primeros fallaron contra el código de antes; el último pasa también con él, porque vigila la proyección. Dos tests que comparaban la ficha efectiva con la declarada entera la comparan ahora sin `operation`. **421 tests**, y pyright sin errores.
+- **Un detalle del protocolo**, que el primer test daba por hecho y era falso: FastMCP manda el texto de una lista en un bloque por elemento, no en uno solo. El test compara la forma estructurada con todos los bloques.
+
+#### El catálogo del agente, igual
+
+| Condiciones | |
+|---|---|
+| Fecha | 2026-10-03: antes a las 11:35 UTC, sobre `d8f4466`; después a las 11:45 UTC, con los cambios sin commitear |
+| Máquina | WSL (Ubuntu) en el portátil |
+
+```bash
+NLP_BACKEND=local .venv/bin/python spikes/catalogo_peso.py
+```
+
+Antes y después, **idéntico**: 12 herramientas y 10.285 caracteres entre descripciones y esquemas, herramienta a herramienta. Ni las descripciones ni el esquema de `describe_models` cambian, así que no hace falta repetir las 26 consultas de #188 en la A40. Lo que cambia es lo que **devuelve** `describe_models`: tres notas menos.
+
+**Coste conocido:** la capa de modelos de la imagen copia `model_cards.py`, así que se rehace en el próximo despliegue, unos 2 minutos (#162).
+
+#### Y el «1.» vacío de la traza
+
+Visto probando #209: con una sola vuelta del modelo que no pide ninguna herramienta, la pantalla del asistente pintaba la lista de la traza vacía, un «1.» suelto. Venía de #191: la lista se pintaba si había pasos, no si alguno tenía algo que enseñar. Ahora lo decide `trazaVisible`, en `asistente/conversacion.ts`. Dos specs escritos antes, uno de la función y otro de la pantalla, que contra el código de antes no compilaban. **181 specs**, y el lint y el build, en verde.
+
+Visto en local con el asistente apagado, con una conversación como la de la prueba de #209 metida en `sessionStorage`: sin lista, y con la narración y el aviso de respuesta sin herramientas.
+
+#### Lo que queda
+
+- **Verlo en producción con el próximo despliegue**: en Sistema, la ficha de la señal dedicada sin las dos notas, y `describe_models` sin las tres.
 
 
 

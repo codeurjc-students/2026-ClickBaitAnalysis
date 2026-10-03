@@ -234,6 +234,15 @@ export function usoHerramientas(trabajo: ChatJob): boolean {
   return trabajo.steps.some((paso) => paso.kind === 'tool');
 }
 
+/**
+ * Si la traza tiene algo que enseñar: una herramienta, o una vuelta del modelo
+ * que pidió alguna. Una vuelta que contesta sin pedir nada no pinta nada, y sin
+ * esto la lista salía vacía, como un «1.» suelto (visto probando #209).
+ */
+export function trazaVisible(trabajo: ChatJob): boolean {
+  return trabajo.steps.some((paso) => paso.kind === 'tool' || paso.tool_calls.length > 0);
+}
+
 /** Si la pregunta está todavía en marcha: ni ha terminado ni ha fallado. */
 export function aMedias(intercambio: Intercambio): boolean {
   return !intercambio.error && intercambio.trabajo?.status !== 'done';

@@ -280,6 +280,27 @@ describe('AsistentePage', () => {
     expect(sinEnlace.querySelector('[lang="en"]')?.textContent).toBe('A Headline Without Link');
   });
 
+  // Visto probando #209: con una sola vuelta del modelo que no pide nada, la
+  // lista de la traza salía vacía, como un «1.» suelto.
+  it('una respuesta sin herramientas no deja una traza vacía', async () => {
+    await conAgente('available');
+    await preguntar('¿Por qué?');
+    http.expectOne('/api/chat').flush({ id: 'abc' });
+    const sinHerramientas: PasoDeLaTraza[] = [
+      {
+        kind: 'model',
+        round: 1,
+        content: 'Dime el titular.',
+        tool_calls: [],
+        metrics: { prompt_tokens: 3700, output_tokens: 40, load_s: 0, total_s: 4 },
+      },
+    ];
+    await sondeo(respondida('Dime el titular.', sinHerramientas), 0);
+
+    expect(html().querySelector('.traza')).toBeNull();
+    expect(html().querySelector('.narracion')?.textContent).toContain('Dime el titular.');
+  });
+
   // ----- Lo que sobrevive a recargar (#209) -----
 
   it('al recargar o volver a la sección, la conversación sigue ahí', async () => {

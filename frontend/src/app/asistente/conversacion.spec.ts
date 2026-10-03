@@ -9,6 +9,7 @@ import {
   ESPERA_LARGA_MS,
   historialQueCabe,
   paraGuardar,
+  trazaVisible,
   usoHerramientas,
   vistaDePaso,
   type Intercambio,
@@ -278,6 +279,33 @@ describe('usoHerramientas', () => {
     expect(usoHerramientas(conHerramienta)).toBe(false);
     conHerramienta.steps = [herramienta('detect_clickbait', { label: 'clickbait', score: 1 })];
     expect(usoHerramientas(conHerramienta)).toBe(true);
+  });
+});
+
+describe('trazaVisible', () => {
+  /** Una vuelta del modelo que pide las herramientas que se digan. */
+  function vuelta(pedidas: string[]): ChatJob['steps'][number] {
+    return {
+      kind: 'model',
+      round: 1,
+      content: '',
+      tool_calls: pedidas,
+      metrics: { prompt_tokens: 3700, output_tokens: 40, load_s: 0, total_s: 4 },
+    };
+  }
+
+  // Visto probando #209: la lista de la traza salía vacía, como un «1.» suelto.
+  it('una vuelta que no pide nada no tiene nada que enseñar', () => {
+    expect(trazaVisible(terminado('¿Por qué?', 'Dime el titular.', [vuelta([])]).trabajo!)).toBe(
+      false,
+    );
+  });
+
+  it('una vuelta que pide algo, o una herramienta, sí', () => {
+    expect(trazaVisible(terminado('x', 'y', [vuelta(['get_nyt_news'])]).trabajo!)).toBe(true);
+    expect(
+      trazaVisible(terminado('x', 'y', [herramienta('get_nyt_news', { result: [] })]).trabajo!),
+    ).toBe(true);
   });
 });
 
