@@ -7445,7 +7445,7 @@ Con un test nuevo marcado `integration` —que el CI no ejecuta—, `test_una_cl
 
 NYT responde **401** a una clave que no existe, y el test lo fija desde entonces; la clave no aparece en el mensaje. Los temas con noticias siguen trayéndolas, y uno que no existe sigue diciendo que no hay.
 
-**No se miró en la pantalla de Sistema**, como pedía la issue: exigía redesplegar la máquina 1, y el autor lo dio por comprobado con estos tests, que usan el mismo `NYTAPI` que la herramienta. Se verá con el próximo despliegue.
+**No se miró en la pantalla de Sistema**, como pedía la issue: exigía redesplegar la máquina 1, y el autor lo dio por comprobado con estos tests, que usan el mismo `NYTAPI` que la herramienta. Se verá con el próximo despliegue. *(Visto el 3 oct, al desplegar la rama de #209: desde Sistema, `get_nyt_news` con un tema trae noticias.)*
 
 ### Los enlaces de las noticias, que ya estaban (#210, 3 oct 2026)
 
@@ -7478,7 +7478,7 @@ La issue se redujo a lo que de verdad faltaba (decidido por el autor):
 
 #### Lo que queda
 
-- **Verlo en producción con el próximo despliegue.** El aviso no se ve: se comprueba con un lector de pantalla o con el inspector del navegador.
+- **Verlo en producción con el próximo despliegue.** El aviso no se ve: se comprueba con un lector de pantalla o con el inspector del navegador. *(Visto el 3 oct, al desplegar la rama de #209: la fecha sale separada del titular, y el aviso está dentro del enlace, en el inspector.)*
 
 ### La conversación del asistente sobrevive a recargar (#209, 3 oct 2026)
 
@@ -7548,9 +7548,21 @@ Con el tope caben **412 intercambios medianos**, o 47 del más grande: **la regl
 - **18 specs nuevos**: 11 de `conversacion.ts` —guardar y leer de vuelta, el tope por intercambios enteros, lo que no encaja, la pregunta a medias con y sin id, el aviso— y 7 de la pantalla —recargar, con lo recuperado como historial de la pregunta siguiente; retomar una en marcha; la caducada; la que no se llegó a aceptar; sin almacenamiento; empezar de nuevo, y que no se pueda con una pregunta en marcha—. Se escribieron antes del código, y contra el de antes no compilaban: las funciones no existían. **178 specs**, y el lint y el build, en verde.
 - **Visto en local con el asistente apagado** (la API en el 8001 con el agente configurado y apagado, y el frontend en el 4200), metiendo una conversación en `sessionStorage` y recargando: vuelve entera, con la tarjeta de la señal y la narración, debajo de «Ahora mismo no se puede usar»; «Empezar una conversación nueva» la vacía y borra la clave; y una pregunta sin id sale con su aviso. Sin errores en la consola.
 
+#### En producción, con el modelo
+
+| Condiciones | |
+|---|---|
+| Fecha | 2026-10-03, con una sesión de GPU abierta a las 10:55 UTC con `gpu-sesion` (30 min como máximo) y cerrada al terminar, con la GPU a 0 MiB |
+| Código servido | `10cea77`, la rama de esta issue, desplegada en la máquina 1 con `sudo docker compose up --build --wait` (196 s); lleva también #212 y #210, que ya estaban en `dev` |
+| Navegador | el del autor |
+
+El autor probó todos los casos, y salieron bien: **recargar a mitad de una pregunta** —la pantalla la siguió y la respuesta llegó—, recargar con la respuesta ya dada, ir a Analizar y volver, una segunda pregunta y «Empezar una conversación nueva». Que la segunda pregunta llevó la primera como historial se ve en la respuesta: el modelo repitió con otras palabras el aviso de #192, que sólo se añade cuando hay historial.
+
+**Visto de paso, y no es de esta issue.** La segunda pregunta fue «¿por qué?», y el modelo no llamó a ninguna herramienta: contestó que los resultados anteriores ya no están y pidió el titular, aunque estaba en el historial. Es el aviso de #192 llevado al extremo —se puso para que no se inventara el análisis, y aquí se niega a rehacerlo—, y pasa a #208 como tercer caso de la última vuelta con historial, con el texto del aviso como variante medida.
+
 #### Lo que queda
 
-- **Probarlo con el modelo, en producción**: recargar a mitad de una pregunta y después de la respuesta. Exige redesplegar la máquina 1, y con una sola sesión de GPU se comprobaría también lo que dejaron pendiente #212 y #210.
+- **Una lista vacía en la traza**: si la única vuelta del modelo no llama a ninguna herramienta, la pantalla pinta un «1.» vacío, la lista de la traza sin pasos que enseñar. Viene de #191, y se arregla pintando la lista sólo cuando haya algo en ella.
 - **Duplicar la pestaña copia lo guardado**: la copia enseña la misma conversación y, si había una pregunta en marcha, las dos la sondean. No hace daño, pero son dos lecturas cada 2 s dentro del presupuesto de 60 por minuto.
 
 
