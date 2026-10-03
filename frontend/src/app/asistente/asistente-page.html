@@ -80,14 +80,22 @@
                           @for (noticia of noticias; track $index) {
                             <li>
                               @if (noticia.url) {
-                                <a [href]="noticia.url" lang="en" rel="noopener" target="_blank">{{
-                                  noticia.title
-                                }}</a>
+                                <!-- En otra pestaña, para no perder la conversación, y
+                                     dicho al lector de pantalla: con la vista se nota el
+                                     salto, de oído sólo empieza una página nueva y «Atrás»
+                                     no vuelve aquí (#210). El aviso, fuera del
+                                     `lang="en"`, para que no lo lea como inglés. -->
+                                <a [href]="noticia.url" rel="noopener" target="_blank">
+                                  <span lang="en">{{ noticia.title }}</span>
+                                  <span class="solo-lector"> (se abre en una pestaña nueva)</span>
+                                </a>
                               } @else {
                                 <span lang="en">{{ noticia.title }}</span>
                               }
                               @if (noticia.date) {
-                                <span class="noticia__fecha">· {{ noticia.date.slice(0, 10) }}</span>
+                                <!-- El espacio, dentro: Angular quita el que queda entre
+                                     dos elementos, y la fecha salía pegada al titular. -->
+                                <span class="noticia__fecha"> · {{ noticia.date.slice(0, 10) }}</span>
                               }
                             </li>
                           }

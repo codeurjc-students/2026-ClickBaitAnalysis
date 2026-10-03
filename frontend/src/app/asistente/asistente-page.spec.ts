@@ -56,6 +56,38 @@ const PASOS: PasoDeLaTraza[] = [
   },
 ];
 
+/** Una vuelta que pide noticias, y la lista: una con enlace y otra sin él. */
+const NOTICIAS: PasoDeLaTraza[] = [
+  {
+    kind: 'model',
+    round: 1,
+    content: '',
+    tool_calls: ['get_nyt_news'],
+    metrics: { prompt_tokens: 3700, output_tokens: 40, load_s: 0, total_s: 4 },
+  },
+  {
+    kind: 'tool',
+    round: 1,
+    name: 'get_nyt_news',
+    arguments: { topic: 'artificial intelligence' },
+    status: 'ok',
+    data: {
+      result: [
+        {
+          title: 'College Leaders Are Using A.I.',
+          url: 'https://www.nytimes.com/2026/09/29/us/college-ai.html',
+          date: '2026-09-29T10:00:00Z',
+        },
+        { title: 'A Headline Without Link', url: null, date: null },
+      ],
+    },
+    error: null,
+    server: 'http://mcp:8765/mcp',
+    duration_s: 0.4,
+    signal: null,
+  },
+];
+
 function lectura(
   status: ChatJob['status'],
   pasos: PasoDeLaTraza[] = [],
@@ -194,6 +226,36 @@ describe('AsistentePage', () => {
 
     expect(html().querySelector('.traza')?.getAttribute('aria-live')).toBe('polite');
     expect(html().querySelector('.espera')?.getAttribute('role')).toBe('status');
+  });
+
+  // #210: el enlace ya estaba desde #191; faltaba decir que abre otra pestaña.
+  // Con la vista se nota el salto; con un lector de pantalla sólo se oye una
+  // página nueva, y «Atrás» no vuelve a la conversación.
+  it('cada noticia enlaza a la suya, y avisa al lector de pantalla de la pestaña nueva', async () => {
+    await conAgente('available');
+    await preguntar('Tráeme noticias de NYT sobre inteligencia artificial');
+    http.expectOne('/api/chat').flush({ id: 'abc' });
+    await sondeo(respondida('Diez noticias.', NOTICIAS), 0);
+
+    const [conEnlace, sinEnlace] = [...html().querySelectorAll('.noticias li')];
+    const enlace = conEnlace.querySelector('a')!;
+    expect(enlace.getAttribute('href')).toBe('https://www.nytimes.com/2026/09/29/us/college-ai.html');
+    expect(enlace.getAttribute('target')).toBe('_blank');
+    expect(enlace.getAttribute('rel')).toBe('noopener');
+
+    // El titular, en inglés; el aviso, en castellano y fuera del `lang="en"`,
+    // para que el lector no lo pronuncie como inglés.
+    expect(enlace.getAttribute('lang')).toBeNull();
+    expect(enlace.querySelector('[lang="en"]')?.textContent).toBe('College Leaders Are Using A.I.');
+    const aviso = enlace.querySelector('.solo-lector');
+    expect(aviso?.textContent).toContain('se abre en una pestaña nueva');
+    expect(aviso?.closest('[lang="en"]')).toBeNull();
+
+    // La fecha, separada del titular: Angular quitaba el espacio entre los dos.
+    expect(conEnlace.querySelector('.noticia__fecha')?.textContent).toBe(' · 2026-09-29');
+
+    expect(sinEnlace.querySelector('a')).toBeNull();
+    expect(sinEnlace.querySelector('[lang="en"]')?.textContent).toBe('A Headline Without Link');
   });
 
   // Lo que destapó la aceptación de #191: tras un resultado, una vuelta de

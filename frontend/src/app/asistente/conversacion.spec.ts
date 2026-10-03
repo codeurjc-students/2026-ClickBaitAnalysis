@@ -92,6 +92,19 @@ describe('vistaDePaso', () => {
     ]);
   });
 
+  it('una noticia sin url se queda sin enlace, y no deja de ser noticia', () => {
+    const noticias = comoNoticias({
+      result: [
+        { title: 'Sin url', date: null },
+        { title: 'Url que no es texto', url: 42 },
+      ],
+    });
+    expect(noticias).toEqual([
+      { title: 'Sin url', url: null, date: null },
+      { title: 'Url que no es texto', url: null, date: null },
+    ]);
+  });
+
   // Lo que no encaja se ve igual, en crudo: omitirlo sería mentir sobre lo
   // que se consultó.
   it('lo que no se reconoce se enseña en crudo', () => {

@@ -7311,7 +7311,7 @@ Todo con `05-llano`, `num_ctx` 16.384 y los mismos 14 turnos, en la A40, Ollama 
 - **Respuestas vacías con el razonamiento lleno**: en las dos que guardaron la traza, el modelo escribió la respuesta entera dentro del razonamiento, acabó con «la respuesta está lista» y no la sacó como texto; unas 3 de cada 60 con historial. La pantalla enseña las tarjetas igual. El autor lo deja como mejora futura; lo más sencillo sería pedirle una vuelta más cuando contesta sin texto ni llamadas.
 - **Vueltas desbocadas**: con historial, algunas últimas vueltas razonaron entre 11.000 y 31.000 caracteres (116–311 s), y una agotó los 300 s de `llm_timeout`, así que la conversación falló. Con 8.192 no habrían cabido.
 - **La prueba en producción, al cierre de H5 (#193)**, decidido por el autor. Esta rama acabó tocando la API (`Turno.tools` y su validación) y la pantalla, que manda los nombres, aunque la issue no dependía de ellas. Está cubierto por tests y por las 60 conversaciones medidas en el backend, pero no se ha visto en la pantalla real: hace falta redesplegar y abrir una sesión de GPU. *(Hecha en #193: el historial llegó con los nombres y la segunda respuesta analizó la noticia; ver «El cierre de H5».)*
-- Fuera de esta issue, anotado: los enlaces de las noticias en la pantalla, sacados de la traza y no del texto del modelo (idea del autor); las fichas de `describe_models` mezclan los límites de cada señal con detalles de operación que el agente repite a cualquiera (nota del autor al validar); y el léxico no encuentra ninguna pista en «Top 5 Secrets Finally Revealed», un ejemplo del techo de cobertura que midió #121, para #75.
+- Fuera de esta issue, anotado: los enlaces de las noticias en la pantalla, sacados de la traza y no del texto del modelo (idea del autor) *(ya estaban desde #191: ver «Los enlaces de las noticias, que ya estaban», #210)*; las fichas de `describe_models` mezclan los límites de cada señal con detalles de operación que el agente repite a cualquiera (nota del autor al validar); y el léxico no encuentra ninguna pista en «Top 5 Secrets Finally Revealed», un ejemplo del techo de cobertura que midió #121, para #75.
 
 ### El cierre de H5: el plano contra lo construido, y el agente en producción (#193, 30 sep 2026)
 
@@ -7446,6 +7446,39 @@ Con un test nuevo marcado `integration` —que el CI no ejecuta—, `test_una_cl
 NYT responde **401** a una clave que no existe, y el test lo fija desde entonces; la clave no aparece en el mensaje. Los temas con noticias siguen trayéndolas, y uno que no existe sigue diciendo que no hay.
 
 **No se miró en la pantalla de Sistema**, como pedía la issue: exigía redesplegar la máquina 1, y el autor lo dio por comprobado con estos tests, que usan el mismo `NYTAPI` que la herramienta. Se verá con el próximo despliegue.
+
+### Los enlaces de las noticias, que ya estaban (#210, 3 oct 2026)
+
+La issue pedía que cada titular de la lista de noticias del asistente enlazara a su noticia, porque la pantalla «lee la `url` pero no la enseña». **Era falso**: el enlace está en la plantilla desde la pantalla del asistente (#191, PR #203), sacado de la traza y abierto en otra pestaña. Se había anotado como pendiente validando #192, y al redactar la issue se copió sin abrir la plantilla. El autor lo sospechó; el código lo confirmó (`git log -S` sitúa el `<a [href]="noticia.url" …>` de `asistente-page.html` en #191), y la aplicación también.
+
+#### Comprobado en producción
+
+| Condiciones | |
+|---|---|
+| Fecha | 2026-10-03, con una sesión de GPU abierta a las 09:06 UTC con `gpu-sesion` (30 min como máximo) y cerrada al terminar, con la GPU a 0 MiB |
+| Código servido | `dev` en `66fed98`, en la máquina 1: la plantilla de la lista es la de #191 |
+| Consulta | «Tráeme noticias de NYT sobre inteligencia artificial», desde el navegador del autor |
+
+`get_nyt_news` trajo diez noticias, y cada titular era un enlace que abría su noticia en una pestaña nueva y pasaba a ella. La captura enseñó además un detalle: la fecha iba pegada al titular («…Hypocrisy.· 2026-09-29»), porque Angular quita el espacio que queda entre dos elementos.
+
+#### Lo que se hizo
+
+La issue se redujo a lo que de verdad faltaba (decidido por el autor):
+
+- **Avisar al lector de pantalla de que se abre otra pestaña.** Con la vista se nota el salto; de oído sólo empieza una página nueva, y «Atrás» no vuelve a la conversación, que sigue en la otra pestaña. Un texto que sólo lee el lector, «(se abre en una pestaña nueva)», va dentro del enlace y **fuera del `lang="en"`** del titular, para que no lo pronuncie como inglés; antes el `lang="en"` estaba en el enlace entero. Lo recomiendan las pautas WCAG (técnica G201), sin exigirlo en el nivel AA: va por la regla del proyecto de cuidar la accesibilidad aunque R6 no la pida. Abrir en la misma pestaña no era la alternativa, porque la conversación vive en la memoria de la pantalla y se perdería (#209).
+- **El espacio antes de la fecha**, dentro del propio texto de la fecha, que es donde Angular no lo quita.
+- **Los specs que faltaban**: ninguno miraba la lista de noticias de la pantalla. Uno nuevo comprueba el enlace, su destino, la pestaña nueva, el aviso fuera del inglés, la fecha separada, y que una noticia sin `url` se pinta sin enlace; **falló contra la plantilla de antes**. Otro, en `conversacion.ts`, cubre una noticia sin `url` o con una que no es texto: pasa también con el código de antes, porque eso ya estaba bien, y queda como cobertura.
+
+**160 specs** del frontend, y el lint y el build, en verde.
+
+#### Lo que se descartó, y por qué
+
+- **`rel="noreferrer"`**, que impediría que el navegador le dijera a NYT o a Guardian de qué página viene quien pulsa. Ni Caddy ni `index.html` fijan una política propia, así que los navegadores aplican la suya por defecto (`strict-origin-when-cross-origin`), que a otro sitio sólo le manda el dominio, sin la ruta; y la ruta sería `/asistente`, sin nada privado. El `noopener` que ya lleva lo aplican también por su cuenta los navegadores actuales con `target="_blank"`.
+- **Aceptar sólo `http` y `https`.** Las URL vienen de las API de NYT y Guardian por la traza, no del texto del modelo, y Angular ya neutraliza un `javascript:` en un `href` anteponiéndole `unsafe:`. Sólo cambiaría que una URL rara, de una fuente de noticias futura, saliera como titular sin enlace en vez de como enlace roto.
+
+#### Lo que queda
+
+- **Verlo en producción con el próximo despliegue.** El aviso no se ve: se comprueba con un lector de pantalla o con el inspector del navegador.
 
 
 
