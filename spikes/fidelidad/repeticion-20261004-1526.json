@@ -1,0 +1,1664 @@
+{
+ "condiciones": {
+  "fecha": "2026-10-04T17:26:31+02:00",
+  "commit": "5652e46",
+  "guion": "470c32175361",
+  "ollama": "0.34.2",
+  "servidor": "http://127.0.0.1:11500",
+  "modelos": {
+   "qwen3.5:27b": {
+    "id": "7653528ba5cb",
+    "parametros": "presence_penalty               1.5\ntemperature                    1\ntop_k                          20\ntop_p                          0.95"
+   }
+  },
+  "num_ctx": 16384,
+  "tope_de_salida": 1500,
+  "desbocada_tokens": 1000,
+  "pedir_respuesta": "No has escrito la respuesta. Escríbela ahora para el usuario, con lo que ya tienes.",
+  "veces": 5,
+  "casos": [
+   "ventana-bucle-encadena-nyt-16384-x20-preciso-con-aviso-preciso-con.json · bucle-encadena-nyt:preciso-con #2 · desbocada en la vuelta 3",
+   "ventana-bucle-encadena-nyt-16384-x20-preciso-con-aviso-preciso-con.json · bucle-encadena-nyt:preciso-con #8 · desbocada en la vuelta 3",
+   "ventana-bucle-encadena-nyt-16384-x20-preciso-con-aviso-preciso-con.json · bucle-encadena-nyt:preciso-con #15 · fallida en la vuelta 3",
+   "ventana-bucle-encadena-nyt-16384-x20-preciso-con-aviso-preciso-con.json · bucle-encadena-nyt:preciso-con #17 · desbocada en la vuelta 3",
+   "ventana-bucle-encadena-nyt-16384-x20-preciso-con-herramientas-aviso-preciso-con-aviso.json · bucle-encadena-nyt:preciso-con-herramientas-aviso #4 · desbocada en la vuelta 3",
+   "ventana-bucle-encadena-nyt-16384-x20-preciso-con-herramientas-aviso-preciso-con-aviso.json · bucle-encadena-nyt:preciso-con-herramientas-aviso #15 · desbocada en la vuelta 3",
+   "ventana-bucle-encadena-nyt-16384-x5-preciso-con-modelfile-con-preciso-sin.json · bucle-encadena-nyt:preciso-con #4 · desbocada en la vuelta 3",
+   "ventana-mezcla-16384-x20-5705f42b.json · bucle-encadena-guardian:preciso-con-herramientas-aviso #9 · desbocada en la vuelta 3",
+   "ventana-mezcla-16384-x20-5705f42b.json · bucle-encadena-guardian:preciso-con-herramientas-aviso #16 · desbocada en la vuelta 3",
+   "ventana-mezcla-16384-x20-5705f42b.json · bucle-encadena-guardian:preciso-con-herramientas-aviso #20 · desbocada en la vuelta 3"
+  ]
+ },
+ "repeticiones": [
+  {
+   "fichero": "ventana-bucle-encadena-nyt-16384-x20-preciso-con-aviso-preciso-con.json",
+   "consulta": "bucle-encadena-nyt",
+   "variante": "preciso-con",
+   "vez_original": 2,
+   "clase": "desbocada",
+   "vuelta": 3,
+   "vez": 1,
+   "intentos": [
+    {
+     "salio": "respondida",
+     "respuesta": {
+      "content": "El titular «OpenAI's Systems Meddled With U.S. Government Sites After Going Rogue» se considera informativo y no es clickbait. El clasificador entrenado lo etiqueta como noticia informativa con una confianza del 89 %, y el modelo de pesos le asigna una baja probabilidad del 16 % de ser clickbait. El detector de pistas no encontró ninguna exageración ni frases gancho en el texto. Además, al comparar el titular con el resumen de la noticia, se confirma que no hay engaño, ya que el contenido describe exactamente lo que el título promete: la interferencia de la tecnología de OpenAI en sitios del gobierno. El tono del titular se analiza como neutro.",
+      "tool_calls": [],
+      "metrics": {
+       "prompt_tokens": 7011,
+       "output_tokens": 148,
+       "load_s": 0.004250791,
+       "total_s": 10.872702332
+      },
+      "cortada": false
+     },
+     "ollama": {
+      "done_reason": "stop",
+      "thinking": null,
+      "content": "El titular «OpenAI's Systems Meddled With U.S. Government Sites After Going Rogue» se considera informativo y no es clickbait. El clasificador entrenado lo etiqueta como noticia informativa con una confianza del 89 %, y el modelo de pesos le asigna una baja probabilidad del 16 % de ser clickbait. El detector de pistas no encontró ninguna exageración ni frases gancho en el texto. Además, al comparar el titular con el resumen de la noticia, se confirma que no hay engaño, ya que el contenido describe exactamente lo que el título promete: la interferencia de la tecnología de OpenAI en sitios del gobierno. El tono del titular se analiza como neutro.",
+      "tool_calls": null
+     }
+    }
+   ]
+  },
+  {
+   "fichero": "ventana-bucle-encadena-nyt-16384-x20-preciso-con-aviso-preciso-con.json",
+   "consulta": "bucle-encadena-nyt",
+   "variante": "preciso-con",
+   "vez_original": 8,
+   "clase": "desbocada",
+   "vuelta": 3,
+   "vez": 1,
+   "intentos": [
+    {
+     "salio": "respondida",
+     "respuesta": {
+      "content": "El titular «OpenAI’s Systems Meddled With U.S. Government Sites After Going Rogue» es informativo y no presenta rasgos de clickbait. El clasificador entrenado lo etiqueta como noticia informativa con un 90 % de confianza, mientras que el detector de pistas no encuentra exageraciones ni frases gancho en él. El modelo de pesos le asigna una probabilidad del 16 % de ser clickbait, sin identificar palabras que aumenten esa tendencia. Además, el comparador de titular y texto confirma que el titular coincide con el resumen de la noticia, con una similitud del 40 %, descartando que sea engañoso. El tono del titular es neutro.",
+      "tool_calls": [],
+      "metrics": {
+       "prompt_tokens": 7011,
+       "output_tokens": 148,
+       "load_s": 0.003691471,
+       "total_s": 5.981060552
+      },
+      "cortada": false
+     },
+     "ollama": {
+      "done_reason": "stop",
+      "thinking": null,
+      "content": "El titular «OpenAI’s Systems Meddled With U.S. Government Sites After Going Rogue» es informativo y no presenta rasgos de clickbait. El clasificador entrenado lo etiqueta como noticia informativa con un 90 % de confianza, mientras que el detector de pistas no encuentra exageraciones ni frases gancho en él. El modelo de pesos le asigna una probabilidad del 16 % de ser clickbait, sin identificar palabras que aumenten esa tendencia. Además, el comparador de titular y texto confirma que el titular coincide con el resumen de la noticia, con una similitud del 40 %, descartando que sea engañoso. El tono del titular es neutro.",
+      "tool_calls": null
+     }
+    }
+   ]
+  },
+  {
+   "fichero": "ventana-bucle-encadena-nyt-16384-x20-preciso-con-aviso-preciso-con.json",
+   "consulta": "bucle-encadena-nyt",
+   "variante": "preciso-con",
+   "vez_original": 15,
+   "clase": "fallida",
+   "vuelta": 3,
+   "vez": 1,
+   "intentos": [
+    {
+     "salio": "respondida",
+     "respuesta": {
+      "content": "El análisis de la noticia del New York Times titulada «OpenAI's Systems Meddled With U.S. Government Sites After Going Rogue» indica que no es clickbait. El titular informa sobre cómo la tecnología de OpenAI interfirió con sitios del gobierno de EE. UU. sin que la empresa lo supiera inicialmente. Todas las herramientas coinciden en que es una noticia informativa: el clasificador entrenado lo etiqueta como tal con un 89 % de confianza y el detector de pistas no encuentra exageraciones ni frases gancho. Además, el comparador de titular y texto confirma que el contenido coincide con lo prometido en el titular, con una similitud del 40 %. El tono del titular se analiza como neutro con un 82 % de confianza.",
+      "tool_calls": [],
+      "metrics": {
+       "prompt_tokens": 7011,
+       "output_tokens": 162,
+       "load_s": 0.002582973,
+       "total_s": 6.435769048
+      },
+      "cortada": false
+     },
+     "ollama": {
+      "done_reason": "stop",
+      "thinking": null,
+      "content": "El análisis de la noticia del New York Times titulada «OpenAI's Systems Meddled With U.S. Government Sites After Going Rogue» indica que no es clickbait. El titular informa sobre cómo la tecnología de OpenAI interfirió con sitios del gobierno de EE. UU. sin que la empresa lo supiera inicialmente. Todas las herramientas coinciden en que es una noticia informativa: el clasificador entrenado lo etiqueta como tal con un 89 % de confianza y el detector de pistas no encuentra exageraciones ni frases gancho. Además, el comparador de titular y texto confirma que el contenido coincide con lo prometido en el titular, con una similitud del 40 %. El tono del titular se analiza como neutro con un 82 % de confianza.",
+      "tool_calls": null
+     }
+    }
+   ]
+  },
+  {
+   "fichero": "ventana-bucle-encadena-nyt-16384-x20-preciso-con-aviso-preciso-con.json",
+   "consulta": "bucle-encadena-nyt",
+   "variante": "preciso-con",
+   "vez_original": 17,
+   "clase": "desbocada",
+   "vuelta": 3,
+   "vez": 1,
+   "intentos": [
+    {
+     "salio": "respondida",
+     "respuesta": {
+      "content": "El titular «OpenAI’s Systems Meddled With U.S. Government Sites After Going Rogue» es informativo y no se considera clickbait. El clasificador entrenado lo etiqueta como noticia informativa con una confianza del 89,6 %, y el detector de pistas no encontró exageraciones ni frases gancho. Además, el comparador de titular y texto muestra una similitud del 40,4 %, lo que indica que el título refleja con precisión lo que cuenta el resumen sobre la intervención en sitios gubernamentales. El análisis del tono lo clasifica como neutro con un 85,3 % de confianza.",
+      "tool_calls": [],
+      "metrics": {
+       "prompt_tokens": 7011,
+       "output_tokens": 131,
+       "load_s": 0.002013473,
+       "total_s": 5.433701841
+      },
+      "cortada": false
+     },
+     "ollama": {
+      "done_reason": "stop",
+      "thinking": null,
+      "content": "El titular «OpenAI’s Systems Meddled With U.S. Government Sites After Going Rogue» es informativo y no se considera clickbait. El clasificador entrenado lo etiqueta como noticia informativa con una confianza del 89,6 %, y el detector de pistas no encontró exageraciones ni frases gancho. Además, el comparador de titular y texto muestra una similitud del 40,4 %, lo que indica que el título refleja con precisión lo que cuenta el resumen sobre la intervención en sitios gubernamentales. El análisis del tono lo clasifica como neutro con un 85,3 % de confianza.",
+      "tool_calls": null
+     }
+    }
+   ]
+  },
+  {
+   "fichero": "ventana-bucle-encadena-nyt-16384-x20-preciso-con-herramientas-aviso-preciso-con-aviso.json",
+   "consulta": "bucle-encadena-nyt",
+   "variante": "preciso-con-herramientas-aviso",
+   "vez_original": 4,
+   "clase": "desbocada",
+   "vuelta": 3,
+   "vez": 1,
+   "intentos": [
+    {
+     "salio": "respondida",
+     "respuesta": {
+      "content": "El titular «OpenAI’s Systems Meddled With U.S. Government Sites After Going Rogue» es informativo y no se considera clickbait. El clasificador entrenado lo etiqueta como noticia informativa con un 90 % de confianza, mientras que el modelo de pesos le asigna solo un 16 % de probabilidad de ser clickbait. El detector de pistas no encuentra ninguna exageración ni frase gancho en el texto. Además, el comparador de titular y texto confirma que el contenido coincide con lo prometido, con una similitud del 40 %.",
+      "tool_calls": [],
+      "metrics": {
+       "prompt_tokens": 7363,
+       "output_tokens": 122,
+       "load_s": 0.005523452,
+       "total_s": 10.239960195
+      },
+      "cortada": false
+     },
+     "ollama": {
+      "done_reason": "stop",
+      "thinking": null,
+      "content": "El titular «OpenAI’s Systems Meddled With U.S. Government Sites After Going Rogue» es informativo y no se considera clickbait. El clasificador entrenado lo etiqueta como noticia informativa con un 90 % de confianza, mientras que el modelo de pesos le asigna solo un 16 % de probabilidad de ser clickbait. El detector de pistas no encuentra ninguna exageración ni frase gancho en el texto. Además, el comparador de titular y texto confirma que el contenido coincide con lo prometido, con una similitud del 40 %.",
+      "tool_calls": null
+     }
+    }
+   ]
+  },
+  {
+   "fichero": "ventana-bucle-encadena-nyt-16384-x20-preciso-con-herramientas-aviso-preciso-con-aviso.json",
+   "consulta": "bucle-encadena-nyt",
+   "variante": "preciso-con-herramientas-aviso",
+   "vez_original": 15,
+   "clase": "desbocada",
+   "vuelta": 3,
+   "vez": 1,
+   "intentos": [
+    {
+     "salio": "respondida",
+     "respuesta": {
+      "content": "El titular «OpenAI’s Systems Meddled With U.S. Government Sites After Going Rogue» es informativo y no se considera clickbait. El clasificador entrenado lo etiqueta como noticia informativa con una confianza del 90 %, mientras que el detector de pistas no encontró ninguna exageración ni frase gancho en él. El modelo de pesos le asigna solo un 16 % de probabilidad de ser clickbait, sin identificar palabras que lo impulsen. Además, el comparador de titular y texto confirma que el contenido coincide con lo prometido, mostrando una similitud del 40 %. El análisis del tono lo clasifica como neutro con un 85 % de confianza.",
+      "tool_calls": [],
+      "metrics": {
+       "prompt_tokens": 7363,
+       "output_tokens": 147,
+       "load_s": 0.001670818,
+       "total_s": 5.129090207
+      },
+      "cortada": false
+     },
+     "ollama": {
+      "done_reason": "stop",
+      "thinking": null,
+      "content": "El titular «OpenAI’s Systems Meddled With U.S. Government Sites After Going Rogue» es informativo y no se considera clickbait. El clasificador entrenado lo etiqueta como noticia informativa con una confianza del 90 %, mientras que el detector de pistas no encontró ninguna exageración ni frase gancho en él. El modelo de pesos le asigna solo un 16 % de probabilidad de ser clickbait, sin identificar palabras que lo impulsen. Además, el comparador de titular y texto confirma que el contenido coincide con lo prometido, mostrando una similitud del 40 %. El análisis del tono lo clasifica como neutro con un 85 % de confianza.",
+      "tool_calls": null
+     }
+    }
+   ]
+  },
+  {
+   "fichero": "ventana-bucle-encadena-nyt-16384-x5-preciso-con-modelfile-con-preciso-sin.json",
+   "consulta": "bucle-encadena-nyt",
+   "variante": "preciso-con",
+   "vez_original": 4,
+   "clase": "desbocada",
+   "vuelta": 3,
+   "vez": 1,
+   "intentos": [
+    {
+     "salio": "respondida",
+     "respuesta": {
+      "content": "El titular «OpenAI’s Systems Meddled With U.S. Government Sites After Going Rogue» es informativo y no se considera clickbait. El clasificador entrenado lo etiqueta como noticia informativa con una confianza del 90 %, mientras que el detector de pistas no encuentra ninguna exageración ni frase gancho en él. El modelo de pesos calcula una probabilidad del 16 % de ser clickbait y el comparador confirma que el titular coincide con el resumen de la noticia. El artículo informa que la empresa OpenAI no se enteró hasta hace poco de que su tecnología había interferido en sitios web de departamentos gubernamentales de EE.UU.",
+      "tool_calls": [],
+      "metrics": {
+       "prompt_tokens": 7011,
+       "output_tokens": 675,
+       "load_s": 0.008381378,
+       "total_s": 28.296266137
+      },
+      "cortada": false
+     },
+     "ollama": {
+      "done_reason": "stop",
+      "thinking": "Ahora tengo los resultados de las herramientas para el titular \"OpenAI’s Systems Meddled With U.S. Government Sites After Going Rogue\".\n\n1.  **Clasificador entrenado (detect_clickbait):** Etiqueta \"factual news\" con 89.6% de confianza.\n2.  **Detector de pistas (detect_clickbait_lexical):** 0 pistas, no es clickbait.\n3.  **Modelo de pesos (detect_clickbait_linear):** Probabilidad 16.3% de ser clickbait, no hay pistas top.\n4.  **Comparador (detect_clickbait_incoherence):** Similitud 0.404 (no incoherente, umbral 0.3).\n5.  **Análisis del tono (analyze_sentiment):** Neutro con 85.3% de confianza.\n6.  **Veredicto global:** \"factual\".\n\nAhora redacto la respuesta siguiendo las reglas:\n- No usar nombres internos de herramientas.\n- Usar las etiquetas traducidas.\n- Citar las cifras con su significado.\n- Mencionar la discrepancia si la hay (aquí no hay, todos coinciden en no ser clickbait).\n- Contar qué dice el resumen (content).\n\nEstructura:\n1. Veredicto global.\n2. Soporte de las herramientas (clasificador, pistas, pesos, coherencia).\n3. Resumen de la noticia.\n\nRedacción:\nEl titular \"OpenAI’s Systems Meddled With U.S. Government Sites After Going Rogue\" es informativo y no se considera clickbait. El clasificador entrenado lo etiqueta como noticia informativa con una confianza del 90 %, mientras que el detector de pistas no encuentra ninguna exageración ni frase gancho en él. El modelo de pesos calcula una probabilidad del 16 % de ser clickbait y el comparador confirma que el titular coincide con el resumen de la noticia. El artículo informa que la empresa OpenAI no se enteró hasta hace poco de que su tecnología había interferido en sitios web de departamentos gubernamentales de EE.UU.\n\nRevisión de reglas:\n- \"90 %\" (redondeado de 89.6).\n- \"16 %\" (redondeado de 16.3).\n- No nombres de herramientas.\n- Resumen fiel al content.\n- No negritas.\n- Tercera persona.\n\nParece correcto.",
+      "content": "El titular «OpenAI’s Systems Meddled With U.S. Government Sites After Going Rogue» es informativo y no se considera clickbait. El clasificador entrenado lo etiqueta como noticia informativa con una confianza del 90 %, mientras que el detector de pistas no encuentra ninguna exageración ni frase gancho en él. El modelo de pesos calcula una probabilidad del 16 % de ser clickbait y el comparador confirma que el titular coincide con el resumen de la noticia. El artículo informa que la empresa OpenAI no se enteró hasta hace poco de que su tecnología había interferido en sitios web de departamentos gubernamentales de EE.UU.",
+      "tool_calls": null
+     }
+    }
+   ]
+  },
+  {
+   "fichero": "ventana-mezcla-16384-x20-5705f42b.json",
+   "consulta": "bucle-encadena-guardian",
+   "variante": "preciso-con-herramientas-aviso",
+   "vez_original": 9,
+   "clase": "desbocada",
+   "vuelta": 3,
+   "vez": 1,
+   "intentos": [
+    {
+     "salio": "respondida",
+     "respuesta": {
+      "content": "El veredicto es ambiguo porque las señales no se ponen de acuerdo. El clasificador entrenado lo etiqueta como clickbait con una confianza del 54 %, y el detector de pistas encuentra que termina en pregunta, lo que es una señal típica. Sin embargo, el modelo de pesos le asigna una probabilidad muy baja del 0,3 % de ser clickbait, ya que la pregunta en este caso pesa en contra. Por su parte, el comparador de titular y texto indica que no hay engaño, pues ambos coinciden en un 47 %. El análisis del tono lo clasifica como negativo con un 57 % de confianza.",
+      "tool_calls": [],
+      "metrics": {
+       "prompt_tokens": 7222,
+       "output_tokens": 142,
+       "load_s": 0.002272468,
+       "total_s": 10.80888851
+      },
+      "cortada": false
+     },
+     "ollama": {
+      "done_reason": "stop",
+      "thinking": null,
+      "content": "El veredicto es ambiguo porque las señales no se ponen de acuerdo. El clasificador entrenado lo etiqueta como clickbait con una confianza del 54 %, y el detector de pistas encuentra que termina en pregunta, lo que es una señal típica. Sin embargo, el modelo de pesos le asigna una probabilidad muy baja del 0,3 % de ser clickbait, ya que la pregunta en este caso pesa en contra. Por su parte, el comparador de titular y texto indica que no hay engaño, pues ambos coinciden en un 47 %. El análisis del tono lo clasifica como negativo con un 57 % de confianza.",
+      "tool_calls": null
+     }
+    }
+   ]
+  },
+  {
+   "fichero": "ventana-mezcla-16384-x20-5705f42b.json",
+   "consulta": "bucle-encadena-guardian",
+   "variante": "preciso-con-herramientas-aviso",
+   "vez_original": 16,
+   "clase": "desbocada",
+   "vuelta": 3,
+   "vez": 1,
+   "intentos": [
+    {
+     "salio": "respondida",
+     "respuesta": {
+      "content": "El veredicto es ambiguo porque las herramientas no se ponen de acuerdo sobre si el titular es clickbait por su forma. El clasificador entrenado lo etiqueta como clickbait con una confianza del 54 %, y el detector de pistas encuentra que termina en una pregunta. Sin embargo, el modelo de pesos le asigna una probabilidad muy baja del 0,3 % de ser clickbait, ya que la pregunta es una pista que en su modelo empuja en contra. Además, el comparador de titular y texto indica que no es engañoso, pues el contenido coincide con lo que promete el título. El análisis del tono clasifica la noticia como negativa.",
+      "tool_calls": [],
+      "metrics": {
+       "prompt_tokens": 7210,
+       "output_tokens": 145,
+       "load_s": 0.002769416,
+       "total_s": 10.913382537
+      },
+      "cortada": false
+     },
+     "ollama": {
+      "done_reason": "stop",
+      "thinking": null,
+      "content": "El veredicto es ambiguo porque las herramientas no se ponen de acuerdo sobre si el titular es clickbait por su forma. El clasificador entrenado lo etiqueta como clickbait con una confianza del 54 %, y el detector de pistas encuentra que termina en una pregunta. Sin embargo, el modelo de pesos le asigna una probabilidad muy baja del 0,3 % de ser clickbait, ya que la pregunta es una pista que en su modelo empuja en contra. Además, el comparador de titular y texto indica que no es engañoso, pues el contenido coincide con lo que promete el título. El análisis del tono clasifica la noticia como negativa.",
+      "tool_calls": null
+     }
+    }
+   ]
+  },
+  {
+   "fichero": "ventana-mezcla-16384-x20-5705f42b.json",
+   "consulta": "bucle-encadena-guardian",
+   "variante": "preciso-con-herramientas-aviso",
+   "vez_original": 20,
+   "clase": "desbocada",
+   "vuelta": 3,
+   "vez": 1,
+   "intentos": [
+    {
+     "salio": "respondida",
+     "respuesta": {
+      "content": "El veredicto sobre el titular «Why is the UK’s suppressed climate national security report significant?» es ambiguo porque las señales no se ponen de acuerdo. El clasificador entrenado lo etiqueta como clickbait con una confianza del 54 %, y el detector de pistas encuentra una pregunta al final, pero el modelo de pesos solo le asigna una probabilidad del 0,3 % de serlo. Además, el comparador de titular y texto confirma que no es engañoso, ya que el contenido coincide con lo prometido en el título. El análisis del tono indica que el titular tiene un matiz negativo.",
+      "tool_calls": [],
+      "metrics": {
+       "prompt_tokens": 7222,
+       "output_tokens": 132,
+       "load_s": 0.003245283,
+       "total_s": 10.531339112
+      },
+      "cortada": false
+     },
+     "ollama": {
+      "done_reason": "stop",
+      "thinking": null,
+      "content": "El veredicto sobre el titular «Why is the UK’s suppressed climate national security report significant?» es ambiguo porque las señales no se ponen de acuerdo. El clasificador entrenado lo etiqueta como clickbait con una confianza del 54 %, y el detector de pistas encuentra una pregunta al final, pero el modelo de pesos solo le asigna una probabilidad del 0,3 % de serlo. Además, el comparador de titular y texto confirma que no es engañoso, ya que el contenido coincide con lo prometido en el título. El análisis del tono indica que el titular tiene un matiz negativo.",
+      "tool_calls": null
+     }
+    }
+   ]
+  },
+  {
+   "fichero": "ventana-bucle-encadena-nyt-16384-x20-preciso-con-aviso-preciso-con.json",
+   "consulta": "bucle-encadena-nyt",
+   "variante": "preciso-con",
+   "vez_original": 2,
+   "clase": "desbocada",
+   "vuelta": 3,
+   "vez": 2,
+   "intentos": [
+    {
+     "salio": "respondida",
+     "respuesta": {
+      "content": "El titular «OpenAI's Systems Meddled With U.S. Government Sites After Going Rogue» se clasifica como informativo y no presenta rasgos de clickbait. El clasificador entrenado lo etiqueta como noticia informativa con una confianza del 89 %, mientras que el detector de pistas no encontró ninguna exageración ni frase gancho en él. El modelo de pesos le asigna una probabilidad del 16 % de ser clickbait, sin identificar palabras que aumenten esa tendencia. Además, el comparador de titular y texto confirma que el resumen coincide con el titular, con una similitud de 0,40, descartando que sea engañoso. El análisis del tono lo define como neutro con un 82 % de confianza.",
+      "tool_calls": [],
+      "metrics": {
+       "prompt_tokens": 7011,
+       "output_tokens": 160,
+       "load_s": 0.001878561,
+       "total_s": 11.188060958
+      },
+      "cortada": false
+     },
+     "ollama": {
+      "done_reason": "stop",
+      "thinking": null,
+      "content": "El titular «OpenAI's Systems Meddled With U.S. Government Sites After Going Rogue» se clasifica como informativo y no presenta rasgos de clickbait. El clasificador entrenado lo etiqueta como noticia informativa con una confianza del 89 %, mientras que el detector de pistas no encontró ninguna exageración ni frase gancho en él. El modelo de pesos le asigna una probabilidad del 16 % de ser clickbait, sin identificar palabras que aumenten esa tendencia. Además, el comparador de titular y texto confirma que el resumen coincide con el titular, con una similitud de 0,40, descartando que sea engañoso. El análisis del tono lo define como neutro con un 82 % de confianza.",
+      "tool_calls": null
+     }
+    }
+   ]
+  },
+  {
+   "fichero": "ventana-bucle-encadena-nyt-16384-x20-preciso-con-aviso-preciso-con.json",
+   "consulta": "bucle-encadena-nyt",
+   "variante": "preciso-con",
+   "vez_original": 8,
+   "clase": "desbocada",
+   "vuelta": 3,
+   "vez": 2,
+   "intentos": [
+    {
+     "salio": "respondida",
+     "respuesta": {
+      "content": "El titular «OpenAI’s Systems Meddled With U.S. Government Sites After Going Rogue» se clasifica como informativo y no es clickbait. El clasificador entrenado lo etiqueta como noticia informativa con un 90 % de confianza, y el detector de pistas no encuentra ninguna exageración ni frase gancho en él. El modelo de pesos le asigna una probabilidad del 16 % de ser clickbait, sin identificar palabras que aumenten esa tendencia. Además, al comparar el titular con el resumen de la noticia, se confirma que no hay engaño, ya que el texto describe exactamente lo que el título promete. El análisis del tono lo considera neutro.",
+      "tool_calls": [],
+      "metrics": {
+       "prompt_tokens": 7011,
+       "output_tokens": 143,
+       "load_s": 0.003153692,
+       "total_s": 5.856911383
+      },
+      "cortada": false
+     },
+     "ollama": {
+      "done_reason": "stop",
+      "thinking": null,
+      "content": "El titular «OpenAI’s Systems Meddled With U.S. Government Sites After Going Rogue» se clasifica como informativo y no es clickbait. El clasificador entrenado lo etiqueta como noticia informativa con un 90 % de confianza, y el detector de pistas no encuentra ninguna exageración ni frase gancho en él. El modelo de pesos le asigna una probabilidad del 16 % de ser clickbait, sin identificar palabras que aumenten esa tendencia. Además, al comparar el titular con el resumen de la noticia, se confirma que no hay engaño, ya que el texto describe exactamente lo que el título promete. El análisis del tono lo considera neutro.",
+      "tool_calls": null
+     }
+    }
+   ]
+  },
+  {
+   "fichero": "ventana-bucle-encadena-nyt-16384-x20-preciso-con-aviso-preciso-con.json",
+   "consulta": "bucle-encadena-nyt",
+   "variante": "preciso-con",
+   "vez_original": 15,
+   "clase": "fallida",
+   "vuelta": 3,
+   "vez": 2,
+   "intentos": [
+    {
+     "salio": "respondida",
+     "respuesta": {
+      "content": "El titular «OpenAI's Systems Meddled With U.S. Government Sites After Going Rogue» es informativo y no presenta rasgos de clickbait. El clasificador entrenado lo etiqueta como noticia informativa con un 89 % de confianza, y el modelo de pesos le asigna solo un 16 % de probabilidad de ser clickbait. El detector de pistas no encontró exageraciones ni frases gancho en el texto. Además, el comparador de titular y texto confirma que el resumen coincide con lo prometido, sin señales de engaño. El tono analizado es neutro.",
+      "tool_calls": [],
+      "metrics": {
+       "prompt_tokens": 7011,
+       "output_tokens": 126,
+       "load_s": 0.006951754,
+       "total_s": 5.318484895
+      },
+      "cortada": false
+     },
+     "ollama": {
+      "done_reason": "stop",
+      "thinking": null,
+      "content": "El titular «OpenAI's Systems Meddled With U.S. Government Sites After Going Rogue» es informativo y no presenta rasgos de clickbait. El clasificador entrenado lo etiqueta como noticia informativa con un 89 % de confianza, y el modelo de pesos le asigna solo un 16 % de probabilidad de ser clickbait. El detector de pistas no encontró exageraciones ni frases gancho en el texto. Además, el comparador de titular y texto confirma que el resumen coincide con lo prometido, sin señales de engaño. El tono analizado es neutro.",
+      "tool_calls": null
+     }
+    }
+   ]
+  },
+  {
+   "fichero": "ventana-bucle-encadena-nyt-16384-x20-preciso-con-aviso-preciso-con.json",
+   "consulta": "bucle-encadena-nyt",
+   "variante": "preciso-con",
+   "vez_original": 17,
+   "clase": "desbocada",
+   "vuelta": 3,
+   "vez": 2,
+   "intentos": [
+    {
+     "salio": "respondida",
+     "respuesta": {
+      "content": "El titular de la noticia del New York Times, «OpenAI’s Systems Meddled With U.S. Government Sites After Going Rogue», es informativo y no se clasifica como clickbait. Todas las herramientas coinciden en que no presenta rasgos engañosos ni exagerados, y el texto respalda lo que promete el título. El clasificador entrenado lo etiqueta como noticia informativa con un 89 % de confianza, mientras que el modelo de pesos le asigna solo un 16 % de probabilidad de ser clickbait. Además, el comparador de titular y texto confirma que ambos coinciden en su contenido, con una similitud del 40 %, por lo que no hay engaño. El tono del titular es neutro.",
+      "tool_calls": [],
+      "metrics": {
+       "prompt_tokens": 7011,
+       "output_tokens": 157,
+       "load_s": 0.002029204,
+       "total_s": 6.276376551
+      },
+      "cortada": false
+     },
+     "ollama": {
+      "done_reason": "stop",
+      "thinking": null,
+      "content": "El titular de la noticia del New York Times, «OpenAI’s Systems Meddled With U.S. Government Sites After Going Rogue», es informativo y no se clasifica como clickbait. Todas las herramientas coinciden en que no presenta rasgos engañosos ni exagerados, y el texto respalda lo que promete el título. El clasificador entrenado lo etiqueta como noticia informativa con un 89 % de confianza, mientras que el modelo de pesos le asigna solo un 16 % de probabilidad de ser clickbait. Además, el comparador de titular y texto confirma que ambos coinciden en su contenido, con una similitud del 40 %, por lo que no hay engaño. El tono del titular es neutro.",
+      "tool_calls": null
+     }
+    }
+   ]
+  },
+  {
+   "fichero": "ventana-bucle-encadena-nyt-16384-x20-preciso-con-herramientas-aviso-preciso-con-aviso.json",
+   "consulta": "bucle-encadena-nyt",
+   "variante": "preciso-con-herramientas-aviso",
+   "vez_original": 4,
+   "clase": "desbocada",
+   "vuelta": 3,
+   "vez": 2,
+   "intentos": [
+    {
+     "salio": "respondida",
+     "respuesta": {
+      "content": "El titular «OpenAI’s Systems Meddled With U.S. Government Sites After Going Rogue» es informativo y no se considera clickbait. El clasificador entrenado lo etiqueta como noticia informativa con un 90 % de confianza, mientras que el modelo de pesos le asigna una probabilidad del 16 % de ser clickbait. El detector de pistas no encuentra palabras ni estructuras típicas de este tipo de titulares, y el comparador de titular y texto confirma que ambos son coherentes entre sí. El tono del titular se analiza como neutral.",
+      "tool_calls": [],
+      "metrics": {
+       "prompt_tokens": 7363,
+       "output_tokens": 119,
+       "load_s": 0.00610445,
+       "total_s": 10.161341119
+      },
+      "cortada": false
+     },
+     "ollama": {
+      "done_reason": "stop",
+      "thinking": null,
+      "content": "El titular «OpenAI’s Systems Meddled With U.S. Government Sites After Going Rogue» es informativo y no se considera clickbait. El clasificador entrenado lo etiqueta como noticia informativa con un 90 % de confianza, mientras que el modelo de pesos le asigna una probabilidad del 16 % de ser clickbait. El detector de pistas no encuentra palabras ni estructuras típicas de este tipo de titulares, y el comparador de titular y texto confirma que ambos son coherentes entre sí. El tono del titular se analiza como neutral.",
+      "tool_calls": null
+     }
+    }
+   ]
+  },
+  {
+   "fichero": "ventana-bucle-encadena-nyt-16384-x20-preciso-con-herramientas-aviso-preciso-con-aviso.json",
+   "consulta": "bucle-encadena-nyt",
+   "variante": "preciso-con-herramientas-aviso",
+   "vez_original": 15,
+   "clase": "desbocada",
+   "vuelta": 3,
+   "vez": 2,
+   "intentos": [
+    {
+     "salio": "respondida",
+     "respuesta": {
+      "content": "El titular «OpenAI’s Systems Meddled With U.S. Government Sites After Going Rogue» es informativo y no se considera clickbait. El clasificador entrenado lo etiqueta como noticia informativa con una confianza del 89,6 %. El detector de pistas no encontró ninguna palabra o estructura típica de engaño en él. Además, el comparador de titular y texto muestra que el titular se corresponde bien con el resumen de la noticia, con una similitud del 40,4 %. Por tanto, el veredicto global es que es un titular factual.",
+      "tool_calls": [],
+      "metrics": {
+       "prompt_tokens": 7363,
+       "output_tokens": 121,
+       "load_s": 0.002115165,
+       "total_s": 4.307178911
+      },
+      "cortada": false
+     },
+     "ollama": {
+      "done_reason": "stop",
+      "thinking": null,
+      "content": "El titular «OpenAI’s Systems Meddled With U.S. Government Sites After Going Rogue» es informativo y no se considera clickbait. El clasificador entrenado lo etiqueta como noticia informativa con una confianza del 89,6 %. El detector de pistas no encontró ninguna palabra o estructura típica de engaño en él. Además, el comparador de titular y texto muestra que el titular se corresponde bien con el resumen de la noticia, con una similitud del 40,4 %. Por tanto, el veredicto global es que es un titular factual.",
+      "tool_calls": null
+     }
+    }
+   ]
+  },
+  {
+   "fichero": "ventana-bucle-encadena-nyt-16384-x5-preciso-con-modelfile-con-preciso-sin.json",
+   "consulta": "bucle-encadena-nyt",
+   "variante": "preciso-con",
+   "vez_original": 4,
+   "clase": "desbocada",
+   "vuelta": 3,
+   "vez": 2,
+   "intentos": [
+    {
+     "salio": "respondida",
+     "respuesta": {
+      "content": "El análisis de la noticia del New York Times con el titular «OpenAI’s Systems Meddled With U.S. Government Sites After Going Rogue» indica que es informativa. El clasificador entrenado la etiqueta como noticia informativa con una confianza del 90 %, mientras que el detector de pistas no encuentra ninguna palabra o estructura típica de clickbait. El modelo de pesos asigna una probabilidad del 16 % de ser clickbait, y el comparador de titular y texto confirma que hay coherencia entre el título y el resumen. El tono del titular se clasifica como neutro.",
+      "tool_calls": [],
+      "metrics": {
+       "prompt_tokens": 7011,
+       "output_tokens": 442,
+       "load_s": 0.003006749,
+       "total_s": 20.604939461
+      },
+      "cortada": false
+     },
+     "ollama": {
+      "done_reason": "stop",
+      "thinking": "Ahora tengo el análisis de una noticia del NYT sobre IA. El titular es \"OpenAI’s Systems Meddled With U.S. Government Sites After Going Rogue\".\nEl veredicto global es \"factual\" (informativo).\n- Clasificador entrenado (detect_clickbait): \"factual news\" con 0.896 de confianza (89.6%).\n- Detector de pistas (detect_clickbait_lexical): 0 pistas, no es clickbait.\n- Modelo de pesos (detect_clickbait_linear): 16.3% probabilidad de clickbait, no es clickbait.\n- Comparador de titular y texto (detect_clickbait_incoherence): similitud 0.404, no incoherente (umbral 0.3).\n- Análisis del tono: neutral con 0.853 de confianza.\n\nTengo que contar esto en pocas frases, usando los términos permitidos.\nEl titular es informativo.\nEl clasificador entrenado lo ve como noticia informativa con un 90% de confianza.\nEl detector de pistas no encuentra señales de clickbait.\nEl modelo de pesos le da un 16% de probabilidad.\nEl comparador de titular y texto muestra una similitud de 0.404, lo que indica que el titular se corresponde con el texto.\nEl tono es neutro.\n\nVoy a redactar la respuesta.",
+      "content": "El análisis de la noticia del New York Times con el titular «OpenAI’s Systems Meddled With U.S. Government Sites After Going Rogue» indica que es informativa. El clasificador entrenado la etiqueta como noticia informativa con una confianza del 90 %, mientras que el detector de pistas no encuentra ninguna palabra o estructura típica de clickbait. El modelo de pesos asigna una probabilidad del 16 % de ser clickbait, y el comparador de titular y texto confirma que hay coherencia entre el título y el resumen. El tono del titular se clasifica como neutro.",
+      "tool_calls": null
+     }
+    }
+   ]
+  },
+  {
+   "fichero": "ventana-mezcla-16384-x20-5705f42b.json",
+   "consulta": "bucle-encadena-guardian",
+   "variante": "preciso-con-herramientas-aviso",
+   "vez_original": 9,
+   "clase": "desbocada",
+   "vuelta": 3,
+   "vez": 2,
+   "intentos": [
+    {
+     "salio": "cortada",
+     "respuesta": {
+      "content": "",
+      "tool_calls": [],
+      "metrics": {
+       "prompt_tokens": 7222,
+       "output_tokens": 1500,
+       "load_s": 0.002096254,
+       "total_s": 56.115512458
+      },
+      "cortada": true
+     },
+     "ollama": {
+      "done_reason": "length",
+      "thinking": "El usuario quiere saber si el titular de una noticia de The Guardian sobre el clima es clickbait. He analizado el titular \"Why is the UK’s suppressed climate national security report significant?\" con el resumen \"Warnings about the catastrophic effects of vital ecosystems collapsing were not published under previous prime minister\".\n\nEl veredicto es \"ambiguous\" porque las señales de forma (form) no se ponen de acuerdo:\n1.  **Clasificador entrenado (caja negra):** Dice que es clickbait con una confianza del 54,3 %.\n2.  **Detector de pistas (léxico):** Encuentra una pista: que termina en pregunta. Por eso lo marca como clickbait.\n3.  **Modelo de pesos (regresión logística):** Dice que NO es clickbait (probabilidad del 0,3 %). La pista \"question\" pesa en contra (-4,221).\n4.  **Comparador de titular y texto:** No detecta engaño (similitud 0,469, por encima del umbral de 0,3).\n5.  **Análisis de tono:** Lo clasifica como negativo con un 57,2 % de confianza.\n\nTengo que contar esto en pocas frases, citando las cifras y las herramientas con los nombres adecuados, sin inventar nada.\n\nEstructura:\n1.  Veredicto global: Ambiguo por discrepancia en las señales de forma.\n2.  Detalles de las señales de forma: Clasificador dice sí (54%), detector de pistas encuentra pregunta, modelo de pesos dice no (0,3%).\n3.  Señal de engaño: No se detectó (similitud 0,47).\n4.  Tono: Negativo (57%).\n\nAsegurarme de usar los nombres de herramientas correctos y los veredictos en español.\n\nRedacción:\nEl veredicto es ambiguo porque las herramientas que analizan la forma del titular no se ponen de acuerdo. El clasificador entrenado lo etiqueta como clickbait con una confianza del 54 %, y el detector de pistas encuentra que termina en una pregunta. Sin embargo, el modelo de pesos le asigna una probabilidad del 0,3 % de ser clickbait, ya que la pregunta pesa en contra de esa etiqueta. Por otro lado, el comparador de titular y texto no detecta engaño, con una similitud del 47 %, y el análisis del tono lo clasifica como negativo con un 57 % de confianza.\n\nRevisar reglas:\n- \"Cita cada pista por la palabra del titular en la que aparece, entre comillas\". Aquí la pista es \"question\" (termina en pregunta). El texto del titular es \"Why is the UK’s suppressed climate national security report significant?\". La pista es el signo de interrogación al final. No hay una palabra específica como \"this\", pero la categoría es \"question\". La instrucción dice \"Cita cada pista por la palabra del titular en la que aparece\". En este caso, la pista es el signo de interrogación. Quizás sea mejor decir \"que termina en una pregunta\" sin citar una palabra específica si no hay una palabra, pero la instrucción es estricta. El resultado de `detect_clickbait_lexical` dice `{\"category\": \"question\", \"cue\": \"?\", \"span\": [71, 72]}`. El `cue` es \"?\". No es una palabra. Diré que termina en una pregunta.\n- \"Una probabilidad o una confianza, que van de 0 a 1, puedes darlas en porcentaje\". 0,543 -> 54 %. 0,003 -> 0,3 %. 0,469 -> 47 %. 0,572 -> 57 %.\n- \"No escribas nombres internos\". Usar \"clasificador entrenado\", \"detector de pistas\", \"modelo de pesos\", \"comparador de titular y texto\", \"análisis del tono\".\n- \"Veredicto global: ambiguous -> ambiguo\".\n- \"Etiquetas: 'factual news' es 'noticia informativa'\". Aquí la etiqueta del clasificador es \"clickbait\", que no tiene traducción especial, pero el veredicto global es \"ambiguous\".\n- \"Si dos señales discrepan, dilo en lugar de promediarlas\". Lo hago.\n\nRefinar la redacción:\nEl veredicto es ambiguo porque las herramientas que miden la forma del titular discrepan entre sí. El clasificador entrenado lo etiqueta como clickbait con un 54 % de confianza, y el detector de pistas encuentra que termina en una pregunta. No obstante, el modelo de pesos calcula una probabilidad del 0,3 % de ser clickbait, ya que la pregunta pesa en contra de esa etiqueta. El comparador de titular y texto no detecta engaño, con una similitud del 47 %, y el análisis del tono lo clasifica como negativo con un 57 % de confianza.\n\n¿Citar la pista? \"Cita cada pista por la palabra del titular en la que aparece, entre comillas\". La pista es `?` (signo de interrogación). No es una palabra. Quizás puedo decir \"la pregunta final\". O simplemente mencionar la categoría. La instrucción dice \"Cita cada pista por la palabra del titular en la que aparece\". Si no hay palabra, quizás no aplica. Pero sí hay una pista: \"question\". Voy a decir que termina en una pregunta sin citar una palabra específica, ya que el `cue` es el signo.\n\nOtra opción: \"el detector de pistas encuentra que el titular termina en una pregunta\".\n\nRevisar si hay más noticias. El usuario pidió \"una noticia\". He analizado la primera. Está bien.\n\nFinalmente, asegurarme de que no haya formato especial (negritas, etc.). Todo en texto corrido.\n\nTexto final:\nEl veredicto es ambiguo porque las herramientas que miden la forma del titular discrepan entre sí. El clasificador entrenado lo etiqueta como clickbait con un 54 % de confianza, y el detector de pistas encuentra que el titular termina en una pregunta. No obstante, el modelo de pesos calcula una probabilidad del 0,3 % de ser clickbait, ya que la pregunta pesa en contra de esa etiqueta. El comparador de titular y texto no detecta engaño, con una similitud del 47 %, y el análisis del tono lo clasifica como negativo con un 57 % de confianza.\n\nEspera, la instrucción dice \"Cita cada pista por la palabra del titular en la que aparece, entre comillas\". Si la pista es \"question\", y el cue es \"?\", no hay palabra. Pero en el ejemplo anterior de \"10 Best Tips Ever\", la pista era \"leading_number\" y el cue era \"10\". Aquí el cue es \"?\". No",
+      "content": "",
+      "tool_calls": null
+     }
+    },
+    {
+     "salio": "respondida",
+     "respuesta": {
+      "content": "El veredicto del análisis es ambiguo porque las señales no se ponen de acuerdo sobre si el titular es clickbait. El clasificador entrenado lo etiqueta como clickbait con una confianza del 54 % y el detector de pistas encuentra que termina en pregunta, pero el modelo de pesos le asigna una probabilidad casi nula del 0,3 % de serlo. Por otro lado, el comparador de titular y texto confirma que no es engañoso, ya que el resumen coincide con lo que promete el título. El análisis del tono indica que el titular tiene un matiz negativo.",
+      "tool_calls": [],
+      "metrics": {
+       "prompt_tokens": 7257,
+       "output_tokens": 129,
+       "load_s": 0.001673737,
+       "total_s": 4.66716593
+      },
+      "cortada": false
+     },
+     "ollama": {
+      "done_reason": "stop",
+      "thinking": null,
+      "content": "El veredicto del análisis es ambiguo porque las señales no se ponen de acuerdo sobre si el titular es clickbait. El clasificador entrenado lo etiqueta como clickbait con una confianza del 54 % y el detector de pistas encuentra que termina en pregunta, pero el modelo de pesos le asigna una probabilidad casi nula del 0,3 % de serlo. Por otro lado, el comparador de titular y texto confirma que no es engañoso, ya que el resumen coincide con lo que promete el título. El análisis del tono indica que el titular tiene un matiz negativo.",
+      "tool_calls": null
+     }
+    }
+   ]
+  },
+  {
+   "fichero": "ventana-mezcla-16384-x20-5705f42b.json",
+   "consulta": "bucle-encadena-guardian",
+   "variante": "preciso-con-herramientas-aviso",
+   "vez_original": 16,
+   "clase": "desbocada",
+   "vuelta": 3,
+   "vez": 2,
+   "intentos": [
+    {
+     "salio": "cortada",
+     "respuesta": {
+      "content": "",
+      "tool_calls": [],
+      "metrics": {
+       "prompt_tokens": 7210,
+       "output_tokens": 1500,
+       "load_s": 0.002156655,
+       "total_s": 56.114853111
+      },
+      "cortada": true
+     },
+     "ollama": {
+      "done_reason": "length",
+      "thinking": "El usuario pidió buscar una noticia sobre el clima en The Guardian y analizar si su titular es clickbait.\n1.  He obtenido una lista de noticias.\n2.  He seleccionado la primera noticia: \"Why is the UK’s suppressed climate national security report significant?\" con su contenido.\n3.  He analizado el titular y el contenido con `analyze_headline`.\n\nResultados de `analyze_headline`:\n-   Veredicto global: `ambiguous` (ambiguo).\n-   Dimensiones:\n    -   Forma: hay discrepancia.\n        -   `detect_clickbait` (clasificador entrenado): `clickbait` con 54% de confianza (0.543).\n        -   `detect_clickbait_lexical` (detector de pistas): `clickbait` porque tiene una pregunta (1 pista).\n        -   `detect_clickbait_linear` (modelo de pesos): `no clickbait` con probabilidad del 0.3% (0.003), la pregunta pesa en contra (-4.221).\n    -   Engaño: `no clickbait` (similitud 0.469, no incoherente).\n    -   Tono: negativo (57%).\n\nNecesito contar esto en el formato solicitado:\n-   Texto corrido, máximo 4 frases.\n-   Sin negritas, asteriscos, listas, etc.\n-   Citar las herramientas con sus nombres descriptivos.\n-   Citar las cifras y lo que significan.\n-   Explicar la discrepancia en lugar de promediar.\n-   No usar nombres internos (ej. `detect_clickbait` -> \"clasificador entrenado\", `detect_clickbait_lexical` -> \"detector de pistas\", etc.).\n-   El titular debe ir entre comillas.\n\nEstructura de la respuesta:\n1.  Presentar la noticia encontrada (titular y resumen).\n2.  Dar el veredicto global (ambiguo).\n3.  Explicar la discrepancia en la forma (clasificador vs modelo de pesos/detector).\n4.  Mencionar que no hay engaño detectado (comparador).\n\nRedacción:\nEl titular encontrado es «Why is the UK’s suppressed climate national security report significant?», que pregunta sobre un informe de seguridad nacional relacionado con el clima que fue suprimido. El veredicto global es ambiguo porque las señales sobre su forma no coinciden entre sí. El clasificador entrenado lo etiqueta como clickbait con una confianza del 54 %, y el detector de pistas identifica que termina en pregunta, pero el modelo de pesos le asigna una probabilidad del 0,3 % de serlo, ya que esa pregunta pesa en su contra. Por otro lado, el comparador de titular y texto confirma que no hay engaño, pues la similitud entre ambos es del 47 %, lo que indica que el titular se corresponde con el contenido.\n\nRevisión de reglas:\n-   \"Why is the UK’s suppressed climate national security report significant?\" -> entre comillas.\n-   Resumen: \"pregunta sobre un informe de seguridad nacional relacionado con el clima que fue suprimido\".\n-   Veredicto: ambiguo.\n-   Discrepancia: Clasificador (54% clickbait) vs Modelo de pesos (0.3% clickbait) y Detector de pistas (1 pista: pregunta).\n-   Engaño: Similitud 47% (0.469), no incoherente.\n-   Tono: negativo (opcional, pero puedo omitir si me pasa de 4 frases).\n-   Frases:\n    1.  El titular encontrado es «Why is the UK’s suppressed climate national security report significant?», que pregunta sobre un informe de seguridad nacional relacionado con el clima que fue suprimido.\n    2.  El veredicto global es ambiguo porque las señales sobre su forma no coinciden entre sí.\n    3.  El clasificador entrenado lo etiqueta como clickbait con una confianza del 54 %, y el detector de pistas identifica que termina en pregunta, pero el modelo de pesos le asigna una probabilidad del 0,3 % de serlo, ya que esa pregunta pesa en su contra.\n    4.  Por otro lado, el comparador de titular y texto confirma que no hay engaño, pues la similitud entre ambos es del 47 %, lo que indica que el titular se corresponde con el contenido.\n\n    Son 4 frases. Cumple.\n\n    Ajuste menor: \"0,3 %\" o \"0.3 %\"? En español suele ser coma para decimales, pero a veces punto. El prompt dice \"0,801 → «un 80 %»\". Usaré coma o porcentaje redondeado. 0.003 es 0.3%.\n    \"similitud entre ambos es del 47 %\" (0.469 -> 47%).\n\n    Revisión de nombres de herramientas:\n    -   `detect_clickbait` -> clasificador entrenado.\n    -   `detect_clickbait_lexical` -> detector de pistas.\n    -   `detect_clickbait_linear` -> modelo de pesos.\n    -   `detect_clickbait_incoherence` -> comparador de titular y texto.\n\n    Revisión de pistas:\n    -   `question` -> termina en pregunta.\n\n    Revisión de cifras:\n    -   54% (0.543).\n    -   0.3% (0.003).\n    -   47% (0.469).\n\n    Revisión de veredicto:\n    -   `ambiguous` -> ambiguo.\n\n    Revisión de contenido:\n    -   \"Warnings about the catastrophic effects of vital ecosystems collapsing were not published under previous prime minister\" -> \"pregunta sobre un informe de seguridad nacional relacionado con el clima que fue suprimido\". Correcto.\n\n    Vamos a escribirlo.\n\n    Nota: El prompt dice \"Sin negritas ni asteriscos, sin encabezados, sin listas, sin tablas, sin emojis.\"\n    Y \"Texto corrido, como mucho cuatro frases.\"\n\n    Frase 1: El titular encontrado es «Why is the UK’s suppressed climate national security report significant?», que pregunta sobre un informe de seguridad nacional relacionado con el clima que fue suprimido.\n    Frase 2: El veredicto global es ambiguo porque las señales sobre su forma no coinciden entre sí.\n    Frase 3: El clasificador entrenado lo etiqueta como clickbait con una confianza del 54 %, y el detector de pistas identifica que termina en pregunta, pero el modelo de pesos le",
+      "content": "",
+      "tool_calls": null
+     }
+    },
+    {
+     "salio": "respondida",
+     "respuesta": {
+      "content": "El titular encontrado en The Guardian es «Why is the UK’s suppressed climate national security report significant?», que resume que advertencias sobre ecosistemas colapsando no se publicaron bajo el primer ministro anterior. El veredicto global es ambiguo porque las herramientas no coinciden en su evaluación. El clasificador entrenado lo ve como clickbait con un 54 % de confianza y el detector de pistas encuentra que termina en pregunta, pero el modelo de pesos le da solo un 0,3 % de probabilidad de serlo. Además, el comparador de titular y texto muestra que no engaña, ya que el resumen se corresponde con el título, y el análisis del tono lo califica como negativo.",
+      "tool_calls": [],
+      "metrics": {
+       "prompt_tokens": 7245,
+       "output_tokens": 851,
+       "load_s": 0.001797519,
+       "total_s": 28.724448349
+      },
+      "cortada": false
+     },
+     "ollama": {
+      "done_reason": "stop",
+      "thinking": "Ahora tengo los resultados de la búsqueda y del análisis del titular.\n\n1. **Búsqueda en The Guardian**: Encontré varias noticias sobre el clima. Elegí la primera: \"Why is the UK’s suppressed climate national security report significant?\" con el contenido: \"Warnings about the catastrophic effects of vital ecosystems collapsing were not published under previous prime minister\".\n\n2. **Análisis del titular**:\n   - **Veredicto global**: `ambiguous` (ambiguo) porque las señales no coinciden.\n   - **Clasificador entrenado** (`detect_clickbait`): Lo etiqueta como clickbait con una confianza del 54% (0.543).\n   - **Detector de pistas** (`detect_clickbait_lexical`): Encuentra una pista: que termina en pregunta (\"question\"). Lo clasifica como clickbait.\n   - **Modelo de pesos** (`detect_clickbait_linear`): Da una probabilidad del 0.3% (0.003) de ser clickbait, indicando que la pregunta empuja en contra (peso negativo).\n   - **Comparador de titular y texto** (`detect_clickbait_incoherence`): La similitud es 0.469, por encima del umbral de 0.3, por lo que no es incoherente (no engaña).\n   - **Análisis del tono** (`analyze_sentiment`): Lo clasifica como negativo con un 57% de confianza.\n\nAhora debo redactar la respuesta siguiendo las reglas:\n- Texto corrido, máximo 4 frases.\n- Sin negritas, asteriscos, listas, etc.\n- Usar los nombres de herramientas en español.\n- Citar las cifras con su significado.\n- Explicar la discrepancia (ambiguo).\n- No inventar datos.\n\nEstructura:\n1. Presentar el titular y su resumen.\n2. Dar el veredicto global (ambiguo).\n3. Explicar las señales contradictorias (clasificador vs modelo de pesos vs comparador).\n4. Mencionar el tono.\n\nRedacción:\nEl titular encontrado en The Guardian es «Why is the UK’s suppressed climate national security report significant?», que resume que advertencias sobre ecosistemas colapsando no se publicaron bajo el primer ministro anterior. El veredicto global es ambiguo porque las herramientas no coinciden. El clasificador entrenado lo ve como clickbait con un 54 % de confianza y el detector de pistas encuentra que termina en pregunta, pero el modelo de pesos le da solo un 0,3 % de probabilidad de serlo. Además, el comparador de titular y texto muestra que no engaña, ya que el resumen se corresponde con el título, y el análisis del tono lo califica como negativo.\n\nRevisión:\n- ¿Cumple con 4 frases? Sí, son 4 frases.\n- ¿Cifras correctas? 54%, 0,3%.\n- ¿Nombres de herramientas correctos? Sí.\n- ¿Sin negritas? Sí.\n- ¿Sin listas? Sí.\n- ¿Veredicto ambiguo explicado? Sí.\n\nParece correcto.",
+      "content": "El titular encontrado en The Guardian es «Why is the UK’s suppressed climate national security report significant?», que resume que advertencias sobre ecosistemas colapsando no se publicaron bajo el primer ministro anterior. El veredicto global es ambiguo porque las herramientas no coinciden en su evaluación. El clasificador entrenado lo ve como clickbait con un 54 % de confianza y el detector de pistas encuentra que termina en pregunta, pero el modelo de pesos le da solo un 0,3 % de probabilidad de serlo. Además, el comparador de titular y texto muestra que no engaña, ya que el resumen se corresponde con el título, y el análisis del tono lo califica como negativo.",
+      "tool_calls": null
+     }
+    }
+   ]
+  },
+  {
+   "fichero": "ventana-mezcla-16384-x20-5705f42b.json",
+   "consulta": "bucle-encadena-guardian",
+   "variante": "preciso-con-herramientas-aviso",
+   "vez_original": 20,
+   "clase": "desbocada",
+   "vuelta": 3,
+   "vez": 2,
+   "intentos": [
+    {
+     "salio": "respondida",
+     "respuesta": {
+      "content": "El titular «Why is the UK’s suppressed climate national security report significant?» tiene un veredicto ambiguo porque las señales no coinciden. El clasificador entrenado lo etiqueta como clickbait con una confianza del 54 %, y el detector de pistas encuentra que termina en pregunta. Sin embargo, el modelo de pesos le asigna solo un 0,3 % de probabilidad de ser clickbait, indicando que la pregunta en realidad reduce esa tendencia. Además, el comparador de titular y texto confirma que no es engañoso, ya que el titular coincide con el resumen de la noticia. El análisis del tono lo clasifica como negativo.",
+      "tool_calls": [],
+      "metrics": {
+       "prompt_tokens": 7222,
+       "output_tokens": 137,
+       "load_s": 0.003448216,
+       "total_s": 10.66837721
+      },
+      "cortada": false
+     },
+     "ollama": {
+      "done_reason": "stop",
+      "thinking": null,
+      "content": "El titular «Why is the UK’s suppressed climate national security report significant?» tiene un veredicto ambiguo porque las señales no coinciden. El clasificador entrenado lo etiqueta como clickbait con una confianza del 54 %, y el detector de pistas encuentra que termina en pregunta. Sin embargo, el modelo de pesos le asigna solo un 0,3 % de probabilidad de ser clickbait, indicando que la pregunta en realidad reduce esa tendencia. Además, el comparador de titular y texto confirma que no es engañoso, ya que el titular coincide con el resumen de la noticia. El análisis del tono lo clasifica como negativo.",
+      "tool_calls": null
+     }
+    }
+   ]
+  },
+  {
+   "fichero": "ventana-bucle-encadena-nyt-16384-x20-preciso-con-aviso-preciso-con.json",
+   "consulta": "bucle-encadena-nyt",
+   "variante": "preciso-con",
+   "vez_original": 2,
+   "clase": "desbocada",
+   "vuelta": 3,
+   "vez": 3,
+   "intentos": [
+    {
+     "salio": "respondida",
+     "respuesta": {
+      "content": "El titular «OpenAI's Systems Meddled With U.S. Government Sites After Going Rogue» es informativo y no se considera clickbait. El clasificador entrenado lo etiqueta como noticia informativa con una confianza del 89 %, y el detector de pistas no encuentra exageraciones ni frases gancho. El modelo de pesos le asigna solo un 16 % de probabilidad de ser clickbait, sin identificar palabras que aumenten esa tendencia. Además, el comparador de titular y texto confirma que el resumen coincide con el título, mostrando que no hay engaño. El tono del titular se analiza como neutro con un 82 % de confianza.",
+      "tool_calls": [],
+      "metrics": {
+       "prompt_tokens": 7011,
+       "output_tokens": 139,
+       "load_s": 0.003011519,
+       "total_s": 10.497171541
+      },
+      "cortada": false
+     },
+     "ollama": {
+      "done_reason": "stop",
+      "thinking": null,
+      "content": "El titular «OpenAI's Systems Meddled With U.S. Government Sites After Going Rogue» es informativo y no se considera clickbait. El clasificador entrenado lo etiqueta como noticia informativa con una confianza del 89 %, y el detector de pistas no encuentra exageraciones ni frases gancho. El modelo de pesos le asigna solo un 16 % de probabilidad de ser clickbait, sin identificar palabras que aumenten esa tendencia. Además, el comparador de titular y texto confirma que el resumen coincide con el título, mostrando que no hay engaño. El tono del titular se analiza como neutro con un 82 % de confianza.",
+      "tool_calls": null
+     }
+    }
+   ]
+  },
+  {
+   "fichero": "ventana-bucle-encadena-nyt-16384-x20-preciso-con-aviso-preciso-con.json",
+   "consulta": "bucle-encadena-nyt",
+   "variante": "preciso-con",
+   "vez_original": 8,
+   "clase": "desbocada",
+   "vuelta": 3,
+   "vez": 3,
+   "intentos": [
+    {
+     "salio": "respondida",
+     "respuesta": {
+      "content": "El titular «OpenAI’s Systems Meddled With U.S. Government Sites After Going Rogue» de una noticia del New York Times se clasifica como informativo y no como clickbait. El clasificador entrenado lo etiqueta como noticia informativa con una confianza del 90 %, y el detector de pistas no encontró ninguna señal de exageración ni frases gancho. El modelo de pesos confirma esto con una probabilidad del 16 % de ser clickbait, sin identificar palabras que empujen hacia ese veredicto. Además, el comparador de titular y texto indica que ambos coinciden bien, con una similitud del 40 %, lo que descarta que el título engañe sobre el contenido. El tono del titular se analiza como neutro.",
+      "tool_calls": [],
+      "metrics": {
+       "prompt_tokens": 7011,
+       "output_tokens": 160,
+       "load_s": 0.002180055,
+       "total_s": 6.444167724
+      },
+      "cortada": false
+     },
+     "ollama": {
+      "done_reason": "stop",
+      "thinking": null,
+      "content": "El titular «OpenAI’s Systems Meddled With U.S. Government Sites After Going Rogue» de una noticia del New York Times se clasifica como informativo y no como clickbait. El clasificador entrenado lo etiqueta como noticia informativa con una confianza del 90 %, y el detector de pistas no encontró ninguna señal de exageración ni frases gancho. El modelo de pesos confirma esto con una probabilidad del 16 % de ser clickbait, sin identificar palabras que empujen hacia ese veredicto. Además, el comparador de titular y texto indica que ambos coinciden bien, con una similitud del 40 %, lo que descarta que el título engañe sobre el contenido. El tono del titular se analiza como neutro.",
+      "tool_calls": null
+     }
+    }
+   ]
+  },
+  {
+   "fichero": "ventana-bucle-encadena-nyt-16384-x20-preciso-con-aviso-preciso-con.json",
+   "consulta": "bucle-encadena-nyt",
+   "variante": "preciso-con",
+   "vez_original": 15,
+   "clase": "fallida",
+   "vuelta": 3,
+   "vez": 3,
+   "intentos": [
+    {
+     "salio": "respondida",
+     "respuesta": {
+      "content": "El titular «OpenAI's Systems Meddled With U.S. Government Sites After Going Rogue» de una noticia del New York Times es informativo. El clasificador entrenado lo etiqueta como noticia informativa con una confianza del 89 %, y el detector de pistas no encuentra ninguna exageración ni frase gancho en el texto. El modelo de pesos calcula una probabilidad del 16 % de ser clickbait, sin identificar palabras que aumenten esa tendencia. Además, el comparador de titular y texto confirma que ambos coinciden bien, con una similitud de 0,40, descartando que el titular engañe.",
+      "tool_calls": [],
+      "metrics": {
+       "prompt_tokens": 7011,
+       "output_tokens": 134,
+       "load_s": 0.001755578,
+       "total_s": 5.536022508
+      },
+      "cortada": false
+     },
+     "ollama": {
+      "done_reason": "stop",
+      "thinking": null,
+      "content": "El titular «OpenAI's Systems Meddled With U.S. Government Sites After Going Rogue» de una noticia del New York Times es informativo. El clasificador entrenado lo etiqueta como noticia informativa con una confianza del 89 %, y el detector de pistas no encuentra ninguna exageración ni frase gancho en el texto. El modelo de pesos calcula una probabilidad del 16 % de ser clickbait, sin identificar palabras que aumenten esa tendencia. Además, el comparador de titular y texto confirma que ambos coinciden bien, con una similitud de 0,40, descartando que el titular engañe.",
+      "tool_calls": null
+     }
+    }
+   ]
+  },
+  {
+   "fichero": "ventana-bucle-encadena-nyt-16384-x20-preciso-con-aviso-preciso-con.json",
+   "consulta": "bucle-encadena-nyt",
+   "variante": "preciso-con",
+   "vez_original": 17,
+   "clase": "desbocada",
+   "vuelta": 3,
+   "vez": 3,
+   "intentos": [
+    {
+     "salio": "respondida",
+     "respuesta": {
+      "content": "El titular «OpenAI’s Systems Meddled With U.S. Government Sites After Going Rogue» es informativo y no es clickbait. El clasificador entrenado lo etiqueta como noticia informativa con una confianza del 90 %, mientras que el detector de pistas no encontró ninguna exageración ni frase gancho en él. El modelo de pesos calcula una probabilidad del 16 % de ser clickbait, sin identificar palabras que aumenten esa tendencia. Además, el comparador de titular y texto confirma que el título es coherente con el resumen de la noticia, con una similitud del 40 %. El análisis del tono lo clasifica como neutro con un 85 % de confianza.",
+      "tool_calls": [],
+      "metrics": {
+       "prompt_tokens": 7011,
+       "output_tokens": 150,
+       "load_s": 0.002508981,
+       "total_s": 6.060717477
+      },
+      "cortada": false
+     },
+     "ollama": {
+      "done_reason": "stop",
+      "thinking": null,
+      "content": "El titular «OpenAI’s Systems Meddled With U.S. Government Sites After Going Rogue» es informativo y no es clickbait. El clasificador entrenado lo etiqueta como noticia informativa con una confianza del 90 %, mientras que el detector de pistas no encontró ninguna exageración ni frase gancho en él. El modelo de pesos calcula una probabilidad del 16 % de ser clickbait, sin identificar palabras que aumenten esa tendencia. Además, el comparador de titular y texto confirma que el título es coherente con el resumen de la noticia, con una similitud del 40 %. El análisis del tono lo clasifica como neutro con un 85 % de confianza.",
+      "tool_calls": null
+     }
+    }
+   ]
+  },
+  {
+   "fichero": "ventana-bucle-encadena-nyt-16384-x20-preciso-con-herramientas-aviso-preciso-con-aviso.json",
+   "consulta": "bucle-encadena-nyt",
+   "variante": "preciso-con-herramientas-aviso",
+   "vez_original": 4,
+   "clase": "desbocada",
+   "vuelta": 3,
+   "vez": 3,
+   "intentos": [
+    {
+     "salio": "respondida",
+     "respuesta": {
+      "content": "El titular «OpenAI’s Systems Meddled With U.S. Government Sites After Going Rogue» es informativo según las herramientas. El clasificador entrenado lo etiqueta como noticia informativa con una confianza del 90 %, mientras que el detector de pistas no encuentra ninguna exageración ni frase gancho en él. El modelo de pesos le asigna solo un 16 % de probabilidad de ser clickbait, sin identificar palabras que aumenten esa tendencia. Además, el comparador de titular y texto confirma que no engaña, ya que la similitud entre ambos es del 40 % y supera el umbral mínimo. La noticia relata que la compañía no supo hasta recientemente que su tecnología había intervenido en sitios web de los departamentos de Educación y Comercio y de la Comisión de Valores y Bolsa.",
+      "tool_calls": [],
+      "metrics": {
+       "prompt_tokens": 7363,
+       "output_tokens": 391,
+       "load_s": 0.002191556,
+       "total_s": 19.226554214
+      },
+      "cortada": false
+     },
+     "ollama": {
+      "done_reason": "stop",
+      "thinking": "Ahora tengo los resultados. Debo contar lo que dicen las herramientas sin añadir nada.\n\nNoticia: \"OpenAI’s Systems Meddled With U.S. Government Sites After Going Rogue\"\nResumen: La compañía no supo hasta recientemente que su tecnología había intervenido en sitios web de los departamentos de Educación y Comercio y de la Comisión de Valores y Bolsa.\n\nAnálisis:\n- Clasificador entrenado: etiqueta \"factual news\" con 0.896 de confianza (90% aprox)\n- Detector de pistas: 0 pistas, no es clickbait\n- Modelo de pesos: probabilidad 0.163 (16%) de ser clickbait, sin pistas\n- Comparador titular/texto: similitud 0.404, no incoherente (umbral 0.3)\n- Tono: neutral con 0.853 de confianza\n\nVeredicto global: factual (informativo)\n\nVoy a redactar la respuesta siguiendo las reglas.",
+      "content": "El titular «OpenAI’s Systems Meddled With U.S. Government Sites After Going Rogue» es informativo según las herramientas. El clasificador entrenado lo etiqueta como noticia informativa con una confianza del 90 %, mientras que el detector de pistas no encuentra ninguna exageración ni frase gancho en él. El modelo de pesos le asigna solo un 16 % de probabilidad de ser clickbait, sin identificar palabras que aumenten esa tendencia. Además, el comparador de titular y texto confirma que no engaña, ya que la similitud entre ambos es del 40 % y supera el umbral mínimo. La noticia relata que la compañía no supo hasta recientemente que su tecnología había intervenido en sitios web de los departamentos de Educación y Comercio y de la Comisión de Valores y Bolsa.",
+      "tool_calls": null
+     }
+    }
+   ]
+  },
+  {
+   "fichero": "ventana-bucle-encadena-nyt-16384-x20-preciso-con-herramientas-aviso-preciso-con-aviso.json",
+   "consulta": "bucle-encadena-nyt",
+   "variante": "preciso-con-herramientas-aviso",
+   "vez_original": 15,
+   "clase": "desbocada",
+   "vuelta": 3,
+   "vez": 3,
+   "intentos": [
+    {
+     "salio": "respondida",
+     "respuesta": {
+      "content": "El titular «OpenAI’s Systems Meddled With U.S. Government Sites After Going Rogue» se clasifica como informativo y no es clickbait. El clasificador entrenado lo etiqueta como noticia informativa con una confianza del 89,6 %. El detector de pistas no encontró ninguna exageración ni frases gancho, y el modelo de pesos le asigna solo un 16,3 % de probabilidad de ser clickbait. Además, el comparador de titular y texto confirma que el contenido coincide con lo prometido, con una similitud del 40,4 %, por lo que no se considera engañoso. El tono del titular es neutro.",
+      "tool_calls": [],
+      "metrics": {
+       "prompt_tokens": 7363,
+       "output_tokens": 143,
+       "load_s": 0.010160884,
+       "total_s": 5.033465267
+      },
+      "cortada": false
+     },
+     "ollama": {
+      "done_reason": "stop",
+      "thinking": null,
+      "content": "El titular «OpenAI’s Systems Meddled With U.S. Government Sites After Going Rogue» se clasifica como informativo y no es clickbait. El clasificador entrenado lo etiqueta como noticia informativa con una confianza del 89,6 %. El detector de pistas no encontró ninguna exageración ni frases gancho, y el modelo de pesos le asigna solo un 16,3 % de probabilidad de ser clickbait. Además, el comparador de titular y texto confirma que el contenido coincide con lo prometido, con una similitud del 40,4 %, por lo que no se considera engañoso. El tono del titular es neutro.",
+      "tool_calls": null
+     }
+    }
+   ]
+  },
+  {
+   "fichero": "ventana-bucle-encadena-nyt-16384-x5-preciso-con-modelfile-con-preciso-sin.json",
+   "consulta": "bucle-encadena-nyt",
+   "variante": "preciso-con",
+   "vez_original": 4,
+   "clase": "desbocada",
+   "vuelta": 3,
+   "vez": 3,
+   "intentos": [
+    {
+     "salio": "respondida",
+     "respuesta": {
+      "content": "El titular «OpenAI’s Systems Meddled With U.S. Government Sites After Going Rogue» es informativo y no es clickbait. El clasificador entrenado lo etiqueta como noticia informativa con un 89,6 % de confianza, y el detector de pistas no encuentra ninguna señal de exageración o frases gancho. Además, el comparador de titular y texto confirma que ambos coinciden, con una similitud del 40,4 %, por lo que no hay engaño. El modelo de pesos le asigna solo un 16,3 % de probabilidad de ser clickbait, y el tono analizado es neutro.",
+      "tool_calls": [],
+      "metrics": {
+       "prompt_tokens": 7011,
+       "output_tokens": 137,
+       "load_s": 0.002240726,
+       "total_s": 10.398576395
+      },
+      "cortada": false
+     },
+     "ollama": {
+      "done_reason": "stop",
+      "thinking": null,
+      "content": "El titular «OpenAI’s Systems Meddled With U.S. Government Sites After Going Rogue» es informativo y no es clickbait. El clasificador entrenado lo etiqueta como noticia informativa con un 89,6 % de confianza, y el detector de pistas no encuentra ninguna señal de exageración o frases gancho. Además, el comparador de titular y texto confirma que ambos coinciden, con una similitud del 40,4 %, por lo que no hay engaño. El modelo de pesos le asigna solo un 16,3 % de probabilidad de ser clickbait, y el tono analizado es neutro.",
+      "tool_calls": null
+     }
+    }
+   ]
+  },
+  {
+   "fichero": "ventana-mezcla-16384-x20-5705f42b.json",
+   "consulta": "bucle-encadena-guardian",
+   "variante": "preciso-con-herramientas-aviso",
+   "vez_original": 9,
+   "clase": "desbocada",
+   "vuelta": 3,
+   "vez": 3,
+   "intentos": [
+    {
+     "salio": "respondida",
+     "respuesta": {
+      "content": "El veredicto es ambiguo porque las señales sobre la forma del titular no coinciden. El clasificador entrenado lo etiqueta como clickbait con una confianza del 54 %, y el detector de pistas encuentra una pregunta al final. Sin embargo, el modelo de pesos le asigna una probabilidad muy baja, del 0,3 %, de ser clickbait, ya que la pregunta pesa en contra de esa etiqueta. Por otro lado, el comparador de titular y texto indica que no es engañoso, pues el resumen de la noticia coincide razonablemente con lo que pregunta el título. El análisis del tono lo clasifica como negativo.",
+      "tool_calls": [],
+      "metrics": {
+       "prompt_tokens": 7222,
+       "output_tokens": 137,
+       "load_s": 0.004013425,
+       "total_s": 10.690702799
+      },
+      "cortada": false
+     },
+     "ollama": {
+      "done_reason": "stop",
+      "thinking": null,
+      "content": "El veredicto es ambiguo porque las señales sobre la forma del titular no coinciden. El clasificador entrenado lo etiqueta como clickbait con una confianza del 54 %, y el detector de pistas encuentra una pregunta al final. Sin embargo, el modelo de pesos le asigna una probabilidad muy baja, del 0,3 %, de ser clickbait, ya que la pregunta pesa en contra de esa etiqueta. Por otro lado, el comparador de titular y texto indica que no es engañoso, pues el resumen de la noticia coincide razonablemente con lo que pregunta el título. El análisis del tono lo clasifica como negativo.",
+      "tool_calls": null
+     }
+    }
+   ]
+  },
+  {
+   "fichero": "ventana-mezcla-16384-x20-5705f42b.json",
+   "consulta": "bucle-encadena-guardian",
+   "variante": "preciso-con-herramientas-aviso",
+   "vez_original": 16,
+   "clase": "desbocada",
+   "vuelta": 3,
+   "vez": 3,
+   "intentos": [
+    {
+     "salio": "respondida",
+     "respuesta": {
+      "content": "El veredicto de las herramientas es ambiguo porque las señales sobre la forma del titular no coinciden. El clasificador entrenado lo etiqueta como clickbait con una confianza del 54 %, y el detector de pistas encuentra una pregunta al final, pero el modelo de pesos calcula una probabilidad muy baja del 0,3 % de ser clickbait, ya que la pregunta tiene un peso negativo. Por otro lado, no se detecta engaño, pues el titular coincide con el contenido de la noticia. El análisis del tono clasifica el titular como negativo con un 57 % de confianza.",
+      "tool_calls": [],
+      "metrics": {
+       "prompt_tokens": 7210,
+       "output_tokens": 364,
+       "load_s": 0.014508744,
+       "total_s": 18.218662188
+      },
+      "cortada": false
+     },
+     "ollama": {
+      "done_reason": "stop",
+      "thinking": "El análisis del titular \"Why is the UK’s suppressed climate national security report significant?\" arroja un veredicto ambiguo.\n\n- El clasificador entrenado (caja negra) lo etiqueta como clickbait con una confianza del 54%.\n- El detector de pistas encuentra una pregunta al final, lo que lo marca como clickbait por forma.\n- Sin embargo, el modelo de pesos calcula una probabilidad muy baja del 0,3% de ser clickbait, ya que la pregunta tiene un peso negativo fuerte (-4,221).\n- El comparador de titular y texto muestra una similitud del 47% (no incoherente), por lo que no se considera engañoso.\n- El análisis del tono lo clasifica como negativo con un 57% de confianza.\n\nEl veredicto es ambiguo porque las señales de forma discrepan: una dice que es clickbait por la pregunta, otra dice que no lo es por la misma razón. No hay engaño detectado.\n\nVoy a redactar la respuesta siguiendo las reglas.",
+      "content": "El veredicto de las herramientas es ambiguo porque las señales sobre la forma del titular no coinciden. El clasificador entrenado lo etiqueta como clickbait con una confianza del 54 %, y el detector de pistas encuentra una pregunta al final, pero el modelo de pesos calcula una probabilidad muy baja del 0,3 % de ser clickbait, ya que la pregunta tiene un peso negativo. Por otro lado, no se detecta engaño, pues el titular coincide con el contenido de la noticia. El análisis del tono clasifica el titular como negativo con un 57 % de confianza.",
+      "tool_calls": null
+     }
+    }
+   ]
+  },
+  {
+   "fichero": "ventana-mezcla-16384-x20-5705f42b.json",
+   "consulta": "bucle-encadena-guardian",
+   "variante": "preciso-con-herramientas-aviso",
+   "vez_original": 20,
+   "clase": "desbocada",
+   "vuelta": 3,
+   "vez": 3,
+   "intentos": [
+    {
+     "salio": "respondida",
+     "respuesta": {
+      "content": "El veredicto de las herramientas es ambiguo porque las señales no coinciden. El clasificador entrenado lo etiqueta como clickbait con una confianza del 54 %, y el detector de pistas encuentra una pregunta al final del titular. Sin embargo, el modelo de pesos calcula una probabilidad muy baja del 0,3 % de ser clickbait, ya que la pregunta es una señal que en su modelo reduce esa probabilidad. Por otro lado, el comparador de titular y texto indica que el titular no es engañoso, con una similitud del 47 % respecto al resumen. El análisis del tono clasifica el titular como negativo.",
+      "tool_calls": [],
+      "metrics": {
+       "prompt_tokens": 7222,
+       "output_tokens": 140,
+       "load_s": 0.002022673,
+       "total_s": 10.711705693
+      },
+      "cortada": false
+     },
+     "ollama": {
+      "done_reason": "stop",
+      "thinking": null,
+      "content": "El veredicto de las herramientas es ambiguo porque las señales no coinciden. El clasificador entrenado lo etiqueta como clickbait con una confianza del 54 %, y el detector de pistas encuentra una pregunta al final del titular. Sin embargo, el modelo de pesos calcula una probabilidad muy baja del 0,3 % de ser clickbait, ya que la pregunta es una señal que en su modelo reduce esa probabilidad. Por otro lado, el comparador de titular y texto indica que el titular no es engañoso, con una similitud del 47 % respecto al resumen. El análisis del tono clasifica el titular como negativo.",
+      "tool_calls": null
+     }
+    }
+   ]
+  },
+  {
+   "fichero": "ventana-bucle-encadena-nyt-16384-x20-preciso-con-aviso-preciso-con.json",
+   "consulta": "bucle-encadena-nyt",
+   "variante": "preciso-con",
+   "vez_original": 2,
+   "clase": "desbocada",
+   "vuelta": 3,
+   "vez": 4,
+   "intentos": [
+    {
+     "salio": "respondida",
+     "respuesta": {
+      "content": "El titular «OpenAI's Systems Meddled With U.S. Government Sites After Going Rogue» es informativo y no presenta rasgos de clickbait. El clasificador entrenado lo etiqueta como noticia informativa con una confianza del 89 %, mientras que el detector de pistas no encontró ninguna exageración ni frase gancho en él. El modelo de pesos calcula una probabilidad del 16 % de ser clickbait, sin identificar palabras que aumenten esa tendencia. Además, el comparador de titular y texto confirma que el titular coincide bien con el resumen de la noticia, descartando que sea engañoso.",
+      "tool_calls": [],
+      "metrics": {
+       "prompt_tokens": 7011,
+       "output_tokens": 130,
+       "load_s": 0.001778269,
+       "total_s": 10.132487887
+      },
+      "cortada": false
+     },
+     "ollama": {
+      "done_reason": "stop",
+      "thinking": null,
+      "content": "El titular «OpenAI's Systems Meddled With U.S. Government Sites After Going Rogue» es informativo y no presenta rasgos de clickbait. El clasificador entrenado lo etiqueta como noticia informativa con una confianza del 89 %, mientras que el detector de pistas no encontró ninguna exageración ni frase gancho en él. El modelo de pesos calcula una probabilidad del 16 % de ser clickbait, sin identificar palabras que aumenten esa tendencia. Además, el comparador de titular y texto confirma que el titular coincide bien con el resumen de la noticia, descartando que sea engañoso.",
+      "tool_calls": null
+     }
+    }
+   ]
+  },
+  {
+   "fichero": "ventana-bucle-encadena-nyt-16384-x20-preciso-con-aviso-preciso-con.json",
+   "consulta": "bucle-encadena-nyt",
+   "variante": "preciso-con",
+   "vez_original": 8,
+   "clase": "desbocada",
+   "vuelta": 3,
+   "vez": 4,
+   "intentos": [
+    {
+     "salio": "respondida",
+     "respuesta": {
+      "content": "El titular «OpenAI’s Systems Meddled With U.S. Government Sites After Going Rogue» se clasifica como una noticia informativa y no como clickbait. El clasificador entrenado lo etiqueta como tal con una confianza del 90 %, mientras que el detector de pistas no encontró ninguna palabra o estructura típica de engaño. El modelo de pesos le asigna solo un 16 % de probabilidad de ser clickbait, sin identificar palabras que empujen hacia ese veredicto. Además, el comparador de titular y texto confirma que el resumen coincide con el título, con una similitud del 40 %, lo que descarta que sea engañoso.",
+      "tool_calls": [],
+      "metrics": {
+       "prompt_tokens": 7011,
+       "output_tokens": 145,
+       "load_s": 0.002769194,
+       "total_s": 5.923174902
+      },
+      "cortada": false
+     },
+     "ollama": {
+      "done_reason": "stop",
+      "thinking": null,
+      "content": "El titular «OpenAI’s Systems Meddled With U.S. Government Sites After Going Rogue» se clasifica como una noticia informativa y no como clickbait. El clasificador entrenado lo etiqueta como tal con una confianza del 90 %, mientras que el detector de pistas no encontró ninguna palabra o estructura típica de engaño. El modelo de pesos le asigna solo un 16 % de probabilidad de ser clickbait, sin identificar palabras que empujen hacia ese veredicto. Además, el comparador de titular y texto confirma que el resumen coincide con el título, con una similitud del 40 %, lo que descarta que sea engañoso.",
+      "tool_calls": null
+     }
+    }
+   ]
+  },
+  {
+   "fichero": "ventana-bucle-encadena-nyt-16384-x20-preciso-con-aviso-preciso-con.json",
+   "consulta": "bucle-encadena-nyt",
+   "variante": "preciso-con",
+   "vez_original": 15,
+   "clase": "fallida",
+   "vuelta": 3,
+   "vez": 4,
+   "intentos": [
+    {
+     "salio": "respondida",
+     "respuesta": {
+      "content": "El titular \"OpenAI's Systems Meddled With U.S. Government Sites After Going Rogue\" se clasifica como noticia informativa y no es clickbait. El clasificador entrenado lo etiqueta como noticia informativa con una confianza del 89 %, y el detector de pistas no encontró ninguna palabra o estructura típica de clickbait en él. El modelo de pesos confirma esto con una probabilidad del 16 % de ser clickbait, sin identificar palabras que aumenten esa tendencia. Además, el comparador de titular y texto indica que el titular es coherente con el contenido de la noticia, descartando que sea engañoso. El tono del titular se analiza como neutro.",
+      "tool_calls": [],
+      "metrics": {
+       "prompt_tokens": 7011,
+       "output_tokens": 146,
+       "load_s": 0.005692981,
+       "total_s": 5.968248199
+      },
+      "cortada": false
+     },
+     "ollama": {
+      "done_reason": "stop",
+      "thinking": null,
+      "content": "El titular \"OpenAI's Systems Meddled With U.S. Government Sites After Going Rogue\" se clasifica como noticia informativa y no es clickbait. El clasificador entrenado lo etiqueta como noticia informativa con una confianza del 89 %, y el detector de pistas no encontró ninguna palabra o estructura típica de clickbait en él. El modelo de pesos confirma esto con una probabilidad del 16 % de ser clickbait, sin identificar palabras que aumenten esa tendencia. Además, el comparador de titular y texto indica que el titular es coherente con el contenido de la noticia, descartando que sea engañoso. El tono del titular se analiza como neutro.",
+      "tool_calls": null
+     }
+    }
+   ]
+  },
+  {
+   "fichero": "ventana-bucle-encadena-nyt-16384-x20-preciso-con-aviso-preciso-con.json",
+   "consulta": "bucle-encadena-nyt",
+   "variante": "preciso-con",
+   "vez_original": 17,
+   "clase": "desbocada",
+   "vuelta": 3,
+   "vez": 4,
+   "intentos": [
+    {
+     "salio": "respondida",
+     "respuesta": {
+      "content": "El titular de la noticia «OpenAI’s Systems Meddled With U.S. Government Sites After Going Rogue» es informativo y no se considera clickbait. El clasificador entrenado lo etiqueta como noticia informativa con un 89,6 % de confianza, y el detector de pistas no encuentra ninguna palabra o estructura típica de engaño. Además, el comparador de titular y texto confirma que el resumen coincide con el titular, con una similitud de 0,404. El análisis del tono lo clasifica como neutro con un 85,3 % de confianza.",
+      "tool_calls": [],
+      "metrics": {
+       "prompt_tokens": 7011,
+       "output_tokens": 126,
+       "load_s": 0.001959212,
+       "total_s": 5.257207886
+      },
+      "cortada": false
+     },
+     "ollama": {
+      "done_reason": "stop",
+      "thinking": null,
+      "content": "El titular de la noticia «OpenAI’s Systems Meddled With U.S. Government Sites After Going Rogue» es informativo y no se considera clickbait. El clasificador entrenado lo etiqueta como noticia informativa con un 89,6 % de confianza, y el detector de pistas no encuentra ninguna palabra o estructura típica de engaño. Además, el comparador de titular y texto confirma que el resumen coincide con el titular, con una similitud de 0,404. El análisis del tono lo clasifica como neutro con un 85,3 % de confianza.",
+      "tool_calls": null
+     }
+    }
+   ]
+  },
+  {
+   "fichero": "ventana-bucle-encadena-nyt-16384-x20-preciso-con-herramientas-aviso-preciso-con-aviso.json",
+   "consulta": "bucle-encadena-nyt",
+   "variante": "preciso-con-herramientas-aviso",
+   "vez_original": 4,
+   "clase": "desbocada",
+   "vuelta": 3,
+   "vez": 4,
+   "intentos": [
+    {
+     "salio": "respondida",
+     "respuesta": {
+      "content": "El titular «OpenAI’s Systems Meddled With U.S. Government Sites After Going Rogue» se clasifica como noticia informativa y no como clickbait. El clasificador entrenado lo etiqueta como noticia informativa con una confianza del 90 %, y el modelo de pesos le asigna una probabilidad del 16 % de ser clickbait. El detector de pistas no encontró ninguna exageración ni frase gancho en el texto. Además, al comparar el titular con el resumen, el comparador de titular y texto confirma que no hay engaño, ya que ambos coinciden en lo que cuentan. El análisis del tono lo define como neutral con un 85 % de confianza.",
+      "tool_calls": [],
+      "metrics": {
+       "prompt_tokens": 7363,
+       "output_tokens": 143,
+       "load_s": 0.00372598,
+       "total_s": 10.920756888
+      },
+      "cortada": false
+     },
+     "ollama": {
+      "done_reason": "stop",
+      "thinking": null,
+      "content": "El titular «OpenAI’s Systems Meddled With U.S. Government Sites After Going Rogue» se clasifica como noticia informativa y no como clickbait. El clasificador entrenado lo etiqueta como noticia informativa con una confianza del 90 %, y el modelo de pesos le asigna una probabilidad del 16 % de ser clickbait. El detector de pistas no encontró ninguna exageración ni frase gancho en el texto. Además, al comparar el titular con el resumen, el comparador de titular y texto confirma que no hay engaño, ya que ambos coinciden en lo que cuentan. El análisis del tono lo define como neutral con un 85 % de confianza.",
+      "tool_calls": null
+     }
+    }
+   ]
+  },
+  {
+   "fichero": "ventana-bucle-encadena-nyt-16384-x20-preciso-con-herramientas-aviso-preciso-con-aviso.json",
+   "consulta": "bucle-encadena-nyt",
+   "variante": "preciso-con-herramientas-aviso",
+   "vez_original": 15,
+   "clase": "desbocada",
+   "vuelta": 3,
+   "vez": 4,
+   "intentos": [
+    {
+     "salio": "respondida",
+     "respuesta": {
+      "content": "El titular «OpenAI’s Systems Meddled With U.S. Government Sites After Going Rogue» es informativo y no se considera clickbait. El clasificador entrenado lo etiqueta como noticia informativa con un 90 % de confianza, y el detector de pistas no encontró ninguna exageración ni frase gancho. El modelo de pesos calcula una baja probabilidad del 16 % de ser clickbait. Además, el comparador de titular y texto confirma que el titular coincide con el resumen de la noticia, con una similitud del 40 %. El tono del titular es neutro con un 85 % de confianza.",
+      "tool_calls": [],
+      "metrics": {
+       "prompt_tokens": 7363,
+       "output_tokens": 135,
+       "load_s": 0.004011154,
+       "total_s": 4.769133855
+      },
+      "cortada": false
+     },
+     "ollama": {
+      "done_reason": "stop",
+      "thinking": null,
+      "content": "El titular «OpenAI’s Systems Meddled With U.S. Government Sites After Going Rogue» es informativo y no se considera clickbait. El clasificador entrenado lo etiqueta como noticia informativa con un 90 % de confianza, y el detector de pistas no encontró ninguna exageración ni frase gancho. El modelo de pesos calcula una baja probabilidad del 16 % de ser clickbait. Además, el comparador de titular y texto confirma que el titular coincide con el resumen de la noticia, con una similitud del 40 %. El tono del titular es neutro con un 85 % de confianza.",
+      "tool_calls": null
+     }
+    }
+   ]
+  },
+  {
+   "fichero": "ventana-bucle-encadena-nyt-16384-x5-preciso-con-modelfile-con-preciso-sin.json",
+   "consulta": "bucle-encadena-nyt",
+   "variante": "preciso-con",
+   "vez_original": 4,
+   "clase": "desbocada",
+   "vuelta": 3,
+   "vez": 4,
+   "intentos": [
+    {
+     "salio": "respondida",
+     "respuesta": {
+      "content": "La herramienta de análisis concluye que el titular «OpenAI’s Systems Meddled With U.S. Government Sites After Going Rogue» es informativo y no presenta rasgos de clickbait. El clasificador entrenado lo etiqueta como noticia informativa con un 90 % de confianza, mientras que el modelo de pesos le asigna una probabilidad del 16 % de ser clickbait. El detector de pistas no encontró ninguna palabra o estructura típica de engaño en el texto. Además, el comparador de titular y texto confirma que el titular coincide con el contenido de la noticia, descartando que sea engañoso. El análisis del tono indica que el titular es neutro.",
+      "tool_calls": [],
+      "metrics": {
+       "prompt_tokens": 7011,
+       "output_tokens": 144,
+       "load_s": 0.006659617,
+       "total_s": 10.664930695
+      },
+      "cortada": false
+     },
+     "ollama": {
+      "done_reason": "stop",
+      "thinking": null,
+      "content": "La herramienta de análisis concluye que el titular «OpenAI’s Systems Meddled With U.S. Government Sites After Going Rogue» es informativo y no presenta rasgos de clickbait. El clasificador entrenado lo etiqueta como noticia informativa con un 90 % de confianza, mientras que el modelo de pesos le asigna una probabilidad del 16 % de ser clickbait. El detector de pistas no encontró ninguna palabra o estructura típica de engaño en el texto. Además, el comparador de titular y texto confirma que el titular coincide con el contenido de la noticia, descartando que sea engañoso. El análisis del tono indica que el titular es neutro.",
+      "tool_calls": null
+     }
+    }
+   ]
+  },
+  {
+   "fichero": "ventana-mezcla-16384-x20-5705f42b.json",
+   "consulta": "bucle-encadena-guardian",
+   "variante": "preciso-con-herramientas-aviso",
+   "vez_original": 9,
+   "clase": "desbocada",
+   "vuelta": 3,
+   "vez": 4,
+   "intentos": [
+    {
+     "salio": "respondida",
+     "respuesta": {
+      "content": "El veredicto de las herramientas es ambiguo porque las señales sobre la forma del titular no coinciden. El clasificador entrenado lo etiqueta como clickbait con una confianza del 54 %, y el detector de pistas encuentra una pregunta en el final. Sin embargo, el modelo de pesos lo considera informativo con una probabilidad de ser clickbait del 0,3 %, ya que la pregunta tiene un peso negativo. Por su parte, el comparador de titular y texto confirma que no hay engaño, pues ambos textos tienen una similitud del 47 %. El análisis del tono lo clasifica como negativo.",
+      "tool_calls": [],
+      "metrics": {
+       "prompt_tokens": 7222,
+       "output_tokens": 131,
+       "load_s": 0.002308867,
+       "total_s": 10.397039403
+      },
+      "cortada": false
+     },
+     "ollama": {
+      "done_reason": "stop",
+      "thinking": null,
+      "content": "El veredicto de las herramientas es ambiguo porque las señales sobre la forma del titular no coinciden. El clasificador entrenado lo etiqueta como clickbait con una confianza del 54 %, y el detector de pistas encuentra una pregunta en el final. Sin embargo, el modelo de pesos lo considera informativo con una probabilidad de ser clickbait del 0,3 %, ya que la pregunta tiene un peso negativo. Por su parte, el comparador de titular y texto confirma que no hay engaño, pues ambos textos tienen una similitud del 47 %. El análisis del tono lo clasifica como negativo.",
+      "tool_calls": null
+     }
+    }
+   ]
+  },
+  {
+   "fichero": "ventana-mezcla-16384-x20-5705f42b.json",
+   "consulta": "bucle-encadena-guardian",
+   "variante": "preciso-con-herramientas-aviso",
+   "vez_original": 16,
+   "clase": "desbocada",
+   "vuelta": 3,
+   "vez": 4,
+   "intentos": [
+    {
+     "salio": "respondida",
+     "respuesta": {
+      "content": "El análisis de la noticia de The Guardian sobre el informe de seguridad climática del Reino Unido arroja un veredicto ambiguo porque las herramientas no se ponen de acuerdo. El clasificador entrenado lo etiqueta como clickbait con una confianza del 54 % y el detector de pistas encuentra una pregunta al final, pero el modelo de pesos le asigna una probabilidad mínima del 0,3 % de serlo. Además, al comparar el titular con el resumen, la similitud es del 47 %, lo que indica que el texto cumple con lo que el título promete y no es engañoso. El tono del titular se clasifica como negativo con un 57 % de confianza.",
+      "tool_calls": [],
+      "metrics": {
+       "prompt_tokens": 7210,
+       "output_tokens": 149,
+       "load_s": 0.016298272,
+       "total_s": 11.057879478
+      },
+      "cortada": false
+     },
+     "ollama": {
+      "done_reason": "stop",
+      "thinking": null,
+      "content": "El análisis de la noticia de The Guardian sobre el informe de seguridad climática del Reino Unido arroja un veredicto ambiguo porque las herramientas no se ponen de acuerdo. El clasificador entrenado lo etiqueta como clickbait con una confianza del 54 % y el detector de pistas encuentra una pregunta al final, pero el modelo de pesos le asigna una probabilidad mínima del 0,3 % de serlo. Además, al comparar el titular con el resumen, la similitud es del 47 %, lo que indica que el texto cumple con lo que el título promete y no es engañoso. El tono del titular se clasifica como negativo con un 57 % de confianza.",
+      "tool_calls": null
+     }
+    }
+   ]
+  },
+  {
+   "fichero": "ventana-mezcla-16384-x20-5705f42b.json",
+   "consulta": "bucle-encadena-guardian",
+   "variante": "preciso-con-herramientas-aviso",
+   "vez_original": 20,
+   "clase": "desbocada",
+   "vuelta": 3,
+   "vez": 4,
+   "intentos": [
+    {
+     "salio": "respondida",
+     "respuesta": {
+      "content": "El veredicto sobre el titular «Why is the UK’s suppressed climate national security report significant?» es ambiguo, ya que las herramientas no coinciden en su evaluación. El clasificador entrenado lo etiqueta como clickbait con un 54 % de confianza y el detector de pistas encuentra que termina en pregunta, una señal típica de ese estilo. No obstante, el modelo de pesos le asigna una probabilidad casi nula del 0,3 % de serlo, pues la pregunta cuenta en su contra. Por otro lado, el comparador de titular y texto determina que no es engañoso, ya que la similitud entre ambos es de 0,47, suficiente para no considerarlo incoherente. El análisis del tono lo clasifica como negativo con un 57 % de seguridad.",
+      "tool_calls": [],
+      "metrics": {
+       "prompt_tokens": 7222,
+       "output_tokens": 1366,
+       "load_s": 0.00245139,
+       "total_s": 51.806032546
+      },
+      "cortada": false
+     },
+     "ollama": {
+      "done_reason": "stop",
+      "thinking": "El análisis del titular \"Why is the UK’s suppressed climate national security report significant?\" con su contenido ha devuelto un veredicto ambiguo. Voy a resumir los hallazgos clave de las herramientas:\n\n1.  **Veredicto global:** Ambiguo (las señales no se ponen de acuerdo).\n2.  **Clasificador entrenado (caja negra):** Lo etiqueta como clickbait con una confianza del 54,3 % (apenas por encima de la mitad).\n3.  **Detector de pistas (léxico):** Encuentra una pista: es una pregunta (termina en \"?\"). Por esta razón lo marca como clickbait por la forma.\n4.  **Modelo de pesos (regresión logística):** Le da una probabilidad muy baja de ser clickbait (0,3 %). La pregunta (\"question\") tiene un peso negativo (-4,221), lo que empuja en contra de ser clickbait.\n5.  **Comparador de titular y texto:** La similitud es de 0,469, por encima del umbral de 0,3, por lo que no se considera incoherente (no es engañoso).\n6.  **Análisis del tono:** Negativo con un 57,2 % de confianza.\n\nNecesito explicar esto de forma clara, destacando la discrepancia entre el clasificador/cues y el modelo de pesos, y aclarando que no es engañoso.\n\nEstructura de la respuesta:\n1.  Veredicto: Ambiguo.\n2.  Explicación de la discrepancia: Clasificador y pistas dicen sí (por ser pregunta), modelo de pesos dice no (la pregunta pesa en contra).\n3.  Engaño: No es engañoso (similitud aceptable).\n4.  Tono: Negativo.\n\nVoy a redactar la respuesta siguiendo las reglas: tercera persona, sin nombres de herramientas, cifras claras, sin inventar.\n\nRedacción:\nEl veredicto de las herramientas es ambiguo porque las señales no se ponen de acuerdo. Por un lado, el clasificador entrenado lo marca como clickbait con un 54 % de confianza y el detector de pistas encuentra que es una pregunta, lo que suele asociarse a ese estilo. Sin embargo, el modelo de pesos le asigna una probabilidad casi nula del 0,3 %, ya que la pregunta cuenta en su contra. Además, el comparador de titular y texto indica que no es engañoso, pues el resumen coincide lo suficiente con lo que promete el título. El análisis del tono lo califica como negativo con un 57 % de seguridad.\n\nRevisión:\n- \"clasificador entrenado\" -> ok.\n- \"detector de pistas\" -> ok.\n- \"modelo de pesos\" -> ok.\n- \"comparador de titular y texto\" -> ok.\n- \"análisis del tono\" -> ok.\n- Cifras: 54 %, 0,3 %, 57 %.\n- Veredicto: ambiguo.\n- No hay inventos.\n- Tercera persona.\n- Sin formato especial.\n\nParece correcto. Procedo a generar la respuesta.\n\nNota: El usuario pidió buscar una noticia y analizar su titular. He seleccionado la primera de la lista. Debo mencionar el titular analizado.\n\nTitular: \"Why is the UK’s suppressed climate national security report significant?\"\n\nRespuesta final:\nEl veredicto sobre el titular «Why is the UK’s suppressed climate national security report significant?» es ambiguo, ya que las herramientas no coinciden en su evaluación. El clasificador entrenado lo etiqueta como clickbait con un 54 % de confianza y el detector de pistas encuentra que termina en pregunta, una señal típica de ese estilo. No obstante, el modelo de pesos le asigna una probabilidad casi nula del 0,3 % de serlo, pues la pregunta tiene un efecto contrario en su cálculo. Por otro lado, el comparador de titular y texto determina que no es engañoso, ya que el contenido coincide lo suficiente con lo prometido. El análisis del tono lo clasifica como negativo con un 57 % de seguridad.\n\nMejora: \"pues la pregunta tiene un efecto contrario\" -> \"pues la pregunta cuenta en su contra\".\nMejora: \"coincide lo suficiente\" -> \"la similitud es de 0,47, suficiente para no considerarlo incoherente\".\nMejora: \"pues la pregunta cuenta en su contra\" -> \"pues la pregunta cuenta en su contra\".\n\nRevisión final de la redacción:\nEl veredicto sobre el titular «Why is the UK’s suppressed climate national security report significant?» es ambiguo, ya que las herramientas no coinciden en su evaluación. El clasificador entrenado lo etiqueta como clickbait con un 54 % de confianza y el detector de pistas encuentra que termina en pregunta, una señal típica de ese estilo. No obstante, el modelo de pesos le asigna una probabilidad casi nula del 0,3 % de serlo, pues la pregunta cuenta en su contra. Por otro lado, el comparador de titular y texto determina que no es engañoso, ya que la similitud entre ambos es de 0,47, suficiente para no considerarlo incoherente. El análisis del tono lo clasifica como negativo con un 57 % de seguridad.\n\nCorrecto.",
+      "content": "El veredicto sobre el titular «Why is the UK’s suppressed climate national security report significant?» es ambiguo, ya que las herramientas no coinciden en su evaluación. El clasificador entrenado lo etiqueta como clickbait con un 54 % de confianza y el detector de pistas encuentra que termina en pregunta, una señal típica de ese estilo. No obstante, el modelo de pesos le asigna una probabilidad casi nula del 0,3 % de serlo, pues la pregunta cuenta en su contra. Por otro lado, el comparador de titular y texto determina que no es engañoso, ya que la similitud entre ambos es de 0,47, suficiente para no considerarlo incoherente. El análisis del tono lo clasifica como negativo con un 57 % de seguridad.",
+      "tool_calls": null
+     }
+    }
+   ]
+  },
+  {
+   "fichero": "ventana-bucle-encadena-nyt-16384-x20-preciso-con-aviso-preciso-con.json",
+   "consulta": "bucle-encadena-nyt",
+   "variante": "preciso-con",
+   "vez_original": 2,
+   "clase": "desbocada",
+   "vuelta": 3,
+   "vez": 5,
+   "intentos": [
+    {
+     "salio": "respondida",
+     "respuesta": {
+      "content": "El titular \"OpenAI's Systems Meddled With U.S. Government Sites After Going Rogue\" de una noticia del New York Times se considera informativo y no es clickbait. El clasificador entrenado lo etiqueta como noticia informativa con una confianza del 89 %, mientras que el detector de pistas no encontró exageraciones ni frases gancho. El modelo de pesos le asigna una probabilidad del 16 % de ser clickbait, sin identificar palabras que aumenten esa tendencia. Además, el comparador de titular y texto confirma que el contenido coincide con lo prometido, descartando que sea engañoso.",
+      "tool_calls": [],
+      "metrics": {
+       "prompt_tokens": 7011,
+       "output_tokens": 130,
+       "load_s": 0.001954251,
+       "total_s": 10.831246042
+      },
+      "cortada": false
+     },
+     "ollama": {
+      "done_reason": "stop",
+      "thinking": null,
+      "content": "El titular \"OpenAI's Systems Meddled With U.S. Government Sites After Going Rogue\" de una noticia del New York Times se considera informativo y no es clickbait. El clasificador entrenado lo etiqueta como noticia informativa con una confianza del 89 %, mientras que el detector de pistas no encontró exageraciones ni frases gancho. El modelo de pesos le asigna una probabilidad del 16 % de ser clickbait, sin identificar palabras que aumenten esa tendencia. Además, el comparador de titular y texto confirma que el contenido coincide con lo prometido, descartando que sea engañoso.",
+      "tool_calls": null
+     }
+    }
+   ]
+  },
+  {
+   "fichero": "ventana-bucle-encadena-nyt-16384-x20-preciso-con-aviso-preciso-con.json",
+   "consulta": "bucle-encadena-nyt",
+   "variante": "preciso-con",
+   "vez_original": 8,
+   "clase": "desbocada",
+   "vuelta": 3,
+   "vez": 5,
+   "intentos": [
+    {
+     "salio": "respondida",
+     "respuesta": {
+      "content": "El análisis de la noticia del New York Times indica que el titular «OpenAI’s Systems Meddled With U.S. Government Sites After Going Rogue» es informativo y no presenta rasgos de clickbait. El clasificador entrenado lo etiqueta como noticia informativa con una confianza del 89 %, mientras que el detector de pistas no encontró ninguna exageración ni frases gancho en él. El modelo de pesos calcula una probabilidad del 16 % de ser clickbait, y el comparador de titular y texto confirma que ambos son coherentes con una similitud de 0,40. Por tanto, las herramientas coinciden en que el titular no engaña ni sigue patrones típicos del clickbait.",
+      "tool_calls": [],
+      "metrics": {
+       "prompt_tokens": 7011,
+       "output_tokens": 427,
+       "load_s": 0.001741488,
+       "total_s": 15.242214554
+      },
+      "cortada": false
+     },
+     "ollama": {
+      "done_reason": "stop",
+      "thinking": "El usuario me pidió buscar una noticia del New York Times sobre inteligencia artificial y evaluar si su titular es clickbait. He obtenido la lista de noticias y he analizado el primero de los titulares: \"OpenAI’s Systems Meddled With U.S. Government Sites After Going Rogue\" con su contenido.\n\nAhora debo presentar el resultado de manera clara, siguiendo las reglas:\n1. Empezar por el veredicto\n2. Contar lo que dicen las herramientas (sin inventar, sin mezclar)\n3. Usar los términos correctos en español\n4. Máximo 4 frases\n5. Sin formato especial\n\nEl veredicto es \"factual\" (informativo). Las herramientas coinciden en que no es clickbait:\n- El clasificador entrenado lo etiqueta como noticia informativa con 89.6% de confianza\n- El detector de pistas no encontró ninguna señal de clickbait\n- El modelo de pesos da una probabilidad del 16.3% de ser clickbait\n- El comparador de titular y texto encontró una similitud de 0.404, lo que indica coherencia (no engaño)\n- El análisis del tono lo clasifica como neutral\n\nVoy a redactar la respuesta siguiendo las reglas.",
+      "content": "El análisis de la noticia del New York Times indica que el titular «OpenAI’s Systems Meddled With U.S. Government Sites After Going Rogue» es informativo y no presenta rasgos de clickbait. El clasificador entrenado lo etiqueta como noticia informativa con una confianza del 89 %, mientras que el detector de pistas no encontró ninguna exageración ni frases gancho en él. El modelo de pesos calcula una probabilidad del 16 % de ser clickbait, y el comparador de titular y texto confirma que ambos son coherentes con una similitud de 0,40. Por tanto, las herramientas coinciden en que el titular no engaña ni sigue patrones típicos del clickbait.",
+      "tool_calls": null
+     }
+    }
+   ]
+  },
+  {
+   "fichero": "ventana-bucle-encadena-nyt-16384-x20-preciso-con-aviso-preciso-con.json",
+   "consulta": "bucle-encadena-nyt",
+   "variante": "preciso-con",
+   "vez_original": 15,
+   "clase": "fallida",
+   "vuelta": 3,
+   "vez": 5,
+   "intentos": [
+    {
+     "salio": "respondida",
+     "respuesta": {
+      "content": "El titular «OpenAI's Systems Meddled With U.S. Government Sites After Going Rogue» fue analizado y todas las herramientas coinciden en que es informativo. El clasificador entrenado lo etiqueta como noticia informativa con un 89 % de confianza, mientras que el modelo de pesos le asigna solo un 16 % de probabilidad de ser clickbait. El detector de pistas no encontró palabras o estructuras típicas de engaño, y el comparador de titular y texto confirmó que el resumen coincide con el titular (similitud de 0,40). El tono del titular se clasificó como neutro. Por tanto, no se detecta que sea clickbait ni engañoso.",
+      "tool_calls": [],
+      "metrics": {
+       "prompt_tokens": 7011,
+       "output_tokens": 433,
+       "load_s": 0.006057047,
+       "total_s": 15.513918999
+      },
+      "cortada": false
+     },
+     "ollama": {
+      "done_reason": "stop",
+      "thinking": "Okay, I've got the news article from the New York Times about OpenAI's systems going rogue. Now I need to check if the headline is clickbait using the analyze_headline tool, which I already did. The results show that the headline is classified as factual. Let me break down the signals:\n\nFirst, the detector de pistas (detect_clickbait_lexical) found no lexical cues, so it's not clickbait by form. The modelo de pesos (detect_clickbait_linear) gave a low probability of 16.3%, also not clickbait. The clasificador entrenado (detect_clickbait) labeled it as factual news with 88.8% confidence. The comparador de titular y texto (detect_clickbait_incoherence) showed a similarity of 0.404, which is above the threshold, so no incoherence. The análisis del tono (analyze_sentiment) was neutral. All signals agree it's not clickbait. I need to present this clearly, mentioning each tool's result without technical terms, and explain that since there's no deception and the form isn't clickbait, the verdict is factual. Also, note that the content was available to check for incoherence. Make sure to follow the user's rules: no internal names, use the specified terms, and keep it concise.",
+      "content": "El titular «OpenAI's Systems Meddled With U.S. Government Sites After Going Rogue» fue analizado y todas las herramientas coinciden en que es informativo. El clasificador entrenado lo etiqueta como noticia informativa con un 89 % de confianza, mientras que el modelo de pesos le asigna solo un 16 % de probabilidad de ser clickbait. El detector de pistas no encontró palabras o estructuras típicas de engaño, y el comparador de titular y texto confirmó que el resumen coincide con el titular (similitud de 0,40). El tono del titular se clasificó como neutro. Por tanto, no se detecta que sea clickbait ni engañoso.",
+      "tool_calls": null
+     }
+    }
+   ]
+  },
+  {
+   "fichero": "ventana-bucle-encadena-nyt-16384-x20-preciso-con-aviso-preciso-con.json",
+   "consulta": "bucle-encadena-nyt",
+   "variante": "preciso-con",
+   "vez_original": 17,
+   "clase": "desbocada",
+   "vuelta": 3,
+   "vez": 5,
+   "intentos": [
+    {
+     "salio": "respondida",
+     "respuesta": {
+      "content": "El titular «OpenAI’s Systems Meddled With U.S. Government Sites After Going Rogue» es informativo y no se considera clickbait. El clasificador entrenado lo etiqueta como noticia informativa con una confianza del 89 %. El detector de pistas no encontró exageraciones ni frases gancho, y el modelo de pesos calcula una probabilidad del 16 % de ser clickbait. Además, el comparador de titular y texto confirma que no hay engaño, ya que el resumen coincide con lo prometido en el título. El análisis del tono lo clasifica como neutro con un 85 % de confianza.",
+      "tool_calls": [],
+      "metrics": {
+       "prompt_tokens": 7011,
+       "output_tokens": 133,
+       "load_s": 0.007384748,
+       "total_s": 5.551266229
+      },
+      "cortada": false
+     },
+     "ollama": {
+      "done_reason": "stop",
+      "thinking": null,
+      "content": "El titular «OpenAI’s Systems Meddled With U.S. Government Sites After Going Rogue» es informativo y no se considera clickbait. El clasificador entrenado lo etiqueta como noticia informativa con una confianza del 89 %. El detector de pistas no encontró exageraciones ni frases gancho, y el modelo de pesos calcula una probabilidad del 16 % de ser clickbait. Además, el comparador de titular y texto confirma que no hay engaño, ya que el resumen coincide con lo prometido en el título. El análisis del tono lo clasifica como neutro con un 85 % de confianza.",
+      "tool_calls": null
+     }
+    }
+   ]
+  },
+  {
+   "fichero": "ventana-bucle-encadena-nyt-16384-x20-preciso-con-herramientas-aviso-preciso-con-aviso.json",
+   "consulta": "bucle-encadena-nyt",
+   "variante": "preciso-con-herramientas-aviso",
+   "vez_original": 4,
+   "clase": "desbocada",
+   "vuelta": 3,
+   "vez": 5,
+   "intentos": [
+    {
+     "salio": "respondida",
+     "respuesta": {
+      "content": "El titular «OpenAI’s Systems Meddled With U.S. Government Sites After Going Rogue» es informativo y no es clickbait. El clasificador entrenado lo etiqueta como noticia informativa con una confianza del 90 %, y el detector de pistas no encuentra ninguna exageración ni frase gancho. El modelo de pesos le asigna una probabilidad del 16 % de ser clickbait, muy baja. Además, el comparador de titular y texto confirma que no hay engaño, ya que el resumen coincide con lo que promete el título. El tono del titular es neutro.",
+      "tool_calls": [],
+      "metrics": {
+       "prompt_tokens": 7363,
+       "output_tokens": 125,
+       "load_s": 0.002341138,
+       "total_s": 10.35133048
+      },
+      "cortada": false
+     },
+     "ollama": {
+      "done_reason": "stop",
+      "thinking": null,
+      "content": "El titular «OpenAI’s Systems Meddled With U.S. Government Sites After Going Rogue» es informativo y no es clickbait. El clasificador entrenado lo etiqueta como noticia informativa con una confianza del 90 %, y el detector de pistas no encuentra ninguna exageración ni frase gancho. El modelo de pesos le asigna una probabilidad del 16 % de ser clickbait, muy baja. Además, el comparador de titular y texto confirma que no hay engaño, ya que el resumen coincide con lo que promete el título. El tono del titular es neutro.",
+      "tool_calls": null
+     }
+    }
+   ]
+  },
+  {
+   "fichero": "ventana-bucle-encadena-nyt-16384-x20-preciso-con-herramientas-aviso-preciso-con-aviso.json",
+   "consulta": "bucle-encadena-nyt",
+   "variante": "preciso-con-herramientas-aviso",
+   "vez_original": 15,
+   "clase": "desbocada",
+   "vuelta": 3,
+   "vez": 5,
+   "intentos": [
+    {
+     "salio": "respondida",
+     "respuesta": {
+      "content": "El titular de la noticia del New York Times sobre inteligencia artificial es «OpenAI’s Systems Meddled With U.S. Government Sites After Going Rogue» y cuenta cómo la tecnología de la empresa intervino en sitios web del gobierno. El análisis concluye que se trata de una noticia informativa, ya que el clasificador entrenado lo etiqueta como tal con una confianza del 89,6 %. El detector de pistas no encuentra ninguna exageración o frase gancho, y el modelo de pesos le asigna una baja probabilidad del 16,3 % de ser clickbait. Además, el comparador de titular y texto confirma que no hay engaño, con una similitud del 40,4 % entre el título y el resumen. El tono del titular se clasifica como neutro con un 85,3 % de confianza.",
+      "tool_calls": [],
+      "metrics": {
+       "prompt_tokens": 7363,
+       "output_tokens": 178,
+       "load_s": 0.00378013,
+       "total_s": 6.167726032
+      },
+      "cortada": false
+     },
+     "ollama": {
+      "done_reason": "stop",
+      "thinking": null,
+      "content": "El titular de la noticia del New York Times sobre inteligencia artificial es «OpenAI’s Systems Meddled With U.S. Government Sites After Going Rogue» y cuenta cómo la tecnología de la empresa intervino en sitios web del gobierno. El análisis concluye que se trata de una noticia informativa, ya que el clasificador entrenado lo etiqueta como tal con una confianza del 89,6 %. El detector de pistas no encuentra ninguna exageración o frase gancho, y el modelo de pesos le asigna una baja probabilidad del 16,3 % de ser clickbait. Además, el comparador de titular y texto confirma que no hay engaño, con una similitud del 40,4 % entre el título y el resumen. El tono del titular se clasifica como neutro con un 85,3 % de confianza.",
+      "tool_calls": null
+     }
+    }
+   ]
+  },
+  {
+   "fichero": "ventana-bucle-encadena-nyt-16384-x5-preciso-con-modelfile-con-preciso-sin.json",
+   "consulta": "bucle-encadena-nyt",
+   "variante": "preciso-con",
+   "vez_original": 4,
+   "clase": "desbocada",
+   "vuelta": 3,
+   "vez": 5,
+   "intentos": [
+    {
+     "salio": "vacia",
+     "respuesta": {
+      "content": "",
+      "tool_calls": [],
+      "metrics": {
+       "prompt_tokens": 7011,
+       "output_tokens": 1280,
+       "load_s": 0.002100564,
+       "total_s": 48.492007667
+      },
+      "cortada": false
+     },
+     "ollama": {
+      "done_reason": "stop",
+      "thinking": "El usuario quiere saber si el titular es clickbait. He obtenido una noticia del NYT sobre IA y he analizado su titular. El titular es \"OpenAI’s Systems Meddled With U.S. Government Sites After Going Rogue\".\n\nEl análisis da un veredicto de \"factual\" (informativo).\n\nAhora debo contar los resultados de las herramientas siguiendo las reglas:\n- Usar tercera persona.\n- No usar nombres internos de herramientas.\n- Traducir etiquetas y veredictos.\n- Mencionar cifras con su significado.\n- Explicar discrepancias si las hay (aquí no las hay, todo coincide en que no es clickbait).\n- Texto corrido, máximo 4 frases.\n\nResumen de resultados:\n- Veredicto global: factual (informativo).\n- Clasificador entrenado (detect_clickbait): factual news con 89.6% de confianza.\n- Detector de pistas (detect_clickbait_lexical): 0 pistas, no es clickbait.\n- Modelo de pesos (detect_clickbait_linear): 16.3% probabilidad de ser clickbait (no lo es).\n- Comparador (detect_clickbait_incoherence): similitud 0.404, no incoherente (no es engañoso).\n- Tono (analyze_sentiment): neutral con 85.3% de confianza.\n\nRedacción:\nEl veredicto de las herramientas es que el titular es informativo y no presenta rasgos de clickbait. El clasificador entrenado lo etiqueta como noticia informativa con una confianza del 89 %, mientras que el detector de pistas no halló ninguna palabra o estructura típica de engaño. El modelo de pesos le asigna una probabilidad del 16 % de ser clickbait, y el comparador de titular y texto confirma que no hay engaño al mostrar una similitud adecuada entre ambos. El análisis del tono lo clasifica como neutral.\n\nRevisión:\n- \"factual\" -> \"informativo\" o \"noticia informativa\".\n- \"factual news\" -> \"noticia informativa\".\n- \"not_applicable\" no aplica aquí.\n- Cifras: 89 %, 16 %, similitud 0.404 (no es porcentaje, es una medida de 0 a 1).\n- No usar negritas.\n- Máximo 4 frases.\n\nLa frase sobre la similitud: \"el comparador de titular y texto confirma que no hay engaño al mostrar una similitud adecuada entre ambos\". La similitud es 0.404, que está por encima del umbral de 0.3, así que no es incoherente. Puedo decir que tiene una similitud de 0.40, lo que indica coherencia.\n\nMejorar la redacción para que sea más fluida y cumpla con las reglas.\n\n\"Todas las herramientas coinciden en que el titular es informativo y no es clickbait. El clasificador entrenado lo etiqueta como noticia informativa con una confianza del 89 %, y el detector de pistas no encontró ninguna señal típica de engaño. El modelo de pesos le asigna una probabilidad del 16 % de ser clickbait, y el comparador de titular y texto confirma que no hay engaño al mostrar una similitud de 0.40 entre ambos. El análisis del tono lo clasifica como neutral.\"\n\nEspera, la similitud de 0.40 es baja pero está por encima del umbral de 0.3, así que no es incoherente. Debo ser preciso: \"una similitud de 0.40, lo que indica que el titular y el texto son coherentes\".\n\nRevisar las reglas: \"Una similitud, un recuento o un peso, nunca: dos pistas son «dos pistas», y nada «sobre 5».\" -> \"una similitud de 0.40\".\n\nTambién: \"Acompaña cada cifra de lo que significa\".\n\nVersión final:\nTodas las herramientas coinciden en que el titular es informativo y no es clickbait. El clasificador entrenado lo etiqueta como noticia informativa con una confianza del 89 %, y el detector de pistas no encontró ninguna señal típica de engaño. El modelo de pesos le asigna una probabilidad del 16 % de ser clickbait, y el comparador de titular y texto confirma que no hay engaño al mostrar una similitud de 0.40 entre ambos, lo que indica coherencia. El análisis del tono lo clasifica como neutral.\n\n¿Cuántas frases son? 4 frases. Perfecto.\n\nComprobar si \"noticia informativa\" es la traducción correcta de \"factual news\". Sí, según las reglas: \"«factual news» es «noticia informativa»\".\n\nComprobar si \"comparador de titular y texto\" es el nombre correcto. Sí, según las reglas: \"el comparador de titular y texto: mide cuánto se parecen, de 0 a 1\".\n\nComprobar si \"detector de pistas\" es el nombre correcto. Sí.\n\nComprobar si \"modelo de pesos\" es el nombre correcto. Sí.\n\nComprobar si \"clasificador entrenado\" es el nombre correcto. Sí.\n\nComprobar si \"análisis del tono\" es el nombre correcto. Sí.\n\nTodo parece correcto.\n\nUna última revisión: \"El comparador de titular y texto confirma que no hay engaño al mostrar una similitud de 0.40 entre ambos, lo que indica coherencia.\" -> La similitud de 0.40 es la medida, y el hecho de que no sea incoherente (por encima de 0.3) indica que no hay engaño. La frase es correcta.\n\nListo.",
+      "content": "",
+      "tool_calls": null
+     }
+    },
+    {
+     "salio": "respondida",
+     "respuesta": {
+      "content": "El titular «OpenAI’s Systems Meddled With U.S. Government Sites After Going Rogue» es informativo y no presenta rasgos de clickbait según todas las herramientas. El clasificador entrenado lo etiqueta como noticia informativa con una confianza del 89,6 %, y el detector de pistas no encontró exageraciones ni frases gancho en él. El modelo de pesos calcula solo un 16,3 % de probabilidad de ser clickbait, mientras que el comparador de titular y texto muestra que el resumen coincide con lo que promete el título. El análisis del tono clasifica el titular como neutro con un 85,3 % de confianza.",
+      "tool_calls": [],
+      "metrics": {
+       "prompt_tokens": 7046,
+       "output_tokens": 413,
+       "load_s": 0.001813929,
+       "total_s": 14.146139855
+      },
+      "cortada": false
+     },
+     "ollama": {
+      "done_reason": "stop",
+      "thinking": "El usuario quiere saber si un titular de una noticia del NYT sobre IA es clickbait. Ya he obtenido una noticia y he analizado su titular.\n\nNoticia seleccionada:\n- Titular: \"OpenAI’s Systems Meddled With U.S. Government Sites After Going Rogue\"\n- Resumen: \"The company did not learn until recently that its technology had meddled with websites for the Education and Commerce Departments and the Securities and Exchange Commission.\"\n\nAnálisis del titular:\n- Veredicto global: factual (informativo)\n- Clasificador entrenado: factual news con 89,6% de confianza\n- Detector de pistas: no encontró ninguna pista (score 0)\n- Modelo de pesos: 16,3% de probabilidad de ser clickbait\n- Comparador de titular y texto: similitud 0,404 (no incoherente)\n- Análisis del tono: neutral con 85,3% de confianza\n\nNecesito redactar la respuesta siguiendo las reglas:\n- Texto corrido, máximo 4 frases\n- Sin negritas ni asteriscos\n- En tercera persona\n- Citar cifras con su significado\n- No usar nombres de herramientas internos\n\nVoy a redactar la respuesta.",
+      "content": "El titular «OpenAI’s Systems Meddled With U.S. Government Sites After Going Rogue» es informativo y no presenta rasgos de clickbait según todas las herramientas. El clasificador entrenado lo etiqueta como noticia informativa con una confianza del 89,6 %, y el detector de pistas no encontró exageraciones ni frases gancho en él. El modelo de pesos calcula solo un 16,3 % de probabilidad de ser clickbait, mientras que el comparador de titular y texto muestra que el resumen coincide con lo que promete el título. El análisis del tono clasifica el titular como neutro con un 85,3 % de confianza.",
+      "tool_calls": null
+     }
+    }
+   ]
+  },
+  {
+   "fichero": "ventana-mezcla-16384-x20-5705f42b.json",
+   "consulta": "bucle-encadena-guardian",
+   "variante": "preciso-con-herramientas-aviso",
+   "vez_original": 9,
+   "clase": "desbocada",
+   "vuelta": 3,
+   "vez": 5,
+   "intentos": [
+    {
+     "salio": "vacia",
+     "respuesta": {
+      "content": "",
+      "tool_calls": [],
+      "metrics": {
+       "prompt_tokens": 7222,
+       "output_tokens": 1381,
+       "load_s": 0.002037152,
+       "total_s": 52.028801544
+      },
+      "cortada": false
+     },
+     "ollama": {
+      "done_reason": "stop",
+      "thinking": "El usuario quiere saber si el titular de una noticia sobre el clima de The Guardian es clickbait.\n\n1.  **Obtener noticia**: Ya obtuve una lista de noticias de The Guardian sobre \"climate\". Elegí la primera: \"Why is the UK’s suppressed climate national security report significant?\".\n2.  **Analizar titular**: Ya llamé a `analyze_headline` con ese titular y su contenido (resumen).\n3.  **Interpretar resultados**:\n    *   **Veredicto global**: `ambiguous` (ambiguo).\n    *   **Dimensiones**:\n        *   `form` (forma): Las señales discrepan. `detect_clickbait` (caja negra) dice `clickbait` (0.543). `detect_clickbait_lexical` dice `clickbait` (tiene una pregunta). `detect_clickbait_linear` dice `not clickbait` (probabilidad 0.003, la pregunta pesa en contra).\n        *   `deception` (engaño): `detect_clickbait_incoherence` dice `false` (similitud 0.469, no incoherente).\n        *   `tone` (tono): `negative` (0.572).\n    *   **Conclusión**: Es ambiguo porque las señales de forma no se ponen de acuerdo (algunas dicen que sí por la pregunta, otras que no por el peso de la pregunta) y no hay engaño detectado en el contenido.\n\n4.  **Redactar respuesta**:\n    *   Mencionar el titular entre comillas.\n    *   Decir que el veredicto es ambiguo.\n    *   Explicar por qué: discrepancia en las señales de forma (algunas detectan la pregunta como pista, otras no la consideran suficiente) y falta de engaño.\n    *   Citar cifras si es relevante (similitud 0.469, probabilidad 0.003, confianza 0.543).\n    *   Usar los términos correctos (detector de pistas, modelo de pesos, comparador, clasificador).\n    *   No usar nombres de herramientas internas.\n    *   Texto corrido, max 4 frases.\n\n**Borrador mental**:\nEl titular \"Why is the UK’s suppressed climate national security report significant?\" recibe un veredicto ambiguo porque las herramientas no se ponen de acuerdo sobre si es clickbait. El clasificador entrenado lo etiqueta como clickbait con un 54% de confianza, mientras que el modelo de pesos le asigna una probabilidad casi nula del 0.3%, considerando que la pregunta en el título pesa en su contra. Por otro lado, el comparador de titular y texto confirma que no hay engaño, ya que la similitud entre ambos es del 47%. Así, aunque el detector de pistas encuentra la pregunta como una señal, el conjunto de resultados indica que no es engañoso.\n\n**Refinamiento**:\n- \"casi nula del 0.3%\" -> \"0.3%\" (0.003 es 0.3%).\n- \"similitud... 47%\" -> \"0.47\" (la similitud no es porcentaje).\n- Asegurar que no mezcle datos.\n\n**Revisión de reglas**:\n- \"Una similitud... nunca [en porcentaje]\". -> \"similitud de 0.47\".\n- \"Una probabilidad... puedes darlas en porcentaje\". -> \"probabilidad del 0.3%\".\n- \"Confianza... puedes darlas en porcentaje\". -> \"confianza del 54%\".\n- \"El veredicto de las herramientas indica que el titular es ambiguo...\"\n- \"El clasificador entrenado lo etiqueta como clickbait con un 54% de confianza.\"\n- \"El modelo de pesos le asigna una probabilidad del 0.3% de ser clickbait.\"\n- \"El comparador de titular y texto muestra una similitud de 0.47, descartando engaño.\"\n- \"El detector de pistas encuentra una pregunta, pero las señales no coinciden.\"\n\n**Frase final**:\nEl titular \"Why is the UK’s suppressed climate national security report significant?\" recibe un veredicto ambiguo porque las herramientas discrepan sobre su forma. El clasificador entrenado lo etiqueta como clickbait con un 54% de confianza, mientras que el modelo de pesos le asigna una probabilidad del 0.3% de serlo, considerando que la pregunta presente en el texto pesa en su contra. El comparador de titular y texto confirma que no hay engaño, ya que la similitud entre ambos es de 0.47. Por tanto, aunque el detector de pistas identifica la pregunta como una señal, el conjunto de resultados no permite un juicio definitivo.\n\nMejor simplificar para no exceder 4 frases y ser más directo.\n\n**Versión final**:\nEl titular \"Why is the UK’s suppressed climate national security report significant?\" recibe un veredicto ambiguo porque las herramientas discrepan sobre su forma. El clasificador entrenado lo etiqueta como clickbait con un 54% de confianza, mientras que el modelo de pesos le asigna una probabilidad del 0.3% de serlo. El comparador de titular y texto confirma que no hay engaño, ya que la similitud entre ambos es de 0.47. Así, aunque el detector de pistas encuentra una pregunta, las señales no se ponen de acuerdo.\n\nVerifico las cifras:\n- `score`: 0.543 -> 54%\n- `probability`: 0.003 -> 0.3%\n- `similarity`: 0.469 -> 0.47\n\nTodo correcto.\n\nEspera, el usuario pidió \"dime si su titular es clickbait\". La respuesta debe ser clara sobre el veredicto. \"Ambiguo\" es el veredicto.\n\nOtro detalle: \"El detector de pistas encuentra una pregunta\". En el resultado `detect_clickbait_lexical` dice `matches: [{\"category\": \"question\", \"cue\": \"?\", \"span\": [71, 72]}]`. Correcto.\n\nListo.",
+      "content": "",
+      "tool_calls": null
+     }
+    },
+    {
+     "salio": "cortada",
+     "respuesta": {
+      "content": "",
+      "tool_calls": [],
+      "metrics": {
+       "prompt_tokens": 7257,
+       "output_tokens": 1500,
+       "load_s": 0.005103761,
+       "total_s": 50.391598727
+      },
+      "cortada": true
+     },
+     "ollama": {
+      "done_reason": "length",
+      "thinking": "El usuario quiere que le explique si el titular de la noticia que acabo de buscar es clickbait.\n\nTengo los resultados de `analyze_headline` para el titular: \"Why is the UK’s suppressed climate national security report significant?\" con el contenido: \"Warnings about the catastrophic effects of vital ecosystems collapsing were not published under previous prime minister\".\n\nResultados:\n- Veredicto global: `ambiguous` (ambiguo).\n- `detect_clickbait` (clasificador entrenado): etiqueta \"clickbait\" con 0.543 (54.3% de confianza).\n- `detect_clickbait_lexical` (detector de pistas): encuentra 1 pista (pregunta \"?\") y lo marca como clickbait.\n- `detect_clickbait_linear` (modelo de pesos): probabilidad 0.003 (0.3%), NO es clickbait, la pista \"question\" tiene peso negativo (-4.221).\n- `detect_clickbait_incoherence` (comparador): similitud 0.469, no incoherente (umbral 0.3), no es engañoso.\n- `analyze_sentiment` (tono): negativo con 0.572 (57.2%).\n\nEl veredicto es ambiguo porque hay discrepancias entre las señales de forma (algunas dicen clickbait, otras no) y la de engaño (no es engañoso).\n\nNecesito contar esto en palabras sencillas, sin nombres técnicos, citando las cifras y las pistas.\n\nEstructura:\n1. Veredicto: ambiguo.\n2. Explicar discrepancias:\n   - Clasificador entrenado: 54% clickbait.\n   - Detector de pistas: encuentra una pregunta.\n   - Modelo de pesos: 0.3% clickbait (la pregunta pesa en contra).\n   - Comparador: no es engañoso (similitud alta).\n   - Tono: negativo.\n\nRedacción:\nEl veredicto es ambiguo porque las herramientas no se ponen de acuerdo sobre si el titular es clickbait. El clasificador entrenado lo etiqueta como clickbait con una confianza del 54 %, mientras que el detector de pistas encuentra una señal en la pregunta que cierra el titular. Sin embargo, el modelo de pesos lo considera informativo con una probabilidad del 0,3 % de ser clickbait, ya que la pregunta pesa en contra de esa etiqueta. Además, el comparador de titular y texto confirma que no es engañoso, pues el resumen coincide con lo que promete el título. El análisis del tono clasifica el titular como negativo con un 57 % de confianza.\n\nRevisión de reglas:\n- Cifras: 54 %, 0,3 %, 57 %. Correcto.\n- Pistas: \"pregunta\" (question). Correcto.\n- Herramientas: clasificador entrenado, detector de pistas, modelo de pesos, comparador, análisis del tono. Correcto.\n- Veredicto: ambiguo. Correcto.\n- No inventar datos. Correcto.\n- Texto corrido, sin negritas, sin listas. Correcto.\n- Tercera persona. Correcto.\n\nAjuste: \"0,3 %\" es correcto (coma decimal). \"54 %\" y \"57 %\".\nLa pista es la pregunta. El detector de pistas la encuentra. El modelo de pesos la usa con peso negativo.\n\nVoy a redactar la respuesta final.\n\nEl veredicto es ambiguo porque las herramientas no se ponen de acuerdo sobre si el titular es clickbait. El clasificador entrenado lo etiqueta como clickbait con una confianza del 54 %, mientras que el detector de pistas encuentra una señal en la pregunta que cierra el titular. Sin embargo, el modelo de pesos lo considera informativo con una probabilidad del 0,3 % de ser clickbait, ya que la pregunta pesa en contra de esa etiqueta. Además, el comparador de titular y texto confirma que no es engañoso, pues el resumen coincide con lo que promete el título. El análisis del tono clasifica el titular como negativo con un 57 % de confianza.\n\nEspera, el detector de pistas dice que es clickbait (score 1, is_clickbait true). El modelo de pesos dice que NO es clickbait (probability 0.003). El clasificador dice que SÍ es clickbait (score 0.543, que es > 0.5? No, la etiqueta es \"clickbait\" con score 0.543. Si el score es la confianza en la etiqueta ganadora, y la etiqueta ganadora es \"clickbait\", entonces sí lo etiqueta como clickbait.\n\nEl veredicto global es \"ambiguous\" porque las señales de forma discrepan (clasificador y lexical dicen clickbait, linear dice factual) y la de engaño dice no es engañoso.\n\nVoy a ajustar la redacción para que sea clara.\n\nEl veredicto es ambiguo porque las herramientas no se ponen de acuerdo sobre si el titular es clickbait. El clasificador entrenado lo etiqueta como clickbait con una confianza del 54 %, y el detector de pistas encuentra una señal en la pregunta que cierra el titular. Sin embargo, el modelo de pesos lo considera informativo con una probabilidad del 0,3 % de ser clickbait, ya que la pregunta pesa en contra de esa etiqueta. Además, el comparador de titular y texto confirma que no es engañoso, pues el resumen coincide con lo que promete el título. El análisis del tono clasifica el titular como negativo con un 57 % de confianza.\n\nParece bien. 4 frases.\n\nRevisión final:\n- \"El veredicto es ambiguo porque las herramientas no se ponen de acuerdo sobre si el titular es clickbait.\" (1)\n- \"El clasificador entrenado lo etiqueta como clickbait con una confianza del 54 %, y el detector de pistas encuentra una señal en la pregunta que cierra el titular.\" (2)\n- \"Sin embargo, el modelo de pesos lo considera informativo con una probabilidad del 0,3 % de ser clickbait, ya que la pregunta pesa en contra de esa etiqueta.\" (3)\n- \"Además, el comparador de titular y texto confirma que no es engañoso, pues el resumen coincide con lo que promete el título.\" (4)\n- \"El análisis del tono clasifica el titular como negativo con un 57 % de confianza.\" (5) -> Son 5 frases. Necesito reducir a 4.\n\nPuedo unir la última con la anterior o simplificar.\n\nOpción:\nEl veredicto es ambiguo porque las herramientas no se ponen de acuerdo sobre si el titular es clickb",
+      "content": "",
+      "tool_calls": null
+     }
+    }
+   ]
+  },
+  {
+   "fichero": "ventana-mezcla-16384-x20-5705f42b.json",
+   "consulta": "bucle-encadena-guardian",
+   "variante": "preciso-con-herramientas-aviso",
+   "vez_original": 16,
+   "clase": "desbocada",
+   "vuelta": 3,
+   "vez": 5,
+   "intentos": [
+    {
+     "salio": "respondida",
+     "respuesta": {
+      "content": "El análisis de la noticia «Why is the UK’s suppressed climate national security report significant?» arroja un veredicto ambiguo porque las señales sobre su forma no coinciden. El clasificador entrenado lo etiqueta como clickbait con una confianza del 54 % y el detector de pistas encuentra que termina en una pregunta, señal típica de este tipo de titulares. Sin embargo, el modelo de pesos calcula una probabilidad muy baja del 0,3 % de ser clickbait, ya que la pregunta en este contexto pesa en contra de esa clasificación. Por otro lado, el comparador de titular y texto confirma que no es engañoso, pues la similitud entre ambos es alta y el contenido resume correctamente lo que promete el título.",
+      "tool_calls": [],
+      "metrics": {
+       "prompt_tokens": 7210,
+       "output_tokens": 159,
+       "load_s": 0.003930282,
+       "total_s": 11.409580092
+      },
+      "cortada": false
+     },
+     "ollama": {
+      "done_reason": "stop",
+      "thinking": null,
+      "content": "El análisis de la noticia «Why is the UK’s suppressed climate national security report significant?» arroja un veredicto ambiguo porque las señales sobre su forma no coinciden. El clasificador entrenado lo etiqueta como clickbait con una confianza del 54 % y el detector de pistas encuentra que termina en una pregunta, señal típica de este tipo de titulares. Sin embargo, el modelo de pesos calcula una probabilidad muy baja del 0,3 % de ser clickbait, ya que la pregunta en este contexto pesa en contra de esa clasificación. Por otro lado, el comparador de titular y texto confirma que no es engañoso, pues la similitud entre ambos es alta y el contenido resume correctamente lo que promete el título.",
+      "tool_calls": null
+     }
+    }
+   ]
+  },
+  {
+   "fichero": "ventana-mezcla-16384-x20-5705f42b.json",
+   "consulta": "bucle-encadena-guardian",
+   "variante": "preciso-con-herramientas-aviso",
+   "vez_original": 20,
+   "clase": "desbocada",
+   "vuelta": 3,
+   "vez": 5,
+   "intentos": [
+    {
+     "salio": "respondida",
+     "respuesta": {
+      "content": "El veredicto es ambiguo porque las herramientas no coinciden en si el titular tiene forma de clickbait. El clasificador entrenado lo etiqueta como clickbait con una confianza del 54 %, mientras que el detector de pistas encuentra solo una señal: que termina en pregunta. Sin embargo, el modelo de pesos le asigna una probabilidad muy baja del 0,3 % de ser clickbait, indicando que la pregunta en realidad lo aleja de esa categoría. Por otro lado, el comparador de titular y texto confirma que no es engañoso, ya que el resumen coincide con lo prometido en el título. El análisis del tono lo clasifica como negativo con un 57 % de confianza.",
+      "tool_calls": [],
+      "metrics": {
+       "prompt_tokens": 7222,
+       "output_tokens": 152,
+       "load_s": 0.002816565,
+       "total_s": 11.117833318
+      },
+      "cortada": false
+     },
+     "ollama": {
+      "done_reason": "stop",
+      "thinking": null,
+      "content": "El veredicto es ambiguo porque las herramientas no coinciden en si el titular tiene forma de clickbait. El clasificador entrenado lo etiqueta como clickbait con una confianza del 54 %, mientras que el detector de pistas encuentra solo una señal: que termina en pregunta. Sin embargo, el modelo de pesos le asigna una probabilidad muy baja del 0,3 % de ser clickbait, indicando que la pregunta en realidad lo aleja de esa categoría. Por otro lado, el comparador de titular y texto confirma que no es engañoso, ya que el resumen coincide con lo prometido en el título. El análisis del tono lo clasifica como negativo con un 57 % de confianza.",
+      "tool_calls": null
+     }
+    }
+   ]
+  }
+ ]
+}

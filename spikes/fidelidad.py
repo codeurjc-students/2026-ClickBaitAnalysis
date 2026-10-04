@@ -112,7 +112,9 @@ issue:
     `responder` del agente. Se cuenta con `recuento`.
 
 `ventana` lleva además, en sus variantes, los arreglos de #208 (pedir la
-respuesta, el tope y el aviso que pide rehacer), para la comprobación final.
+respuesta, el tope y el aviso que pide rehacer). La comprobación final mide
+`con-arreglos-208`, la de producción con los dos primeros: el aviso se quedó
+fuera tras `seguimiento`.
 
 Ejecutar desde la raíz, con el túnel abierto (la sesión la abre
 `spikes/fidelidad_a40.sh`):
@@ -135,6 +137,8 @@ Ejecutar desde la raíz, con el túnel abierto (la sesión la abre
         --variantes preciso-con-herramientas-aviso,preciso-con-aviso bucle-encadena-nyt
     NLP_BACKEND=local .venv/bin/python spikes/fidelidad.py ventana --ctx 16384 --veces 20 --casos \
         bucle-encadena-nyt:preciso-con-herramientas-aviso,bucle-encadena-guardian:preciso-con-herramientas-aviso,bucle-encadena-nyt:preciso-con-aviso
+    NLP_BACKEND=local .venv/bin/python spikes/fidelidad.py ventana --ctx 16384 --veces 20 --casos \
+        bucle-encadena-nyt:preciso-con-herramientas-aviso,bucle-encadena-nyt:con-arreglos-208,bucle-encadena-guardian:preciso-con-herramientas-aviso,bucle-encadena-guardian:con-arreglos-208
     .venv/bin/python spikes/fidelidad.py fallos [spikes/fidelidad/ventana-….json …]
     NLP_BACKEND=local .venv/bin/python spikes/fidelidad.py repeticion [veces] [vacias] [desbocadas]
     NLP_BACKEND=local .venv/bin/python spikes/fidelidad.py seguimiento [veces]
@@ -1560,6 +1564,22 @@ REPETICIONES_DE_UN_FALLO = 5
 GRUPOS_DE_FALLOS = {"vacias": {"vacia"}, "desbocadas": {"desbocada", "fallida"}}
 # La ventana de producción desde #192.
 NUM_CTX_PRODUCCION = 16384
+
+# La variante de la comprobación final: la de producción más lo que pasó la regla
+# en las sesiones del 4 oct. «Una vuelta más» rescató las 6 vacías 5 de 5; el
+# tope rescató las desbocadas en 4 o 5 de 5 por caso, aunque al repetir la vuelta
+# sólo se desbocaron 5 de 50 y el tope cortó 3. El aviso que pide rehacer se
+# quedó fuera: 5 frente a 6 de 20 seguimientos sin herramientas es un solo caso
+# de diferencia (decidido por el autor). Va aquí y no en `VARIANTES` porque
+# necesita `TOPE_DE_SALIDA`, que se define después.
+VARIANTES["con-arreglos-208"] = Variante(
+    PERFIL_PRECISO,
+    historial=True,
+    aviso=True,
+    herramientas=True,
+    pedir_respuesta=True,
+    num_predict=TOPE_DE_SALIDA,
+)
 
 
 def _fallo(medida: dict) -> str | None:
