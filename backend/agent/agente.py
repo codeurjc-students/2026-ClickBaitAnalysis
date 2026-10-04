@@ -139,8 +139,11 @@ class Configuracion:
     `pedir_respuesta_si_vacia` es el texto con que se le pide la respuesta, una
     vez por conversación, cuando contesta sin texto o cortado (#208). Con
     historial, 3 de 57 conversaciones acabaron vacías en #192: el modelo
-    escribió la respuesta dentro del razonamiento y no la sacó. Va apagado
-    hasta que la medida de #208 diga si rescata.
+    escribió la respuesta dentro del razonamiento y no la sacó. Medido en la
+    A40 repitiendo la vuelta exacta que falló, rescató las 6 vacías 5 de 5; y
+    en la comprobación final, con el tope de salida, las vacías bajaron de 5 a
+    2 de 40 (`spikes/fidelidad.py`, 2026-10-04). `None` lo desactiva, para
+    medir con y sin.
     """
 
     backend: LLMBackend
@@ -153,7 +156,7 @@ class Configuracion:
     max_result_chars: int | None = None
     decimales_para_el_modelo: int | None = 3
     aviso_historial: str | None = AVISO_HISTORIAL
-    pedir_respuesta_si_vacia: str | None = None
+    pedir_respuesta_si_vacia: str | None = PEDIR_RESPUESTA
 
 
 # Cada herramienta del catálogo, con la URL del servidor que la publicó.

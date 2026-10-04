@@ -28,6 +28,7 @@ def _backend_para(
     timeout: float,
     temperature: float,
     presence_penalty: float,
+    num_predict: int | None,
 ) -> LLMBackend:
     """Un cliente por configuración, construido la primera vez que hace falta.
 
@@ -44,6 +45,7 @@ def _backend_para(
                 timeout=timeout,
                 temperature=temperature,
                 presence_penalty=presence_penalty,
+                num_predict=num_predict,
             )
         case _:
             raise ValueError(f"Backend de modelo de lenguaje desconocido: {backend}")
@@ -62,6 +64,7 @@ def get_llm_backend() -> LLMBackend | None:
         settings.llm_timeout,
         settings.llm_temperature,
         settings.llm_presence_penalty,
+        settings.llm_num_predict,
     )
 
 

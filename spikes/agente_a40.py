@@ -162,6 +162,8 @@ def _config(think: bool | None, **cambios) -> Configuracion:
         think=bool(think),
         # El aviso del historial llegó en #192; sin él, como se midió #188.
         aviso_historial=None,
+        # Y pedir la respuesta cuando sale vacía, en #208: también apagado.
+        pedir_respuesta_si_vacia=None,
         **cambios,
     )
 

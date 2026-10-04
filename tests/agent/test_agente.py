@@ -487,13 +487,15 @@ async def test_una_narracion_vacia_no_es_una_respuesta(monkeypatch):
     modelo = ModeloGuionado(_pide(("eco", {"texto": "hola"})), _responde("  \n"))
 
     async with mcp_en_proceso(monkeypatch):
-        resultado = await responder("Repite hola", [], _config(modelo))
+        resultado = await responder(
+            "Repite hola", [], _config(modelo, pedir_respuesta_si_vacia=None)
+        )
 
     assert resultado["status"] == "empty_answer"
     assert resultado["answer"] == ""
     (paso,) = _herramientas(resultado)
     assert paso["data"] == {"texto": "hola", "longitud": 4}
-    # Sin el arreglo de #208 no se le pide nada más.
+    # Con el arreglo de #208 apagado, no se le pide nada más.
     assert len(modelo.conversaciones) == 2
 
 
@@ -504,19 +506,40 @@ async def test_una_narracion_vacia_no_es_una_respuesta(monkeypatch):
 async def test_una_respuesta_cortada_no_se_da_por_buena(monkeypatch):
     """Si el servidor para por un límite —el tope de salida o la ventana— con
     media respuesta escrita, publicarla como completa sería un fallo
-    silencioso. Acaba como vacía: la pantalla ya enseña las tarjetas así."""
+    silencioso. Acaba como vacía: la pantalla ya enseña las tarjetas así. Con
+    el arreglo de #208 apagado, para ver lo que pasa sin la vuelta más."""
     modelo = ModeloGuionado(
         _pide(("eco", {"texto": "hola"})),
         _responde("El eco dice ho", cortada=True),
     )
 
     async with mcp_en_proceso(monkeypatch):
-        resultado = await responder("Repite hola", [], _config(modelo))
+        resultado = await responder(
+            "Repite hola", [], _config(modelo, pedir_respuesta_si_vacia=None)
+        )
 
     assert resultado["status"] == "empty_answer"
     assert resultado["answer"] == ""
     # Lo cortado sigue en la traza, en la vuelta del modelo.
     assert resultado["steps"][-1]["content"] == "El eco dice ho"
+
+
+@pytest.mark.asyncio
+async def test_por_defecto_se_pide_la_respuesta(monkeypatch):
+    """Encendido por defecto desde la medida de #208: lo usa la API sin decirlo."""
+    modelo = ModeloGuionado(
+        _pide(("eco", {"texto": "hola"})),
+        _responde(""),
+        _responde("El eco dice hola."),
+    )
+
+    async with mcp_en_proceso(monkeypatch):
+        resultado = await responder("Repite hola", [], _config(modelo))
+
+    assert resultado["status"] == "answered"
+    assert resultado["answer"] == "El eco dice hola."
+    *_, peticion = modelo.conversaciones[2]
+    assert peticion == {"role": "system", "content": PEDIR_RESPUESTA}
 
 
 @pytest.mark.asyncio

@@ -423,6 +423,23 @@ def test_la_factoria_da_siempre_el_muestreo_de_la_configuracion(monkeypatch):
     assert otro.temperature == 1.0
 
 
+def test_la_factoria_da_el_tope_de_la_configuracion(monkeypatch):
+    """#208: el tope de salida llega al cliente, y cambiarlo da otro (#119)."""
+    monkeypatch.setattr(settings, "llm_backend", "ollama")
+    monkeypatch.setattr(settings, "llm_url", URL)
+    monkeypatch.setattr(settings, "llm_num_predict", 1500)
+    primero = factory.get_llm_backend()
+
+    assert isinstance(primero, OllamaClient)
+    assert primero.num_predict == 1500
+
+    monkeypatch.setattr(settings, "llm_num_predict", None)
+    otro = factory.get_llm_backend()
+    assert isinstance(otro, OllamaClient)
+    assert otro is not primero
+    assert otro.num_predict is None
+
+
 def test_la_ficha_declarada_se_publica_con_su_modelo(monkeypatch):
     monkeypatch.setattr(settings, "llm_model", FICHA["model_id"])
 
