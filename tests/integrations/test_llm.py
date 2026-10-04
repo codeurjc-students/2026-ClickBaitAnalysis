@@ -33,9 +33,10 @@ HERRAMIENTA = {
 }
 
 
-def _respuesta_ollama(**mensaje) -> dict:
+def _respuesta_ollama(done_reason: str = "stop", **mensaje) -> dict:
     return {
         "message": {"role": "assistant", "content": "", **mensaje},
+        "done_reason": done_reason,
         "prompt_eval_count": 2641,
         "eval_count": 12,
         "load_duration": 8_600_000_000,
@@ -127,6 +128,30 @@ async def test_el_muestreo_se_envia_cuando_se_da():
 
 
 @pytest.mark.asyncio
+async def test_el_tope_de_salida_se_envia_cuando_se_da():
+    """#208. Sin darlo no se manda (el primer test), y el modelo escribe hasta
+    terminar o hasta llenar la ventana."""
+    cliente = OllamaClient(
+        URL,
+        "qwen3.5:27b",
+        num_ctx=8192,
+        keep_alive="10m",
+        timeout=30.0,
+        num_predict=1500,
+    )
+    with respx.mock:
+        ruta = respx.post(f"{URL}/api/chat").mock(
+            return_value=Response(200, json=_respuesta_ollama(content="Hola."))
+        )
+        await cliente.chat([{"role": "user", "content": "hola"}], [])
+
+    assert json.loads(ruta.calls.last.request.content)["options"] == {
+        "num_ctx": 8192,
+        "num_predict": 1500,
+    }
+
+
+@pytest.mark.asyncio
 async def test_sin_herramientas_no_se_envia_la_clave_tools():
     with respx.mock:
         ruta = respx.post(f"{URL}/api/chat").mock(
@@ -163,7 +188,27 @@ async def test_el_chat_lee_las_llamadas_y_las_medidas():
             "load_s": 8.6,
             "total_s": 9.0,
         },
+        "cortada": False,
     }
+
+
+@pytest.mark.asyncio
+async def test_una_respuesta_parada_por_un_limite_se_marca_cortada():
+    """#208. `length` es que el servidor la paró —el tope de salida o la ventana
+    llena—, y no que el modelo terminara. Lo decide el agente, no el cliente."""
+    with respx.mock:
+        respx.post(f"{URL}/api/chat").mock(
+            side_effect=[
+                Response(200, json=_respuesta_ollama("length", content="Es clickb")),
+                Response(200, json=_respuesta_ollama("stop", content="Es clickbait.")),
+            ]
+        )
+        cortada = await _cliente().chat([{"role": "user", "content": "?"}], [])
+        entera = await _cliente().chat([{"role": "user", "content": "?"}], [])
+
+    assert cortada.unwrap()["cortada"] is True
+    assert cortada.unwrap()["content"] == "Es clickb"
+    assert entera.unwrap()["cortada"] is False
 
 
 @pytest.mark.asyncio

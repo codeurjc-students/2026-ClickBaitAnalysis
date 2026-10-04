@@ -94,6 +94,26 @@ partes:
    señal, se inventó el análisis —trajo sólo noticias y aun así dio un
    veredicto— o no contestó, por caso, con el texto de cada inventada.
 
+#208 (2026-10-04) añadió tres partes, para la última vuelta con historial. La
+regla, con sus definiciones, se fijó antes de medir en un comentario de la
+issue:
+
+8. `fallos`: sin GPU. En las medidas de `ventana`, cómo de largas son las
+   vueltas que acabaron bien y cada medida vacía, fallida o con una vuelta
+   desbocada (más de 1.000 tokens de salida).
+
+9. `repeticion`: la vuelta exacta que falló, reconstruida de lo guardado, con
+   los arreglos de #208: «una vuelta más» en las vacías y el tope de salida
+   (1.500 tokens) en las desbocadas. Comprueba antes que la reconstrucción es
+   exacta, con los `prompt_tokens`.
+
+10. `seguimiento`: «¿por qué?» después de analizar un titular, con el aviso del
+    historial actual y con el que pide rehacer, intercalados, con el
+    `responder` del agente. Se cuenta con `recuento`.
+
+`ventana` lleva además, en sus variantes, los arreglos de #208 (pedir la
+respuesta, el tope y el aviso que pide rehacer), para la comprobación final.
+
 Ejecutar desde la raíz, con el túnel abierto (la sesión la abre
 `spikes/fidelidad_a40.sh`):
 
@@ -115,6 +135,9 @@ Ejecutar desde la raíz, con el túnel abierto (la sesión la abre
         --variantes preciso-con-herramientas-aviso,preciso-con-aviso bucle-encadena-nyt
     NLP_BACKEND=local .venv/bin/python spikes/fidelidad.py ventana --ctx 16384 --veces 20 --casos \
         bucle-encadena-nyt:preciso-con-herramientas-aviso,bucle-encadena-guardian:preciso-con-herramientas-aviso,bucle-encadena-nyt:preciso-con-aviso
+    .venv/bin/python spikes/fidelidad.py fallos [spikes/fidelidad/ventana-….json …]
+    NLP_BACKEND=local .venv/bin/python spikes/fidelidad.py repeticion [veces] [vacias] [desbocadas]
+    NLP_BACKEND=local .venv/bin/python spikes/fidelidad.py seguimiento [veces]
 
 Sin fuentes, las cuatro; los jueces, de uno en uno; `E:<prompt>` es la
 condición del perfil preciso sobre ese prompt. `OLLAMA_URL` cambia el servidor
@@ -135,7 +158,7 @@ import subprocess
 import sys
 from collections import Counter
 from dataclasses import asdict, dataclass
-from datetime import datetime
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import NamedTuple
 
@@ -150,7 +173,12 @@ sys.path.insert(0, str(RAIZ))
 # devuelve después, como en `agente_a40.py`.
 _ARGUMENTOS, sys.argv = sys.argv, sys.argv[:1]
 from backend.agent import agente, prompts  # noqa: E402
-from backend.agent.agente import AVISO_HISTORIAL, Configuracion, responder  # noqa: E402
+from backend.agent.agente import (  # noqa: E402
+    AVISO_HISTORIAL,
+    PEDIR_RESPUESTA,
+    Configuracion,
+    responder,
+)
 from backend.config.settings import settings  # noqa: E402
 from backend.core.mcp import session as mcp_session  # noqa: E402
 from backend.integrations.llm.ollama import OllamaClient  # noqa: E402
@@ -326,6 +354,8 @@ def _config(
     num_ctx: int = NUM_CTX,
     clase: type[OllamaClient] | None = None,
     aviso_historial: str | None = None,
+    pedir_respuesta_si_vacia: str | None = None,
+    num_predict: int | None = None,
 ) -> Configuracion:
     """La configuración del agente de producción, con el modelo, el prompt y el
     `think` de la fuente.
@@ -333,10 +363,13 @@ def _config(
     El redondeo va explícito: el corpus se generó antes de que existiera
     (`239a955`), y sin decirlo aquí, repetirlo hoy redondearía. Lo mismo el
     aviso del historial: llegó después de la comparación, y apagado por
-    defecto la repite como se midió.
+    defecto la repite como se midió. Y los dos arreglos de #208 —pedir la
+    respuesta y el tope de salida—, apagados igual.
     """
     clase = clase or (OllamaConMuestreo if muestreo else OllamaClient)
-    extra = {"muestreo": muestreo} if muestreo else {}
+    extra: dict = {"muestreo": muestreo} if muestreo else {}
+    if num_predict is not None:
+        extra["num_predict"] = num_predict
     return Configuracion(
         backend=clase(
             URL, fuente.modelo, num_ctx=num_ctx, keep_alive=KEEP_ALIVE, timeout=LLM_TIMEOUT, **extra
@@ -349,6 +382,7 @@ def _config(
         think=fuente.think,
         decimales_para_el_modelo=decimales,
         aviso_historial=aviso_historial,
+        pedir_respuesta_si_vacia=pedir_respuesta_si_vacia,
     )
 
 
@@ -1233,6 +1267,10 @@ class Variante(NamedTuple):
     historial: bool
     aviso: bool  # `aviso_historial` del agente
     herramientas: bool = False  # los nombres en cada respuesta del historial
+    # Los arreglos de #208, para la comprobación final.
+    pedir_respuesta: bool = False  # `pedir_respuesta_si_vacia`
+    num_predict: int | None = None  # el tope de salida
+    aviso_rehacer: bool = False  # el aviso que pide rehacer, en vez del actual
 
 
 # Qué se manda en cada variante: el muestreo (`None` es el del Modelfile), si
@@ -1252,6 +1290,21 @@ VARIANTES = {
     "preciso-con-herramientas-aviso": Variante(PERFIL_PRECISO, historial=True, aviso=True, herramientas=True),
 }
 VARIANTE_DE_PRODUCCION = ("preciso-con",)
+
+# El aviso que pide rehacer (#208, regla del 4 oct): el de producción y una frase
+# más, para los seguimientos que no llaman a nada («¿por qué?»).
+AVISO_REHACER = (
+    AVISO_HISTORIAL
+    + " Si la pregunta se refiere a un titular o una noticia de un turno anterior,"
+    " vuelve a llamar a las herramientas con él."
+)
+
+
+def _aviso_de(variante: Variante) -> str | None:
+    """El aviso del historial que manda una variante, o `None` si no lo manda."""
+    if not variante.aviso:
+        return None
+    return AVISO_REHACER if variante.aviso_rehacer else AVISO_HISTORIAL
 
 
 # Un caso de `ventana`: una consulta con una variante.
@@ -1337,8 +1390,10 @@ async def ventana(ventanas: tuple[int, ...], veces: int, casos: tuple[Caso, ...]
                 nombre: {
                     "muestreo": VARIANTES[nombre].muestreo,
                     "historial": VARIANTES[nombre].historial,
-                    "aviso_historial": AVISO_HISTORIAL if VARIANTES[nombre].aviso else None,
+                    "aviso_historial": _aviso_de(VARIANTES[nombre]),
                     "herramientas_en_el_historial": VARIANTES[nombre].herramientas,
+                    "pedir_respuesta": PEDIR_RESPUESTA if VARIANTES[nombre].pedir_respuesta else None,
+                    "num_predict": VARIANTES[nombre].num_predict,
                 }
                 for nombre in variantes
             },
@@ -1375,8 +1430,7 @@ async def ventana(ventanas: tuple[int, ...], veces: int, casos: tuple[Caso, ...]
                         vez,
                         consultas[clave][0],
                         variante,
-                        elegida.muestreo,
-                        elegida.aviso,
+                        elegida,
                     )
     print(f"\nLas medidas, en {ruta}")
 
@@ -1392,16 +1446,17 @@ async def _medir_ventana(
     vez: int,
     consulta: str,
     variante: str,
-    muestreo: dict | None,
-    con_aviso: bool,
+    elegida: Variante,
 ) -> None:
     config = _config(
         fuente,
         3,
-        muestreo,
+        elegida.muestreo,
         num_ctx,
         clase=OllamaQueGuardaElRazonamiento,
-        aviso_historial=AVISO_HISTORIAL if con_aviso else None,
+        aviso_historial=_aviso_de(elegida),
+        pedir_respuesta_si_vacia=PEDIR_RESPUESTA if elegida.pedir_respuesta else None,
+        num_predict=elegida.num_predict,
     )
     resultado = await responder(consulta, historial, config)
     crudo = config.backend.crudo if isinstance(config.backend, OllamaQueGuardaElRazonamiento) else []
@@ -1491,6 +1546,377 @@ def recuento(rutas: list[Path]) -> None:
             print(f"  {caso}: {dict(sorted(clases.items()))}")
 
 
+# ----- #208: la última vuelta con historial -----
+
+# Las definiciones de la regla de #208, fijadas el 2026-10-04 antes de medir (en
+# un comentario de la issue): una vuelta normal no pasa de 421 tokens de salida
+# (p95 de las 434 de #192), y todos los problemas pasaban de 1.400 salvo una
+# vacía de 793.
+DESBOCADA_TOKENS = 1000
+TOPE_DE_SALIDA = 1500
+REPETICIONES_DE_UN_FALLO = 5
+# Cómo se reparten los casos entre sesiones: la fallida por el corte se repite
+# con el tope, como las desbocadas.
+GRUPOS_DE_FALLOS = {"vacias": {"vacia"}, "desbocadas": {"desbocada", "fallida"}}
+# La ventana de producción desde #192.
+NUM_CTX_PRODUCCION = 16384
+
+
+def _fallo(medida: dict) -> str | None:
+    """Cómo falló una medida de `ventana`, con las definiciones de #208, o `None`.
+
+    Una vacía con un razonamiento de más de 1.000 tokens cuenta como vacía: es
+    lo que se ve en la pantalla.
+    """
+    if medida["estado"] == "empty_answer":
+        return "vacia"
+    if medida["estado"] == "failed":
+        return "fallida"
+    if any((vuelta.get("output_tokens") or 0) > DESBOCADA_TOKENS for vuelta in medida.get("vueltas", [])):
+        return "desbocada"
+    return None
+
+
+def _cuantil(valores: list, proporcion: float):
+    return sorted(valores)[int(proporcion * (len(valores) - 1))]
+
+
+def fallos(rutas: list[Path]) -> None:
+    """Sin GPU: los fallos de la última vuelta en las medidas de `ventana`.
+
+    Lo que cita la regla de #208: cómo de largas son las vueltas de las
+    conversaciones que acabaron bien, y cada medida que acabó vacía, fallida o
+    con alguna vuelta desbocada. Las que tienen traza son las que repite
+    `repeticion`.
+    """
+    buenas: list[tuple[float, int]] = []
+    for ruta in rutas or sorted(CARPETA.glob("ventana*.json")):
+        registro = json.loads(ruta.read_text(encoding="utf-8"))
+        print(f"\n== {ruta.name} · {dict(Counter(medida['estado'] for medida in registro['medidas']))}")
+        for medida in registro["medidas"]:
+            vueltas = medida.get("vueltas", [])
+            if medida["estado"] == "answered":
+                buenas += [(vuelta["total_s"] or 0, vuelta["output_tokens"] or 0) for vuelta in vueltas]
+            if clase := _fallo(medida):
+                print(
+                    f"   {clase:9} {medida['consulta']}:{medida.get('variante', 'preciso-con')}"
+                    f" #{medida.get('vez', 1)} · {medida['num_ctx']} · {medida['total_s']:.0f} s"
+                    f" · tokens por vuelta {[vuelta['output_tokens'] for vuelta in vueltas]}"
+                    f" · fin {[vuelta.get('done_reason') for vuelta in medida.get('ollama', [])]}"
+                    + ("" if "pasos" in medida else " · SIN TRAZA")
+                )
+    segundos = [tiempo for tiempo, _ in buenas]
+    tokens = [salida for _, salida in buenas]
+    print(f"\nVueltas de las conversaciones que acabaron bien: {len(buenas)}")
+    for nombre, valores in (("segundos", segundos), ("tokens de salida", tokens)):
+        print(
+            f"  {nombre}: mediana {statistics.median(valores):.1f} · p95 {_cuantil(valores, 0.95)}"
+            f" · p99 {_cuantil(valores, 0.99)} · máx {max(valores)}"
+        )
+
+
+def _mensajes_hasta(registro: dict, medida: dict, vuelta: int) -> list[dict]:
+    """Lo que recibió el modelo en la vuelta `vuelta` de una medida de `ventana`.
+
+    Se rehace con las funciones del propio agente —`_turno_anterior` y
+    `_para_el_modelo`— y con lo que la medida guardó: el prompt (comprobado por
+    su huella), el aviso y el historial de su variante, la consulta y, de cada
+    vuelta anterior, la respuesta del modelo con sus llamadas y los resultados
+    enteros de la traza. `repeticion` comprueba que salga igual: los
+    `prompt_tokens` de la vuelta repetida tienen que ser los guardados.
+    """
+    condiciones = registro["condiciones"]
+    prompt = prompts.cargar(condiciones["prompt"])
+    if _huella(prompt) != condiciones["prompt_huella"]:
+        raise ValueError(f"el prompt {condiciones['prompt']} ha cambiado desde la medida")
+    # Las medidas anteriores a cada arreglo no lo anotaban, porque no existía: lo
+    # que falta estaba apagado.
+    descrita = condiciones["variantes"][medida["variante"]]
+    con_nombres = descrita.get("herramientas_en_el_historial", False)
+    historial = _historial_maximo(con_nombres) if descrita["historial"] else []
+    consulta = next(texto for clave, _, texto, *_ in _consultas() if clave == medida["consulta"])
+
+    mensajes: list[dict] = [{"role": "system", "content": prompt}]
+    mensajes += [mensaje for turno in historial for mensaje in agente._turno_anterior(turno)]
+    if historial and descrita.get("aviso_historial"):
+        mensajes.append({"role": "system", "content": descrita["aviso_historial"]})
+    mensajes.append({"role": "user", "content": consulta})
+    for anterior in range(1, vuelta):
+        del_modelo = next(paso for paso in medida["pasos"] if paso["kind"] == "model" and paso["round"] == anterior)
+        llamadas = [paso for paso in medida["pasos"] if paso["kind"] == "tool" and paso["round"] == anterior]
+        mensajes.append(
+            {
+                "role": "assistant",
+                "content": del_modelo["content"],
+                "tool_calls": [{"name": paso["name"], "arguments": paso["arguments"]} for paso in llamadas],
+            }
+        )
+        for paso in llamadas:
+            contenido = agente._para_el_modelo(paso, None, condiciones["decimales"])
+            mensajes.append({"role": "tool", "tool_name": paso["name"], "content": contenido})
+    return mensajes
+
+
+def _casos_que_fallaron() -> list[tuple[str, dict, dict, str, int]]:
+    """Los fallos con traza de `ventana`, con historial: (fichero, registro,
+    medida, clase, vuelta que falló).
+
+    La vuelta es la primera desbocada, la vacía (la última) o, en una fallida
+    por el corte, la que no llegó a volver.
+    """
+    casos = []
+    for ruta in sorted(CARPETA.glob("ventana*.json")):
+        registro = json.loads(ruta.read_text(encoding="utf-8"))
+        for medida in registro["medidas"]:
+            clase = _fallo(medida)
+            if not clase or "pasos" not in medida or not medida.get("historial_turnos"):
+                continue
+            vueltas = medida["vueltas"]
+            if clase == "desbocada":
+                vuelta = next(
+                    numero
+                    for numero, datos in enumerate(vueltas, 1)
+                    if (datos["output_tokens"] or 0) > DESBOCADA_TOKENS
+                )
+            elif clase == "vacia":
+                vuelta = len(vueltas)
+            else:
+                vuelta = len(vueltas) + 1
+            casos.append((ruta.name, registro, medida, clase, vuelta))
+    return casos
+
+
+def _lo_que_salio(respuesta: dict) -> str:
+    """Cómo acabó UNA vuelta repetida: con texto, vacía, cortada o pidiendo herramientas."""
+    if respuesta["tool_calls"]:
+        return "pide_herramientas"
+    if respuesta["cortada"]:
+        return "cortada"
+    return "respondida" if respuesta["content"].strip() else "vacia"
+
+
+async def repeticion(veces: int, clases: set[str]) -> None:
+    """Repite la vuelta exacta que falló en #192, con cada arreglo de #208.
+
+    - **Una vuelta más**, en las vacías: a la vuelta vacía guardada le sigue
+      `PEDIR_RESPUESTA`, y se pide una vuelta. Rescatada si sale texto entero.
+      No hace falta control: el control es la vacía.
+    - **El tope**, en las desbocadas y en la fallida por el corte: se repite la
+      vuelta con `num_predict` 1.500. Si sale vacía o cortada, se le aplica
+      además «una vuelta más», con el tope, y se anota aparte.
+
+    Se intercala caso a caso, repetición a repetición. Cada respuesta se guarda
+    con lo crudo de Ollama —el razonamiento y `done_reason`—, y antes de nada se
+    comprueba que la reconstrucción es exacta: la primera vuelta repetida de
+    cada desbocada tiene que dar los `prompt_tokens` que se guardaron.
+
+    `clases` elige qué casos repetir, para repartirlos entre sesiones de GPU:
+    las vacías caben en media hora; las desbocadas, con el tope, más.
+    """
+    casos = [caso for caso in _casos_que_fallaron() if caso[3] in clases]
+    fuente = Fuente("repeticion", "qwen3.5:27b", "05-llano", think=True)
+    configuracion = _config(fuente, 3, PERFIL_PRECISO, NUM_CTX_PRODUCCION)
+    catalogo = await agente._descubrir(configuracion)
+    herramientas = [herramienta for herramienta, _ in catalogo.values()]
+    ruta = CARPETA / f"repeticion-{datetime.now(UTC).strftime('%Y%m%d-%H%M')}.json"
+    registro: dict = {
+        "condiciones": await _condiciones({fuente.modelo})
+        | {
+            "num_ctx": NUM_CTX_PRODUCCION,
+            "tope_de_salida": TOPE_DE_SALIDA,
+            "desbocada_tokens": DESBOCADA_TOKENS,
+            "pedir_respuesta": PEDIR_RESPUESTA,
+            "veces": veces,
+            "casos": [
+                f"{nombre} · {medida['consulta']}:{medida['variante']} #{medida['vez']} · {clase} en la vuelta {vuelta}"
+                for nombre, _, medida, clase, vuelta in casos
+            ],
+        },
+        "repeticiones": [],
+    }
+    print(f"  {len(casos)} casos: {Counter(clase for *_, clase, _ in casos)} · {veces} veces cada uno")
+    comprobados: set[int] = set()
+    for vez in range(1, veces + 1):
+        for indice, (nombre, original, medida, clase, vuelta) in enumerate(casos):
+            muestreo = original["condiciones"]["variantes"][medida["variante"]]["muestreo"]
+            con_tope = clase != "vacia"
+            backend = OllamaQueGuardaElRazonamiento(
+                URL,
+                fuente.modelo,
+                num_ctx=medida["num_ctx"],
+                keep_alive=KEEP_ALIVE,
+                timeout=LLM_TIMEOUT,
+                muestreo=muestreo,
+                num_predict=TOPE_DE_SALIDA if con_tope else None,
+            )
+            mensajes = _mensajes_hasta(original, medida, vuelta)
+            if clase == "vacia":
+                vacia = next(
+                    paso for paso in medida["pasos"] if paso["kind"] == "model" and paso["round"] == vuelta
+                )
+                mensajes += [
+                    {"role": "assistant", "content": vacia["content"]},
+                    {"role": "system", "content": PEDIR_RESPUESTA},
+                ]
+            intentos = []
+            for _ in range(2):
+                resultado = await backend.chat(mensajes, herramientas, think=True)
+                if not resultado.success:
+                    intentos.append({"error": resultado.error})
+                    break
+                respuesta = resultado.unwrap()
+                intentos.append(
+                    {"salio": _lo_que_salio(respuesta), "respuesta": respuesta} | {"ollama": backend.crudo[-1]}
+                )
+                # La primera vuelta repetida de una desbocada es la misma que la
+                # guardada: si el prompt no mide lo mismo, la reconstrucción no
+                # es fiel y no se sigue.
+                if clase == "desbocada" and indice not in comprobados and len(intentos) == 1:
+                    guardados = medida["vueltas"][vuelta - 1]["prompt_tokens"]
+                    medidos = respuesta["metrics"]["prompt_tokens"]
+                    if medidos != guardados:
+                        _guardar(registro, ruta)
+                        sys.exit(f"ABORTADO: {nombre} #{medida['vez']}: {medidos} tokens de prompt, no {guardados}")
+                    comprobados.add(indice)
+                # «Una vuelta más» tras el tope, sólo si el tope la dejó vacía o cortada.
+                if not con_tope or len(intentos) == 2 or intentos[-1]["salio"] not in ("vacia", "cortada"):
+                    break
+                mensajes += [
+                    {"role": "assistant", "content": respuesta["content"]},
+                    {"role": "system", "content": PEDIR_RESPUESTA},
+                ]
+            registro["repeticiones"].append(
+                {
+                    "fichero": nombre,
+                    "consulta": medida["consulta"],
+                    "variante": medida["variante"],
+                    "vez_original": medida["vez"],
+                    "clase": clase,
+                    "vuelta": vuelta,
+                    "vez": vez,
+                    "intentos": intentos,
+                }
+            )
+            _guardar(registro, ruta)
+            print(
+                f"  {clase:9} {medida['consulta']}:{medida['variante']} #{medida['vez']} · vez {vez}: "
+                + " → ".join(
+                    f"{intento.get('salio', 'ERROR')} ({intento['respuesta']['metrics']['output_tokens'] if 'respuesta' in intento else '-'} tokens)"
+                    for intento in intentos
+                )
+            )
+    _resumir_repeticion(registro["repeticiones"])
+    print(f"\nTodo, con lo crudo de Ollama, en {ruta}")
+
+
+def _resumir_repeticion(repeticiones: list[dict]) -> None:
+    """Cuántas de cada caso se rescataron, con la regla de #208."""
+    print("\n== rescatadas, por caso (regla: al menos 4 de cada 5)")
+    por_caso: dict[str, Counter] = {}
+    for repetida in repeticiones:
+        caso = f"{repetida['clase']} · {repetida['consulta']}:{repetida['variante']} #{repetida['vez_original']}"
+        salidas = [intento.get("salio") for intento in repetida["intentos"]]
+        cuenta = por_caso.setdefault(caso, Counter())
+        cuenta["veces"] += 1
+        cuenta["a_la_primera"] += salidas[:1] == ["respondida"]
+        cuenta["con_una_vuelta_mas"] += "respondida" in salidas
+    for caso, cuenta in por_caso.items():
+        print(
+            f"  {caso}: {cuenta['con_una_vuelta_mas']}/{cuenta['veces']} rescatadas"
+            f" ({cuenta['a_la_primera']} a la primera)"
+        )
+
+
+# El seguimiento de la prueba de #209 en producción (2026-10-03): la pregunta del
+# titular y la respuesta que dio el agente, que usó `analyze_headline`. A
+# «por qué?» no llamó a nada y pidió el titular, aunque estaba aquí.
+HISTORIAL_SEGUIMIENTO = [
+    {"role": "user", "content": "Es clickbait «You Won't Believe What This Dog Did Next»?»"},
+    {
+        "role": "assistant",
+        "content": (
+            "El veredicto de las herramientas es que este titular es clickbait por la forma. El clasificador"
+            " entrenado lo etiqueta como clickbait con una confianza del 95 %, y el modelo de pesos da una"
+            " probabilidad del 99.9 % de ser clickbait. El detector de pistas encuentra cuatro referencias"
+            ' hacia adelante con las palabras "you", "what", "this" y "dog". El análisis del tono clasifica'
+            " el titular como negativo con una confianza del 76 %. No se pudo aplicar el comparador de"
+            " titular y texto porque no se proporcionó el cuerpo de la noticia."
+        ),
+        "tools": ["analyze_headline"],
+    },
+]
+CONSULTA_SEGUIMIENTO = "por qué?"
+AVISOS_SEGUIMIENTO = {"aviso-actual": AVISO_HISTORIAL, "aviso-rehacer": AVISO_REHACER}
+
+
+async def seguimiento(veces: int) -> None:
+    """«¿Por qué?» después de analizar un titular, con el aviso actual y con el
+    que pide rehacer, intercalados (#208).
+
+    Con el `responder` del agente y la configuración de producción —`05-llano`,
+    el perfil preciso, 16.384 de ventana—, cambiando sólo el aviso. Cada medida
+    tiene la forma de las de `ventana`, así que se cuenta con `recuento`: el
+    seguimiento bueno es `llamo_a_una_senal`.
+    """
+    fuente = Fuente("seguimiento", "qwen3.5:27b", "05-llano", think=True)
+    ruta = CARPETA / f"seguimiento-{datetime.now(UTC).strftime('%Y%m%d-%H%M')}.json"
+    registro: dict = {
+        "condiciones": await _condiciones({fuente.modelo})
+        | {
+            "prompt": fuente.prompt,
+            "prompt_huella": _huella(prompts.cargar(fuente.prompt)),
+            "decimales": 3,
+            "num_ctx": NUM_CTX_PRODUCCION,
+            "muestreo": PERFIL_PRECISO,
+            "historial": HISTORIAL_SEGUIMIENTO,
+            "consulta": CONSULTA_SEGUIMIENTO,
+            "variantes": AVISOS_SEGUIMIENTO,
+            "veces": veces,
+        },
+        "medidas": [],
+    }
+    for vez in range(1, veces + 1):
+        for variante, aviso in AVISOS_SEGUIMIENTO.items():
+            config = _config(
+                fuente,
+                3,
+                PERFIL_PRECISO,
+                NUM_CTX_PRODUCCION,
+                clase=OllamaQueGuardaElRazonamiento,
+                aviso_historial=aviso,
+            )
+            resultado = await responder(CONSULTA_SEGUIMIENTO, HISTORIAL_SEGUIMIENTO, config)
+            assert isinstance(config.backend, OllamaQueGuardaElRazonamiento)
+            medida = {
+                "num_ctx": NUM_CTX_PRODUCCION,
+                "consulta": "seguimiento-por-que",
+                "vez": vez,
+                "variante": variante,
+                "historial_turnos": len(HISTORIAL_SEGUIMIENTO),
+                "estado": resultado["status"],
+                "total_s": resultado["total_s"],
+                "vueltas": [
+                    {
+                        "prompt_tokens": paso["metrics"]["prompt_tokens"],
+                        "output_tokens": paso["metrics"]["output_tokens"],
+                        "load_s": paso["metrics"]["load_s"],
+                        "total_s": paso["metrics"]["total_s"],
+                    }
+                    for paso in resultado["steps"]
+                    if paso["kind"] == "model"
+                ],
+                "respuesta": resultado["answer"],
+                "pasos": resultado["steps"],
+                "ollama": config.backend.crudo,
+            }
+            registro["medidas"].append(medida)
+            _guardar(registro, ruta)
+            llamadas = [paso["name"] for paso in resultado["steps"] if paso["kind"] == "tool"]
+            print(f"  #{vez} {variante:13} {_clase_de(medida):18} {medida['total_s']:6.1f} s · {llamadas}")
+    print(f"\nLas medidas, en {ruta}")
+    recuento([ruta])
+
+
 async def _con_mcp(corrutina) -> None:
     """Sirve el `mcp` de producción en proceso mientras corre `corrutina`."""
     app = SERVIDOR.streamable_http_app()
@@ -1531,6 +1957,17 @@ async def main(parte: str, argumentos: list[str]) -> None:
     if parte == "ventana":
         await _con_mcp(ventana(*_argumentos_ventana(argumentos)))
         return
+    if parte == "fallos":
+        fallos([Path(argumento) for argumento in argumentos])
+        return
+    if parte == "repeticion":
+        veces = next((int(argumento) for argumento in argumentos if argumento.isdigit()), REPETICIONES_DE_UN_FALLO)
+        elegidas = {argumento for argumento in argumentos if not argumento.isdigit()}
+        await _con_mcp(repeticion(veces, set().union(*(GRUPOS_DE_FALLOS[grupo] for grupo in elegidas or GRUPOS_DE_FALLOS))))
+        return
+    if parte == "seguimiento":
+        await _con_mcp(seguimiento(int(argumentos[0]) if argumentos else 20))
+        return
 
     fuentes = [fuente for fuente in FUENTES if fuente.nombre in argumentos]
     ruta = Path(os.environ.get("FIDELIDAD_JSON", CORPUS))
@@ -1570,10 +2007,16 @@ if __name__ == "__main__":
         existentes = {clave for clave, *_ in _consultas()}
         if desconocidas := sorted({clave for clave, _ in casos} - existentes):
             sys.exit(f"Consultas desconocidas: {desconocidas}. Hay: {sorted(existentes)}")
-    elif parte not in ("resumen", "calibrar", "recuento"):
+    elif parte == "repeticion":
+        if desconocidos := {argumento for argumento in argumentos if not argumento.isdigit()} - set(GRUPOS_DE_FALLOS):
+            sys.exit(f"Grupos desconocidos: {sorted(desconocidos)}. Uso: fidelidad.py repeticion [veces] [vacias] [desbocadas]")
+    elif parte == "seguimiento":
+        if len(argumentos) > 1 or (argumentos and not argumentos[0].isdigit()):
+            sys.exit("Uso: fidelidad.py seguimiento [veces]")
+    elif parte not in ("resumen", "calibrar", "recuento", "fallos"):
         sys.exit(
             "Uso: fidelidad.py corpus | jueces <modelo> [fichero] | comparar <condición ...>"
             " | resumen | validar <carpeta ...> | calibrar | ventana [--ctx N,N] [--veces N] [consulta ...]"
-            " | recuento [fichero ...]"
+            " | recuento [fichero ...] | fallos [fichero ...] | repeticion [veces] | seguimiento [veces]"
         )
     asyncio.run(main(parte, argumentos))

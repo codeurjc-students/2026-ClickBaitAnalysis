@@ -66,11 +66,18 @@ class Medidas(TypedDict):
 
 
 class Respuesta(TypedDict):
-    """Una vuelta del modelo: su texto, las herramientas que pide, o las dos."""
+    """Una vuelta del modelo: su texto, las herramientas que pide, o las dos.
+
+    `cortada` es que el servidor la paró por un límite —el tope de salida o la
+    ventana llena—, no que el modelo terminara (#208). Un texto cortado puede
+    parecer una respuesta entera, así que quien lo lea decide qué hacer con él.
+    No va en `Medidas`, que se publica en la traza: sólo lo necesita el agente.
+    """
 
     content: str
     tool_calls: list[LlamadaHerramienta]
     metrics: Medidas
+    cortada: bool
 
 
 Estado = Literal["not_configured", "unreachable", "model_missing", "available"]

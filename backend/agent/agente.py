@@ -26,7 +26,11 @@ Lo que no se deduce leyendo el bucle:
   fallar antes de llegar al bueno. Por eso el catálogo se descubre una vez por
   consulta y guarda de dónde vino cada herramienta.
 - **Como mucho seis vueltas**, como en el spike. Agotadas, termina con la traza
-  entera y sin narración, y las tarjetas salen igual (R6.13).
+  entera y sin narración, y las tarjetas salen igual (R6.13). La vuelta en
+  que se le pide la respuesta (#208) cuenta dentro de las seis.
+- **Una respuesta cortada no se da por buena** (#208): si el servidor la paró
+  por un límite con media frase escrita, publicarla como entera sería un fallo
+  silencioso. Acaba como vacía, que la pantalla ya sabe enseñar.
 - **El modelo razona antes de contestar (`think=True`), y es explícito.**
   Medido en la A40 el 2026-09-26 (`spikes/agente_a40.py`): sin razonar, el 27B
   eligió bien 13 de 26 consultas y en los fallos **se inventó el resultado de
@@ -95,6 +99,13 @@ AVISO_HISTORIAL = (
 # nombre de la llamada sí llega (`Turno.tools`), su resultado no (#192).
 RESULTADO_DE_OTRO_TURNO = "(Resultado de un turno anterior: ya no está disponible.)"
 
+# Lo que se le dice cuando contesta sin texto, o cortado (#208). Va como
+# mensaje de sistema, como el aviso del historial: no lo escribió la persona.
+PEDIR_RESPUESTA = (
+    "No has escrito la respuesta. Escríbela ahora para el usuario, con lo que ya "
+    "tienes."
+)
+
 
 @dataclass(frozen=True)
 class Configuracion:
@@ -124,6 +135,12 @@ class Configuracion:
     ninguna señal en 4 de 10 conversaciones, y en 0 de 12 sin historial. Lo
     que ve de los turnos anteriores son respuestas con veredictos y ninguna
     llamada delante, y las imita. `None` lo desactiva, para medir con y sin.
+
+    `pedir_respuesta_si_vacia` es el texto con que se le pide la respuesta, una
+    vez por conversación, cuando contesta sin texto o cortado (#208). Con
+    historial, 3 de 57 conversaciones acabaron vacías en #192: el modelo
+    escribió la respuesta dentro del razonamiento y no la sacó. Va apagado
+    hasta que la medida de #208 diga si rescata.
     """
 
     backend: LLMBackend
@@ -136,6 +153,7 @@ class Configuracion:
     max_result_chars: int | None = None
     decimales_para_el_modelo: int | None = 3
     aviso_historial: str | None = AVISO_HISTORIAL
+    pedir_respuesta_si_vacia: str | None = None
 
 
 # Cada herramienta del catálogo, con la URL del servidor que la publicó.
@@ -194,6 +212,7 @@ async def responder(
         {"role": "user", "content": consulta},
     ]
 
+    respuesta_pedida = False
     for vuelta in range(1, config.max_rounds + 1):
         resultado = await config.backend.chat(
             mensajes, herramientas, think=config.think
@@ -222,8 +241,26 @@ async def responder(
         )
 
         if not respuesta["tool_calls"]:
-            if respuesta["content"].strip():
+            if respuesta["content"].strip() and not respuesta["cortada"]:
                 return terminar("answered", rounds=vuelta, answer=respuesta["content"])
+            # Vacía o cortada (#208): se le pide la respuesta una vez, si
+            # quedan vueltas; si no, termina como vacía.
+            if (
+                config.pedir_respuesta_si_vacia
+                and not respuesta_pedida
+                and vuelta < config.max_rounds
+            ):
+                respuesta_pedida = True
+                log.info(
+                    "agent.respuesta_pedida",
+                    vuelta=vuelta,
+                    motivo="cortada" if respuesta["cortada"] else "vacia",
+                )
+                mensajes.append({"role": "assistant", "content": respuesta["content"]})
+                mensajes.append(
+                    {"role": "system", "content": config.pedir_respuesta_si_vacia}
+                )
+                continue
             return terminar("empty_answer", rounds=vuelta)
 
         mensajes.append(
