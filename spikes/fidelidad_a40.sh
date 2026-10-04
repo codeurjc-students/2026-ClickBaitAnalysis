@@ -27,12 +27,18 @@
 #   setsid nohup bash spikes/fidelidad_a40.sh jueces gpt-oss:20b > /tmp/fidelidad_juez.log 2>&1 < /dev/null & disown
 #   setsid nohup bash spikes/fidelidad_a40.sh comparar A B C D > /tmp/fidelidad_comparar.log 2>&1 < /dev/null & disown
 #   setsid nohup bash spikes/fidelidad_a40.sh jueces gemma4:31b comparacion-C-05.json > /tmp/fidelidad_juez.log 2>&1 < /dev/null & disown
+#
+# #208 (2026-10-04): `repeticion`, `seguimiento` y `ventana` precargan el 27B con
+# 16384, la ventana de producción desde #192. Y la sesión dura FIDELIDAD_MINUTOS
+# (45 por defecto): la repetición de las desbocadas no cabe en 45.
+#   FIDELIDAD_MINUTOS=60 setsid nohup bash spikes/fidelidad_a40.sh repeticion desbocadas > /tmp/fidelidad_rep.log 2>&1 < /dev/null & disown
 exec 2>&1
 cd "$(dirname "$0")/.." || exit 1
 MAQUINA_2=gongarcia@gserver2.tfg.etsii.urjc.es
 PUERTO=11500
 REGISTRO=$(mktemp -d)
 trap 'rm -rf "$REGISTRO"' EXIT
+MINUTOS=${FIDELIDAD_MINUTOS:-45}
 
 USADO=(backend spikes/fidelidad.py)
 if [ "${1:-}" = jueces ]; then
@@ -40,6 +46,9 @@ if [ "${1:-}" = jueces ]; then
   CTX=16384
   # Lo juzgado: el corpus, o el fichero de la comparación que se le pase.
   USADO+=(spikes/prompts/juez-fidelidad.md "spikes/fidelidad/${3:-corpus.json}")
+elif [[ "${1:-}" =~ ^(repeticion|seguimiento|ventana)$ ]]; then
+  PRECARGA=qwen3.5:27b
+  CTX=16384
 else
   PRECARGA=qwen3.5:27b
   CTX=8192
@@ -52,13 +61,13 @@ for fichero in "${USADO[@]}"; do
 done
 
 echo "== condiciones"
-echo "fecha: $(date -Is) · commit: $(git rev-parse --short HEAD) · rama: $(git branch --show-current) · guion: $(sha256sum spikes/fidelidad.py | cut -c1-12) · precarga: $PRECARGA con num_ctx $CTX"
+echo "fecha: $(date -Is) · commit: $(git rev-parse --short HEAD) · rama: $(git branch --show-current) · guion: $(sha256sum spikes/fidelidad.py | cut -c1-12) · precarga: $PRECARGA con num_ctx $CTX · sesión: $MINUTOS min"
 
 # --- Máquina 2: la sesión, que espera a que WSL termine ---------------------------
 {
   # El resto va entre comillas, sin expandir aquí: el modelo y la ventana se le
   # pasan delante, como variables del guion remoto, que las hereda la sesión.
-  printf 'export PRECARGA=%q CTX=%q\n' "$PRECARGA" "$CTX"
+  printf 'export PRECARGA=%q CTX=%q MINUTOS=%q\n' "$PRECARGA" "$CTX" "$MINUTOS"
   cat <<'REMOTO'
 cat > /tmp/fidelidad192_sesion.sh <<'SESION'
 echo "== máquina 2: $PRECARGA, cargado"
@@ -67,13 +76,13 @@ jq -nc --arg modelo "$PRECARGA" --argjson ctx "$CTX" \
   | curl -s http://127.0.0.1:11434/api/chat -d @- \
   | jq -r '"  carga: \((.load_duration // 0) / 1e9) s · total: \((.total_duration // 0) / 1e9) s\(if .error then " · ERROR: " + .error else "" end)"'
 echo "LISTO PARA WSL"
-for _ in $(seq 1 2700); do [ -f /tmp/fidelidad192_fin ] && break; sleep 1; done
+for _ in $(seq 1 $((MINUTOS * 60))); do [ -f /tmp/fidelidad192_fin ] && break; sleep 1; done
 SESION
 rm -f /tmp/fidelidad192_fin
 biblioteca=~/.ollama/models/manifests/registry.ollama.ai/library
 echo "máquina 2: $(hostname) · ollama $(~/.local/ollama/bin/ollama --version 2>&1 | grep -o '[0-9][0-9.]*' | tail -1) · $PRECARGA $(sha256sum "$biblioteca/${PRECARGA%%:*}/${PRECARGA#*:}" | cut -c1-12) · qwen3.5:2b $(sha256sum $biblioteca/qwen3.5/2b | cut -c1-12) · gpu-sesion $(sha256sum ~/bin/gpu-sesion | cut -c1-12)"
 echo "gpu antes: $(nvidia-smi --query-gpu=memory.used --format=csv,noheader,nounits) MiB · procesos: $(nvidia-smi --query-compute-apps=pid --format=csv,noheader | grep -c .)"
-GPU_SESION_MAX=45m GPU_SESION_TUNEL=0 ~/bin/gpu-sesion bash /tmp/fidelidad192_sesion.sh < /dev/null
+GPU_SESION_MAX=${MINUTOS}m GPU_SESION_TUNEL=0 ~/bin/gpu-sesion bash /tmp/fidelidad192_sesion.sh < /dev/null
 sleep 2
 echo "== máquina 2, al cerrar la sesión"
 echo "  gpu: $(nvidia-smi --query-gpu=memory.used --format=csv,noheader,nounits) MiB · procesos: $(nvidia-smi --query-compute-apps=pid --format=csv,noheader | grep -c .) · ollama propios: $(pgrep -u gongarcia -c -x ollama)"

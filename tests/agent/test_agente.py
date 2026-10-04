@@ -30,6 +30,7 @@ from structlog.testing import capture_logs
 from backend.agent.agente import (
     AVISO_HISTORIAL,
     MAX_VUELTAS,
+    PEDIR_RESPUESTA,
     RESULTADO_DE_OTRO_TURNO,
     SIN_HERRAMIENTAS,
     Configuracion,
@@ -168,13 +169,17 @@ def _pide(*llamadas: tuple[str, dict], texto: str = "") -> ToolResult:
                 for nombre, argumentos in llamadas
             ],
             "metrics": MEDIDAS,
+            "cortada": False,
         }
     )
 
 
-def _responde(texto: str) -> ToolResult:
-    """Una vuelta en la que el modelo contesta sin pedir nada."""
-    return ToolResult.ok({"content": texto, "tool_calls": [], "metrics": MEDIDAS})
+def _responde(texto: str, *, cortada: bool = False) -> ToolResult:
+    """Una vuelta en la que el modelo contesta sin pedir nada. `cortada` es que
+    el servidor la paró por un límite, no que el modelo terminara (#208)."""
+    return ToolResult.ok(
+        {"content": texto, "tool_calls": [], "metrics": MEDIDAS, "cortada": cortada}
+    )
 
 
 def _config(modelo: LLMBackend, **cambios) -> Configuracion:
@@ -482,12 +487,147 @@ async def test_una_narracion_vacia_no_es_una_respuesta(monkeypatch):
     modelo = ModeloGuionado(_pide(("eco", {"texto": "hola"})), _responde("  \n"))
 
     async with mcp_en_proceso(monkeypatch):
-        resultado = await responder("Repite hola", [], _config(modelo))
+        resultado = await responder(
+            "Repite hola", [], _config(modelo, pedir_respuesta_si_vacia=None)
+        )
 
     assert resultado["status"] == "empty_answer"
     assert resultado["answer"] == ""
     (paso,) = _herramientas(resultado)
     assert paso["data"] == {"texto": "hola", "longitud": 4}
+    # Con el arreglo de #208 apagado, no se le pide nada más.
+    assert len(modelo.conversaciones) == 2
+
+
+# ----- Una vuelta más, y las respuestas cortadas (#208) -----
+
+
+@pytest.mark.asyncio
+async def test_una_respuesta_cortada_no_se_da_por_buena(monkeypatch):
+    """Si el servidor para por un límite —el tope de salida o la ventana— con
+    media respuesta escrita, publicarla como completa sería un fallo
+    silencioso. Acaba como vacía: la pantalla ya enseña las tarjetas así. Con
+    el arreglo de #208 apagado, para ver lo que pasa sin la vuelta más."""
+    modelo = ModeloGuionado(
+        _pide(("eco", {"texto": "hola"})),
+        _responde("El eco dice ho", cortada=True),
+    )
+
+    async with mcp_en_proceso(monkeypatch):
+        resultado = await responder(
+            "Repite hola", [], _config(modelo, pedir_respuesta_si_vacia=None)
+        )
+
+    assert resultado["status"] == "empty_answer"
+    assert resultado["answer"] == ""
+    # Lo cortado sigue en la traza, en la vuelta del modelo.
+    assert resultado["steps"][-1]["content"] == "El eco dice ho"
+
+
+@pytest.mark.asyncio
+async def test_por_defecto_se_pide_la_respuesta(monkeypatch):
+    """Encendido por defecto desde la medida de #208: lo usa la API sin decirlo."""
+    modelo = ModeloGuionado(
+        _pide(("eco", {"texto": "hola"})),
+        _responde(""),
+        _responde("El eco dice hola."),
+    )
+
+    async with mcp_en_proceso(monkeypatch):
+        resultado = await responder("Repite hola", [], _config(modelo))
+
+    assert resultado["status"] == "answered"
+    assert resultado["answer"] == "El eco dice hola."
+    *_, peticion = modelo.conversaciones[2]
+    assert peticion == {"role": "system", "content": PEDIR_RESPUESTA}
+
+
+@pytest.mark.asyncio
+async def test_con_el_arreglo_una_vacia_lleva_a_pedir_la_respuesta(monkeypatch):
+    modelo = ModeloGuionado(
+        _pide(("eco", {"texto": "hola"})),
+        _responde(""),
+        _responde("El eco dice hola."),
+    )
+
+    async with mcp_en_proceso(monkeypatch):
+        with capture_logs() as registrado:
+            resultado = await responder(
+                "Repite hola",
+                [],
+                _config(modelo, pedir_respuesta_si_vacia=PEDIR_RESPUESTA),
+            )
+
+    assert resultado["status"] == "answered"
+    assert resultado["answer"] == "El eco dice hola."
+    assert resultado["rounds"] == 3
+    # Se le devuelve su vuelta vacía y se le pide la respuesta como mensaje de
+    # sistema: no la escribió la persona, igual que el aviso del historial.
+    *_, suya, peticion = modelo.conversaciones[2]
+    assert suya == {"role": "assistant", "content": ""}
+    assert peticion == {"role": "system", "content": PEDIR_RESPUESTA}
+    (pedida,) = [
+        linea for linea in registrado if linea["event"] == "agent.respuesta_pedida"
+    ]
+    assert pedida["motivo"] == "vacia"
+
+
+@pytest.mark.asyncio
+async def test_con_el_arreglo_una_cortada_tambien_se_pide(monkeypatch):
+    modelo = ModeloGuionado(
+        _pide(("eco", {"texto": "hola"})),
+        _responde("El eco dice ho", cortada=True),
+        _responde("El eco dice hola."),
+    )
+
+    async with mcp_en_proceso(monkeypatch):
+        with capture_logs() as registrado:
+            resultado = await responder(
+                "Repite hola",
+                [],
+                _config(modelo, pedir_respuesta_si_vacia=PEDIR_RESPUESTA),
+            )
+
+    assert resultado["status"] == "answered"
+    assert resultado["answer"] == "El eco dice hola."
+    *_, suya, _peticion = modelo.conversaciones[2]
+    assert suya == {"role": "assistant", "content": "El eco dice ho"}
+    (pedida,) = [
+        linea for linea in registrado if linea["event"] == "agent.respuesta_pedida"
+    ]
+    assert pedida["motivo"] == "cortada"
+
+
+@pytest.mark.asyncio
+async def test_la_respuesta_se_pide_una_sola_vez(monkeypatch):
+    modelo = ModeloGuionado(
+        _pide(("eco", {"texto": "hola"})), _responde(""), _responde("")
+    )
+
+    async with mcp_en_proceso(monkeypatch):
+        resultado = await responder(
+            "Repite hola", [], _config(modelo, pedir_respuesta_si_vacia=PEDIR_RESPUESTA)
+        )
+
+    assert resultado["status"] == "empty_answer"
+    assert resultado["rounds"] == 3
+    assert len(modelo.conversaciones) == 3
+
+
+@pytest.mark.asyncio
+async def test_no_se_pide_si_era_la_ultima_vuelta(monkeypatch):
+    """La vuelta pedida cuenta dentro del tope de vueltas: no lo alarga."""
+    modelo = ModeloGuionado(_pide(("eco", {"texto": "hola"})), _responde(""))
+
+    async with mcp_en_proceso(monkeypatch):
+        resultado = await responder(
+            "Repite hola",
+            [],
+            _config(modelo, pedir_respuesta_si_vacia=PEDIR_RESPUESTA, max_rounds=2),
+        )
+
+    assert resultado["status"] == "empty_answer"
+    assert len(modelo.conversaciones) == 2
 
 
 @pytest.mark.asyncio

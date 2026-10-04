@@ -7614,7 +7614,111 @@ Visto en local con el asistente apagado, con una conversación como la de la pru
 
 #### Lo que queda
 
-- **Verlo en producción con el próximo despliegue**: en Sistema, la ficha de la señal dedicada sin las dos notas, y `describe_models` sin las tres.
+- **Verlo en producción con el próximo despliegue**: en Sistema, la ficha de la señal dedicada sin las dos notas, y `describe_models` sin las tres. *(Visto el 4 oct, con la máquina 1 redesplegada en `828e2e0` —134 s, con la capa de modelos rehecha—: el catálogo publica la ficha de la dedicada con 9 límites y ninguna nota de operación, y `describe_models`, ejecutado por `/api/tools/describe_models/execute`, sale `ok` sin ellas.)*
+
+### La última vuelta con historial: pedir la respuesta y un tope de salida (#208, 4 oct 2026)
+
+Con historial, la última vuelta del modelo fallaba de tres maneras, vistas en #192 o probando #209 en producción:
+
+- **Vacías**: escribe la respuesta dentro del razonamiento y no la saca (`empty_answer`, con `done_reason` `stop`). 3 de 57 conversaciones con historial en #192. La pantalla enseña las tarjetas sin texto.
+- **Desbocadas**: una vuelta razona miles de tokens. En #192, últimas vueltas de 116 a 311 s, y una agotó los 300 s de `llm_timeout` y la conversación acabó en `failed`.
+- **Seguimientos sin herramientas**: a «¿por qué?», después de analizar un titular, no llama a nada y pide el titular, que está en el historial (visto probando #209).
+
+Las tres arriesgan una demostración en directo, y por eso es la primera de `v0.7`. Las vacías y las desbocadas se miden juntas porque el tope que frena una desbocada puede convertirla en vacía.
+
+#### El método: repetir la vuelta que falló
+
+Los fallos rondan el 15 % de las conversaciones con historial. Con 20 por variante saldrían unos 3 en el control frente a 0, y eso puede salir por azar (Fisher, p ≈ 0,23); además, entre sesiones la deriva ya engañó una vez (#192). Así que se repite **la vuelta exacta que falló**: los datos de #192 (`spikes/fidelidad/ventana*.json`) guardan los pasos y el razonamiento, y `_mensajes_hasta` reconstruye los mensajes de esa vuelta tal como los montó el agente. Que la reconstrucción es exacta se comprueba con los `prompt_tokens` de la primera repetición de cada caso: si no cuadran, el guion aborta. Hay 16 casos con traza: 6 vacías, 9 desbocadas y 1 fallida.
+
+**La regla se escribió en la issue antes de la primera sesión** ([comentario](https://github.com/codeurjc-students/2026-ClickBaitAnalysis/issues/208#issuecomment-5980962259)):
+
+- **desbocada**: alguna vuelta con más de 1.000 tokens de salida (una normal no pasa de 421, el p95 de 434 vueltas de #192); **rescatada**: la conversación acaba en `answered`;
+- «una vuelta más» se queda si rescata al menos 4 de cada 5 repeticiones de las vacías; el tope de 1.500 tokens, si rescata las desbocadas —solo o con la vuelta más— en al menos 4 de 5; el aviso que pide rehacer, si baja los seguimientos sin herramientas frente al actual;
+- y cada uno, sólo si en una comprobación final contra producción no suben las inventadas ni las fallidas.
+
+| Condiciones | |
+|---|---|
+| Fecha | 2026-10-04, cuatro sesiones de GPU seguidas, en hora de Madrid: 16:57–17:09, 17:10–17:24, 17:25–17:40 y 17:53–19:10 |
+| Máquina | La A40 de la máquina 2, con Ollama 0.34.2 y `gpu-sesion` `6ad6a751d636`; el guion corre en WSL, por un túnel propio en el 11500 |
+| Modelo | `qwen3.5:27b` (`7653528ba5cb`), `num_ctx` 16384, el perfil preciso (0,6 y 0) y `05-llano` |
+| Código | `5652e46` en las tres primeras sesiones, y `b1abebc` en la cuarta, que sólo añade la variante `con-arreglos-208` a `spikes/fidelidad.py` |
+| Datos | `spikes/fidelidad/repeticion-20261004-1458.json`, `seguimiento-20261004-1511.json`, `repeticion-20261004-1526.json` y `ventana-bucle-encadena-nyt-bucle-encadena-guardian-16384-x20-preciso-con-herramientas-aviso-con-arreglos-208.json` |
+
+```bash
+FIDELIDAD_MINUTOS=30 setsid nohup bash spikes/fidelidad_a40.sh repeticion vacias > /tmp/fidelidad_rep_vacias.log 2>&1 < /dev/null & disown
+FIDELIDAD_MINUTOS=30 setsid nohup bash spikes/fidelidad_a40.sh seguimiento > /tmp/fidelidad_seguimiento.log 2>&1 < /dev/null & disown
+FIDELIDAD_MINUTOS=75 setsid nohup bash spikes/fidelidad_a40.sh repeticion desbocadas > /tmp/fidelidad_rep_desbocadas.log 2>&1 < /dev/null & disown
+FIDELIDAD_MINUTOS=75 setsid nohup bash spikes/fidelidad_a40.sh ventana --ctx 16384 --veces 20 --casos bucle-encadena-nyt:preciso-con-herramientas-aviso,bucle-encadena-nyt:con-arreglos-208,bucle-encadena-guardian:preciso-con-herramientas-aviso,bucle-encadena-guardian:con-arreglos-208 > /tmp/fidelidad_final.log 2>&1 < /dev/null & disown
+```
+
+#### Las vacías: una vuelta más
+
+Se repite cada vuelta vacía con su respuesta vacía y, detrás, un mensaje de sistema con `PEDIR_RESPUESTA` («No has escrito la respuesta. Escríbela ahora para el usuario, con lo que ya tienes.»). Va como sistema, igual que el aviso del historial: no lo escribió la persona. **30 de 30 rescatadas**, todas a la primera: los 6 casos pasan la regla.
+
+#### Los seguimientos: el aviso que pide rehacer no cambia nada
+
+«¿Por qué?» después de la conversación de la prueba de #209, que analizó «You Won't Believe What This Dog Did Next» con `analyze_headline`, 20 veces con el aviso actual y 20 con el que añade «Si la pregunta se refiere a un titular o una noticia de un turno anterior, vuelve a llamar a las herramientas con él», intercaladas:
+
+| Aviso | Sin llamar a ninguna herramienta |
+|---|---|
+| El actual | 6 de 20 |
+| El que pide rehacer | 5 de 20 |
+
+- **Al pie de la letra, la regla lo daba por bueno**, porque baja. Pero es un caso de diferencia, del tamaño que la propia regla dice que sale por azar: **el autor decidió dejarlo fuera**.
+- **Las 11 respuestas sin herramientas fallan igual con los dos avisos**: dicen que los resultados anteriores ya no están y preguntan si deben volver a analizarlo, y en 10 citan el titular, que tienen delante. Es el aviso de #192 llevado al extremo: se puso para que no se inventara el análisis, y aquí pide permiso para rehacerlo. No inventa nada, pero obliga a contestar «sí». **Queda en #217**, y para la demostración, anotado en #214: preguntar nombrando el titular.
+- **El recuento marcó 2 como inventadas, y no lo eran**: piden el titular. El clasificador (`VEREDICTO`, una expresión regular) las marcó porque dicen «clickbait». Una «inventada» automática es un aviso para leerla, no una medida.
+
+#### Las desbocadas: el tope acota, pero apenas actuó
+
+Con un tope de 1.500 tokens de salida por vuelta (`num_predict`, que cuenta el razonamiento y la respuesta) y, si la vuelta sale vacía o cortada, una vuelta más: **49 de 50 rescatadas**, 5 de 5 en 9 de los 10 casos y 4 de 5 en el otro. La regla lo da por bueno. Pero los tokens de cada repetición dicen que el tope apenas actuó:
+
+| Al repetir la vuelta | Repeticiones |
+|---|---|
+| No volvió a desbocarse (120–675 tokens) | 45 de 50 |
+| Se desbocó, el tope la cortó y una vuelta más la rescató | 2 |
+| Se desbocó y terminó sola antes del tope (1.366 tokens) | 1 |
+| Salió vacía (1.280 y 1.381 tokens): la vuelta más rescató una, y la otra la cortó el tope | 2 |
+
+La desbocada casi no se repite —5 de 50—, así que las 49 rescatadas miden sobre todo eso. Donde el tope y la vuelta más sí actúan, resuelven 3 de 4 casos: evidencia real, pero escasa. **El autor decidió quedárselo** con esta lectura a la vista: lo que compra es acotar la espera, y eso lo mide la comprobación final.
+
+#### La comprobación final, contra producción
+
+40 conversaciones de cada lado, intercaladas en una sesión: las de NYT y Guardian con el historial máximo de #192 (14 turnos), 20 de cada, con la configuración de producción (`preciso-con-herramientas-aviso`) y con la misma más la vuelta extra y el tope (`con-arreglos-208`).
+
+| | Producción | Con los arreglos |
+|---|---|---|
+| Llamó a una señal | 32 | 37 |
+| Vacías | 5 | 2 |
+| Fallidas (agotaron los 300 s) | 2 | 0 |
+| Inventadas | 1 | 0 |
+| Fallo de la medida (el MCP no respondió) | 0 | 1 |
+| Vueltas de más de 1.000 tokens | 12 | 20 |
+| … cortadas por el tope | — | 13, en 12 conversaciones |
+| La conversación más larga | 313 s | 117 s |
+| Mediana, NYT / Guardian | 24,3 / 54,6 s | 28,5 / 69,2 s |
+
+**La regla se cumple**: no suben ni las inventadas (1 → 0) ni las fallidas (2 → 0), así que entran los dos arreglos. Lo que cuestan, y lo que no arreglan:
+
+- **El tope no evita las desbocadas, las acota**: siguen saliendo, y sin él una vuelta de producción llegó a 6.154 tokens.
+- **Las 2 vacías que quedan** son de la vuelta más, que a su vez se desbocó (Guardian #14: 1.500 y 1.500 tokens; NYT #20: 1.482 y 1.500).
+- **La mediana sube** 4 s con NYT y 15 s con Guardian: cortar y volver a pedir cuesta más que dejar terminar una vuelta que se pasa por poco. A cambio, la conversación más larga baja de 313 a 117 s y desaparecen los timeouts.
+- **Una inventada en producción, y real**: sólo llamó a `get_nyt_news` y narró cifras de tres señales que no ejecutó (88 %, 12 % y 75 %). En #192 fueron 0 de 60 con la misma configuración. No es lo que mide esta issue, y queda en la ficha del modelo.
+- **El fallo de la medida**: el servidor MCP que el guion sirve en su propio proceso no respondió a tiempo al descubrir las herramientas (`TimeoutError`), y la conversación acabó sin ninguna vuelta del modelo. Sin explicar; se cuenta aparte porque no es del agente.
+
+#### Qué entra
+
+- **El cliente** (`integrations/llm/`): `Respuesta.cortada`, que es `done_reason: "length"` —el tope o la ventana llena— y va fuera de `Medidas` porque `Medidas` se publica; y `num_predict` en `OllamaClient`, que sólo se manda si se da.
+- **El agente**: una respuesta cortada con texto no se da por buena —sin el arreglo acaba en `empty_answer`, como una vacía—, y `pedir_respuesta_si_vacia` viene **encendido por defecto** con `PEDIR_RESPUESTA`. Se pide una vez por conversación, la vuelta cuenta dentro de las 6, y se registra como `agent.respuesta_pedida` con el motivo (vacía o cortada).
+- **La configuración**: `llm_num_predict`, 1.500 por defecto, que la factoría pasa al cliente y forma parte de su clave de caché (#119). `None` quita el tope.
+- **La ficha del modelo** (`integrations/llm/model_card.py`), con lo medido: la inventada de la comprobación, las vacías, los seguimientos y el tope.
+- **Los guiones**: en `spikes/fidelidad.py`, las partes `fallos`, `repeticion` y `seguimiento`, y las variantes de #208 en `ventana`; en `fidelidad_a40.sh`, la duración de la sesión (`FIDELIDAD_MINUTOS`) y el 27B con 16384 para estas partes. `spikes/agente_a40.py` apaga el arreglo, como ya apagaba el aviso de #192, para que repetirlo mida lo mismo que #188.
+- **Tests**, 9 nuevos: que una respuesta cortada no se da por buena; que con el arreglo se pide la respuesta, también a una cortada, una sola vez y no en la última vuelta; que viene encendido por defecto; que el cliente manda el tope y marca lo cortado; y que la factoría pasa el tope. **430 tests**, y pyright sin errores.
+
+#### Lo que queda
+
+- **Los seguimientos sin herramientas**, en #217.
+- **El fallo del MCP servido en el proceso del guion**, sin explicar.
+- **Verlo en producción con el próximo despliegue**: el tope y la vuelta más van por defecto, sin tocar el compose.
 
 
 

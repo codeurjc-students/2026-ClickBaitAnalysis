@@ -215,6 +215,18 @@ class Settings(BaseSettings):
     # respuesta salió vacía; con 16.384 escribió 553 y contestó. Cuesta 528 MiB
     # más de VRAM en la A40 (`spikes/fidelidad.py ventana`, 2026-09-30).
     llm_num_ctx: int = 16384
+    # El tope de salida de cada vuelta (#208), que cuenta el razonamiento y la
+    # respuesta. Con historial, alguna vuelta se desbocaba: 2–2,5 min y miles de
+    # tokens de razonamiento, o los 300 s de `llm_timeout` y la conversación
+    # perdida. Con el tope y la vuelta más del agente (`PEDIR_RESPUESTA`), en
+    # la comprobación final (40 conversaciones de cada lado, NYT y Guardian con
+    # el historial máximo) la más larga bajó de 313 a 117 s, las fallidas de 2
+    # a 0 y las vacías de 5 a 2. No evita las desbocadas, las ACOTA: siguieron
+    # saliendo, y el tope cortó 13 vueltas en 12 de las 40 conversaciones (sin
+    # él, una llegó a 6.154 tokens). A cambio, la mediana subió 4 s en
+    # NYT y 15 en Guardian (`spikes/fidelidad.py`, A40, 2026-10-04). `None`
+    # quita el tope.
+    llm_num_predict: int | None = 1500
     # El muestreo, también explícito (#192). Sin mandarlo decide el Modelfile
     # de Ollama —temperatura 1 y `presence_penalty` 1,5, el perfil que los
     # autores de Qwen3.5 dan para tareas generales—, y con ése se midió todo
