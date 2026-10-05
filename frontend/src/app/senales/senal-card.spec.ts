@@ -117,6 +117,39 @@ describe('SenalCard', () => {
     expect(pistas).toEqual(['número inicial: 10', 'hipérbole: Amazing']);
   });
 
+  // #93: el umbral del léxico se configura y viaja con el resultado. La nota lo
+  // lee en vez de copiar la regla (#116), que con 2 sería falsa.
+  const lexicaConUmbral = (umbral: number): SignalResult => ({
+    ...LEXICA,
+    data: { ...(LEXICA.data ?? {}), threshold: umbral },
+  });
+
+  it('con el umbral por defecto, la nota dice que basta una pista', async () => {
+    const html = await montar(lexicaConUmbral(1));
+
+    expect(html.querySelector('.nota')?.textContent).toContain(
+      '«¿disparó algún cue?»',
+    );
+  });
+
+  it('con otro umbral, la nota dice cuántas pistas hacen falta', async () => {
+    const html = await montar(lexicaConUmbral(2));
+
+    const nota = html.querySelector('.nota')?.textContent ?? '';
+    expect(nota).toContain('«¿hay al menos 2 pistas?»');
+    expect(nota).not.toContain('disparó');
+  });
+
+  it('un léxico guardado sin umbral no afirma ninguna regla', async () => {
+    // Lo guardado antes de #93 no lo trae, y la tarjeta no supone ninguno.
+    const html = await montar(LEXICA);
+
+    const nota = html.querySelector('.nota')?.textContent ?? '';
+    expect(nota).toContain('Las pistas SON la explicación');
+    expect(nota).not.toContain('disparó');
+    expect(nota).not.toContain('al menos');
+  });
+
   it('al alternar la cabecera se despliega la opaca', async () => {
     const html = await montar(OPACA);
 

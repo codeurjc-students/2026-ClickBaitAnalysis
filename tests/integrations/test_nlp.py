@@ -11,9 +11,10 @@ from httpx import Response, TimeoutException
 from huggingface_hub.errors import LocalEntryNotFoundError
 from mcp.server.fastmcp import FastMCP
 from mcp.server.fastmcp.exceptions import ToolError
+from pydantic import ValidationError
 from structlog.testing import capture_logs
 
-from backend.config.settings import settings
+from backend.config.settings import Settings, settings
 from backend.core.models import ToolResult
 from backend.integrations.nlp import dependencias, lexical, linear, model_cards
 from backend.integrations.nlp import tool as nlp_tool
@@ -22,6 +23,8 @@ from backend.integrations.nlp.factory import (
     get_incoherence_detector,
     get_model_id,
     get_nlp_backend,
+    get_threshold,
+    get_top_cues,
 )
 from backend.integrations.nlp.incoherence import IncoherenceDetector
 from backend.integrations.nlp.local import LocalNLPClient
@@ -1051,3 +1054,171 @@ def test_configurar_el_mismo_id_que_la_ficha_no_borra_las_medidas(monkeypatch):
     )
 
     assert ficha_efectiva("detect_clickbait") == _sin_notas_de_operacion(declarada)
+
+
+# --Umbrales configurables (#93)
+
+# Una sola pista: la interrogación final. Con el umbral por defecto (1) es
+# clickbait; con el conservador (2), no.
+UNA_PISTA = "Spain wins the World Cup?"
+VARIAS_PISTAS = "10 amazing things you won't believe"
+
+_CLAVES = {"guardian_api_key": "x", "nyt_api_key": "x", "hf_token": "x"}
+
+
+def test_el_umbral_lexico_decide_y_viaja_con_el_resultado():
+    """Y viaja como el de la incoherencia (#133): la tarjeta lo lee en vez de
+    copiar la regla, que con un umbral configurable dejaría de ser cierta."""
+    por_defecto = lexical.detect(UNA_PISTA).unwrap()
+    assert por_defecto["score"] == 1
+    assert por_defecto["is_clickbait"] is True
+    assert por_defecto["threshold"] == lexical.THRESHOLD == 1
+
+    conservador = lexical.detect(UNA_PISTA, threshold=2).unwrap()
+    assert conservador["is_clickbait"] is False
+    assert conservador["threshold"] == 2
+    # El umbral decide el veredicto, no lo que se encuentra.
+    assert conservador["matches"] == por_defecto["matches"]
+
+
+@pytest.mark.asyncio
+async def test_el_umbral_de_la_incoherencia_llega_al_detector(monkeypatch):
+    por_defecto = IncoherenceDetector()
+    exigente = IncoherenceDetector(threshold=0.5)
+    for detector in (por_defecto, exigente):
+        monkeypatch.setattr(detector, "_get_model", lambda: FakeModel(0.4))
+
+    assert (await por_defecto.detect("a", "b")).unwrap()["incoherent"] is False
+    resultado = (await exigente.detect("a", "b")).unwrap()
+    assert resultado["incoherent"] is True
+    assert resultado["threshold"] == 0.5
+
+
+def test_el_tope_del_lineal_recorta_la_explicacion_no_la_decision():
+    completo = linear.predict(VARIAS_PISTAS).unwrap()
+    recortado = linear.predict(VARIAS_PISTAS, top_cues=1).unwrap()
+
+    assert len(completo["top_cues"]) > 1
+    assert recortado["top_cues"] == completo["top_cues"][:1]
+    # La probabilidad suma TODAS las pistas, se enseñen o no.
+    assert recortado["probability"] == completo["probability"]
+
+
+def test_sin_configuracion_cada_umbral_es_el_de_su_detector():
+    """El defecto vive en un solo sitio, el detector, que es donde está escrito
+    por qué vale lo que vale (E4-03, #92)."""
+    assert get_threshold("detect_clickbait_lexical") == lexical.THRESHOLD
+    assert (
+        get_threshold("detect_clickbait_incoherence") == IncoherenceDetector.THRESHOLD
+    )
+    assert get_top_cues() == linear.TOP_CUES
+    assert get_incoherence_detector().threshold == IncoherenceDetector.THRESHOLD
+
+
+def test_el_umbral_se_resuelve_en_cada_llamada_no_al_importar(monkeypatch):
+    """La regresión de #87, con los umbrales: una constante de módulo sería un
+    ajuste que no hace nada, y no falla."""
+    monkeypatch.setattr(
+        settings, "nlp_thresholds", {"detect_clickbait_incoherence": 0.5}
+    )
+    monkeypatch.setattr(settings, "nlp_linear_top_cues", 3)
+
+    assert get_threshold("detect_clickbait_incoherence") == 0.5
+    assert get_top_cues() == 3
+    # La otra señal, con el suyo.
+    assert get_threshold("detect_clickbait_lexical") == lexical.THRESHOLD
+
+    detector = get_incoherence_detector()
+    assert detector.threshold == 0.5
+    # Sólo cambia el corte: el modelo es el mismo, y el detector se reutiliza
+    # mientras la configuración no cambie (#119).
+    assert detector.model_id == get_model_id("detect_clickbait_incoherence")
+    assert get_incoherence_detector() is detector
+
+
+@pytest.mark.asyncio
+async def test_el_analisis_decide_con_el_umbral_configurado(monkeypatch):
+    """Lo que pedía #93: cambiar la configuración DESPUÉS de importar cambia el
+    veredicto. La fachada MCP, en `test_tool_contract.py`."""
+    from backend.analysis import orchestrator
+
+    monkeypatch.setattr(settings, "nlp_thresholds", {"detect_clickbait_lexical": 2})
+    monkeypatch.setattr(settings, "nlp_linear_top_cues", 1)
+    senales = {senal.name: senal for senal in orchestrator._SIGNALS}
+
+    lexica = await orchestrator._run_one(
+        senales["detect_clickbait_lexical"], UNA_PISTA, None
+    )
+    assert lexica.is_clickbait is False
+    assert lexica.data is not None and lexica.data["threshold"] == 2
+
+    lineal = await orchestrator._run_one(
+        senales["detect_clickbait_linear"], VARIAS_PISTAS, None
+    )
+    assert lineal.data is not None and len(lineal.data["top_cues"]) == 1
+
+
+def test_con_otro_umbral_la_ficha_lo_avisa_sin_quitar_las_medidas(monkeypatch):
+    """Al revés que con otro modelo (#119), las medidas se quedan: el modelo es
+    el mismo, y límites como «sólo inglés» siguen siendo ciertos. Lo que deja
+    de valer son las cifras, medidas con el umbral por defecto, y eso se avisa."""
+    declarada = model_cards.cards_by_signal()["detect_clickbait_lexical"]
+    monkeypatch.setattr(settings, "nlp_thresholds", {"detect_clickbait_lexical": 2})
+
+    aviso, *medidas = ficha_efectiva("detect_clickbait_lexical")["limitations"]
+
+    assert "UMBRAL PUESTO POR CONFIGURACIÓN" in aviso
+    assert "2 en lugar de 1" in aviso
+    assert medidas == declarada["limitations"]
+
+
+def test_el_umbral_por_defecto_puesto_a_mano_no_avisa(monkeypatch):
+    """Poner el umbral que ya estaba no es cambiarlo, como con el modelo."""
+    declarada = model_cards.cards_by_signal()["detect_clickbait_incoherence"]
+    monkeypatch.setattr(
+        settings,
+        "nlp_thresholds",
+        {"detect_clickbait_incoherence": IncoherenceDetector.THRESHOLD},
+    )
+
+    assert ficha_efectiva("detect_clickbait_incoherence") == _sin_notas_de_operacion(
+        declarada
+    )
+
+
+def test_los_umbrales_se_leen_del_entorno_como_json(monkeypatch):
+    """Es como se dan en despliegue, igual que `NLP_MODELS`."""
+    monkeypatch.setenv("NLP_THRESHOLDS", '{"detect_clickbait_lexical": 2}')
+    monkeypatch.setenv("NLP_LINEAR_TOP_CUES", "5")
+
+    configuracion = Settings(**_CLAVES)
+
+    assert configuracion.nlp_thresholds == {"detect_clickbait_lexical": 2}
+    assert configuracion.nlp_linear_top_cues == 5
+
+
+@pytest.mark.parametrize(
+    "senal",
+    [
+        "detect_clickbait_lexica",  # mal escrita
+        "detect_clickbait_linear",  # su 0,5 no se configura: se decide en #78
+    ],
+)
+def test_un_umbral_de_una_senal_que_no_lo_tiene_no_arranca(senal):
+    """Con una clave libre, un umbral mal escrito sería un ajuste que no hace
+    nada sin fallar. Así falla al arrancar, como `llm_prompt`."""
+    with pytest.raises(ValidationError):
+        Settings(nlp_thresholds={senal: 2}, **_CLAVES)
+
+
+@pytest.mark.parametrize("umbral", [0, 1.5])
+def test_el_umbral_lexico_cuenta_pistas_enteras(umbral):
+    """Es un número de pistas: con 0 todo sería clickbait, y con 1,5 la tarjeta
+    diría «al menos 1,5 pistas» cuando la regla es «al menos 2»."""
+    with pytest.raises(ValidationError):
+        Settings(nlp_thresholds={"detect_clickbait_lexical": umbral}, **_CLAVES)
+
+
+def test_el_tope_del_lineal_no_baja_de_una_pista():
+    with pytest.raises(ValidationError):
+        Settings(nlp_linear_top_cues=0, **_CLAVES)

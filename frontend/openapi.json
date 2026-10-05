@@ -1817,7 +1817,7 @@
         "type": "object"
       },
       "SalidaLexica": {
-        "description": "Salida del detector por reglas. La evidencia ES la explicación (R3.8).",
+        "description": "Salida del detector por reglas. La evidencia ES la explicación (R3.8).\n\nLleva el ``threshold`` —cuántas pistas hacen falta— desde #93, cuando pasó a\nconfigurarse: sin él, la interfaz tendría que dar por hecho que basta una, y\ncon otro umbral diría algo falso junto a las mismas pistas.",
         "properties": {
           "score": {
             "title": "Score",
@@ -1826,6 +1826,10 @@
           "is_clickbait": {
             "title": "Is Clickbait",
             "type": "boolean"
+          },
+          "threshold": {
+            "title": "Threshold",
+            "type": "number"
           },
           "matches": {
             "items": {
@@ -1842,6 +1846,7 @@
         "required": [
           "score",
           "is_clickbait",
+          "threshold",
           "matches",
           "headline"
         ],

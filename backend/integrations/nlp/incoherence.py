@@ -1,13 +1,14 @@
 """Señal híbrida: la incoherencia entre titular y cuerpo (`IncoherenceDetector`).
 
 Embeddings de los dos textos con sentence-transformers y similitud del coseno:
-por debajo de `THRESHOLD` (0,3, calibrado en #92), el titular no se corresponde
-con lo que cuenta la noticia. El rasgo es opaco, pero la decisión es un corte
-legible, y por eso el umbral viaja con el resultado (#133).
+por debajo del umbral (por defecto `THRESHOLD`, 0,3, calibrado en #92), el
+titular no se corresponde con lo que cuenta la noticia. El rasgo es opaco, pero
+la decisión es un corte legible, y por eso el umbral viaja con el resultado
+(#133).
 
 No tiene vía remota: corre siempre en local, y sin `sentence-transformers`
 falla con cualquier `nlp_backend`, diciendo qué falta (#158). El id del modelo
-lo RECIBE, con la ficha como defecto (#119).
+y el umbral los RECIBE, con la ficha y `THRESHOLD` como defecto (#119, #93).
 """
 
 import asyncio
@@ -51,6 +52,9 @@ class IncoherenceDetector:
     # 0,56). Hasta #124 pisaba también a una forma unánime en «no», donde
     # acertaba el 13 %; desde entonces eso da `ambiguous`.
     #
+    # Es el DEFECTO: desde #93 se puede poner otro por configuración, y la
+    # ficha publicada lo avisa, porque sus cifras se midieron con éste.
+    #
     # Reproducible: python -m backend.evaluation.eval_incoherencia
     THRESHOLD = 0.3
 
@@ -63,12 +67,17 @@ class IncoherenceDetector:
     # un token. ~4 caracteres por token en inglés.
     LEAD_CHARS = 1000
 
-    def __init__(self, model: str | None = None) -> None:
-        # El id se RECIBE, con la ficha como defecto (#119). Resolverlo aquí
-        # obligaría a este módulo a leer `settings`, y entonces importarlo
-        # exigiría un `.env` con las claves de API — justo lo que el test de
-        # arquitectura protege: los detectores se prueban sin montar nada.
+    def __init__(
+        self, model: str | None = None, threshold: float | None = None
+    ) -> None:
+        # El id y el umbral se RECIBEN, con la ficha y `THRESHOLD` como defecto
+        # (#119, #93). Resolverlos aquí obligaría a este módulo a leer
+        # `settings`, y entonces importarlo exigiría un `.env` con las claves de
+        # API — justo lo que el test de arquitectura protege: los detectores se
+        # prueban sin montar nada.
         self.model_id = model or self.MODEL
+        # `is None` y no `or`: un umbral de 0 es un umbral.
+        self.threshold = self.THRESHOLD if threshold is None else threshold
         self._model = None  # Singleton
 
     def _get_model(self):
@@ -130,7 +139,7 @@ class IncoherenceDetector:
 
             # Tensors: Array de Números de N dimensiones. En este caso 2 embeddings x 1-D Tensor de 384 floats de los cuales reducimos a 1 float x 1 Tensor con similarity (y que extraemos con item)
 
-            inc = sim < self.THRESHOLD
+            inc = sim < self.threshold
             return ToolResult.ok(
                 {
                     "similarity": sim,
@@ -141,10 +150,10 @@ class IncoherenceDetector:
                     # Una tarjeta que dijera «similitud 0,62 · coherente» sin
                     # enseñar contra qué se comparó pierde exactamente eso.
                     #
-                    # Y cablearlo en la interfaz sería peor que copiarlo: #93
-                    # propone parametrizar este número, así que se estaría
-                    # duplicando un valor que ya está previsto que cambie.
-                    "threshold": self.THRESHOLD,
+                    # Y cablearlo en la interfaz sería peor que copiarlo: desde
+                    # #93 este número se configura, así que la interfaz
+                    # enseñaría uno que quizá no es el que decidió.
+                    "threshold": self.threshold,
                     "headline": headline,
                     "content": content,
                 }

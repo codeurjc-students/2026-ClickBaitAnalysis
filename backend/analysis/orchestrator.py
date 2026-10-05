@@ -60,6 +60,8 @@ from backend.integrations.nlp.factory import (
     get_incoherence_detector,
     get_model_id,
     get_nlp_backend,
+    get_threshold,
+    get_top_cues,
 )
 
 log = structlog.get_logger()
@@ -182,12 +184,18 @@ _SIGNALS: tuple[_Signal, ...] = (
         name="detect_clickbait_lexical",
         # Síncrona y de milisegundos: va a un hilo solo para que el bucle trate a
         # todas igual. El coste del hilo es despreciable frente a la uniformidad.
-        run=lambda titular, cuerpo: asyncio.to_thread(lexical.detect, titular),
+        #
+        # El umbral, de la factoría en cada uso (#93), como el modelo.
+        run=lambda titular, cuerpo: asyncio.to_thread(
+            lexical.detect, titular, get_threshold("detect_clickbait_lexical")
+        ),
         verdict=lambda datos: datos["is_clickbait"],
     ),
     _Signal(
         name="detect_clickbait_linear",
-        run=lambda titular, cuerpo: asyncio.to_thread(linear.predict, titular),
+        run=lambda titular, cuerpo: asyncio.to_thread(
+            linear.predict, titular, get_top_cues()
+        ),
         verdict=lambda datos: datos["is_clickbait"],
     ),
     _Signal(

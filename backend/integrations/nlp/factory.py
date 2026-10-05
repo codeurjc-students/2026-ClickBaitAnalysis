@@ -9,12 +9,14 @@ saber su id, arrastraría `settings` —cuyos campos de API son obligatorios— 
 dejaría de poder importarse sin un `.env`, que es justo lo que el test protege.
 
 Su oficio era «decidir DÓNDE corre el modelo». Desde #119 decide también **cuál
-es** y **qué ficha se publica**, que es el mismo trabajo con un parámetro más.
+es** y **qué ficha se publica**, que es el mismo trabajo con un parámetro más; y
+desde #93, **con qué umbral decide** cada señal que corta por uno.
 """
 
 from functools import lru_cache
 
-from backend.config.settings import settings
+from backend.config.settings import UmbralConfigurable, settings
+from backend.integrations.nlp import lexical, linear
 from backend.integrations.nlp.base import NLPBackend
 from backend.integrations.nlp.incoherence import IncoherenceDetector
 from backend.integrations.nlp.local import LocalNLPClient  # local.py
@@ -25,6 +27,14 @@ from backend.integrations.nlp.model_cards import (
 )
 from backend.integrations.nlp.outputs import FichaModelo
 from backend.integrations.nlp.remote import HFClient  # remote.py
+
+# Los umbrales POR DEFECTO, leídos del detector que los usa (#93). Viven allí y
+# no aquí porque allí está escrito por qué valen lo que valen (E4-03, #92); aquí
+# sólo se decide si la configuración los sustituye.
+_UMBRALES_DEL_DETECTOR: dict[UmbralConfigurable, float] = {
+    "detect_clickbait_lexical": lexical.THRESHOLD,
+    "detect_clickbait_incoherence": IncoherenceDetector.THRESHOLD,
+}
 
 
 @lru_cache(maxsize=2)
@@ -60,8 +70,15 @@ def get_nlp_backend() -> NLPBackend:
 
 
 @lru_cache(maxsize=2)
-def _detector_para(model_id: str) -> IncoherenceDetector:
-    return IncoherenceDetector(model_id)
+def _detector_para(model_id: str, threshold: float) -> IncoherenceDetector:
+    """Un detector por modelo Y umbral: la caché va por el valor de la
+    configuración (#119), así que cambiar cualquiera de los dos da otro.
+
+    Cambiar sólo el umbral carga el modelo otra vez en la instancia nueva. Se
+    acepta: el umbral no se mueve con el sistema en marcha, se pone al
+    desplegar o para un experimento (#93).
+    """
+    return IncoherenceDetector(model_id, threshold)
 
 
 def get_incoherence_detector() -> IncoherenceDetector:
@@ -74,7 +91,26 @@ def get_incoherence_detector() -> IncoherenceDetector:
     que antes era una advertencia escrita en el orquestador y ahora lo garantiza
     la construcción.
     """
-    return _detector_para(get_model_id("detect_clickbait_incoherence"))
+    return _detector_para(
+        get_model_id("detect_clickbait_incoherence"),
+        get_threshold("detect_clickbait_incoherence"),
+    )
+
+
+def get_threshold(signal: UmbralConfigurable) -> float:
+    """El umbral con el que decide una señal: el configurado, o el de su detector.
+
+    Como el modelo, se resuelve en cada llamada: una constante de módulo
+    quedaría fijada en el primer import, y cambiar la configuración después
+    sería un ajuste que no hace nada sin fallar (#87).
+    """
+    return settings.nlp_thresholds.get(signal, _UMBRALES_DEL_DETECTOR[signal])
+
+
+def get_top_cues() -> int:
+    """Cuántas pistas devuelve el lineal como explicación: las configuradas, o
+    las de su detector. No toca el veredicto: la probabilidad suma todas."""
+    return settings.nlp_linear_top_cues or linear.TOP_CUES
 
 
 def get_model_id(signal: str) -> str:
@@ -111,21 +147,49 @@ def ficha_efectiva(signal: str) -> FichaModelo:
     opera el sistema, no de quien lee la señal. Por aquí pasan
     ``describe_models``, el catálogo y el orquestador, así que ésta es la única
     puerta entre la ficha declarada y la publicada.
+
+    Desde #93, un umbral puesto por configuración añade un aviso delante: ver
+    ``_con_aviso_de_umbral``.
     """
     ficha = cards_by_signal()[signal]
     configurado = settings.nlp_models.get(signal)
 
     if not configurado or configurado == ficha["model_id"]:
-        return _publicable(ficha)
+        return _con_aviso_de_umbral(signal, _publicable(ficha))
 
-    return {
-        **_publicable(ficha),
-        "model_id": configurado,
-        "name": f"{configurado} (puesto por configuración)",
-        "limitations": [
-            f"SIN EVALUAR EN ESTE PROYECTO. Este modelo se ha puesto por configuración en lugar de `{ficha['model_id']}`, así que las limitaciones medidas de aquél no se publican aquí: eran suyas. Lo que sigue siendo cierto es lo que describe la señal y no al modelo — mide `{ficha['dimension']}` y es de tipo `{ficha['type']}`.",
-        ],
-    }
+    return _con_aviso_de_umbral(
+        signal,
+        {
+            **_publicable(ficha),
+            "model_id": configurado,
+            "name": f"{configurado} (puesto por configuración)",
+            "limitations": [
+                f"SIN EVALUAR EN ESTE PROYECTO. Este modelo se ha puesto por configuración en lugar de `{ficha['model_id']}`, así que las limitaciones medidas de aquél no se publican aquí: eran suyas. Lo que sigue siendo cierto es lo que describe la señal y no al modelo — mide `{ficha['dimension']}` y es de tipo `{ficha['type']}`.",
+            ],
+        },
+    )
+
+
+def _con_aviso_de_umbral(signal: str, ficha: FichaModelo) -> FichaModelo:
+    """La ficha, con un aviso delante si el umbral no es el de sus medidas (#93).
+
+    Al revés que con otro modelo (#119), las limitaciones NO se quitan: el
+    modelo es el mismo, y límites como «sólo inglés» o «acoplada al léxico»
+    siguen siendo ciertos. Lo que deja de valer son las cifras de acierto,
+    medidas con el umbral por defecto, y eso es lo que dice el aviso.
+    """
+    if signal not in _UMBRALES_DEL_DETECTOR:
+        return ficha
+    defecto = _UMBRALES_DEL_DETECTOR[signal]
+    umbral = get_threshold(signal)
+    if umbral == defecto:
+        return ficha
+    aviso = (
+        f"UMBRAL PUESTO POR CONFIGURACIÓN: {umbral:g} en lugar de {defecto:g}. "
+        f"Las cifras de esta ficha se midieron con {defecto:g}; con este umbral, "
+        "la precisión y el recall son otros, sin medir en este proyecto."
+    )
+    return {**ficha, "limitations": [aviso, *ficha["limitations"]]}
 
 
 def _publicable(ficha: FichaDeclarada) -> FichaModelo:

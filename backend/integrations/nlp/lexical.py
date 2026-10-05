@@ -6,8 +6,10 @@ inicial, interrogación final, mayúsculas, elipsis), y devuelve cada coincidenc
 con su posición. La evidencia ES la explicación: no hay ningún modelo detrás.
 
 `THRESHOLD = 1` —una pista basta— es el de mejor F1 (E4-03); con `2` es el modo
-conservador, de precisión ≈0,97, y #93 propone hacerlo configurable. Los tokens
-son de dos letras o más desde #69, para que la «I» de «A.I.» no cuente.
+conservador, de precisión ≈0,97. Es el defecto: desde #93 el umbral se
+configura (`nlp_thresholds`), lo RECIBE `detect` de la factoría y viaja con el
+resultado. Los tokens son de dos letras o más desde #69, para que la «I» de
+«A.I.» no cuente.
 """
 
 import ast
@@ -48,9 +50,6 @@ PATTERNS = {
     "ellipsis": re.compile(r"\.\.\.|…"),  # ... o …
 }
 
-# Pistas necesarias para considerarse clickbait.
-# Default t=1 (mejor F1≈0.85, P≈R). Modo conservador: t=2 (precisión≈0.97). TODO: Parametrizar
-
 # Orden fijo de los cues, que es el de los rasgos del modelo lineal: lo usan
 # `linear.featurize_cues` y `evaluation/train_linear.py`.
 # No aplica PATTERNS (no se pueden determinar, son reglas)
@@ -58,10 +57,15 @@ PATTERNS = {
 # Orden alfabético por defecto.
 # Desempaquetamos de set a string
 ALL_CUES = sorted(set().union(*WORD_CUES.values(), *PHRASE_CUES.values()))
+
+# Pistas necesarias para considerarse clickbait.
+# Default t=1 (mejor F1≈0.85, P≈R). Modo conservador: t=2 (precisión≈0.97).
+# Es el DEFECTO (#93): el que decide lo pasa la factoría desde la configuración,
+# y los guiones de `evaluation/` miden con éste.
 THRESHOLD = 1
 
 
-def detect(headline: str) -> ToolResult:
+def detect(headline: str, threshold: float = THRESHOLD) -> ToolResult:
 
     if not headline or not headline.strip():
         return ToolResult.fail("El titular está vacío o no es válido")
@@ -112,11 +116,15 @@ def detect(headline: str) -> ToolResult:
 
     # Recuento final:
     score = len(matches)
-    is_clickbait = score >= THRESHOLD
+    is_clickbait = score >= threshold
     return ToolResult.ok(
         {
             "score": score,
             "is_clickbait": is_clickbait,
+            # El umbral VIAJA con el resultado, como el de la incoherencia
+            # (#133): la tarjeta lo lee en vez de copiar la regla (#116), que
+            # con un umbral configurable dejaría de ser cierta.
+            "threshold": threshold,
             "matches": matches,
             "headline": headline,
         }

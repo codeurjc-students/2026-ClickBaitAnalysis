@@ -20,6 +20,8 @@ from backend.integrations.nlp.factory import (
     get_incoherence_detector,
     get_model_id,
     get_nlp_backend,
+    get_threshold,
+    get_top_cues,
 )
 from backend.integrations.nlp.outputs import (
     Etiqueta,
@@ -39,7 +41,8 @@ def register(mcp: FastMCP):
     # efecto en esta fachada (#87).
     #
     # Los ids salen de la ficha (#116) y de la configuración si la hay (#119),
-    # y también por llamada: una constante aquí volvería a congelarlos.
+    # y también por llamada: una constante aquí volvería a congelarlos. Lo
+    # mismo los umbrales y el tope de pistas del lineal (#93).
 
     @mcp.tool(meta=tool_meta("Señales de análisis", __name__))
     @log_tool_invocation
@@ -164,7 +167,7 @@ def register(mcp: FastMCP):
         Raises:
             Si el titular está vacío.
         """
-        response = lexical.detect(headline)
+        response = lexical.detect(headline, get_threshold("detect_clickbait_lexical"))
         if not response.has_content():
             raise ToolError(response.error or "Error al analizar léxico en el titular")
         return response.unwrap()
@@ -191,7 +194,7 @@ def register(mcp: FastMCP):
         Raises:
             Si el titular está vacío.
         """
-        response = linear.predict(headline)
+        response = linear.predict(headline, get_top_cues())
         if not response.has_content():
             raise ToolError(response.error or "Error al predecir clickbait")
         return response.unwrap()

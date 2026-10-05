@@ -15,7 +15,12 @@ las listas y los diccionarios se pasan como JSON.
 
 from typing import Literal
 
+from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+# Las señales que deciden con un umbral configurable (#93). Una lista CERRADA a
+# propósito: ver `nlp_thresholds`.
+UmbralConfigurable = Literal["detect_clickbait_lexical", "detect_clickbait_incoherence"]
 
 
 class Settings(BaseSettings):
@@ -51,6 +56,46 @@ class Settings(BaseSettings):
     # Sólo cambia el id, no el modo de invocación: un zero-shot necesita además
     # etiquetas candidatas y otra llamada. Eso es #159.
     nlp_models: dict[str, str] = {}
+
+    # El UMBRAL con el que decide cada señal que corta por uno (#93), por si se
+    # quiere probar otro sin tocar código. Vacío significa «el del detector»: el
+    # valor por defecto vive en un solo sitio, la constante `THRESHOLD` de cada
+    # uno, que es donde está escrito por qué vale lo que vale (E4-03, #92).
+    #   NLP_THRESHOLDS='{"detect_clickbait_lexical": 2}'
+    #
+    # Al revés que `nlp_models`, las claves son una lista CERRADA: sólo dos
+    # señales deciden con un umbral, y una clave mal escrita sería un ajuste que
+    # no hace nada sin fallar. Así falla al arrancar, como `llm_prompt`.
+    #
+    # El 0,5 del lineal no está, a propósito: con los pesos de hoy moverlo no
+    # cambia nada —la mitad de los titulares no tiene pistas y reciben todos la
+    # misma probabilidad (`evaluation/eval_umbral_lineal.py`)—, así que se
+    # decide al reentrenar, en #78.
+    #
+    # Las cifras de la ficha se midieron con el umbral por defecto: con otro,
+    # `ficha_efectiva` lo avisa, sin quitar las medidas (el modelo es el mismo).
+    nlp_thresholds: dict[UmbralConfigurable, float] = {}
+
+    # Cuántas pistas devuelve el lineal como explicación (#93). Sólo recorta lo
+    # que se ENSEÑA: la probabilidad suma todas. `None` es el de la señal.
+    nlp_linear_top_cues: int | None = Field(default=None, ge=1)
+
+    @field_validator("nlp_thresholds")
+    @classmethod
+    def _el_lexico_cuenta_pistas(
+        cls, umbrales: dict[UmbralConfigurable, float]
+    ) -> dict[UmbralConfigurable, float]:
+        """El umbral del léxico es un número de PISTAS: un entero desde 1.
+
+        Con 0 todo sería clickbait, y con 1,5 la tarjeta diría «al menos 1,5
+        pistas» cuando la regla es «al menos 2».
+        """
+        lexico = umbrales.get("detect_clickbait_lexical")
+        if lexico is not None and (lexico < 1 or not float(lexico).is_integer()):
+            raise ValueError(
+                "el umbral del léxico es un número de pistas: un entero desde 1"
+            )
+        return umbrales
 
     # Cargar los modelos NLP al arrancar en vez de en la primera petición.
     #
