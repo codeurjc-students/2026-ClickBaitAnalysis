@@ -54,11 +54,14 @@ PROBES = {
     },
     "guardian": {
         "url": "https://content.guardianapis.com/search",
-        "params": {"page-size": 1, "api-key": settings.guardian_api_key},
+        "params": {
+            "page-size": 1,
+            "api-key": settings.guardian_api_key.get_secret_value(),
+        },
     },
     "nyt": {
         "url": "https://api.nytimes.com/svc/search/v2/articlesearch.json",
-        "params": {"api-key": settings.nyt_api_key},
+        "params": {"api-key": settings.nyt_api_key.get_secret_value()},
     },
 }
 

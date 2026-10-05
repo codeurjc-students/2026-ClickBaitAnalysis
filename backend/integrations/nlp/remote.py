@@ -49,7 +49,7 @@ def _fallo(tarea: str, model: str, error: Exception, respuesta: object) -> ToolR
 class HFClient(BaseAPI, NLPBackend):
     # Importante
     BASE_URL = "https://router.huggingface.co/hf-inference/models/"
-    API_KEY = settings.hf_token
+    API_KEY = settings.hf_token.get_secret_value()
     MAX_RETRIES = 3
 
     def _apply_auth(self, headers, params):

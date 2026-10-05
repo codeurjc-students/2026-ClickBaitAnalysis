@@ -15,7 +15,7 @@ las listas y los diccionarios se pasan como JSON.
 
 from typing import Literal
 
-from pydantic import Field, field_validator
+from pydantic import Field, SecretStr, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 # Las señales que deciden con un umbral configurable (#93). Una lista CERRADA a
@@ -30,9 +30,13 @@ class Settings(BaseSettings):
 
     log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR"] = "INFO"
     log_format: Literal["console", "json"] = "console"
-    guardian_api_key: str  # PS mapea automáticamente
-    nyt_api_key: str
-    hf_token: str
+    # `SecretStr` y no `str` (#93): su `repr` es '**********', así que una traza,
+    # un log o un test que falle sobre este objeto no las enseña. Pasó: un
+    # `AttributeError` sobre `settings` hizo que pytest imprimiera las tres en
+    # claro. El valor se saca con `get_secret_value()` sólo donde se usa.
+    guardian_api_key: SecretStr  # PS mapea automáticamente
+    nyt_api_key: SecretStr
+    hf_token: SecretStr
     nlp_backend: Literal["remote", "local"] = (
         "remote"  # Añadimos dos opciones de backend NLP, así mantenemos remoto sin cambiar mucho.
     )
