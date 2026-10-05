@@ -1222,7 +1222,7 @@
           "no_data"
         ],
         "title": "OverallVerdict",
-        "description": "Etiqueta única, para listados compactos como el historial.\n\nSe deriva de las dimensiones con una jerarquía explícita —el engaño pesa más\nque la forma— en lugar de por mayoría de señales."
+        "description": "Etiqueta única, para listados compactos como el historial.\n\nSe deriva de las dimensiones con una jerarquía explícita —el engaño desempata\nuna forma dividida, pero no contradice a una forma unánime— en lugar de por\nmayoría de señales."
       },
       "PasoHerramientaPublicado": {
         "properties": {

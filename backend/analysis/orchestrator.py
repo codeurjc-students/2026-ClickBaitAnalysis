@@ -10,11 +10,16 @@ uniforme de ``domain`` y agrega el resultado. Tres invariantes lo gobiernan:
    expresarlo sin tocar la agregación: la palanca ya estaba puesta.
 2. **Una dimensión aparece si alguna de sus señales votó.** Si las que votaron
    discrepan, no se promedia ni se resuelve por mayoría: se declara ``None``.
-3. **El veredicto global sale de las dimensiones con jerarquía** —el engaño pesa
-   más que la forma—, nunca de contar señales.
+3. **El veredicto global sale de las dimensiones con jerarquía** —el engaño
+   desempata una forma dividida, pero no contradice a una forma unánime—, nunca
+   de contar señales.
 
-Por qué no vale la mayoría: un titular sobrio cuyo cuerpo no cumple lo prometido
-tiene tres señales diciendo «no» y una diciendo «sí», y la correcta es la cuarta.
+Por qué no vale la mayoría: las señales no miden lo mismo, y contar votos
+escondería las discrepancias que el sistema existe para enseñar. Por qué el
+engaño no manda siempre (#124): el caso que lo justificaba —un titular sobrio,
+tres señales de forma en «no» y la incoherencia en «sí»— resultó ser donde la
+incoherencia menos acierta (13 % en Webis-17). Ahí la discrepancia es entre
+dimensiones, y se declara.
 
 El aislamiento de fallos es el punto delicado: una señal caída no puede tumbar
 las otras cuatro (~1 de cada 5 llamadas a HuggingFace da timeout, medido en la
@@ -487,9 +492,16 @@ def _overall(dimensions: list[DimensionVerdict]) -> OverallVerdict:
     deception = by_dimension.get(Dimension.DECEPTION)
     form = by_dimension.get(Dimension.FORM)
 
-    # El engaño manda: un titular que promete lo que el cuerpo no cumple es
-    # clickbait aunque esté redactado con sobriedad.
+    # El engaño desempata una forma dividida, pero no contradice a una forma
+    # unánime (#124). Medido en 19.484 pares de Webis-17 pasados por `analyze()`:
+    # con las tres señales de forma en «no», `deceptive` acertaba el 13 % (165
+    # pares); con la forma dividida, el 68 % (862). La regla se eligió AL VER
+    # ese desglose y se validó eligiendo en una mitad y comprobando en la otra
+    # (`evaluation/eval_veredicto.py`). Contra una forma unánime, la
+    # discrepancia es entre dimensiones: se declara, no se resuelve.
     if deception is not None and deception.is_clickbait:
+        if form is not None and form.is_clickbait is False:
+            return OverallVerdict.AMBIGUOUS
         return OverallVerdict.DECEPTIVE
     if form is not None and form.is_clickbait:
         return OverallVerdict.STYLISTIC_CLICKBAIT

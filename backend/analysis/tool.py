@@ -50,7 +50,8 @@ def register(mcp: FastMCP):
 
         Prefiérela a invocar las señales por separado: éstas devuelven cada una su
         propia medida, y combinarlas es lo que hace esta herramienta con una
-        jerarquía explícita (el engaño pesa más que la forma).
+        jerarquía explícita: el engaño desempata cuando las señales de forma
+        discrepan.
 
         Args:
             headline: El titular a analizar, en inglés.

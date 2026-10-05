@@ -1003,6 +1003,8 @@ Cierre del tercer bloque de H1 («diseño de los endpoints REST»). Se fija el c
 
 Tres a uno, y **la correcta es la cuarta**: por mayoría saldría «factual». La jerarquía es explícita —el engaño pesa más que la forma— y las discrepancias *dentro* de una dimensión se declaran (`null` → `ambiguo`) en lugar de resolverse por votación.
 
+*(Revisado en #124: medido en Webis-17, este caso —las tres señales de forma en «no» y la incoherencia en «sí»— es justo donde la cuarta menos acierta, el 13 %. Desde entonces el engaño desempata una forma dividida, pero contra una forma unánime en «no» el veredicto es `ambiguous`. Ver «El engaño desempata, pero no contradice a una forma unánime».)*
+
 **El tono se muestra pero no vota.** Una narrativa marcadamente positiva o negativa aleja de la objetividad, pero eso no es hacer clickbait, y cuánto pesa es juicio de quien lee. No necesita ningún caso especial en el código: la señal devuelve `is_clickbait: null` y el mismo filtro que ignora las señales caídas la ignora a ella.
 
 **La orquestación** (`backend/api/analyze.py`) lanza las señales con `asyncio.gather(..., return_exceptions=True)`, que en vez de propagar la primera excepción la **devuelve** dentro de la lista de resultados. Cada excepción se traduce a una señal en estado `error` y la respuesta sigue siendo un 200 con lo que sí se pudo calcular. Las señales se declaran en una tabla (nombre de tool + cómo ejecutarla + cómo leer su veredicto) para que el bucle tenga una sola forma: añadir una señal es añadir una fila y su ficha.
@@ -2503,6 +2505,11 @@ Le estamos dando derecho de veto a una señal que, en los casos donde discrepan,
 acierta menos que aquella a la que anula. **Los números no sostienen esa
 jerarquía**, y revisarla es una decisión de arquitectura que merece su propia
 issue.
+
+*(Hecho en #124: medido sobre el veredicto entero, el veto acertaba el 13 % con
+las tres señales de forma en «no» y el 68 % con la forma dividida. Se quedó sólo
+en el segundo caso. Ver «El engaño desempata, pero no contradice a una forma
+unánime».)*
 
 Se guarda además un punto de operación que puede servir a la interfaz:
 `dedicada ∧ incoherencia` da **precisión 0,852**, la más alta medida en todo el
@@ -7719,6 +7726,112 @@ La desbocada casi no se repite —5 de 50—, así que las 49 rescatadas miden s
 - **Los seguimientos sin herramientas**, en #217.
 - **El fallo del MCP servido en el proceso del guion**, sin explicar.
 - **Verlo en producción con el próximo despliegue**: el tope y la vuelta más van por defecto, sin tocar el compose.
+
+### El engaño desempata, pero no contradice a una forma unánime (#124, 5 oct 2026)
+
+`_overall` derivaba el veredicto global con una jerarquía: si la dimensión de engaño decía «sí», el veredicto era `deceptive` dijera lo que dijera la forma. El argumento venía de H1 (#85): un titular sobrio cuyo cuerpo no cumple lo prometido tiene tres señales diciendo «no» y una diciendo «sí», y la correcta es la cuarta. Calibrando el umbral de la incoherencia, #92 vio que esa cuarta acertaba el 12 % justo donde decide sola, y de ahí salió esta issue (1 sep): no es cambiar un número, es decidir qué argumenta el trabajo. Al cerrar H5 quedó como trabajo futuro (#217), y entró en `v0.7` el 4 oct, cuando el autor decidió cerrar las issues posibles antes de empezar la memoria.
+
+#### La regla, antes de medir
+
+Se publicó en la issue antes de ejecutar nada ([comentario](https://github.com/codeurjc-students/2026-ClickBaitAnalysis/issues/124#issuecomment-5981620535)). Tres reglas, que sólo difieren cuando el engaño dice «sí» y la forma no lo apoya:
+
+| Regla | Engaño «sí» y forma «no» | Engaño «sí» y forma en discrepancia |
+|---|---|---|
+| La de antes de #124 | `deceptive` | `deceptive` |
+| Sin veto (opción 2 de la issue) | `ambiguous` | `ambiguous` |
+| Cascada (opción 4) | `factual` | `ambiguous` |
+
+**La de antes se quedaba si `deceptive` acertaba al menos la mitad de las veces donde la forma no lo apoya**: el suelo de 0,50 que #92 fijó para una señal que pisa a las demás. Las otras dos opciones de la issue no se midieron: condicionar el veto a la confianza exigía calibrar un segundo corte, y ponderar las señales por su fiabilidad es la que más se aleja de la tesis, porque convierte el contraste en un número opaco.
+
+#### Con el código de producción
+
+[`backend/evaluation/eval_veredicto.py`](backend/evaluation/eval_veredicto.py) pasa cada par titular–cuerpo de Webis-17 (`validation170630`), los mismos con los que #92 calibró el umbral, por `analyze()` del orquestador. Las similitudes que #92 guardó se calcularon con el cuerpo entero, y producción lo recorta a 1.000 caracteres antes de comparar (`IncoherenceDetector._lead`): reutilizarlas habría medido otro sistema. El resultado de cada par se guarda en `var/`, con una huella del código y los datos de las señales, el orquestador y los modelos, así que repetir el informe tarda segundos y una caché de otro sistema no se cuela. La etiqueta humana es la de clickbait de Webis (`truthMean`): no hay una de engaño, la misma limitación que en #92.
+
+| Condiciones | |
+|---|---|
+| Primera ejecución | 2026-10-04, desde las 17:35, unos 18 min, sobre `5652e46` (el código de las señales y del orquestador, igual que en `dev`), con el guion aún sin commitear; huella `32ae28233478` |
+| Segunda ejecución | 2026-10-05, 19:06–19:24, sobre `d001304`, con el cambio de esta issue y el guion commiteado; huella `8732c2a4b246` |
+| Máquina | WSL (Ubuntu) en el portátil, con torch 2.12.1 sobre la GTX: producción corre en CPU, y las diferencias de coma flotante sólo moverían un caso en el filo del corte |
+| Modelos | `Stremie/roberta-base-clickbait`, `cardiffnlp/twitter-roberta-base-sentiment-latest` y `sentence-transformers/all-MiniLM-L6-v2`; umbral de incoherencia 0,3 |
+| Datos | 19.484 pares; ninguno rechazado por la API |
+
+```bash
+NLP_BACKEND=local .venv/bin/python -m backend.evaluation.eval_veredicto
+```
+
+Las cifras que siguen son las de la segunda ejecución, y coinciden una a una con las de la primera: el cambio sólo toca el veredicto, no las señales.
+
+#### Lo que dio la regla, y lo que escondía
+
+Las comprobaciones primero: la dedicada da F1 0,758, el número de #124, y reaplicar `_overall` sobre lo guardado da lo mismo que `analyze()` en los 19.484 pares, así que comparar reglas sobre la caché es fiel.
+
+**Con la regla fijada, la de antes se quedaba**: donde la forma no apoya al engaño, `deceptive` acierta el 59,6 % (612 de 1.027). Pero ese número junta dos casos opuestos:
+
+| La forma… | Pares | `deceptive` acierta |
+|---|---|---|
+| dice «no»: las tres señales coinciden | 165 | **13,3 %** |
+| discrepa entre sus señales | 862 | **68,4 %** |
+
+Con la forma dividida, el engaño desempata bien. Contra una forma unánime en «no» —el caso exacto del argumento de #85— se equivoca 87 veces de cada 100. Por eso las dos alternativas de la issue pierden: quitan también el veto donde acierta.
+
+| «Es clickbait» (`deceptive` o `stylistic_clickbait`) | P | R | F1 | F1 en los unánimes |
+|---|---|---|---|---|
+| La de antes de #124 | 0,676 | 0,581 | 0,625 | 0,767 |
+| Sin veto | 0,703 | 0,451 | 0,550 | 0,651 |
+| Cascada | 0,703 | 0,451 | 0,550 | 0,651 |
+| **Veto si discrepa** | **0,699** | **0,576** | **0,632** | **0,788** |
+
+(«Unánimes»: los 6.808 titulares en los que los cinco anotadores coinciden, el subconjunto que #121 usó para separar la zona gris.)
+
+#### La decisión, después de ver los datos
+
+**El autor decidió «veto si discrepa»**: el engaño desempata una forma dividida, pero no contradice a una forma unánime, y entonces el veredicto es `ambiguous`. El destino es una decisión de postura, no de los datos —`factual` daría las mismas cifras, porque ninguna de las dos cuenta como clickbait—: la discrepancia entre dimensiones se enseña, no se resuelve, igual que la que hay dentro de una. Cambian 165 veredictos de 19.484, y la precisión de `deceptive` pasa del 66,3 % al 73,1 %.
+
+**Esta regla no estaba en la fijada antes de medir**: se eligió al ver el desglose. Por eso se validó como #92 validó su umbral, eligiendo en una mitad del corpus (la misma semilla y proporción) y comprobando en la otra:
+
+| Precisión de `deceptive` | Mitad de elección | Mitad de comprobación |
+|---|---|---|
+| Forma «no» | 13,7 % de 73 → sin veto | 13,0 % de 92 |
+| Forma en discrepancia | 69,4 % de 447 → veto | 67,5 % de 415 |
+
+La regla que sale de la primera mitad es exactamente «veto si discrepa», y en la mitad que no la eligió mejora a la de antes: F1 0,621 → 0,628, y en los unánimes, 0,739 → 0,757. Se publicó en la issue con su desglose ([comentario](https://github.com/codeurjc-students/2026-ClickBaitAnalysis/issues/124#issuecomment-5981923864)).
+
+#### Qué entra
+
+- **`_overall`**: dentro de la rama del engaño, si la forma votó y dijo «no», `ambiguous`. Una forma que no votó no cuenta como desacuerdo: sin ella, el engaño sigue mandando.
+- **Los tests, escritos antes**: el que exigía que el engaño ganara a una forma unánime pasa a exigir `ambiguous`, igual que su versión de extremo a extremo, y los dos fallaron contra el código de antes. Tres nuevos fijan lo que no cambia: engaño y forma de acuerdo, forma dividida —también de extremo a extremo— y sin forma. **433 tests**, y pyright sin errores.
+- **Lo que describía la jerarquía**: el docstring del módulo del orquestador, donde el ejemplo de los tres «no» pasa a ser el argumento en contra; el de `OverallVerdict` y la definición de `ambiguous` en `domain.py`, que entran en el contrato (`openapi.json` y `schema.d.ts`, regenerados: sólo cambian esas descripciones); el comentario del umbral en `incoherence.py`; y el párrafo de §3 en `docs/arquitectura.md`, con una nota bajo el diagrama, que se deja como se dibujó.
+- **El guion deja escrita la regla de antes** (`regla_antes_de_124`): importar `_overall` ya no reproduciría la comparación. Y comprueba que la de producción es la elegida: en la segunda ejecución, **0 diferencias** entre `_overall` y «veto si discrepa» en los 19.484 pares.
+- **La pantalla no cambia.** Un `ambiguous` por discrepancia entre dimensiones se ve debajo del veredicto («Forma: no · Engaño: sí»); explicarlo con una frase propia habría sido otra copia de la regla en la interfaz, el patrón de #116 (decidido por el autor).
+
+#### Las 26 consultas: el docstring que lee el agente
+
+El docstring de `analyze_headline` decía «el engaño pesa más que la forma», y lo lee el modelo del agente al elegir herramienta. Pasa a «el engaño desempata cuando las señales de forma discrepan»: el catálogo crece de 10.285 a 10.318 caracteres (`spikes/catalogo_peso.py`), y sólo cambia esa herramienta. Desde #188, un docstring de herramienta sólo cambia con sus 26 consultas como examen: #183 había mostrado que unas palabras de más mueven la elección. **La regla, fijada antes de medir**: se queda si la selección razonando no baja de 24/26 en ninguna de las dos condiciones que razonan.
+
+| Condiciones | |
+|---|---|
+| Fecha | 2026-10-05, 19:06–19:17 |
+| Máquina | La A40 de la máquina 2, con Ollama 0.34.2 y `gpu-sesion` `6ad6a751d636`; el guion corre en WSL por un túnel propio |
+| Modelo | `qwen3.5:27b` (`7653528ba5cb`), con las condiciones de #188: `num_ctx` 8192, `04-preciso`, el muestreo del Modelfile, sin el aviso del historial ni la vuelta más |
+| Código | `d001304`; guion `963fafdbf3bb` |
+| Datos | [`spikes/agente_a40/seleccion-124.json`](spikes/agente_a40/seleccion-124.json) |
+
+```bash
+AGENTE_A40_JSON=spikes/agente_a40/seleccion-124.json setsid nohup bash spikes/agente_a40.sh seleccion > /tmp/agente_a40_124.log 2>&1 < /dev/null & disown
+```
+
+| `think` | #188 | #124 |
+|---|---|---|
+| sin el campo | 25/26 | **25/26** |
+| `true` | 25/26 y 24/26 | **25/26** |
+| `false` (el agente no lo usa) | 13/26 | 11/26 |
+
+**La regla se cumple**, y por categorías las dos condiciones que razonan salen idénticas a las de #188. Ninguno de los dos fallos toca `analyze_headline`: sin el campo, una consulta de contraste («¿Cuántas papeletas tiene … de ser clickbait, en porcentaje?») eligió el léxico en vez del lineal (el contraste también salió 5/6 en #188); y con `true`, «¿Por qué es difícil detectar clickbait en español?» llamó a `describe_models`, el mismo fallo que en #188.
+
+#### Lo que queda
+
+- **Verlo en producción con el próximo despliegue**: un titular sobrio con un cuerpo que no le corresponde dará «Ambiguo» y no «Engañoso».
+- **El punto de operación de la issue, sin hacer**: `dedicada ∧ incoherencia` da precisión 0,852 (#92), y podría marcarse en la interfaz como «clickbait con alta confianza». No cambia el veredicto, y no entra aquí.
 
 
 

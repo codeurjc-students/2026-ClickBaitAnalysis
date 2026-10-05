@@ -741,8 +741,9 @@ export interface components {
          * OverallVerdict
          * @description Etiqueta única, para listados compactos como el historial.
          *
-         *     Se deriva de las dimensiones con una jerarquía explícita —el engaño pesa más
-         *     que la forma— en lugar de por mayoría de señales.
+         *     Se deriva de las dimensiones con una jerarquía explícita —el engaño desempata
+         *     una forma dividida, pero no contradice a una forma unánime— en lugar de por
+         *     mayoría de señales.
          * @enum {string}
          */
         OverallVerdict: "deceptive" | "stylistic_clickbait" | "factual" | "ambiguous" | "no_data";

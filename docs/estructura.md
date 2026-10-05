@@ -249,6 +249,7 @@ Si un endpoint o una tool lo necesita, es que no era evaluación.
 | `eval_candidatos.py` | Candidatos para sustituir al zero-shot en `forma`, con tres criterios y no sólo el acierto (#115) |
 | `eval_ambiguedad.py` | El techo realista: cuánto acierta una persona contra el consenso de las demás en Webis-17 (#121) |
 | `eval_incoherencia.py` | Calibra el umbral de incoherencia con método, separando cuánta información tiene la señal (AUC) de dónde se corta (#92) |
+| `eval_veredicto.py` | Si el engaño debe pisar a la forma en el veredicto: tres reglas sobre los mismos pares de Webis-17, pasados por `analyze()` (#124) |
 | `webis_extract.py` | Saca de los 937 MB de Webis-17 lo que sirve: los titulares, versionados en `data/external/`, y los cuerpos, regenerables, en `var/` (#121) |
 
 ## `backend/main.py`

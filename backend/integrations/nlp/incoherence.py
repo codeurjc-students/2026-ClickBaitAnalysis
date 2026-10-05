@@ -44,10 +44,12 @@ class IncoherenceDetector:
     # curva es el punto de mayor precisión (0,649 en test), a cambio de
     # pronunciarse sólo en el 7,4 % de los titulares.
     #
-    # Se conserva justamente por eso. `deception` PISA a `form` en la jerarquía de
-    # `_overall`, así que un falso positivo suyo declara «engañoso» anulando a
-    # las otras tres señales: aquí la precisión pesa más que el recall, y los
-    # umbrales más generosos la hunden (0,516 con 0,46; 0,412 con 0,56).
+    # Se conserva justamente por eso. `deception` desempata en `_overall` cuando
+    # la forma está dividida, así que un falso positivo suyo declara «engañoso»
+    # por encima de las señales de forma: aquí la precisión pesa más que el
+    # recall, y los umbrales más generosos la hunden (0,516 con 0,46; 0,412 con
+    # 0,56). Hasta #124 pisaba también a una forma unánime en «no», donde
+    # acertaba el 13 %; desde entonces eso da `ambiguous`.
     #
     # Reproducible: python -m backend.evaluation.eval_incoherencia
     THRESHOLD = 0.3
