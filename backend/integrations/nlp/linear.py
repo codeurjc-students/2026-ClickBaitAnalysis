@@ -22,6 +22,11 @@ from backend.integrations.nlp import lexical
 
 JSON_FILE = Path(__file__).resolve().parent / "linear_clickbait.json"
 
+# Cuántas pistas se devuelven como explicación. Sólo recorta lo que se ENSEÑA:
+# la probabilidad suma todas. Es el defecto (#93): el que se usa lo pasa la
+# factoría desde la configuración (`nlp_linear_top_cues`).
+TOP_CUES = 20
+
 
 # Los pesos se leen en el PRIMER USO, no al importar (#108). Leerlos a nivel de
 # módulo hacía que importar la señal —aunque fuera para inspeccionarla— abriera
@@ -54,7 +59,7 @@ def featurize_cues(headline) -> list[int]:  # -> vector
     return vector
 
 
-def predict(headline):
+def predict(headline, top_cues: int = TOP_CUES):
 
     if not headline or not headline.strip():
         return ToolResult.fail("El titular está vacío o no es válido")
@@ -82,7 +87,7 @@ def predict(headline):
         {
             "is_clickbait": is_clickbait,
             "probability": p,
-            "top_cues": s_contribs[:20],  # Top 20 pesos (TODO: Configurable)
+            "top_cues": s_contribs[:top_cues],  # Las que más empujaron
             "headline": headline,
         }
     )

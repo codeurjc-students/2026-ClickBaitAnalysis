@@ -29,7 +29,13 @@ import type {
 /** Una marca léxica y dónde aparece en el titular. */
 export type { Pista };
 
-export type DatosLexico = Pick<SalidaLexica, 'score' | 'matches'>;
+export type DatosLexico = Pick<SalidaLexica, 'score' | 'matches'> & {
+  /**
+   * Opcional aunque el contrato lo declare obligatorio: el historial guarda
+   * análisis de antes de #93, cuando el léxico aún no lo devolvía.
+   */
+  threshold?: SalidaLexica['threshold'];
+};
 
 export type DatosLineal = Pick<SalidaLineal, 'probability' | 'top_cues'>;
 

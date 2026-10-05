@@ -16,7 +16,7 @@ from backend.core.models import ToolResult
 class NYTAPI(BaseAPI):
     BASE_URL = "https://api.nytimes.com/svc/search/v2/"
 
-    API_KEY = settings.nyt_api_key  # Key ya validada
+    API_KEY = settings.nyt_api_key.get_secret_value()  # Key ya validada
     API_KEY_PARAM = "api-key"
 
     RATE_CALLS = 5  # Crea una instancia nueva con rate calls, no pasar por atributo o todos usan el mismo objecto.

@@ -112,8 +112,9 @@ class GuardianAnotado(GuardianAPI):
 def _tapar(valor: Any) -> Any:
     """Quita la clave de cualquier cosa que se vaya a escribir."""
     texto = json.dumps(valor, ensure_ascii=False, default=str)
-    if settings.guardian_api_key:
-        texto = texto.replace(settings.guardian_api_key, "***")
+    # Desde #93 la clave es un `SecretStr`: `replace` necesita la cadena.
+    if clave := settings.guardian_api_key.get_secret_value():
+        texto = texto.replace(clave, "***")
     return json.loads(texto)
 
 

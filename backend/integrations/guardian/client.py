@@ -18,7 +18,7 @@ from backend.core.models import ToolResult
 class GuardianAPI(BaseAPI):
     BASE_URL = "https://content.guardianapis.com/"
 
-    API_KEY = settings.guardian_api_key  # Key ya validada
+    API_KEY = settings.guardian_api_key.get_secret_value()  # Key ya validada
     API_KEY_PARAM = "api-key"
 
     RATE_CALLS = 60

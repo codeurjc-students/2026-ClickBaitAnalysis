@@ -41,9 +41,20 @@
               </li>
             }
           </ul>
+          <!--
+            La regla sale del umbral que viaja con el resultado (#93), no de una
+            copia aquí (#116): con otro umbral, «¿disparó algún cue?» sería falso
+            junto a las mismas pistas. Lo guardado antes de #93 no lo trae, y
+            entonces no se afirma ninguna.
+          -->
           <p class="nota">
-            Las pistas SON la explicación. El veredicto es exactamente «¿disparó
-            algún cue?».
+            Las pistas SON la explicación.
+            @if (datos.threshold === 1) {
+              El veredicto es exactamente «¿disparó algún cue?».
+            } @else if (datos.threshold !== undefined) {
+              El veredicto es «¿hay al menos {{ numero(datos.threshold, 0) }}
+              pistas?».
+            }
           </p>
         }
       }

@@ -193,11 +193,11 @@ El paquete más grande, porque contiene **las señales** — el núcleo del dete
 | `base.py` | `NLPBackend` (ABC): la interfaz que cumplen el backend remoto y el local |
 | `remote.py` | `HFClient(BaseAPI, NLPBackend)`: backend remoto contra HuggingFace. Se llamaba `client.py` hasta #108: el par `remote.py` / `local.py` dice que son dos implementaciones de la misma interfaz |
 | `local.py` | Backend local con `transformers`. Cachea los pipelines por `(tarea, modelo)` para no recargar, e **importa `transformers` de forma perezosa** — por eso el módulo se puede importar sin torch, que es lo que permite el CI ligero. Las inferencias van a un hilo aparte porque bloquean |
-| `factory.py` | **Qué hay configurado de verdad**: qué backend (`get_nlp_backend`), qué modelo ejecuta cada señal (`get_model_id`) y qué ficha se publica (`ficha_efectiva`). Con `remote.py` es el ÚNICO de esta capa al que se le permite leer `settings`, y de ahí sale la forma de todo lo demás: los detectores no resuelven su configuración, la **reciben**. Cachea las instancias **por el valor del setting**, que es lo que arregla el congelado al importar de #87 sin perder la reutilización |
+| `factory.py` | **Qué hay configurado de verdad**: qué backend (`get_nlp_backend`), qué modelo ejecuta cada señal (`get_model_id`), con qué umbral decide (`get_threshold`, #93) y qué ficha se publica (`ficha_efectiva`). Con `remote.py` es el ÚNICO de esta capa al que se le permite leer `settings`, y de ahí sale la forma de todo lo demás: los detectores no resuelven su configuración, la **reciben**. Cachea las instancias **por el valor del setting**, que es lo que arregla el congelado al importar de #87 sin perder la reutilización |
 | `dependencias.py` | Pregunta si `torch` o `sentence-transformers` están instalados —con `find_spec`, **sin importarlos**, para no deshacer los imports perezosos de arriba— y produce el mensaje que se enseña cuando faltan. Existe porque `requirements.txt` **no los trae a propósito**, así que faltar es el estado normal y no una avería. Desde #162 responde también por los **modelos**: con la descarga desactivada, uno puesto por `NLP_MODELS` no está en la imagen, y eso tampoco es una avería — aunque aquí no se puede preguntar antes, y se reconoce el caso por el error que lanza la librería. No envuelve nada externo, y por eso no es una integración: es un módulo de apoyo del paquete, como `base.py` o `factory.py`. No es el caso de la [tensión 3](#3--discovery-y-metadata-no-envuelven-nada), que vive en la raíz de `integrations/` y opera sobre todas |
-| `lexical.py` | Señal **interpretable**. Busca tres tipos de pista —palabras, frases y patrones regex— y devuelve cada coincidencia **con su posición** (`span`), que es lo que permite resaltar los cues sobre el titular. Clickbait si el recuento llega a `THRESHOLD` |
+| `lexical.py` | Señal **interpretable**. Busca tres tipos de pista —palabras, frases y patrones regex— y devuelve cada coincidencia **con su posición** (`span`), que es lo que permite resaltar los cues sobre el titular. Clickbait si el recuento llega al umbral, que **recibe** (`THRESHOLD` por defecto, #93) y devuelve con el resultado |
 | `linear.py` | Señal **interpretable**: regresión logística sobre los cues, con los pesos visibles y las contribuciones de cada rasgo en la salida. Lee los pesos de `linear_clickbait.json` en el primer uso, con `pesos()`, y no al importar (el [bug 1](#1--linearpy-lee-el-fichero-de-pesos-al-importar---cerrado-108), cerrado en #108) — ⚠️ [bug 2](#2--dos-señales-de-forma-comparten-extracción-de-rasgos---medido-109) |
-| `incoherence.py` | Señal **híbrida**: decisión transparente (umbral sobre la similitud) con rasgo opaco (embeddings). Codifica titular y cuerpo con `all-MiniLM-L6-v2` y los compara por **similitud coseno**: incoherente si baja de 0,3. El modelo se carga una sola vez y de forma perezosa, de ahí los ~20 s de la primera llamada |
+| `incoherence.py` | Señal **híbrida**: decisión transparente (umbral sobre la similitud) con rasgo opaco (embeddings). Codifica titular y cuerpo con `all-MiniLM-L6-v2` y los compara por **similitud coseno**: incoherente si baja del umbral (0,3 por defecto, calibrado en #92; configurable desde #93). El modelo se carga una sola vez y de forma perezosa, de ahí los ~20 s de la primera llamada |
 | `dedicated.py` | Señal **opaca**: el RoBERTa dedicado (`Stremie/roberta-base-clickbait`, #115), que sustituyó al zero-shot elegido por eliminación en E3-02 y que acertaba el 63,7 % (#109). Tiene módulo propio porque sin él su id y sus etiquetas se duplicaban entre las dos fachadas (#116). Recibe el backend y el id en vez de resolverlos (#119) |
 | `model_cards.py` | Ficha de cada señal: tipo, dimensión que mide y límites medidos |
 | `outputs.py` | Los `TypedDict` de retorno, para que MCP publique el `outputSchema` |
@@ -226,6 +226,9 @@ consume el agente.
 
 **No va aquí aunque lo parezca** — los umbrales de decisión de una señal. Ésos
 son parte del modelo y viven con él, aunque sean números configurables.
+*(Desde #93 se pueden sustituir por configuración —`nlp_thresholds`—, como el
+modelo con `nlp_models`. Lo que vive aquí es la sustitución; el valor por
+defecto, y el porqué de su valor, siguen en el detector.)*
 
 ## `backend/evaluation/`
 
@@ -250,6 +253,7 @@ Si un endpoint o una tool lo necesita, es que no era evaluación.
 | `eval_ambiguedad.py` | El techo realista: cuánto acierta una persona contra el consenso de las demás en Webis-17 (#121) |
 | `eval_incoherencia.py` | Calibra el umbral de incoherencia con método, separando cuánta información tiene la señal (AUC) de dónde se corta (#92) |
 | `eval_veredicto.py` | Si el engaño debe pisar a la forma en el veredicto: tres reglas sobre los mismos pares de Webis-17, pasados por `analyze()` (#124) |
+| `eval_umbral_lineal.py` | Si merece la pena calibrar el 0,5 del lineal: la curva por umbral en Chakraborty `dev` y Webis-17, plana porque la mitad de los titulares no tiene pistas (#93) |
 | `webis_extract.py` | Saca de los 937 MB de Webis-17 lo que sirve: los titulares, versionados en `data/external/`, y los cuerpos, regenerables, en `var/` (#121) |
 
 ## `backend/main.py`

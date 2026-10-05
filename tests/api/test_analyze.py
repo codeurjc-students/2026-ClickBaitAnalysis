@@ -118,18 +118,21 @@ def señales(monkeypatch):
         monkeypatch.setattr(orchestrator, "get_nlp_backend", lambda: api)
         monkeypatch.setattr(orchestrator, "get_incoherence_detector", lambda: detector)
 
-        def fake_lexical(headline):
+        # Con la firma de los de verdad: desde #93 reciben el umbral y el tope
+        # de pistas de la factoría.
+        def fake_lexical(headline, threshold):
             time.sleep(delay)
             return ToolResult.ok(
                 {
                     "score": 2 if lexico else 0,
                     "is_clickbait": lexico,
+                    "threshold": threshold,
                     "matches": [],
                     "headline": headline,
                 }
             )
 
-        def fake_linear(headline):
+        def fake_linear(headline, top_cues):
             time.sleep(delay)
             return ToolResult.ok(
                 {
@@ -418,7 +421,9 @@ async def test_una_señal_que_revienta_no_tumba_a_las_demas(señales, monkeypatc
 async def test_tool_result_fail_se_traduce_a_error_con_su_mensaje(señales, monkeypatch):
     señales()
     monkeypatch.setattr(
-        lexical, "detect", lambda h: ToolResult.fail("El titular está vacío")
+        lexical,
+        "detect",
+        lambda titular, umbral: ToolResult.fail("El titular está vacío"),
     )
 
     signals = {s.name: s for s in await _run_signals("Un titular", "Un cuerpo")}
@@ -431,7 +436,9 @@ async def test_un_formato_inesperado_se_aisla_como_error(señales, monkeypatch):
     # Si una tool cambia de formato, el KeyError del extractor sube al gather y
     # degrada esa señal sola, en vez de devolver un 500.
     señales()
-    monkeypatch.setattr(lexical, "detect", lambda h: ToolResult.ok({"otra_clave": 1}))
+    monkeypatch.setattr(
+        lexical, "detect", lambda titular, umbral: ToolResult.ok({"otra_clave": 1})
+    )
 
     signals = {s.name: s for s in await _run_signals("Un titular", "Un cuerpo")}
     caida = signals["detect_clickbait_lexical"]
@@ -451,7 +458,9 @@ async def test_el_fallo_entero_se_registra_aunque_no_se_publique(señales, monke
     orquestador no registraba nada.
     """
     señales()
-    monkeypatch.setattr(lexical, "detect", lambda h: ToolResult.ok({"otra_clave": 1}))
+    monkeypatch.setattr(
+        lexical, "detect", lambda titular, umbral: ToolResult.ok({"otra_clave": 1})
+    )
 
     with capture_logs() as registrado:
         signals = {s.name: s for s in await _run_signals("Un titular", "Un cuerpo")}
@@ -478,7 +487,9 @@ async def test_la_respuesta_no_publica_interioridad(señales, monkeypatch):
         raise RuntimeError("/app/backend/integrations/nlp/local.py falló")
 
     monkeypatch.setattr(dobles.api, "classify", revienta)
-    monkeypatch.setattr(lexical, "detect", lambda h: ToolResult.ok({"otra_clave": 1}))
+    monkeypatch.setattr(
+        lexical, "detect", lambda titular, umbral: ToolResult.ok({"otra_clave": 1})
+    )
 
     respuesta = await orchestrator.analyze(
         AnalyzeRequest(headline="Un titular", content="Un cuerpo")
@@ -596,7 +607,9 @@ async def test_forma_dividida_y_cuerpo_incoherente_es_enganoso(señales):
 async def test_si_todas_las_señales_fallan_no_hay_veredicto(señales, monkeypatch):
     dobles = señales()
     for modulo, atributo in ((lexical, "detect"), (linear, "predict")):
-        monkeypatch.setattr(modulo, atributo, lambda h: ToolResult.fail("caído"))
+        monkeypatch.setattr(
+            modulo, atributo, lambda titular, ajuste: ToolResult.fail("caído")
+        )
     for metodo in ("zero_shot", "classify"):
         monkeypatch.setattr(dobles.api, metodo, _falla)
 
