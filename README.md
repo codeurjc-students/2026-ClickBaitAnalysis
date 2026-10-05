@@ -3076,7 +3076,9 @@ módulos de `integrations/nlp/` y sólo perdona a dos. Así un detector nuevo qu
 cubierto sin tocar nada, y meter `settings` en un módulo de esa capa obliga a
 **editar la lista a mano** — que es justo la decisión consciente que se quiere
 forzar cuando llegue #93. La regla no sólo describe el pasado: defiende una
-decisión futura.
+decisión futura. *(Revisado en #93: no hizo falta tocar la lista. Los detectores
+reciben el umbral de la factoría, como el modelo desde #119; ver «Los umbrales,
+configurables».)*
 
 **Se descartó `import-linter`**, que es la herramienta hecha para esto y expresa
 el apilado completo de forma declarativa. Para dos reglas traería una dependencia
@@ -3313,7 +3315,9 @@ exactamente eso**.
 
 Cablear el 0,30 en el frontend habría sido peor que copiar el `label`: #93
 propone parametrizar ese número, así que se estaría duplicando un valor que ya
-está previsto que cambie.
+está previsto que cambie. *(Hecho en #93, que hizo configurable también el del
+léxico, y por eso desde entonces viaja también con su resultado; ver «Los
+umbrales, configurables».)*
 
 Es el más barato de los cuatro —una línea y su declaración en `outputs.py`,
 porque `data` ya es diccionario libre y el esquema no cambia— y el que menos
@@ -7832,6 +7836,82 @@ AGENTE_A40_JSON=spikes/agente_a40/seleccion-124.json setsid nohup bash spikes/ag
 
 - **Verlo en producción con el próximo despliegue**: un titular sobrio con un cuerpo que no le corresponde dará «Ambiguo» y no «Engañoso».
 - **El punto de operación de la issue, sin hacer**: `dedicada ∧ incoherencia` da precisión 0,852 (#92), y podría marcarse en la interfaz como «clickbait con alta confianza». No cambia el veredicto, y no entra aquí.
+
+### Los umbrales, configurables (#93, 5 oct 2026)
+
+La issue es del 4 de agosto: dos números cableados en los detectores, con un TODO cada uno —el umbral del léxico en `lexical.py` y el tope de pistas del lineal en `linear.py`—, y el de la incoherencia, que entonces estaba «sin calibrar». Eso último caducó con #92, que lo calibró; lo que pedía la issue seguía en pie. Entró en `v0.7` el 4 de octubre, con las demás que el autor quiso cerrar antes de la memoria.
+
+#### Qué se configura, y dónde vive cada número
+
+Dos ajustes nuevos en `settings.py`:
+
+- **`nlp_thresholds`**, un diccionario por señal como `nlp_models` (#119): `NLP_THRESHOLDS='{"detect_clickbait_lexical": 2}'`. Al revés que aquél, **sus claves son una lista cerrada**: sólo el léxico y la incoherencia deciden con un umbral, y una clave mal escrita sería un ajuste que no hace nada sin fallar. Así el proceso no arranca, como con `llm_prompt`. El del léxico, además, tiene que ser un entero desde 1: es un número de pistas, y con 1,5 la tarjeta diría «al menos 1,5 pistas» cuando la regla es «al menos 2».
+- **`nlp_linear_top_cues`**, cuántas pistas devuelve el lineal como explicación. Sólo recorta lo que se enseña: la probabilidad suma todas.
+
+**El valor por defecto sigue en el detector** (`lexical.THRESHOLD`, `IncoherenceDetector.THRESHOLD`, `linear.TOP_CUES`), que es donde está escrito por qué vale lo que vale, y los guiones de `evaluation/` siguen midiendo con él. La configuración sólo lo sustituye. Lo resuelve `factory.py` en cada llamada (`get_threshold`, `get_top_cues`), y los detectores lo **reciben**, como el modelo desde #119: ninguno lee `settings`, y la lista de excepciones de `tests/test_arquitectura.py` quedó igual. El detector de incoherencia se cachea por modelo y umbral, así que otro umbral es otro detector. Los tests comprueban lo que pedía la issue: cambiar la configuración **después** de importar cambia el veredicto, por las dos fachadas (la trampa de #87).
+
+#### El umbral del léxico, con su resultado
+
+La tarjeta del léxico decía «El veredicto es exactamente "¿disparó algún cue?"», y eso sólo es cierto con el umbral en 1. Con 2, la pantalla enseñaría «1 pistas encontradas» junto a un «no» y una explicación falsa: una regla copiada en la interfaz, el patrón de #116. La incoherencia ya lo resolvió en #133, enviando su umbral con el resultado, y el léxico hace ahora lo mismo: `SalidaLexica` gana `threshold` (contrato regenerado), y la nota sale de él. Con 1 dice lo de siempre; con otro, «¿hay al menos N pistas?»; y en un análisis guardado antes de #93, que no lo trae, no afirma ninguna regla.
+
+Comprobado en el navegador con una API local arrancada con `NLP_THRESHOLDS='{"detect_clickbait_lexical": 2}'`: «Spain wins the World Cup?» da en la tarjeta del léxico «no clickbait · 1 pistas encontradas · pregunta: ? · El veredicto es «¿hay al menos 2 pistas?»».
+
+#### La ficha avisa, sin quitar las medidas
+
+Con otro modelo, `ficha_efectiva` deja de publicar las medidas, porque eran de otro modelo (#119). Con otro umbral el modelo es el mismo, y límites como «sólo inglés» o «acoplada al léxico» siguen siendo ciertos; lo que deja de valer son las cifras de acierto, medidas con el umbral por defecto. **Decidido por el autor**: la ficha publica un aviso delante de sus limitaciones —«UMBRAL PUESTO POR CONFIGURACIÓN: 2 en lugar de 1. Las cifras de esta ficha se midieron con 1…»— y conserva el resto. Poner a mano el umbral que ya estaba no avisa de nada.
+
+#### El 0,5 del lineal se queda fuera
+
+La issue no lo incluía, y el autor preguntó si se podía calibrar como el de la incoherencia. Antes de decidir se midió si moverlo cambia algo, con [`backend/evaluation/eval_umbral_lineal.py`](backend/evaluation/eval_umbral_lineal.py):
+
+| Condiciones | |
+|---|---|
+| Fecha | 2026-10-05, 20:53 |
+| Máquina | WSL (Ubuntu) en el portátil, Python 3.12.3; sólo CPU (el léxico y el lineal son Python puro) |
+| Código | `b966174`; los pesos, `linear_clickbait.json` de `5a6d771` (16 jul), sin cambios desde entonces |
+| Datos | Chakraborty `dev` (#72; el `test` sigue congelado) y Webis-17 `validation170630` (19.484) |
+
+```bash
+.venv/bin/python -m backend.evaluation.eval_umbral_lineal
+```
+
+| Umbral | F1 en Chakraborty `dev` | F1 en Webis-17 |
+|---|---|---|
+| 0,30 | 0,871 | 0,446 |
+| **0,50** | **0,868** | **0,448** |
+| 0,60 | 0,862 | 0,451 |
+| 0,70 | 0,857 | 0,446 |
+| 0,80 | 0,830 | 0,436 |
+
+**La curva es plana.** La mitad de los titulares (el 50,0 % en Chakraborty y el 53,6 % en Webis-17) no dispara ninguna pista, y con el vector vacío todos reciben la misma probabilidad, la del intercepto: 0,163. El umbral no puede separar esos titulares entre sí; sólo reordena la otra mitad, que en su mayoría queda lejos de 0,5. El límite no es el corte sino el featurizado: el recall no puede pasar del 84,5 % en Chakraborty ni del 65,5 % en Webis-17, que es lo que ataca #75. (Las cifras de Webis-17 de la ficha son del split pequeño, `train170331`, y por eso no coinciden con éstas.)
+
+Y no habría criterio con el que elegir. En #92 lo había: un falso positivo de la incoherencia decidía «engañoso» por encima de la forma, y la precisión pesaba más que el recall. El lineal vota en la forma junto a otras dos señales, y en F1 el umbral no mueve nada. Además, #78 reentrena el modelo, y con otros pesos un umbral calibrado hoy dejaría de valer. **Decidido por el autor**: fuera de #93, y a #78 un punto para elegirlo en `dev` tras reentrenar, con el criterio escrito antes de mirar la curva ([comentario](https://github.com/codeurjc-students/2026-ClickBaitAnalysis/issues/78#issuecomment-6000045029)).
+
+#### R3.8, al día
+
+El matiz de R3.8 en `docs/requisitos.md` decía que el umbral de la incoherencia está «sin calibrar», y no lo estaba desde #92. Pasa a «calibrado (#92) y configurable (#93)». No cambia lo que el requisito pide, sólo un dato que había caducado.
+
+#### Lo que lee el agente, igual
+
+Los docstrings de las herramientas hablan del umbral sin dar su valor («`score` ≥ umbral», «por debajo del umbral»), y el esquema de salida no va en el catálogo que recibe el modelo. `spikes/catalogo_peso.py` da 10.318 caracteres antes y después, con el léxico en 866 de descripción y 159 de esquema, así que no se repitieron las 26 consultas.
+
+#### Las claves de API, en una traza
+
+Al ejecutar los tests nuevos contra el código de antes, uno falló con un `AttributeError` sobre `settings`, que aún no tenía `nlp_thresholds`. El mensaje de ese error incluye el `repr` del objeto, y pytest lo imprimió entero, **con las tres claves de API en claro**: la de Guardian, la de NYT y el token de Hugging Face. Quedaron en el registro de la sesión de trabajo.
+
+La causa era que las tres eran `str`. Ahora son `SecretStr`, cuyo `repr` es `'**********'`, y el valor se saca con `get_secret_value()` sólo donde se usa: los clientes de Guardian, NYT y Hugging Face, la sonda de salud y `spikes/guardian_temas.py`. Lo fija `tests/test_settings.py`, con claves de prueba: ni el `repr` ni el `str` de la configuración las enseñan. Lo decidió el autor dentro de esta issue. Lo que deja, para cualquier secreto nuevo: **un test que falla sobre un objeto imprime su `repr`**, así que un secreto guardado como cadena se escapa por cualquier fallo, no sólo por un log descuidado.
+
+#### Qué más entra
+
+- **Los tests, escritos antes**: 15 del backend y 3 specs de la tarjeta, que fallaban con el código de antes (las specs, dos de tres: la del umbral 1 protege el texto de siempre), más los 3 de las claves. **451 tests y 184 specs**; pyright, ruff y lint sin avisos.
+- **Los dobles de `test_analyze.py`**, con la firma nueva de `lexical.detect` y `linear.predict`. Uno pasaba con el código nuevo por un motivo equivocado: aislaba un `TypeError` del doble en vez del `KeyError` que dice probar.
+- **`eval_veredicto.py`** (#124) lleva los umbrales efectivos en la huella de su caché: con otro umbral, reutilizaría sin avisar los resultados del anterior. Con el léxico en 2, la huella pasa de `0af2fbb883f8` a `6c87a82d5ddb`.
+- **`docs/estructura.md`**, con el guion nuevo y una nota en «los umbrales no van en `config/`»: el valor por defecto sigue en el detector, y en `config/` sólo vive la sustitución. Y una nota en `docs/arquitectura.md`, que preveía meter `settings` en un detector para esta issue.
+
+#### Lo que queda
+
+- **El despliegue no lo lleva** (la máquina 1 sirve `828e2e0`). Sin configurar nada, lo servido no cambia salvo el `threshold` del léxico en su resultado. `outputs.py` se copia en la capa de modelos de la imagen (#162), así que el próximo despliegue la rehará.
+- **El umbral del lineal**, en #78.
 
 
 

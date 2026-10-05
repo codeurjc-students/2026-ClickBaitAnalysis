@@ -36,8 +36,9 @@ caracteres antes de comparar (`IncoherenceDetector._lead`): reutilizarlas sería
 medir un sistema que no es el que corre. El resultado de cada par se guarda en
 `var/`, así que sólo la primera ejecución es lenta, y si se corta se retoma
 donde se quedó. La caché lleva la huella de todo lo que decide el resultado
-—el código y los datos de las señales, el orquestador y los modelos efectivos—,
-para que una caché de otro sistema no se cuele en silencio.
+—el código y los datos de las señales, el orquestador, los modelos efectivos y,
+desde #93, los umbrales efectivos—, para que una caché de otro sistema no se
+cuele en silencio.
 
 La etiqueta humana es la de clickbait de Webis (`truthMean`): no hay una de
 engaño. Es la misma limitación que la de #92.
@@ -91,8 +92,11 @@ from backend.evaluation.eval_incoherencia import (
     SPLIT,
     cargar_pares,
 )
-from backend.integrations.nlp import lexical
-from backend.integrations.nlp.factory import get_incoherence_detector, get_model_id
+from backend.integrations.nlp.factory import (
+    get_incoherence_detector,
+    get_model_id,
+    get_threshold,
+)
 
 _RAIZ = Path(__file__).resolve().parents[2]
 CACHE = _RAIZ / "var" / f"veredicto_{SPLIT}.json"
@@ -125,6 +129,18 @@ def modelos() -> dict[str, str]:
     return efectivos
 
 
+def umbrales() -> dict[str, float]:
+    """Los umbrales EFECTIVOS (#93): los de los detectores, o los configurados.
+
+    Van en la huella porque deciden el voto de dos señales: sin ellos, una
+    ejecución con otro umbral reutilizaría la caché del anterior sin avisar.
+    """
+    return {
+        "detect_clickbait_lexical": get_threshold("detect_clickbait_lexical"),
+        "detect_clickbait_incoherence": get_incoherence_detector().threshold,
+    }
+
+
 def huella() -> str:
     """Un resumen de todo lo que decide el resultado de un par."""
     resumen = hashlib.sha256()
@@ -142,6 +158,7 @@ def huella() -> str:
         resumen.update(str(fichero.relative_to(_RAIZ)).encode())
         resumen.update(fichero.read_bytes())
     resumen.update(json.dumps(modelos(), sort_keys=True).encode())
+    resumen.update(json.dumps(umbrales(), sort_keys=True).encode())
     return resumen.hexdigest()[:12]
 
 
@@ -173,7 +190,8 @@ def condiciones(pares: list[dict]) -> None:
     for señal, modelo in modelos().items():
         print(f"  {señal}: {modelo}")
     print(
-        f"  umbrales: incoherencia {get_incoherence_detector().THRESHOLD} · léxico {lexical.THRESHOLD}"
+        "  umbrales: "
+        + " · ".join(f"{señal} {umbral:g}" for señal, umbral in umbrales().items())
     )
     print(f"  pares titular–cuerpo de Webis-17 ({SPLIT}): {len(pares)}")
     # Producción corre en CPU; aquí, si hay GPU, las librerías la usan. Las

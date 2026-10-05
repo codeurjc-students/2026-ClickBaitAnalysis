@@ -409,7 +409,9 @@ test de arquitectura que pasa, pero que nadie ha visto fallar, no demuestra nada
 nuevo queda cubierto sin tocar nada, y sacarlo obliga a editar la lista a mano —
 que es la decisión consciente que se quiere forzar. Vale para meter `settings` en
 un módulo de la capa NLP al parametrizar los umbrales (issue 93), y para añadir
-un paquete que no debería hablar con las fachadas.
+un paquete que no debería hablar con las fachadas. *(En la issue 93 no hizo
+falta: los detectores reciben el umbral de `factory.py`, como el modelo desde la
+119, y la lista quedó igual.)*
 
 La primera lleva además un `assert modulos` delante del recorrido: si la
 travesía del árbol se rompiera, la prueba se convertiría en un `assert not []`
