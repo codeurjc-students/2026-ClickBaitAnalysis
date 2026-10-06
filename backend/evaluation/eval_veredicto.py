@@ -94,6 +94,7 @@ from backend.evaluation.eval_incoherencia import (
 )
 from backend.integrations.nlp.factory import (
     get_incoherence_detector,
+    get_invocacion,
     get_model_id,
     get_threshold,
 )
@@ -125,6 +126,9 @@ Regla = Callable[[list[DimensionVerdict]], OverallVerdict]
 def modelos() -> dict[str, str]:
     """Los modelos EFECTIVOS: los de la ficha, o los de la configuración si hay."""
     efectivos = {señal: get_model_id(señal) for señal in SEÑALES_CON_MODELO}
+    # Desde #159, en la dedicada deciden también el modo y las etiquetas: el
+    # mismo id como zero-shot es otra señal.
+    efectivos["detect_clickbait"] = get_invocacion("detect_clickbait").model_dump_json()
     efectivos["detect_clickbait_incoherence"] = get_incoherence_detector().model_id
     return efectivos
 

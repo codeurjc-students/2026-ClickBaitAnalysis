@@ -9,14 +9,19 @@ saber su id, arrastraría `settings` —cuyos campos de API son obligatorios— 
 dejaría de poder importarse sin un `.env`, que es justo lo que el test protege.
 
 Su oficio era «decidir DÓNDE corre el modelo». Desde #119 decide también **cuál
-es** y **qué ficha se publica**, que es el mismo trabajo con un parámetro más; y
-desde #93, **con qué umbral decide** cada señal que corta por uno.
+es** y **qué ficha se publica**, que es el mismo trabajo con un parámetro más;
+desde #93, **con qué umbral decide** cada señal que corta por uno; y desde #159,
+**cómo se le llama** al modelo de `detect_clickbait` (`get_invocacion`).
 """
 
 from functools import lru_cache
 
-from backend.config.settings import UmbralConfigurable, settings
-from backend.integrations.nlp import lexical, linear
+from backend.config.settings import (
+    ModeloConInvocacion,
+    UmbralConfigurable,
+    settings,
+)
+from backend.integrations.nlp import dedicated, lexical, linear
 from backend.integrations.nlp.base import NLPBackend
 from backend.integrations.nlp.incoherence import IncoherenceDetector
 from backend.integrations.nlp.local import LocalNLPClient  # local.py
@@ -121,7 +126,20 @@ def get_model_id(signal: str) -> str:
     `_SENTIMENT_MODEL` en el orquestador— así que el valor quedaba fijado en el
     primer import y ninguna configuración posterior lo movía.
     """
-    return settings.nlp_models.get(signal) or model_id_de(signal)
+    return get_invocacion(signal).id
+
+
+def get_invocacion(signal: str) -> ModeloConInvocacion:
+    """El modelo de una señal y cómo se le llama (#159): el configurado, o el de
+    su ficha como clasificador con sus etiquetas de siempre.
+
+    Una cadena en `nlp_models` es sólo el id, como desde #119; el objeto, en
+    `detect_clickbait`, trae además el modo y las etiquetas.
+    """
+    configurado = settings.nlp_models.get(signal)
+    if isinstance(configurado, ModeloConInvocacion):
+        return configurado
+    return ModeloConInvocacion(id=configurado or model_id_de(signal))
 
 
 def ficha_efectiva(signal: str) -> FichaModelo:
@@ -149,25 +167,71 @@ def ficha_efectiva(signal: str) -> FichaModelo:
     puerta entre la ficha declarada y la publicada.
 
     Desde #93, un umbral puesto por configuración añade un aviso delante: ver
-    ``_con_aviso_de_umbral``.
+    ``_con_aviso_de_umbral``. Y desde #159 cuenta también CÓMO se llama al
+    modelo: un zero-shot o un clasificador con otras etiquetas es otra señal
+    aunque el id sea el mismo, y la ficha publica qué se le pregunta.
     """
     ficha = cards_by_signal()[signal]
     configurado = settings.nlp_models.get(signal)
+    if isinstance(configurado, ModeloConInvocacion):
+        invocacion, modelo = configurado, configurado.id
+    else:
+        invocacion, modelo = None, configurado
 
-    if not configurado or configurado == ficha["model_id"]:
+    if not modelo or (modelo == ficha["model_id"] and _como_se_midio(invocacion)):
         return _con_aviso_de_umbral(signal, _publicable(ficha))
 
-    return _con_aviso_de_umbral(
-        signal,
-        {
-            **_publicable(ficha),
-            "model_id": configurado,
-            "name": f"{configurado} (puesto por configuración)",
-            "limitations": [
-                f"SIN EVALUAR EN ESTE PROYECTO. Este modelo se ha puesto por configuración en lugar de `{ficha['model_id']}`, así que las limitaciones medidas de aquél no se publican aquí: eran suyas. Lo que sigue siendo cierto es lo que describe la señal y no al modelo — mide `{ficha['dimension']}` y es de tipo `{ficha['type']}`.",
-            ],
-        },
+    sustitucion = (
+        f"Este modelo se ha puesto por configuración en lugar de `{ficha['model_id']}`, así que las limitaciones medidas de aquél no se publican aquí: eran suyas."
+        if modelo != ficha["model_id"]
+        else "Este modelo se llama por configuración de otra forma que como se midió, así que sus limitaciones medidas no se publican aquí: eran de la otra forma."
     )
+    zero_shot = invocacion is not None and invocacion.task == dedicated.ZERO_SHOT
+    publicada: FichaModelo = {
+        **_publicable(ficha),
+        "model_id": modelo,
+        "name": f"{modelo} ({'zero-shot, ' if zero_shot else ''}puesto por configuración)",
+        "limitations": [
+            f"SIN EVALUAR EN ESTE PROYECTO. {sustitucion} Lo que sigue siendo cierto es lo que describe la señal y no al modelo — mide `{ficha['dimension']}` y es de tipo `{ficha['type']}`.",
+            *_como_se_le_llama(invocacion),
+        ],
+    }
+    if zero_shot:
+        publicada["task"] = (
+            "Clasifica el titular como clickbait vs factual con un modelo zero-shot: "
+            "no se entrenó para esta tarea, y elige entre las etiquetas que se le "
+            "preguntan."
+        )
+    return _con_aviso_de_umbral(signal, publicada)
+
+
+def _como_se_midio(invocacion: ModeloConInvocacion | None) -> bool:
+    """¿Se llama al modelo como se midió: clasificador, con sus etiquetas?"""
+    return invocacion is None or (
+        invocacion.task == dedicated.CLASIFICACION
+        and invocacion.labels in (None, dedicated.ETIQUETAS)
+    )
+
+
+def _como_se_le_llama(invocacion: ModeloConInvocacion | None) -> list[str]:
+    """Lo que la ficha tiene que decir del modo y de las etiquetas (#159)."""
+    if invocacion is None:
+        return []
+    if invocacion.task == dedicated.ZERO_SHOT:
+        preguntas = invocacion.labels or dedicated.ETIQUETAS_ZERO_SHOT
+        lista = " y ".join(
+            f"«{pregunta}» (→ {etiqueta})" for pregunta, etiqueta in preguntas.items()
+        )
+        return [
+            f"ZERO-SHOT: no se entrenó para esta tarea; se le pregunta entre {lista}. La redacción de esas etiquetas forma parte de la pregunta: con otras, el mismo modelo da otro resultado."
+        ]
+    if invocacion.labels:
+        traduccion = ", ".join(
+            f"«{palabra}» → {etiqueta}"
+            for palabra, etiqueta in invocacion.labels.items()
+        )
+        return [f"Sus etiquetas se traducen así: {traduccion}."]
+    return []
 
 
 def _con_aviso_de_umbral(signal: str, ficha: FichaModelo) -> FichaModelo:

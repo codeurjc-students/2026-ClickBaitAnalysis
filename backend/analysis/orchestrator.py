@@ -58,6 +58,7 @@ from backend.integrations.nlp import dedicated, lexical, linear
 from backend.integrations.nlp.factory import (
     ficha_efectiva,
     get_incoherence_detector,
+    get_invocacion,
     get_model_id,
     get_nlp_backend,
     get_threshold,
@@ -117,6 +118,19 @@ def _con_cuerpo(content: str | None) -> str:
     return content
 
 
+def _detectar_clickbait(titular: str) -> Awaitable[ToolResult]:
+    """La señal de clickbait con el modelo y el modo configurados (#159).
+
+    El modo y las etiquetas se piden a la factoría en cada llamada, como el id:
+    la tabla de abajo se lee al importar. Lo usan el análisis y `precalentar`,
+    para que caliente el mismo modelo, de la misma forma.
+    """
+    invocacion = get_invocacion("detect_clickbait")
+    return dedicated.detect(
+        get_nlp_backend(), titular, invocacion.id, invocacion.task, invocacion.labels
+    )
+
+
 @dataclass(frozen=True)
 class _Signal:
     """Cómo se ejecuta una señal y cómo se lee su veredicto.
@@ -157,9 +171,7 @@ class _Signal:
 _SIGNALS: tuple[_Signal, ...] = (
     _Signal(
         name="detect_clickbait",
-        run=lambda titular, cuerpo: dedicated.detect(
-            get_nlp_backend(), titular, get_model_id("detect_clickbait")
-        ),
+        run=lambda titular, cuerpo: _detectar_clickbait(titular),
         # VUELVE A VOTAR (#115), después de que #109 se lo quitara. No es una
         # marcha atrás: aquel silencio se declaró condicional en la ficha —
         # «placeholder pendiente de #115»— y esto es la condición cumpliéndose.
@@ -269,12 +281,7 @@ async def precalentar() -> dict[str, float]:
         tiempos[etiqueta] = time.perf_counter() - inicio
 
     if settings.nlp_backend == "local":
-        await cronometrar(
-            "detect_clickbait",
-            lambda: dedicated.detect(
-                get_nlp_backend(), titular, get_model_id("detect_clickbait")
-            ),
-        )
+        await cronometrar("detect_clickbait", lambda: _detectar_clickbait(titular))
         await cronometrar(
             "analyze_sentiment",
             lambda: get_nlp_backend().classify(
