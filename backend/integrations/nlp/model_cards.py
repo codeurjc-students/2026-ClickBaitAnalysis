@@ -200,6 +200,7 @@ MODEL_CARDS: list[FichaDeclarada] = [
             "Desde #78 no está acoplada al léxico por construcción: comparte con él sólo los cuatro patrones de estructura y la manera de partir las palabras. Acuerdo con el léxico: kappa 0.715 en Chakraborty dev y 0.368 en Webis (antes de #78, 0.880 y 0.644).",
             "Casi ningún titular se queda sin rasgos (0.5% en Webis-17, antes el 53.3%), y el techo de recall pasa del 65.5% al 98.1%: el límite ya no es el featurizado. Una palabra que no vio al entrenar no cuenta.",
             "La explicación son palabras con su contribución (peso × tf-idf), no pistas de una lista: más cobertura, a cambio de pesos que a veces no se entienden solos (`the` a favor, `in` en contra).",
+            "Tres de los cuatro patrones de estructura pesan EN CONTRA (interrogación −1.59, mayúsculas −1.49, elipsis −1.51; el número inicial, +12.12): donde el léxico ve una pista de clickbait, el lineal puede restar. Sin medir por qué; las hipótesis son que las palabras interrogativas (`why`, `how`) ya llevan el peso, y que en los tuits de Webis-17 los puntos suspensivos son de recorte y las mayúsculas, de «BREAKING».",
             "Se entrenó con `train170331` de Webis-17: medirla sobre ese split ya no es una validación externa.",
             "Solo inglés.",
         ],

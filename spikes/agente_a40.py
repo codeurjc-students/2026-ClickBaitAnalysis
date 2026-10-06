@@ -35,6 +35,15 @@ Y una quinta, de #197 (2026-09-26), sobre el cuerpo que se escribe «None»:
    incoherencia. Desde entonces, la selección guarda además los argumentos de
    cada llamada, que antes no guardaba y por eso no se pudo contar desde aquí.
 
+Y una sexta, de #78 (2026-10-06), para comparar docstrings sin depender de la
+suerte de una sesión:
+
+6. `variantes`: las 26 consultas con tres variantes de los docstrings del lineal
+   y del léxico, intercaladas en la misma sesión y repetidas
+   (`AGENTE_A40_REPETICIONES`, dos por defecto), en las dos condiciones que
+   razonan. Sólo cambia la descripción de esas dos herramientas en el mismo
+   objeto `mcp`.
+
 El servidor MCP es el `mcp` de `backend.main` —el mismo objeto que arranca en
 producción— servido en proceso, como en la fase 5: las herramientas se ejecutan
 aquí de verdad, con NLP_BACKEND=local, y las de noticias llaman a NYT y a
@@ -52,6 +61,7 @@ enteras para leerlas.
 """
 
 import asyncio
+import inspect
 import json
 import logging
 import os
@@ -225,7 +235,11 @@ async def contexto(registro: dict) -> None:
 # ----- 2 · Selección, con `think` en tres condiciones -----
 
 
-async def seleccion(registro: dict, condiciones: dict | None = None) -> None:
+async def seleccion(
+    registro: dict, condiciones: dict | None = None, raiz: dict | None = None
+) -> None:
+    """`raiz`, si se da, es el registro entero que se guarda (lo usa `variantes`,
+    que pasa aquí sólo la pasada en curso)."""
     condiciones = CONDICIONES_THINK if condiciones is None else condiciones
     pruebas = [
         (categoria, consulta, GENERICA_ACEPTABLE if categoria == "GENERICA" else aceptables)
@@ -292,7 +306,7 @@ async def seleccion(registro: dict, condiciones: dict | None = None) -> None:
             f"máx {max(tiempos, default=0):.1f} · tokens de salida, mediana {_mediana(salidas):.0f}"
         )
         registro["seleccion"][etiqueta] = filas
-        _guardar(registro)
+        _guardar(registro if raiz is None else raiz)
 
 
 # ----- 3 · Bucles completos -----
@@ -464,12 +478,141 @@ async def cuerpo(registro: dict) -> None:
     _guardar(registro)
 
 
+# ----- 6 · Variantes de docstring, intercaladas en la misma sesión (#78) -----
+
+# Cada variante es una lista de (herramienta, frase de `v1`, frase de la
+# variante) sobre la descripción SIN SANGRÍA, que es la que manda el agente
+# (`inspect.cleandoc`, `agente.py`). `v1` es la de producción en el commit
+# medido: el guion comprueba que cada frase está una vez, así que si el
+# docstring cambia, la parte se niega a medir en vez de comparar otra cosa.
+_LINEAL = "detect_clickbait_linear"
+_LEXICO = "detect_clickbait_lexical"
+_V1_LINEAL = (
+    "Es el modelo entrenado en este proyecto: una regresión logística sobre\n"
+    "las palabras del titular y su estructura (número inicial,\n"
+    "interrogación…), en la que cada palabra tiene un peso visible. El\n"
+    "veredicto se explica con las que más pesaron. Para la opinión de un\n"
+    "modelo sin pesos visibles, `detect_clickbait` (caja negra). Pensada\n"
+    "para inglés."
+)
+_V1_DEVUELVE = "—las palabras que más empujaron el veredicto (peso × tf-idf), que"
+_V1_LEXICO = "(que pondera las palabras del titular)"
+VARIANTES_DOCSTRING = {
+    # Los textos de #124 y #159: falsos con el lineal de #78, sólo la vara de medir.
+    "antes": [
+        (
+            _LINEAL,
+            _V1_LINEAL,
+            "Es el modelo entrenado en este proyecto: una regresión logística sobre\n"
+            "pistas léxicas (hipérbole, referencias vagas, listas numeradas…), en la\n"
+            "que cada pista tiene un peso visible. El veredicto se explica con las\n"
+            "pistas que más pesaron. Para la opinión de un modelo que no parte de\n"
+            "esas pistas, `detect_clickbait` (caja negra). Pensada para inglés.",
+        ),
+        (
+            _LINEAL,
+            _V1_DEVUELVE,
+            "—las pistas que más empujaron el veredicto (peso × frecuencia), que",
+        ),
+        (_LEXICO, _V1_LEXICO, "(que pondera estas mismas pistas)"),
+    ],
+    "v1": [],
+    # El texto de antes, cambiando sólo lo que es falso con el lineal de #78.
+    "v2": [
+        (
+            _LINEAL,
+            _V1_LINEAL,
+            "Es el modelo entrenado en este proyecto: una regresión logística sobre\n"
+            "las pistas del titular —sus palabras y su estructura—, en la que cada\n"
+            "pista tiene un peso visible. El veredicto se explica con las pistas que\n"
+            "más pesaron. Para la opinión de un modelo que no parte de esas pistas,\n"
+            "`detect_clickbait` (caja negra). Pensada para inglés.",
+        ),
+        (
+            _LINEAL,
+            _V1_DEVUELVE,
+            "—las pistas que más empujaron el veredicto (peso × tf-idf), que",
+        ),
+        (
+            _LEXICO,
+            _V1_LEXICO,
+            "(que pondera estas pistas y el resto de palabras del titular)",
+        ),
+    ],
+}
+REPETICIONES_VARIANTES = int(os.environ.get("AGENTE_A40_REPETICIONES", "2"))
+CONDICIONES_QUE_RAZONAN = {"sin campo": None, "true": True}
+
+
+def _descripciones_de(variante: str, originales: dict[str, str]) -> dict[str, str]:
+    """Las descripciones de las dos herramientas en una variante."""
+    descripciones = dict(originales)
+    for herramienta, frase_v1, frase in VARIANTES_DOCSTRING[variante]:
+        veces = descripciones[herramienta].count(frase_v1)
+        if veces != 1:
+            raise SystemExit(
+                f"ABORTADO: la frase de v1 de {herramienta} está {veces} veces en la "
+                "descripción publicada; el docstring ya no es el que esta parte compara."
+            )
+        descripciones[herramienta] = descripciones[herramienta].replace(frase_v1, frase)
+    return descripciones
+
+
+async def variantes(registro: dict) -> None:
+    """Las 26 consultas con cada variante, intercaladas, razonando (#78).
+
+    Una sola sesión por variante no separa el docstring de la suerte: con el
+    muestreo del Modelfile, el mismo examen dio 23, 25 y 26 en sesiones
+    distintas. Aquí, en cada repetición, las tres variantes una tras otra, con
+    las dos condiciones que razonan (`false` no lo usa el agente). Sólo cambia
+    la descripción de dos herramientas en el mismo objeto `mcp`; al terminar,
+    vuelve la de producción.
+    """
+    gestor = SERVIDOR._tool_manager
+    originales = {
+        nombre: inspect.cleandoc(gestor.get_tool(nombre).description)
+        for nombre in (_LINEAL, _LEXICO)
+    }
+    # Que se puedan construir todas ANTES de gastar la sesión.
+    textos = {variante: _descripciones_de(variante, originales) for variante in VARIANTES_DOCSTRING}
+    registro["variantes"] = {"textos": textos, "pasadas": []}
+    try:
+        for repeticion in range(1, REPETICIONES_VARIANTES + 1):
+            for variante, descripciones in textos.items():
+                for nombre, descripcion in descripciones.items():
+                    gestor.get_tool(nombre).description = descripcion
+                print(f"\n######## repetición {repeticion} · variante {variante}")
+                pasada = {"repeticion": repeticion, "variante": variante}
+                registro["variantes"]["pasadas"].append(pasada)
+                await seleccion(pasada, CONDICIONES_QUE_RAZONAN, raiz=registro)
+    finally:
+        for nombre, descripcion in originales.items():
+            gestor.get_tool(nombre).description = descripcion
+
+    print("\n== variantes: aciertos razonando (sin campo + true), por repetición")
+    for variante in textos:
+        suyas = [
+            pasada
+            for pasada in registro["variantes"]["pasadas"]
+            if pasada["variante"] == variante
+        ]
+        totales = [
+            sum(fila["acierto"] for filas in pasada["seleccion"].values() for fila in filas)
+            for pasada in suyas
+        ]
+        print(
+            f"  {variante:6s} {' + '.join(map(str, totales))} = "
+            f"{sum(totales)}/{52 * len(suyas)}"
+        )
+
+
 PARTES = {
     "contexto": contexto,
     "seleccion": seleccion,
     "bucles": bucles,
     "definitiva": definitiva,
     "cuerpo": cuerpo,
+    "variantes": variantes,
 }
 PRIMERA_SESION = ["contexto", "seleccion", "bucles"]
 
