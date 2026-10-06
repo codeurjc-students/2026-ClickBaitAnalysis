@@ -50,10 +50,12 @@ def register(mcp: FastMCP):
     async def detect_clickbait(headline: str) -> Etiqueta:
         """Clasifica un titular como clickbait o noticia factual con un modelo de caja negra.
 
-        Es un modelo neuronal entrenado fuera de este proyecto; cuál es, y si
-        clasifica o elige entre etiquetas que se le dan (zero-shot), lo dice
-        `describe_models`. Devuelve una etiqueta y la confianza del modelo en
-        ESA etiqueta, sin explicar por qué: no es una probabilidad de
+        Por defecto es un clasificador neuronal afinado para esta tarea sobre
+        titulares anotados por personas, fuera de este proyecto; por
+        configuración puede ser otro, también un zero-shot que elige entre
+        etiquetas que se le dan (`describe_models` dice cuál). Devuelve una
+        etiqueta y la confianza del modelo en ESA etiqueta, sin explicar por
+        qué: no es una probabilidad de
         clickbait (con "factual news" y 0.9, lo que afirma es que NO lo es).
         Si hace falta una probabilidad de clickbait o saber qué la explica, lo
         da `detect_clickbait_linear`; qué pistas aparecen y dónde,
