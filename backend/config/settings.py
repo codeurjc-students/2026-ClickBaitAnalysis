@@ -13,14 +13,51 @@ Cada campo lleva al lado el motivo de su valor por defecto. Desde el entorno,
 las listas y los diccionarios se pasan como JSON.
 """
 
-from typing import Literal
+from typing import Literal, get_args
 
-from pydantic import Field, SecretStr, field_validator
+from pydantic import BaseModel, Field, SecretStr, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 # Las señales que deciden con un umbral configurable (#93). Una lista CERRADA a
 # propósito: ver `nlp_thresholds`.
 UmbralConfigurable = Literal["detect_clickbait_lexical", "detect_clickbait_incoherence"]
+
+# Las etiquetas del contrato de `detect_clickbait`: las que publica su
+# herramienta, y a las que `dedicated.py` traduce las del modelo. Van también
+# aquí porque este módulo no puede importar la señal; un test vigila que sean
+# las mismas (`tests/integrations/test_invocacion.py`).
+EtiquetaDeClickbait = Literal["clickbait", "factual news"]
+
+
+class ModeloConInvocacion(BaseModel):
+    """Un modelo con su modo de invocación (#159). Sólo para `detect_clickbait`.
+
+    `labels` dice qué palabra del modelo corresponde a cada etiqueta del
+    contrato, y en los dos modos significa lo mismo. En un clasificador son SU
+    vocabulario (`{"Normal": "factual news", …}`). En un zero-shot son las
+    etiquetas que se le PREGUNTAN, y su redacción forma parte de la pregunta:
+    con otras, el mismo modelo da otro resultado. Sin ellas, las de la señal.
+    """
+
+    id: str
+    task: Literal["text-classification", "zero-shot-classification"] = (
+        "text-classification"
+    )
+    labels: dict[str, EtiquetaDeClickbait] | None = None
+
+    @field_validator("labels")
+    @classmethod
+    def _llevan_a_las_dos(
+        cls, labels: dict[str, EtiquetaDeClickbait] | None
+    ) -> dict[str, EtiquetaDeClickbait] | None:
+        """Si falta una etiqueta del contrato, el modelo nunca podría darla."""
+        if labels is not None and set(labels.values()) != set(
+            get_args(EtiquetaDeClickbait)
+        ):
+            raise ValueError(
+                "las etiquetas tienen que llevar a «clickbait» y a «factual news»"
+            )
+        return labels
 
 
 class Settings(BaseSettings):
@@ -57,9 +94,30 @@ class Settings(BaseSettings):
     # modelo puesto a mano es un experimento, no una señal caracterizada. Lo
     # resuelve `ficha_efectiva` en la factoría.
     #
-    # Sólo cambia el id, no el modo de invocación: un zero-shot necesita además
-    # etiquetas candidatas y otra llamada. Eso es #159.
-    nlp_models: dict[str, str] = {}
+    # Desde #159, en `detect_clickbait` puede ser también un objeto con el modo
+    # de invocación y las etiquetas (`ModeloConInvocacion`), para poner un
+    # zero-shot o un clasificador con otro vocabulario:
+    #   NLP_MODELS='{"detect_clickbait": {"id": "facebook/bart-large-mnli",
+    #                "task": "zero-shot-classification"}}'
+    # En las demás señales no: el sentimiento no traduce etiquetas y la
+    # incoherencia no usa `pipeline`. Así falla al arrancar.
+    nlp_models: dict[str, str | ModeloConInvocacion] = {}
+
+    @field_validator("nlp_models")
+    @classmethod
+    def _el_modo_solo_en_la_dedicada(
+        cls, modelos: dict[str, str | ModeloConInvocacion]
+    ) -> dict[str, str | ModeloConInvocacion]:
+        otras = sorted(
+            senal
+            for senal, modelo in modelos.items()
+            if isinstance(modelo, ModeloConInvocacion) and senal != "detect_clickbait"
+        )
+        if otras:
+            raise ValueError(
+                f"sólo `detect_clickbait` admite el modo de invocación; no {otras}"
+            )
+        return modelos
 
     # El UMBRAL con el que decide cada señal que corta por uno (#93), por si se
     # quiere probar otro sin tocar código. Vacío significa «el del detector»: el

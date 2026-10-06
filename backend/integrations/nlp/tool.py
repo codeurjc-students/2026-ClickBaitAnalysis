@@ -18,6 +18,7 @@ from backend.integrations.nlp import dedicated, lexical, linear, model_cards
 from backend.integrations.nlp.factory import (
     ficha_efectiva,
     get_incoherence_detector,
+    get_invocacion,
     get_model_id,
     get_nlp_backend,
     get_threshold,
@@ -49,13 +50,16 @@ def register(mcp: FastMCP):
     async def detect_clickbait(headline: str) -> Etiqueta:
         """Clasifica un titular como clickbait o noticia factual con un modelo de caja negra.
 
-        Es un clasificador neuronal afinado para esta tarea sobre titulares
-        anotados por personas, fuera de este proyecto. Devuelve una etiqueta y
-        la confianza del modelo en ESA etiqueta, sin explicar por qué: no es una
-        probabilidad de clickbait (con "factual news" y 0.9, lo que afirma es
-        que NO lo es). Si hace falta una probabilidad de clickbait o saber qué
-        la explica, lo da `detect_clickbait_linear`; qué pistas aparecen y
-        dónde, `detect_clickbait_lexical`. Pensada para inglés.
+        Por defecto es un clasificador neuronal afinado para esta tarea sobre
+        titulares anotados por personas, fuera de este proyecto; por
+        configuración puede ser otro, también un zero-shot que elige entre
+        etiquetas que se le dan (`describe_models` dice cuál). Devuelve una
+        etiqueta y la confianza del modelo en ESA etiqueta, sin explicar por
+        qué: no es una probabilidad de
+        clickbait (con "factual news" y 0.9, lo que afirma es que NO lo es).
+        Si hace falta una probabilidad de clickbait o saber qué la explica, lo
+        da `detect_clickbait_linear`; qué pistas aparecen y dónde,
+        `detect_clickbait_lexical`. Pensada para inglés.
 
         Args:
             headline (str): titular a evaluar (en inglés).
@@ -69,8 +73,14 @@ def register(mcp: FastMCP):
         Raises:
             Si la llamada al modelo falla (timeout o caída del proveedor).
         """
+        # El modelo, el modo y las etiquetas, de la configuración (#159).
+        invocacion = get_invocacion("detect_clickbait")
         response = await dedicated.detect(
-            get_nlp_backend(), headline, get_model_id("detect_clickbait")
+            get_nlp_backend(),
+            headline,
+            invocacion.id,
+            invocacion.task,
+            invocacion.labels,
         )
         if not response.has_content():
             raise ToolError(response.error or "Error al analizar el titular")
