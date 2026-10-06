@@ -33,9 +33,11 @@ Ejecutar:  python -m backend.evaluation.eval_umbral_lineal
 
 import math
 
+# El lineal que midió #93, congelado desde #78 en `lineal_pistas`. El umbral del
+# lineal nuevo se mira con `eval_reentreno --umbral`.
+from backend.evaluation import lineal_pistas as linear
 from backend.evaluation.eval_external import load_external
 from backend.evaluation.splits import load_split
-from backend.integrations.nlp import linear
 
 UMBRALES = (0.30, 0.35, 0.40, 0.45, 0.50, 0.55, 0.60, 0.65, 0.70, 0.80)
 SPLIT_WEBIS = "validation170630"

@@ -9,7 +9,8 @@ De ahí el techo de recall en Webis-17 (67,5 % en #109) y el F1 de 0,448 en
 Este guion compara, con la regla escrita en #78 antes de medir, ocho
 combinaciones: cuatro featurizaciones por dos conjuntos de entrenamiento.
 
-- F0, las pistas de hoy (`linear.featurize_cues`), como referencia.
+- F0, las pistas del lineal de antes (`lineal_pistas.featurize_cues`), como
+  referencia.
 - F1, las palabras del titular en presencia/ausencia, más los cuatro patrones de
   estructura del léxico, que las palabras sueltas no ven.
 - F2, lo mismo con TF-IDF.
@@ -23,40 +24,47 @@ Chakraborty y `webis_dev`, el 20 % de `validation170630`).
 La regla elegía F2, pero F2 y F3 empataron dentro del ruido (lo mide el
 bootstrap de abajo), y el autor eligió F3 (`ELEGIDA`), que quita los rasgos de
 época y de formato de tuit. Con `--test`, la elegida se mide UNA vez en los dos
-`test` contra el lineal actual, con la segunda parte de la regla.
+`test` contra el lineal de antes, con la segunda parte de la regla. F3 pasó, y
+desde entonces es la señal: su analizador es `linear.rasgos`, y el lineal de
+antes vive congelado en `lineal_pistas`.
+
+Con `--umbral`, la curva del lineal de producción en los dos `dev` y la regla
+del umbral (el punto que dejó #93). Con `--ficha`, el acuerdo con el léxico que
+cuenta su ficha.
 
 LO QUE NO SE VE LEYENDO EL CÓDIGO
 
-- Entrenar F0 sólo con Chakraborty reproduce el lineal de producción (mismos
-  datos, mismo modelo): su fila tiene que coincidir con la del lineal actual, y
-  es la comprobación de que el guion mide lo mismo que `linear.predict`.
+- Entrenar F0 sólo con Chakraborty reproduce el lineal de antes (mismos datos,
+  mismo modelo): su fila tiene que coincidir con la de `lineal_pistas`, y es la
+  comprobación de que el guion mide lo mismo que aquella señal.
 - El «vector vacío» de F1 a F3 es un titular sin ninguna palabra del
   vocabulario aprendido ni ningún patrón: el equivalente del de F0.
 
-Ejecutar:  python -m backend.evaluation.eval_reentreno [--test]
+Ejecutar:  python -m backend.evaluation.eval_reentreno [--test | --umbral | --ficha]
 (antes, una vez: python -m backend.evaluation.splits webis)
 """
 
 import random
-import re
 import sys
 
 from sklearn.feature_extraction.text import CountVectorizer, TfidfVectorizer
 from sklearn.linear_model import LogisticRegression
-from sklearn.metrics import f1_score, precision_recall_fscore_support
+from sklearn.metrics import (
+    cohen_kappa_score,
+    f1_score,
+    precision_recall_fscore_support,
+)
 
+from backend.evaluation import lineal_pistas
 from backend.evaluation.eval_external import load_external
 from backend.evaluation.splits import load_split
 from backend.integrations.nlp import lexical, linear
-
-# El tokenizador del léxico (#69): palabras de dos letras o más, con apóstrofo.
-TOKEN = re.compile(r"[\w']{2,}")
 
 UMBRAL = 0.5
 # La regla de #78, escrita antes de medir.
 TOLERANCIA_CHAKRABORTY = 0.02
 MEJORA_WEBIS = 0.05
-F1_CHAKRABORTY_TEST_ACTUAL = 0.865  # el de la ficha del lineal (#72, #76)
+F1_CHAKRABORTY_TEST_ANTES = 0.865  # el de la ficha del lineal de antes (#72, #76)
 
 # Elegida por el autor ante el empate de F2 y F3 en `dev` (#78).
 ELEGIDA = ("F3 tf-idf normalizado", "Chakraborty + Webis")
@@ -72,7 +80,7 @@ def rasgos_de_palabras(titular: str) -> list[str]:
     original, como hace el léxico, porque «mayúsculas» deja de existir al
     pasarlo a minúsculas.
     """
-    palabras = TOKEN.findall(titular.lower())
+    palabras = lexical.TOKEN.findall(titular.lower())
     patrones = [
         f"<{nombre}>"
         for nombre, patron in lexical.PATTERNS.items()
@@ -81,38 +89,20 @@ def rasgos_de_palabras(titular: str) -> list[str]:
     return palabras + patrones
 
 
-# F3 (#78): se añadió DESPUÉS de ver los pesos de F2, que traían vocabulario de
-# fuente, época y formato de tuit (`2015`, `2008`, `rt`, `http`). Declarado así
-# en la issue antes de medirlo.
-ENLACE = re.compile(r"https?://\S+|www\.\S+")
-MENCION = re.compile(r"@\w+")
-RETUIT = re.compile(r"\bRT\b")
-NUMERO = re.compile(r"\d+(?:[.,]\d+)*")
-
-
-def rasgos_normalizados(titular: str) -> list[str]:
-    """Como `rasgos_de_palabras`, sin las convenciones de tuit y con cada número
-    convertido en `<number>`: un año o una cifra no dicen nada del clickbait de
-    un titular cualquiera, y sí de la fuente o la época de su corpus."""
-    limpio = RETUIT.sub(" ", MENCION.sub(" ", ENLACE.sub(" ", titular)))
-    numeros = ["<number>"] * len(NUMERO.findall(limpio))
-    palabras = TOKEN.findall(NUMERO.sub(" ", limpio).lower())
-    patrones = [
-        f"<{nombre}>"
-        for nombre, patron in lexical.PATTERNS.items()
-        if patron.search(limpio)
-    ]
-    return palabras + numeros + patrones
+# F3 (#78) se añadió DESPUÉS de ver los pesos de F2, que traían vocabulario de
+# fuente, época y formato de tuit (`2015`, `2008`, `rt`, `http`), y así se
+# declaró en la issue antes de medirla. Su analizador es `linear.rasgos`: desde
+# que ganó, la señal y este guion usan la misma función.
 
 
 class Pistas:
-    """F0 con la interfaz de un vectorizador de sklearn."""
+    """F0 con la interfaz de un vectorizador de sklearn: el lineal de #109."""
 
     def fit_transform(self, titulares: list[str]) -> list[list[int]]:
         return self.transform(titulares)
 
     def transform(self, titulares: list[str]) -> list[list[int]]:
-        return [linear.featurize_cues(titular) for titular in titulares]
+        return [lineal_pistas.featurize_cues(titular) for titular in titulares]
 
 
 FEATURIZACIONES = {
@@ -123,9 +113,7 @@ FEATURIZACIONES = {
     "F2 palabras tf-idf": lambda: TfidfVectorizer(
         analyzer=rasgos_de_palabras, min_df=2
     ),
-    "F3 tf-idf normalizado": lambda: TfidfVectorizer(
-        analyzer=rasgos_normalizados, min_df=2
-    ),
+    "F3 tf-idf normalizado": lambda: TfidfVectorizer(analyzer=linear.rasgos, min_df=2),
 }
 
 
@@ -155,7 +143,7 @@ def medir(predichas: list[int], etiquetas: list[int], vacios: list[bool]) -> dic
     }
 
 
-def _titulares_y_etiquetas(pares):
+def titulares_y_etiquetas(pares):
     return [titular for titular, _ in pares], [int(etiqueta) for _, etiqueta in pares]
 
 
@@ -182,7 +170,7 @@ def cargar_datos() -> dict:
 
 def entrenar(featurizacion: str, pares: list[tuple[str, int]]):
     """Un vectorizador y una regresión logística, entrenados con `pares`."""
-    titulares, etiquetas = _titulares_y_etiquetas(pares)
+    titulares, etiquetas = titulares_y_etiquetas(pares)
     vectorizador = FEATURIZACIONES[featurizacion]()
     matriz = vectorizador.fit_transform(titulares)
     return vectorizador, LogisticRegression(max_iter=1000).fit(matriz, etiquetas)
@@ -194,14 +182,14 @@ def predecir(vectorizador, modelo, titulares: list[str]):
     return [int(probabilidad >= UMBRAL) for probabilidad in probabilidades], matriz
 
 
-def medir_actual(pares: list[tuple[str, int]]) -> tuple[dict, list[int]]:
-    """El lineal de producción, tal cual, por `linear.predict`."""
-    titulares, etiquetas = _titulares_y_etiquetas(pares)
+def medir_antes(pares: list[tuple[str, int]]) -> tuple[dict, list[int]]:
+    """El lineal de antes de #78, tal cual, por `lineal_pistas.predict`."""
+    titulares, etiquetas = titulares_y_etiquetas(pares)
     predichas = [
-        int(linear.predict(titular).data["probability"] >= UMBRAL)
+        int(lineal_pistas.predict(titular).data["probability"] >= UMBRAL)
         for titular in titulares
     ]
-    vacios = [not any(linear.featurize_cues(titular)) for titular in titulares]
+    vacios = [not any(lineal_pistas.featurize_cues(titular)) for titular in titulares]
     return medir(predichas, etiquetas, vacios), predichas
 
 
@@ -261,8 +249,8 @@ def comparar_en_dev() -> None:
     print(f"  titulares a la vez en Chakraborty train y Webis train: {len(cruce)}")
 
     devs = {"Chakraborty dev": datos["chak_dev"], "Webis dev": datos["webis_dev"]}
-    actual = {nombre: medir_actual(pares)[0] for nombre, pares in devs.items()}
-    filas = [("lineal actual", "—", len(linear.pesos()["weights"]), actual)]
+    antes = {nombre: medir_antes(pares)[0] for nombre, pares in devs.items()}
+    filas = [("lineal de antes", "—", len(lineal_pistas.pesos()["weights"]), antes)]
     modelos = {}
     predicciones_webis = {}
     for conjunto, entrenamiento in (
@@ -278,7 +266,7 @@ def comparar_en_dev() -> None:
             )
             resultados = {}
             for nombre, pares in devs.items():
-                titulares, etiquetas = _titulares_y_etiquetas(pares)
+                titulares, etiquetas = titulares_y_etiquetas(pares)
                 predichas, matriz = predecir(vectorizador, modelo, titulares)
                 resultados[nombre] = medir(predichas, etiquetas, _vacios(matriz))
                 if nombre == "Webis dev":
@@ -300,7 +288,7 @@ def comparar_en_dev() -> None:
         )
 
     # La regla de #78, paso 1.
-    suelo = actual["Chakraborty dev"]["f1"] - TOLERANCIA_CHAKRABORTY
+    suelo = antes["Chakraborty dev"]["f1"] - TOLERANCIA_CHAKRABORTY
     candidatas = [
         fila for fila in filas[1:] if fila[3]["Chakraborty dev"]["f1"] >= suelo
     ]
@@ -308,13 +296,13 @@ def comparar_en_dev() -> None:
         f"\n== la regla: F1 Chakraborty dev ≥ {suelo:.3f}; gana el mejor F1 en Webis dev"
     )
     if not candidatas:
-        print("  ninguna combinación la cumple: se queda el lineal actual")
+        print("  ninguna combinación la cumple: se queda el lineal de antes")
         return
     ganadora = max(candidatas, key=lambda fila: fila[3]["Webis dev"]["f1"])
     print(f"  gana: {ganadora[0]} con {ganadora[1]}")
 
     # El empate que llevó a elegir F3 (#78).
-    _, etiquetas_webis = _titulares_y_etiquetas(datos["webis_dev"])
+    _, etiquetas_webis = titulares_y_etiquetas(datos["webis_dev"])
     if (ganadora[0], ganadora[1]) != ELEGIDA:
         diferencia, bajo, alto = diferencia_con_intervalo(
             etiquetas_webis,
@@ -354,26 +342,26 @@ def prueba_final() -> None:
         "Chakraborty test": load_split("test"),
         "Webis test": load_split("webis_test"),
     }
-    print(f"== {ELEGIDA[0]} con {ELEGIDA[1]}, contra el lineal actual, umbral 0,5")
+    print(f"== {ELEGIDA[0]} con {ELEGIDA[1]}, contra el lineal de antes, umbral 0,5")
     resultados = {}
     for nombre, pares in tests.items():
-        titulares, etiquetas = _titulares_y_etiquetas(pares)
-        actual, _ = medir_actual(pares)
+        titulares, etiquetas = titulares_y_etiquetas(pares)
+        antes, _ = medir_antes(pares)
         predichas, matriz = predecir(vectorizador, modelo, titulares)
         nuevo = medir(predichas, etiquetas, _vacios(matriz))
-        resultados[nombre] = (actual, nuevo)
+        resultados[nombre] = (antes, nuevo)
         print(f"  {nombre} ({len(pares)}, {sum(etiquetas)} clickbait)")
-        for etiqueta, medida in (("actual", actual), ("elegida", nuevo)):
+        for etiqueta, medida in (("antes", antes), ("elegida", nuevo)):
             print(
                 f"    {etiqueta:8s} P {medida['p']:.3f} · R {medida['r']:.3f} · "
                 f"F1 {medida['f1']:.3f} · vacíos {medida['vacios']:.1%} · "
                 f"techo de recall {medida['techo']:.1%}"
             )
 
-    actual_webis, nuevo_webis = resultados["Webis test"]
+    antes_webis, nuevo_webis = resultados["Webis test"]
     _, nuevo_chak = resultados["Chakraborty test"]
-    sube_webis = nuevo_webis["f1"] - actual_webis["f1"]
-    suelo_chak = F1_CHAKRABORTY_TEST_ACTUAL - TOLERANCIA_CHAKRABORTY
+    sube_webis = nuevo_webis["f1"] - antes_webis["f1"]
+    suelo_chak = F1_CHAKRABORTY_TEST_ANTES - TOLERANCIA_CHAKRABORTY
     print("\n== la regla, paso 2")
     print(
         f"  Webis: F1 sube {sube_webis:+.3f} (hace falta +{MEJORA_WEBIS:.2f}) → "
@@ -384,11 +372,80 @@ def prueba_final() -> None:
         f"{'cumple' if nuevo_chak['f1'] >= suelo_chak else 'NO cumple'}"
     )
     queda = sube_webis >= MEJORA_WEBIS and nuevo_chak["f1"] >= suelo_chak
-    print(f"  => {'SE QUEDA' if queda else 'se queda el lineal actual'}")
+    print(f"  => {'SE QUEDA' if queda else 'se queda el lineal de antes'}")
+
+
+# El umbral del lineal nuevo (el punto que dejó #93 en #78), con la regla de #78.
+UMBRALES = (0.30, 0.35, 0.40, 0.45, 0.50, 0.55, 0.60, 0.65, 0.70)
+MEJORA_MINIMA_DEL_UMBRAL = 0.01
+
+
+def elegir_umbral() -> None:
+    """La curva del lineal de producción en los dos `dev`, y la regla del umbral:
+    se queda en 0,5 salvo que otro corte suba el F1 medio de los dos dominios al
+    menos `MEJORA_MINIMA_DEL_UMBRAL`."""
+    datos = cargar_datos()
+    devs = {"Chakraborty dev": datos["chak_dev"], "Webis dev": datos["webis_dev"]}
+    probabilidades = {
+        nombre: [linear.predict(titular).data["probability"] for titular, _ in pares]
+        for nombre, pares in devs.items()
+    }
+    print("== el lineal de producción en los dos dev")
+    print("  umbral   F1 Chak   F1 Webis   F1 medio")
+    medios = {}
+    for umbral in UMBRALES:
+        f1s = []
+        for nombre, pares in devs.items():
+            _, etiquetas = titulares_y_etiquetas(pares)
+            predichas = [
+                int(probabilidad >= umbral) for probabilidad in probabilidades[nombre]
+            ]
+            f1s.append(f1_score(etiquetas, predichas))
+        medios[umbral] = sum(f1s) / len(f1s)
+        print(
+            f"  {umbral:.2f}     {f1s[0]:.3f}     {f1s[1]:.3f}      {medios[umbral]:.3f}"
+        )
+    mejor = max(medios, key=lambda umbral: medios[umbral])
+    gana = medios[mejor] - medios[UMBRAL] >= MEJORA_MINIMA_DEL_UMBRAL
+    print(
+        f"\n  mejor corte {mejor:.2f} ({medios[mejor]:.3f}) frente a 0,50 "
+        f"({medios[UMBRAL]:.3f}): {'SE CAMBIA' if gana else 'se queda 0,5'}"
+    )
+
+
+def cifras_de_la_ficha() -> None:
+    """Lo que la ficha del lineal dice y no sale de `--test`: el acuerdo con el
+    léxico, que hasta #78 era por construcción (#109)."""
+    datos = cargar_datos()
+    print("== acuerdo con el léxico (umbral 1), en los dos dev")
+    for nombre, pares in (
+        ("Chakraborty dev", datos["chak_dev"]),
+        ("Webis dev", datos["webis_dev"]),
+    ):
+        titulares, _ = titulares_y_etiquetas(pares)
+        lexico = [
+            int(lexical.detect(titular).data["is_clickbait"]) for titular in titulares
+        ]
+        for etiqueta, modulo in (("antes", lineal_pistas), ("ahora", linear)):
+            votos = [
+                int(modulo.predict(titular).data["is_clickbait"])
+                for titular in titulares
+            ]
+            acuerdo = sum(
+                1 for uno, otro in zip(lexico, votos, strict=True) if uno == otro
+            )
+            print(
+                f"  {nombre:16s} {etiqueta}: acuerdo {acuerdo / len(titulares):.1%} · "
+                f"kappa {cohen_kappa_score(lexico, votos):.3f}"
+            )
 
 
 if __name__ == "__main__":
     if "--test" in sys.argv:
         prueba_final()
+    elif "--umbral" in sys.argv:
+        elegir_umbral()
+    elif "--ficha" in sys.argv:
+        cifras_de_la_ficha()
     else:
         comparar_en_dev()
