@@ -4969,6 +4969,9 @@ tarea como una cadena, así que la maquinaria está. Es alcance, y tiene su prop
 issue (**#159**) con las decisiones que arrastra — entre ellas que las etiquetas
 de un zero-shot *forman parte de la pregunta*: cambiar «clickbait» por
 «sensationalist headline» cambia el resultado con el mismo modelo.
+*(Hecho en #159, que además lo midió: con BART, esa pregunta movió el titular
+clickbait de 0,701 a 0,987; y `elozano` funciona dándole sus etiquetas. Ver «El
+modo de invocación, configurable».)*
 
 `docs/requisitos.md` no se toca: R3.9 **se cumple**, no se matiza.
 
@@ -7912,6 +7915,122 @@ La causa era que las tres eran `str`. Ahora son `SecretStr`, cuyo `repr` es `'**
 
 - **El despliegue no lo lleva** (la máquina 1 sirve `828e2e0`). Sin configurar nada, lo servido no cambia salvo el `threshold` del léxico en su resultado. `outputs.py` se copia en la capa de modelos de la imagen (#162), así que el próximo despliegue la rehará.
 - **El umbral del lineal**, en #78.
+
+### El modo de invocación, configurable (#159, 6 oct 2026)
+
+Desde #119 el modelo de cada señal se cambia por configuración, pero sólo el **id**: `detect_clickbait` llamaba siempre a su modelo como clasificador y traducía sus etiquetas con las del dedicado (`Clickbait`/`Not Clickbait`). Aquella misma issue midió las dos consecuencias. No se podía poner un modelo zero-shot, como `facebook/bart-large-mnli`, el que usaba la señal hasta #115. Y `elozano/bert-base-cased-clickbait-news`, que dice `Normal` donde el dedicado dice `Not Clickbait`, funcionaba con un titular clickbait y fallaba con uno factual: media convención coincidía. La issue es del 8 de septiembre, y entró en `v0.7` el 4 de octubre.
+
+#### Las cuatro decisiones, antes de escribir código
+
+**Decididas por el autor**, con la propuesta delante:
+
+1. **La forma**: una entrada de `NLP_MODELS` puede ser, además de la cadena de siempre, un objeto con el modelo, el modo y las etiquetas. El id y el modo van juntos porque tienen que casar entre sí.
+   ```
+   NLP_MODELS='{"detect_clickbait": {"id": "facebook/bart-large-mnli", "task": "zero-shot-classification"}}'
+   ```
+2. **Las etiquetas significan lo mismo en los dos modos**: qué palabra del modelo corresponde a cada etiqueta del contrato. En un clasificador, su vocabulario (`{"Clickbait": "clickbait", "Normal": "factual news"}` para `elozano`). En un zero-shot, **las etiquetas que se le preguntan**, y su redacción forma parte de la pregunta. Sin ellas, el clasificador usa las del dedicado y el zero-shot pregunta «clickbait» y «factual news», las mismas con que E3-02 y #109 midieron a BART. Al arrancar se comprueba que lleven a las dos etiquetas del contrato: si falta una, el modelo nunca podría darla.
+3. **Sólo `detect_clickbait`**: el sentimiento no traduce etiquetas y la incoherencia no usa `pipeline`. El objeto en otra señal no deja arrancar.
+4. **Los errores, medidos antes de escribirlos**, como en #158 y #162: lo siguiente.
+
+#### Los casos, provocados con los modelos de verdad
+
+[`spikes/invocacion_casos.py`](spikes/invocacion_casos.py) llama a cada modelo en cada modo con el `LocalNLPClient` de producción, sobre un titular clickbait y uno factual, y apunta lo que `transformers` escribe en su log. Con `--remoto`, lo mismo por la Inference API de Hugging Face.
+
+| Condiciones | |
+|---|---|
+| Fecha | 2026-10-06, 09:53, y repetido a las 12:23 sobre `75cd1dd`, con las mismas cifras; el remoto, a las 12:27 |
+| Máquina | WSL (Ubuntu) en el portátil, Python 3.12.3, `transformers` 5.12.0 y torch 2.12.1+cu130, que pone los modelos en la GTX (producción corre en CPU) |
+| Modelos (revisión) | `Stremie/roberta-base-clickbait` (`517de05db9ba`), `elozano/bert-base-cased-clickbait-news` (`af3154cf4325`), `facebook/bart-large-mnli` (`d7645e127eaf`) y `MoritzLaurer/DeBERTa-v3-base-mnli-fever-anli` (`6f5cf0a2b59c`) |
+| Titulares | «10 Amazing Things You Won't Believe» y «Federal Reserve raises interest rates by a quarter point» |
+
+```bash
+.venv/bin/python spikes/invocacion_casos.py --remoto
+```
+
+| Modelo y modo | Titular clickbait | Titular factual |
+|---|---|---|
+| el dedicado, como clasificador | Clickbait 0,967 | Not Clickbait 0,971 |
+| `elozano`, como clasificador | Clickbait 1,000 | **Normal** 1,000 |
+| BART, como zero-shot | clickbait 0,701 | factual news 0,830 |
+| DeBERTa, como zero-shot | clickbait 0,942 | factual news 0,944 |
+| **el dedicado, pedido como zero-shot** | factual news **0,506** | factual news 0,578 |
+| **BART, pedido como clasificador** | **neutral** 0,834 | neutral 0,959 |
+
+- ⚠️ **Un clasificador pedido como zero-shot NO falla.** El zero-shot lee la respuesta en la etiqueta de «entailment» de un modelo de inferencia (NLI); el dedicado no la tiene, y `transformers` sólo lo avisa en su log («Failed to determine 'entailment' label id…») y sigue con el último logit. Sale una moneda al aire con aspecto de resultado: «factual news» 0,506 para el titular clickbait. Por eso `local.py` lo comprueba al cargar el modelo (`entailment_id`) y falla antes de llamarlo, diciendo que no es de inferencia.
+- **Un modelo de inferencia pedido como clasificador** responde «neutral», y la señal ya fallaba porque esa etiqueta no está en la traducción. El mensaje dice ahora qué revisar: las etiquetas, o si hay que llamarlo como zero-shot.
+- **Por la vía remota, Hugging Face sigue sirviendo BART**, con las mismas puntuaciones que en local (0,7006 y 0,8297), mientras el dedicado da `400 Model not supported` (#127). Con `nlp_backend=remote`, un zero-shot configurado funcionaría donde la señal se cae (medido llamando al cliente remoto, no por `analyze()`).
+
+#### Qué entra
+
+- **`config/settings.py`**: `ModeloConInvocacion` y los dos validadores. Las etiquetas del contrato van también aquí (`EtiquetaDeClickbait`), porque `settings` no puede importar la señal; un test vigila que sean las de `dedicated.py`.
+- **`nlp/dedicated.py`**: `detect` recibe el modo y las etiquetas. Con zero-shot llama a `zero_shot` con las claves de la traducción como preguntas, y si no a `classify`. **La traducción es la misma en los dos caminos**, y su fallo nombra las dos causas medidas.
+- **`nlp/local.py`**: la comprobación del modelo de inferencia.
+- **`nlp/factory.py`**: `get_invocacion` resuelve, en cada llamada, el modelo con su modo. `ficha_efectiva` publica el modo y lo que se le pregunta: el nombre lleva «zero-shot», la tarea lo dice, y una limitación enumera las preguntas («se le pregunta entre «clickbait» (→ clickbait) y «factual news» (→ factual news)…»). El mismo id con otro modo también cuenta como cambiado, porque es otra señal.
+- **Quien llama**: el orquestador (`_detectar_clickbait`, que usan el análisis y `precalentar`) y la herramienta MCP.
+- **`evaluation/eval_veredicto.py`**: el modo y las etiquetas, en la huella de su caché.
+- **16 tests, escritos antes**, que fallaban con el código de antes. **467 tests**; pyright y ruff sin avisos.
+
+#### Comprobado por el camino de producción
+
+El mismo guion con `--analisis` pasa cada configuración por `analyze()`, validada como al arrancar, con los dos titulares. Uno solo no basta: así se escapó lo de `elozano` en #119. Sobre `75cd1dd`, a las 12:23.
+
+| Configuración de `detect_clickbait` | Titular clickbait | Titular factual |
+|---|---|---|
+| sin configurar | clickbait 0,967 | factual news 0,971 |
+| BART como zero-shot | clickbait 0,701 | factual news 0,830 |
+| DeBERTa como zero-shot | clickbait 0,942 | factual news 0,944 |
+| **BART con otra pregunta** («sensationalist headline» / «news report») | clickbait **0,987** | factual news **0,662** |
+| `elozano` con sus etiquetas | clickbait 1,000 | factual news 1,000 |
+| `elozano` sin ellas | clickbait 1,000 | error: «Normal» no está en la traducción |
+| el dedicado como zero-shot | error: no es de inferencia | error: no es de inferencia |
+| BART como clasificador | error: «neutral»… llamarlo como zero-shot | el mismo error |
+
+**La fila de «otra pregunta» es la que justifica publicar las etiquetas en la ficha**: con el mismo modelo y los mismos titulares, cambiar la redacción de las etiquetas mueve el clickbait de 0,701 a 0,987 y el factual de 0,830 a 0,662. La tarjeta lo rotula como «facebook/bart-large-mnli (zero-shot, puesto por configuración)».
+
+No es una comparación de calidad entre modelos: dos titulares sirven para ver que el camino funciona, no para medir quién acierta más. Eso lo hicieron #109 y #115 con corpus enteros.
+
+#### El docstring que lee el agente, en dos intentos
+
+El docstring de la herramienta decía «Es un clasificador neuronal afinado para esta tarea…», que con un zero-shot configurado sería falso. **El autor pidió cambiarlo** en vez de dejarlo y contarlo aquí. Desde #188, un docstring de herramienta sólo cambia con las 26 consultas como examen, y la regla se publicó en la issue antes de medir ([comentario](https://github.com/codeurjc-students/2026-ClickBaitAnalysis/issues/159#issuecomment-6014049769)), la misma que en #124: **se queda si la selección razonando no baja de 24/26 en ninguna de las dos condiciones que razonan**.
+
+| Condiciones | |
+|---|---|
+| Fecha | 2026-10-06: primera variante, 12:11–12:22 sobre `75cd1dd`; segunda, 12:36–12:47 sobre `b62caad` |
+| Máquina | La A40 de la máquina 2, con Ollama 0.34.2 y `gpu-sesion` `6ad6a751d636`; el guion corre en WSL por un túnel propio |
+| Modelo | `qwen3.5:27b` (`7653528ba5cb`), con las condiciones de #188: `num_ctx` 8192, `04-preciso`, el muestreo del Modelfile, sin el aviso del historial ni la vuelta más |
+| Guion | `spikes/agente_a40.py` `963fafdbf3bb`, el de #124 |
+| Datos | [`seleccion-159.json`](spikes/agente_a40/seleccion-159.json) y [`seleccion-159b.json`](spikes/agente_a40/seleccion-159b.json) |
+
+```bash
+AGENTE_A40_JSON=spikes/agente_a40/seleccion-159b.json setsid nohup bash spikes/agente_a40.sh seleccion > /tmp/agente_a40_159b.log 2>&1 < /dev/null & disown
+```
+
+| `think` | #124 | Primera variante | Segunda variante |
+|---|---|---|---|
+| sin el campo | 25/26 | **23/26** | **26/26** |
+| `true` | 25/26 | 24/26 | 25/26 |
+| `false` (el agente no lo usa) | 11/26 | 9/26 | 14/26 |
+| catálogo | 10.318 | 10.369 | 10.480 caracteres |
+
+**La primera variante no pasó** (23/26 sin el campo). Describía el tipo y no al ocupante, como pedía #183: «Es un modelo neuronal entrenado fuera de este proyecto; cuál es, y si clasifica o elige entre etiquetas que se le dan (zero-shot), lo dice `describe_models`». Comparada consulta a consulta con #124, cambiaban tres de contraste, y una apuntaba al docstring: «Clasifica '5 Signs You Need a Vacation' con el clasificador afinado sobre anotación humana» se fue al lineal, porque la variante quitaba justo esas palabras. Las otras dos no tocaban lo cambiado (la frontera léxico–lineal, y una que pidió `analyze_headline`).
+
+**La segunda, elegida después de ver esos datos** y publicada como tal antes de medirla ([comentario](https://github.com/codeurjc-students/2026-ClickBaitAnalysis/issues/159#issuecomment-6014453539)), conserva al ocupante por defecto y añade el caso configurado:
+
+> Por defecto es un clasificador neuronal afinado para esta tarea sobre titulares anotados por personas, fuera de este proyecto; por configuración puede ser otro, también un zero-shot que elige entre etiquetas que se le dan (`describe_models` dice cuál).
+
+**Pasó** (26/26 y 25/26), y la consulta que fallaba por el docstring vuelve a `detect_clickbait`. Con `true` sólo falla la de siempre, «¿Por qué es difícil detectar clickbait en español?», que llama a `describe_models` como en #188 y #124. **El 26/26 no se lee como una mejora**: la consulta que gana respecto a #124 es la de las «papeletas», que está en la frontera léxico–lineal y falló en #188 y en #124, y cada variante tuvo una sola sesión con el muestreo del Modelfile. Lo que dice la medida es que la regla se cumple. Si la segunda tampoco hubiera pasado, se volvía al docstring de antes sin más intentos (escrito en el comentario).
+
+La lección vale para cualquier docstring: **describir el tipo y no al ocupante (#183) no basta si el ocupante por defecto es lo que el usuario nombra**. Quien pregunta por «el clasificador afinado sobre anotación humana» describe al dedicado, y el modelo del agente necesita esas palabras para encontrarlo.
+
+#### Lo que no cambia
+
+- **La salida de la señal**: las etiquetas del contrato, y la regla del voto (`label == "clickbait"`), que no sabe qué modelo hay debajo.
+- **Sin configurar, nada**: la señal llama al dedicado como clasificador con sus etiquetas, y la ficha es la declarada.
+- **Con otro modelo o modo, las medidas de la ficha no se publican** (#119): un zero-shot puesto a mano es un experimento, no una señal caracterizada.
+
+#### Lo que queda
+
+- **Un clasificador servido por Hugging Face y pedido como zero-shot**: sin medir, porque Hugging Face no sirve ningún clasificador de clickbait. La comprobación del modelo de inferencia está sólo en `local.py`.
 
 
 
