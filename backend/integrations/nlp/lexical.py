@@ -50,8 +50,13 @@ PATTERNS = {
     "ellipsis": re.compile(r"\.\.\.|…"),  # ... o …
 }
 
-# Orden fijo de los cues, que es el de los rasgos del modelo lineal: lo usan
-# `linear.featurize_cues` y `evaluation/train_linear.py`.
+# Una palabra: dos letras o más, con apóstrofo (desde #69, para que la «I» de
+# «A.I.» no cuente). La usa también el lineal desde #78 (`linear.rasgos`), para
+# que las dos señales partan el titular igual.
+TOKEN = re.compile(r"[\w']{2,}")
+
+# Orden fijo de los cues, que era el de los rasgos del modelo lineal hasta #78:
+# lo usa `evaluation/lineal_pistas.py`, que conserva aquel modelo.
 # No aplica PATTERNS (no se pueden determinar, son reglas)
 
 # Orden alfabético por defecto.
@@ -78,7 +83,7 @@ def detect(headline: str, threshold: float = THRESHOLD) -> ToolResult:
     # Words
 
     # Fix: eliminado "i" de cues (En siglas pilla como clickbait)
-    for m in re.finditer(r"[\w']{2,}", lowered):  # Cada palabra (de 2 letras o más)
+    for m in TOKEN.finditer(lowered):  # Cada palabra (de 2 letras o más)
         token = m.group()  # Token (string)
         for category, words in WORD_CUES.items():
             # Ej: Hyperbole, amazing

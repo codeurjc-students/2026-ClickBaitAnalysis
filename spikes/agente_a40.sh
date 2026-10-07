@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # #188 (2026-09-26) - La sesión de GPU alrededor de `spikes/agente_a40.py`.
 #
-# Abre una sesión en la A40 con `gpu-sesion` —45 min como máximo, y sin el
+# Abre una sesión en la A40 con `gpu-sesion` —45 min como máximo, o los que
+# diga `AGENTE_A40_MAX_MIN` (#78: la parte `variantes` necesita una hora), sin el
 # túnel hacia la máquina 1, porque la medida va por uno propio desde WSL, en el
 # 11500—, deja el 27B cargado, ejecuta el guion de Python aquí, en WSL, y cierra
 # la sesión. Al terminar comprueba que la GPU vuelve a 0 MiB y que no queda
@@ -27,22 +28,26 @@ if ! git diff --quiet HEAD -- backend; then
 fi
 
 echo "== condiciones"
-echo "fecha: $(date -Is) · commit: $(git rev-parse --short HEAD) · rama: $(git branch --show-current) · guion: $(sha256sum spikes/agente_a40.py | cut -c1-12)"
+MAX_MIN=${AGENTE_A40_MAX_MIN:-45}
+echo "fecha: $(date -Is) · commit: $(git rev-parse --short HEAD) · rama: $(git branch --show-current) · guion: $(sha256sum spikes/agente_a40.py | cut -c1-12) · sesión de $MAX_MIN min como máximo"
 
 # --- Máquina 2: la sesión, que espera a que WSL termine ---------------------------
 {
+  # El guion remoto va entre comillas simples y no ve las variables de aquí:
+  # la duración le llega como una línea por delante.
+  echo "export MAX_MIN=$MAX_MIN"
   cat <<'REMOTO'
 cat > /tmp/agente188_sesion.sh <<'SESION'
 echo "== máquina 2: el modelo, cargado"
 curl -s http://127.0.0.1:11434/api/chat -d '{"model":"qwen3.5:27b","stream":false,"think":false,"keep_alive":"10m","messages":[{"role":"user","content":"Responde sólo: ok"}],"options":{"num_ctx":8192,"num_predict":4}}' \
   | jq -r '"  carga: \(.load_duration/1e9) s · total: \(.total_duration/1e9) s"'
 echo "LISTO PARA WSL"
-for _ in $(seq 1 2700); do [ -f /tmp/agente188_fin ] && break; sleep 1; done
+for _ in $(seq 1 $((MAX_MIN * 60))); do [ -f /tmp/agente188_fin ] && break; sleep 1; done
 SESION
 rm -f /tmp/agente188_fin
 echo "máquina 2: $(hostname) · ollama $(~/.local/ollama/bin/ollama --version 2>&1 | grep -o '[0-9][0-9.]*' | tail -1) · qwen3.5:27b $(sha256sum ~/.ollama/models/manifests/registry.ollama.ai/library/qwen3.5/27b | cut -c1-12) · gpu-sesion $(sha256sum ~/bin/gpu-sesion | cut -c1-12)"
 echo "gpu antes: $(nvidia-smi --query-gpu=memory.used --format=csv,noheader,nounits) MiB · procesos: $(nvidia-smi --query-compute-apps=pid --format=csv,noheader | grep -c .)"
-GPU_SESION_MAX=45m GPU_SESION_TUNEL=0 ~/bin/gpu-sesion bash /tmp/agente188_sesion.sh < /dev/null
+GPU_SESION_MAX=${MAX_MIN}m GPU_SESION_TUNEL=0 ~/bin/gpu-sesion bash /tmp/agente188_sesion.sh < /dev/null
 sleep 2
 echo "== máquina 2, al cerrar la sesión"
 echo "  gpu: $(nvidia-smi --query-gpu=memory.used --format=csv,noheader,nounits) MiB · procesos: $(nvidia-smi --query-compute-apps=pid --format=csv,noheader | grep -c .) · ollama propios: $(pgrep -u gongarcia -c -x ollama)"

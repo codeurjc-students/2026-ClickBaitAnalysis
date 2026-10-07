@@ -1,76 +1,72 @@
+"""Entrena el lineal y escribe `nlp/linear_clickbait.json` (#78).
+
+La combinación que eligió `eval_reentreno.py` y que pasó la prueba en `test`:
+los rasgos de `linear.rasgos` (palabras, `<number>` y patrones de estructura)
+con TF-IDF (`min_df=2`) y una regresión logística, sobre el `train` de
+Chakraborty y `train170331` de Webis-17. Los datos los carga el mismo
+`cargar_datos` que la comparación, para que lo medido y lo entrenado no puedan
+separarse.
+
+El JSON guarda el intercepto y, por rasgo, su peso y su idf, que es todo lo que
+la señal necesita para calcular en Python puro. Y una COMPROBACIÓN: unos
+titulares de los dos `dev` con la probabilidad que les da sklearn.
+`tests/integrations/test_lineal.py` exige que la señal dé la misma; es lo que
+vigila que el TF-IDF de `linear.vectorizar` no se separe del de sklearn.
+
+Hasta #78 este guion entrenaba el lineal sobre las pistas del léxico, sólo con
+Chakraborty; aquel modelo está congelado en `evaluation/lineal_pistas.py`.
+
+Ejecutar:  python -m backend.evaluation.train_linear
+"""
+
 import json
 
+from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.linear_model import LogisticRegression
-from sklearn.metrics import precision_recall_fscore_support
 
-from backend.evaluation.splits import load_split
-from backend.integrations.nlp import lexical
-from backend.integrations.nlp.linear import JSON_FILE, featurize_cues
+from backend.evaluation.eval_reentreno import cargar_datos, titulares_y_etiquetas
+from backend.integrations.nlp.linear import JSON_FILE, rasgos
+
+# Titulares de cada `dev` que van a la comprobación de paridad.
+CASOS_POR_DEV = 10
 
 if __name__ == "__main__":
-    # Splits FÍSICOS (issue #72): mismos ficheros para todos los modelos.
-    # El split ya no se hace aquí: se carga (python -m backend.evaluation.splits para crearlos).
-    # test NO se carga: congelado hasta el número final del issue.
-    train_h, y_train = zip(*load_split("train"), strict=True)
-    dev_h, y_dev = zip(*load_split("dev"), strict=True)
+    datos = cargar_datos()
+    titulares, etiquetas = titulares_y_etiquetas(
+        datos["chak_train"] + datos["webis_train"]
+    )
+    vectorizador = TfidfVectorizer(analyzer=rasgos, min_df=2)
+    modelo = LogisticRegression(max_iter=1000).fit(
+        vectorizador.fit_transform(titulares), etiquetas
+    )
+    nombres = list(vectorizador.get_feature_names_out())
 
-    # Features (MULTI_HOT por cue): cada consumidor featuriza aguas abajo.
-    X_train = [featurize_cues(h) for h in train_h]
-    X_dev = [featurize_cues(h) for h in dev_h]
+    casos = [
+        titular
+        for conjunto in ("chak_dev", "webis_dev")
+        for titular, _ in datos[conjunto][:CASOS_POR_DEV]
+    ]
+    probabilidades = modelo.predict_proba(vectorizador.transform(casos))[:, 1]
 
-    print(len(X_train), len(X_dev))
-
-    model = LogisticRegression(
-        max_iter=1000
-    )  # LOGISITIC NO LINEAR PORQUE CLICKBAIT ES BINARIO (CONSTANTE), NO CONTINUO.
-
-    # Era por debajo una combinacion lineal -> sigmoide -> [0,1]
-    # 0.75 = 75% prob
-
-    # Train (Pesos + error) Error sigue formula LOG-LOSS que penaliza fallar al afimrar clickbait
-    model.fit(X_train, y_train)
-
-    # Serializamos (podemos hacer sigmoide fuera para no depender de sklearn)
-    feature_names = list(lexical.PATTERNS) + lexical.ALL_CUES
-
-    linear_extract = {
-        "weights": [float(w) for w in model.coef_[0]],  # np.float -> float
-        "intercept": float(model.intercept_[0]),  # Sesgo (b),
-        "feature_names": feature_names,
+    salida = {
+        "intercept": float(modelo.intercept_[0]),
+        "weights": {
+            nombre: float(peso)
+            for nombre, peso in zip(nombres, modelo.coef_[0], strict=True)
+        },
+        "idf": {
+            nombre: float(idf)
+            for nombre, idf in zip(nombres, vectorizador.idf_, strict=True)
+        },
+        "comprobacion": [
+            {"headline": titular, "probability": float(probabilidad)}
+            for titular, probabilidad in zip(casos, probabilidades, strict=True)
+        ],
     }
-    with open(JSON_FILE, "w", encoding="utf-8") as f:
-        json.dump(linear_extract, f, sort_keys=True, ensure_ascii=False)
-
-    # Predict (para x nuevo, aplicamos formula de antes)
-    y_pred = model.predict(X_dev)
-    print(
-        precision_recall_fscore_support(
-            y_dev, y_pred, average="binary", zero_division=0
-        )
-    )
-
-    weight_table = sorted(
-        zip(feature_names, model.coef_[0], strict=True),
-        key=lambda par: par[1],
-        reverse=True,
-    )
-    print("TABLA DE PESOS")
-    print()
-    print("TOP: ", weight_table[:20])
-    print()
-    print("BOTTOM: ", weight_table[-20:])
-
-    # Lineal vs Reglas:
-    rule_pred = []
-    for x in X_dev:
-        if sum(x) >= lexical.THRESHOLD:
-            rule_pred.append(1)
-        else:
-            rule_pred.append(0)
+    with open(JSON_FILE, "w", encoding="utf-8") as fichero:
+        json.dump(salida, fichero, sort_keys=True, ensure_ascii=False)
 
     print(
-        "reglas",
-        precision_recall_fscore_support(
-            y_dev, rule_pred, average="binary", zero_division=0
-        ),
+        f"{len(titulares)} titulares de entrenamiento · {len(nombres)} rasgos · "
+        f"intercepto {salida['intercept']:.4f} -> {JSON_FILE}"
     )

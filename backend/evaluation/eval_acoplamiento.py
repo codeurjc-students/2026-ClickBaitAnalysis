@@ -44,8 +44,11 @@ import json
 import sys
 from pathlib import Path
 
+# El lineal que midió #109, congelado desde #78 en `lineal_pistas`: el acoplamiento
+# por construcción era suyo, y el de producción ya no lo tiene.
+from backend.evaluation import lineal_pistas as linear
 from backend.evaluation.splits import load_split
-from backend.integrations.nlp import lexical, linear
+from backend.integrations.nlp import lexical
 
 _RAIZ = Path(__file__).resolve().parents[2]
 

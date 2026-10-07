@@ -63,8 +63,19 @@
           <p class="resumen">probabilidad {{ numero(datos.probability) }}</p>
           <ul class="cues">
             @for (cue of datos.top_cues; track cue[0]) {
+              <!--
+                Desde #78 un rasgo es una palabra del titular, en inglés, o un
+                patrón con nombre de máquina (`<leading_number>`), que se lee
+                en castellano y en cursiva para no confundirlo con una palabra.
+              -->
+              @let legible = rasgo(cue[0]);
               <li>
-                <span class="cue">{{ cue[0] }}</span>
+                <span
+                  class="cue"
+                  [class.cue--patron]="legible.patron"
+                  [attr.lang]="legible.patron ? null : 'en'"
+                  >{{ legible.texto }}</span
+                >
                 <span
                   class="barra"
                   [class.contra]="cue[1] < 0"

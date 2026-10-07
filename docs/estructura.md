@@ -196,7 +196,7 @@ El paquete más grande, porque contiene **las señales** — el núcleo del dete
 | `factory.py` | **Qué hay configurado de verdad**: qué backend (`get_nlp_backend`), qué modelo ejecuta cada señal (`get_model_id`) y cómo se le llama (`get_invocacion`, #159), con qué umbral decide (`get_threshold`, #93) y qué ficha se publica (`ficha_efectiva`). Con `remote.py` es el ÚNICO de esta capa al que se le permite leer `settings`, y de ahí sale la forma de todo lo demás: los detectores no resuelven su configuración, la **reciben**. Cachea las instancias **por el valor del setting**, que es lo que arregla el congelado al importar de #87 sin perder la reutilización |
 | `dependencias.py` | Pregunta si `torch` o `sentence-transformers` están instalados —con `find_spec`, **sin importarlos**, para no deshacer los imports perezosos de arriba— y produce el mensaje que se enseña cuando faltan. Existe porque `requirements.txt` **no los trae a propósito**, así que faltar es el estado normal y no una avería. Desde #162 responde también por los **modelos**: con la descarga desactivada, uno puesto por `NLP_MODELS` no está en la imagen, y eso tampoco es una avería — aunque aquí no se puede preguntar antes, y se reconoce el caso por el error que lanza la librería. No envuelve nada externo, y por eso no es una integración: es un módulo de apoyo del paquete, como `base.py` o `factory.py`. No es el caso de la [tensión 3](#3--discovery-y-metadata-no-envuelven-nada), que vive en la raíz de `integrations/` y opera sobre todas |
 | `lexical.py` | Señal **interpretable**. Busca tres tipos de pista —palabras, frases y patrones regex— y devuelve cada coincidencia **con su posición** (`span`), que es lo que permite resaltar los cues sobre el titular. Clickbait si el recuento llega al umbral, que **recibe** (`THRESHOLD` por defecto, #93) y devuelve con el resultado |
-| `linear.py` | Señal **interpretable**: regresión logística sobre los cues, con los pesos visibles y las contribuciones de cada rasgo en la salida. Lee los pesos de `linear_clickbait.json` en el primer uso, con `pesos()`, y no al importar (el [bug 1](#1--linearpy-lee-el-fichero-de-pesos-al-importar---cerrado-108), cerrado en #108) — ⚠️ [bug 2](#2--dos-señales-de-forma-comparten-extracción-de-rasgos---medido-109) |
+| `linear.py` | Señal **interpretable**: regresión logística sobre las palabras del titular y sus cuatro patrones de estructura (#78), con el TF-IDF calculado en Python puro y las contribuciones de cada rasgo en la salida. `rasgos()` es la única definición de los rasgos: la usa también el entrenamiento. Lee los pesos de `linear_clickbait.json` en el primer uso, con `pesos()`, y no al importar (el [bug 1](#1--linearpy-lee-el-fichero-de-pesos-al-importar---cerrado-108), cerrado en #108). Del léxico sólo toma `TOKEN` y los patrones ([bug 2](#2--dos-señales-de-forma-comparten-extracción-de-rasgos---resuelto-78), resuelto en #78) |
 | `incoherence.py` | Señal **híbrida**: decisión transparente (umbral sobre la similitud) con rasgo opaco (embeddings). Codifica titular y cuerpo con `all-MiniLM-L6-v2` y los compara por **similitud coseno**: incoherente si baja del umbral (0,3 por defecto, calibrado en #92; configurable desde #93). El modelo se carga una sola vez y de forma perezosa, de ahí los ~20 s de la primera llamada |
 | `dedicated.py` | Señal **opaca**: el RoBERTa dedicado (`Stremie/roberta-base-clickbait`, #115), que sustituyó al zero-shot elegido por eliminación en E3-02 y que acertaba el 63,7 % (#109). Tiene módulo propio porque sin él su id y sus etiquetas se duplicaban entre las dos fachadas (#116). Recibe el backend y el id en vez de resolverlos (#119), y desde #159 también el modo —clasificador o zero-shot— y qué palabra del modelo corresponde a cada etiqueta del contrato |
 | `model_cards.py` | Ficha de cada señal: tipo, dimensión que mide y límites medidos |
@@ -242,18 +242,20 @@ Si un endpoint o una tool lo necesita, es que no era evaluación.
 
 | Fichero | Qué hace |
 |---|---|
-| `splits.py` | Split físico train/dev/test, congelado (#72) |
+| `splits.py` | Split físico train/dev/test, congelado (#72); y desde #78 el de Webis-17, `webis_dev` (el 20 % de `validation170630`) y `webis_test` (el 80 %), con `python -m backend.evaluation.splits webis` |
 | `eval_lexical.py` | Baseline del léxico: carga, puntúa, matriz de confusión, barrido de umbral |
-| `train_linear.py` | **Entrena** el modelo lineal y serializa los pesos a `linear_clickbait.json`, que es lo que consume la señal en ejecución; compara además contra el baseline de reglas. Se llamaba `linear_model.py` hasta #108, y el nombre engañaba: no contiene el modelo, lo produce — ver [renombrados](#renombrados) |
+| `train_linear.py` | **Entrena** el modelo lineal —TF-IDF sobre `linear.rasgos` y regresión logística, con Chakraborty y `train170331` de Webis-17 (#78)— y serializa a `linear_clickbait.json` los pesos, el idf y una comprobación de paridad, que es lo que consume la señal en ejecución. Se llamaba `linear_model.py` hasta #108, y el nombre engañaba: no contiene el modelo, lo produce — ver [renombrados](#renombrados) |
 | `eval_external.py` | Validación externa sobre Webis-17 (#76) — la que destapó el sesgo de fuente |
-| `eval_acoplamiento.py` | Cuánto vale que el léxico y el lineal coincidan, si comparten los rasgos (#109) |
-| `eval_featurizado.py` | Por qué coinciden: qué ve, y qué no puede ver, el vector de rasgos que comparten (#109) |
+| `eval_acoplamiento.py` | Cuánto vale que el léxico y el lineal coincidan, si comparten los rasgos (#109). Mide el lineal de antes de #78 (`lineal_pistas`) |
+| `eval_featurizado.py` | Por qué coinciden: qué ve, y qué no puede ver, el vector de rasgos que comparten (#109). Mide el lineal de antes de #78 (`lineal_pistas`) |
 | `eval_transferencia.py` | Qué señal de forma sobrevive fuera de su dominio, con el zero-shot y un modelo dedicado de terceros (#109, #115) |
 | `eval_candidatos.py` | Candidatos para sustituir al zero-shot en `forma`, con tres criterios y no sólo el acierto (#115) |
 | `eval_ambiguedad.py` | El techo realista: cuánto acierta una persona contra el consenso de las demás en Webis-17 (#121) |
 | `eval_incoherencia.py` | Calibra el umbral de incoherencia con método, separando cuánta información tiene la señal (AUC) de dónde se corta (#92) |
 | `eval_veredicto.py` | Si el engaño debe pisar a la forma en el veredicto: tres reglas sobre los mismos pares de Webis-17, pasados por `analyze()` (#124) |
-| `eval_umbral_lineal.py` | Si merece la pena calibrar el 0,5 del lineal: la curva por umbral en Chakraborty `dev` y Webis-17, plana porque la mitad de los titulares no tiene pistas (#93) |
+| `eval_umbral_lineal.py` | Si merece la pena calibrar el 0,5 del lineal: la curva por umbral en Chakraborty `dev` y Webis-17, plana porque la mitad de los titulares no tiene pistas (#93). Mide el lineal de antes de #78 (`lineal_pistas`); el de ahora, `eval_reentreno --umbral` |
+| `eval_reentreno.py` | Qué rasgos y qué datos sacan al lineal del techo de Chakraborty: cuatro featurizaciones, con y sin Webis-17, en los dos `dev`; la prueba final (`--test`), el umbral (`--umbral`) y el acuerdo con el léxico (`--ficha`) (#75, #78) |
+| `lineal_pistas.py` | El lineal de antes de #78, congelado con una copia de sus pesos (`lineal_pistas.json`). No es una señal: lo importan los guiones que lo midieron, para que sigan dando sus cifras |
 | `webis_extract.py` | Saca de los 937 MB de Webis-17 lo que sirve: los titulares, versionados en `data/external/`, y los cuerpos, regenerables, en `var/` (#121) |
 
 ## `backend/main.py`
@@ -442,7 +444,7 @@ código de antes lo habría hecho fallar. Había un consumidor de fuera que no
 salía en la descripción del bug: `evaluation/eval_featurizado.py` leía
 `linear.JSON`, y pasó a `linear.pesos()`.
 
-### 2 · Dos señales de **forma** comparten extracción de rasgos — ✅ MEDIDO (#109)
+### 2 · Dos señales de **forma** comparten extracción de rasgos — ✅ RESUELTO (#78)
 
 `featurize_cues()` en `linear.py` llama a `lexical.detect()` y reutiliza sus
 listas: la señal lineal está construida sobre la léxica.
@@ -478,6 +480,15 @@ vector que usa el lineal. En Chakraborty dev dan kappa 0,880, pero en el 50 % de
 los titulares el vector sale vacío y las dos responden «no» sin mirar; donde
 tiene contenido, el acuerdo baja al 88,0 %, y al 59,1 % en Webis-17. **La ficha
 del lineal lo publica así**, y viaja al frontend por `describe_models`.
+
+**Resuelto en #78** (2026-10-07). El lineal pondera ahora las palabras del titular
+(`linear.rasgos`), y del léxico sólo toma la manera de partirlas
+(`lexical.TOKEN`) y sus cuatro patrones de estructura. Los vectores vacíos bajan
+del 53,3 % al 0,5 % en `webis_test`, y el acuerdo con el léxico, de kappa 0,880 a
+0,715 en Chakraborty `dev` y de 0,644 a 0,368 en `webis_dev`. Lo compartido
+sigue contando: si un patrón salta por error, las dos señales lo ven, aunque el
+lineal puede restarlo (tres de los cuatro pesan en contra). El lineal de antes,
+con su acoplamiento, sigue congelado en `evaluation/lineal_pistas.py`.
 
 ## Renombrados
 
