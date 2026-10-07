@@ -37,8 +37,10 @@ from backend.analysis.orchestrator import (
     _run_signals,
 )
 from backend.config.settings import settings
+from backend.core.idioma import ESPANOL, INDETERMINADO, INGLES
 from backend.core.models import ToolResult
 from backend.integrations.nlp import dedicated, lexical, linear
+from backend.integrations.nlp.factory import motivo_si_no_se_analiza
 from backend.integrations.nlp.model_cards import cards_by_signal
 
 _SPECS = {spec.name: spec for spec in _SIGNALS}
@@ -620,6 +622,93 @@ async def test_si_todas_las_señales_fallan_no_hay_veredicto(señales, monkeypat
     assert response.dimensions == []
     # Aun así la respuesta es informativa: cada tarjeta dice qué le pasó.
     assert all(s.detail for s in response.signals)
+
+
+# ----- La puerta del idioma (#229) -----
+#
+# Un titular que no está en inglés no se analiza: hasta #229 recibía un
+# veredicto sin aviso (en TA1C, «factual» en el 79,7 % de los teasers).
+
+TITULAR_EN_ESPANOL = (
+    "No vas a creer lo que hizo este perro cuando su dueño volvió a casa"
+)
+
+
+def _espiar(monkeypatch, dobles):
+    """Apunta cada llamada a un detector —el backend NLP, el de incoherencia, el
+    léxico y el lineal— sin cambiar lo que devuelven. Devuelve esa lista."""
+    llamadas = []
+
+    def apuntar(nombre, funcion):
+        def envuelta(*args, **kwargs):
+            llamadas.append(nombre)
+            return funcion(*args, **kwargs)
+
+        return envuelta
+
+    for metodo in ("classify", "zero_shot"):
+        monkeypatch.setattr(
+            dobles.api, metodo, apuntar(metodo, getattr(dobles.api, metodo))
+        )
+    monkeypatch.setattr(
+        dobles.detector, "detect", apuntar("incoherencia", dobles.detector.detect)
+    )
+    monkeypatch.setattr(lexical, "detect", apuntar("lexico", lexical.detect))
+    monkeypatch.setattr(linear, "predict", apuntar("lineal", linear.predict))
+    return llamadas
+
+
+@pytest.mark.asyncio
+async def test_un_titular_en_espanol_no_se_analiza(señales, monkeypatch):
+    llamadas = _espiar(monkeypatch, señales())
+
+    response = await orchestrator.analyze(AnalyzeRequest(headline=TITULAR_EN_ESPANOL))
+
+    assert response.language == ESPANOL
+    assert response.verdict == OverallVerdict.NO_DATA
+    assert response.dimensions == []
+    # Todas las tarjetas, en su orden de siempre, y cada una dice por qué.
+    assert [senal.name for senal in response.signals] == [
+        spec.name for spec in _SIGNALS
+    ]
+    motivo = motivo_si_no_se_analiza(ESPANOL)
+    assert all(
+        senal.status == SignalStatus.NOT_APPLICABLE and senal.detail == motivo
+        for senal in response.signals
+    )
+    assert llamadas == []
+
+
+@pytest.mark.asyncio
+async def test_otro_idioma_se_nombra_como_otro_idioma(señales, monkeypatch):
+    llamadas = _espiar(monkeypatch, señales())
+
+    response = await orchestrator.analyze(
+        AnalyzeRequest(
+            headline="Le gouvernement annonce une nouvelle réforme des retraites"
+        )
+    )
+
+    assert response.language == INDETERMINADO
+    assert response.verdict == OverallVerdict.NO_DATA
+    assert all("otro idioma" in (senal.detail or "") for senal in response.signals)
+    assert llamadas == []
+
+
+@pytest.mark.asyncio
+async def test_un_titular_en_ingles_se_analiza_y_lleva_su_idioma(señales, monkeypatch):
+    """La otra mitad: sin ella, una puerta que lo cerrara todo pasaría las dos
+    de arriba."""
+    llamadas = _espiar(monkeypatch, señales())
+
+    response = await orchestrator.analyze(
+        AnalyzeRequest(headline="You Won't Believe What Happened Next", content="...")
+    )
+
+    assert response.language == INGLES
+    assert response.verdict == OverallVerdict.STYLISTIC_CLICKBAIT
+    assert all(senal.status == SignalStatus.OK for senal in response.signals)
+    assert set(llamadas) == {"classify", "incoherencia", "lexico", "lineal"}
 
 
 # ----- precalentado (#125), medido de verdad (#138) -----
