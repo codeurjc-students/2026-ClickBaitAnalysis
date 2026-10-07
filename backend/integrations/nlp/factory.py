@@ -10,8 +10,9 @@ dejaría de poder importarse sin un `.env`, que es justo lo que el test protege.
 
 Su oficio era «decidir DÓNDE corre el modelo». Desde #119 decide también **cuál
 es** y **qué ficha se publica**, que es el mismo trabajo con un parámetro más;
-desde #93, **con qué umbral decide** cada señal que corta por uno; y desde #159,
-**cómo se le llama** al modelo de `detect_clickbait` (`get_invocacion`).
+desde #93, **con qué umbral decide** cada señal que corta por uno; desde #159,
+**cómo se le llama** al modelo de `detect_clickbait` (`get_invocacion`); y desde
+#229, **en qué idiomas se analiza** (`motivo_si_no_se_analiza`).
 """
 
 from functools import lru_cache
@@ -21,6 +22,7 @@ from backend.config.settings import (
     UmbralConfigurable,
     settings,
 )
+from backend.core.idioma import INGLES, NOMBRES, Idioma
 from backend.integrations.nlp import dedicated, lexical, linear
 from backend.integrations.nlp.base import NLPBackend
 from backend.integrations.nlp.incoherence import IncoherenceDetector
@@ -40,6 +42,26 @@ _UMBRALES_DEL_DETECTOR: dict[UmbralConfigurable, float] = {
     "detect_clickbait_lexical": lexical.THRESHOLD,
     "detect_clickbait_incoherence": IncoherenceDetector.THRESHOLD,
 }
+
+# En qué idiomas se analiza un titular (#229). Por ahora, sólo inglés: las cinco
+# señales se entrenaron o se midieron en inglés. Desde #230 lo decidirá cada
+# señal según tenga modelo en ese idioma.
+_IDIOMAS_ANALIZADOS: frozenset[Idioma] = frozenset({INGLES})
+
+
+def motivo_si_no_se_analiza(idioma: Idioma) -> str | None:
+    """Por qué no se analiza un titular en ese idioma, o `None` si se analiza.
+
+    La frase vive aquí, y no en cada fachada, para que el análisis completo y las
+    herramientas sueltas digan exactamente lo mismo (la lección de #116: dos
+    copias de un texto acaban diciendo cosas distintas).
+    """
+    if idioma in _IDIOMAS_ANALIZADOS:
+        return None
+    return (
+        f"El titular parece estar en {NOMBRES[idioma]}: por ahora las señales "
+        "sólo analizan titulares en inglés."
+    )
 
 
 @lru_cache(maxsize=2)

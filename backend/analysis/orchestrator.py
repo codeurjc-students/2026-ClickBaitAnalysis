@@ -53,6 +53,7 @@ from backend.analysis.domain import (
     SignalType,
 )
 from backend.core.errores import mensaje_publico
+from backend.core.idioma import detectar
 from backend.core.models import ToolResult
 from backend.integrations.nlp import dedicated, lexical, linear
 from backend.integrations.nlp.factory import (
@@ -63,6 +64,7 @@ from backend.integrations.nlp.factory import (
     get_nlp_backend,
     get_threshold,
     get_top_cues,
+    motivo_si_no_se_analiza,
 )
 
 log = structlog.get_logger()
@@ -301,10 +303,20 @@ async def precalentar() -> dict[str, float]:
 async def analyze(request: AnalyzeRequest) -> AnalyzeResponse:
     """Analiza un titular con todas las señales aplicables.
 
-    Sin lógica propia a propósito: cada invariante vive en su helper y se puede
-    probar por separado.
+    Lo primero es el idioma (#229): un titular en un idioma que las señales no
+    analizan no se ejecuta, y cada señal dice por qué. Hasta #229 se analizaba
+    como si fuera inglés, y en español eso daba «factual» a cuatro de cada cinco
+    teasers de TA1C sin avisar (`evaluation/eval_ta1c.py`).
+
+    Por lo demás, sin lógica propia a propósito: cada invariante vive en su
+    helper y se puede probar por separado.
     """
-    signals = await _run_signals(request.headline, request.content)
+    motivo = motivo_si_no_se_analiza(detectar(request.headline))
+    signals = (
+        _sin_analizar(motivo)
+        if motivo
+        else await _run_signals(request.headline, request.content)
+    )
     dimensions = _aggregate(signals)
     return AnalyzeResponse(
         headline=request.headline,
@@ -338,6 +350,18 @@ def senal_de(nombre: str, datos: Any) -> SignalResult | None:
         log.warning("senal_suelta.forma_inesperada", signal=nombre)
         return None
     return _build(spec, SignalStatus.OK, is_clickbait=voto, data=datos)
+
+
+def _sin_analizar(motivo: str) -> list[SignalResult]:
+    """Todas las señales en `not_applicable`, con el motivo, sin ejecutar ninguna.
+
+    Va en el orden de `_SIGNALS`, como lo que devuelve `_run_signals`, para que
+    la interfaz pinte las tarjetas siempre igual. Sin ninguna señal que vote,
+    `_overall` da `no_data`.
+    """
+    return [
+        _build(spec, SignalStatus.NOT_APPLICABLE, detail=motivo) for spec in _SIGNALS
+    ]
 
 
 async def _run_signals(headline: str, content: str | None) -> list[SignalResult]:
