@@ -24,6 +24,7 @@ from backend.integrations.nlp.factory import (
     get_nlp_backend,
     get_threshold,
     get_top_cues,
+    motivo_si_el_cuerpo_no_se_compara,
     motivo_si_no_se_analiza,
 )
 from backend.integrations.nlp.outputs import (
@@ -166,6 +167,11 @@ def register(mcp: FastMCP):
                 "Hace falta el cuerpo o el teaser de la noticia para medir la "
                 "incoherencia; sin él, esta señal no se puede aplicar."
             )
+        # Ni un cuerpo en otro idioma: el modelo que los compara es inglés
+        # (`motivo_si_el_cuerpo_no_se_compara` dice por qué, #229).
+        motivo_del_cuerpo = motivo_si_el_cuerpo_no_se_compara(detectar(content))
+        if motivo_del_cuerpo:
+            raise ToolError(motivo_del_cuerpo)
         response = await get_incoherence_detector().detect(headline, content)
         if not response.has_content():
             raise ToolError(

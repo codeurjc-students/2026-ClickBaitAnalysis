@@ -64,6 +64,23 @@ def motivo_si_no_se_analiza(idioma: Idioma) -> str | None:
     )
 
 
+def motivo_si_el_cuerpo_no_se_compara(idioma: Idioma) -> str | None:
+    """Por qué la incoherencia no compara un cuerpo en ese idioma, o `None` si
+    lo compara.
+
+    La puerta del titular no basta: la incoherencia compara titular y cuerpo
+    con un modelo inglés, y con el cuerpo en español la similitud se hunde
+    aunque diga lo mismo, hasta cruzar el umbral (medido en #229). Las demás
+    señales no leen el cuerpo, así que se siguen ejecutando.
+    """
+    if idioma in _IDIOMAS_ANALIZADOS:
+        return None
+    return (
+        f"El cuerpo parece estar en {NOMBRES[idioma]}: por ahora la incoherencia "
+        "sólo compara titular y cuerpo en inglés."
+    )
+
+
 @lru_cache(maxsize=2)
 def _backend_para(nombre: str) -> NLPBackend:
     """Un cliente por backend, construido la primera vez que hace falta.
