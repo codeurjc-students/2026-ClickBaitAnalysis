@@ -8,7 +8,7 @@ Version de Python: 3.12.3
 
 ## Plan de trabajo — hitos hasta la entrega
 
-**Estado actual (octubre 2026): `v0.6.0`.** El núcleo NLP está completo y
+**Estado actual (octubre 2026): `v0.7.0`.** El núcleo NLP está completo y
 validado —cuatro señales de clickbait contrastables, un modelo lineal
 interpretable propio, divulgación de modelos y una evaluación metodológicamente
 cerrada (split train/dev/test + validación externa)—, la capa web sirve sus
@@ -21,7 +21,7 @@ el **agente conversacional** (R13), que da nombre al TFG, contesta en lenguaje
 natural desde la pantalla del asistente: elige las herramientas por MCP, las
 tarjetas salen de sus resultados y no de su texto, y el modelo corre en la A40
 de la universidad, que se enciende bajo demanda. Lo que resta es la memoria,
-con las mejoras de `v0.7` en paralelo hasta el 15 de diciembre.
+con el análisis en español (`v0.8`) en paralelo hasta el 15 de diciembre.
 **Entrega: febrero 2027.**
 
 **El agente conversacional (R13) es H5.** Hasta el 7 de septiembre no estaba en
@@ -37,7 +37,8 @@ tenía fecha ni versión.
 | **H3 · `v0.4` SPA funcional** | noviembre | **7 sep** | Angular: análisis con explicabilidad visual, catálogo de tools, historial, responsive y gestión de errores | **R6** |
 | **H4 · `v0.5` Docker y despliegue** | diciembre | **20 sep** | Docker Compose (MCP + API / web), **volumen** para el historial, HTTPS y pruebas E2E | **R7, R8** |
 | **H5 · `v0.6` Agente conversacional** | — | **1 oct** | Bucle del agente, `POST /chat` con sondeo, pantalla de chat y traza de herramientas | **R13**, R6.10/12/13 |
-| **`v0.7` · Mejoras** *(en paralelo con H6)* | — | *oct–15 dic* | Lo que H5 dejó abierto y no bloquea la memoria: la última vuelta del agente con historial, el historial que sobrevive a recargar, los enlaces de las noticias, las fichas, el fallo disfrazado de NYT y el certificado (#208 a #213) | — |
+| **`v0.7` · Mejoras** *(en paralelo con H6)* | — | **7 oct** | Lo que H5 dejó abierto: la última vuelta del agente con historial, el historial que sobrevive a recargar, los enlaces de las noticias, las fichas y el fallo disfrazado de NYT (#208 a #212). Y cinco traídas del trabajo futuro: el veto del engaño (#124), los umbrales (#93) y el modo de invocación (#159) configurables, y el lineal reentrenado sobre las palabras del titular (#78 con #75) | R3.8, R3.9 |
+| **`v0.8` · Español** *(en paralelo con H6)* | — | *oct–15 dic* | El análisis de titulares en español: se detecta el idioma y cada señal usa su modelo para él, entrenado o medido con TA1C | **R3.4** |
 | **H6 · `v1.0` Memoria y defensa** | ene–feb 2027 | *oct–feb* | Redacción de la memoria y preparación de la defensa | — |
 
 **El proyecto va casi tres meses por delante de esta previsión.** H2 se cerró en
@@ -64,6 +65,14 @@ con lo que no depende de la versión final, y sus issues (#214 a #216) son lo qu
 necesita del sistema —el guion de la demostración, las medidas finales y el
 estado final de los requisitos—.
 
+**`v0.7` se cerró el 7 de octubre, antes de la congelación (decidido el
+2026-10-07).** Con todas sus issues hechas, lo siguiente era el análisis en
+español, que cambia R3.4 y toca casi todas las señales. El autor prefirió darle
+un hito propio, `v0.8`, y etiquetar antes `v0.7.0`, para que quede publicada una
+versión sin él. La congelación del 15 de diciembre pasa a `v0.8`, y la memoria
+describe la versión de ese día. El certificado (#213) salió de `v0.7` sin hito:
+depende de la universidad, y puede entrar cuando responda.
+
 **Reparto de H4 a H6, decidido el 2026-09-07.** El H5 original era «responsive,
 gestión de errores, pruebas E2E y despliegue», y #130 se llevó las dos primeras
 a H3. De lo que quedaba, el despliegue ya era H4 y las pruebas E2E son *cómo se
@@ -85,7 +94,7 @@ _(Corrección de la tabla, 2026-08-11: **R9 —la persistencia— no figuraba en
 
 **Criterios de priorización:**
 
-- **El backlog de NLP queda congelado** como opcional (multi-dominio #78, featurización alternativa #75, fine-tuning neural E5-05, meta-tool de contraste, post-hoc LIME/SHAP). El límite de generalización ya está **medido y documentado** (#76), que es lo que exige el rigor; resolverlo no es condición para la entrega.
+- **El backlog de NLP queda congelado** como opcional (multi-dominio #78, featurización alternativa #75, fine-tuning neural E5-05, meta-tool de contraste, post-hoc LIME/SHAP). El límite de generalización ya está **medido y documentado** (#76), que es lo que exige el rigor; resolverlo no es condición para la entrega. *(#78 y #75 se hicieron en `v0.7`, el 7 de octubre: ver «El lineal, sobre las palabras del titular y con Webis-17».)*
 - **La memoria arranca en octubre**, con H5 cerrado *(hasta #193 decía diciembre, en paralelo con H4, que se cerró en septiembre)*. Esta sección de épicas actúa como **borrador y diario de desarrollo** desde el inicio del proyecto.
 - El stack está fijado en [requisitos.md](docs/requisitos.md): **FastAPI** (R4) + **Angular/TypeScript** (R6) + **Docker Compose** (R7).
 
@@ -8280,6 +8289,77 @@ Sube el recall sin perder precisión: `factual` pierde 838 titulares y `ambiguou
   ```
 - **«¿Por qué es difícil detectar clickbait en español?»** falla con los tres docstrings: no es de éstos, y viene de #188.
 - **Sólo inglés.**
+
+### El cierre de `v0.7`, comprobado en producción (7 oct 2026, PR #227)
+
+`v0.7` nació el 1 de octubre para lo que H5 dejó abierto, en paralelo con la memoria y hasta la congelación del 15 de diciembre. El 4 de octubre el autor le trajo cinco issues del trabajo futuro (#217) para cerrarlas antes de escribir. Todas estaban hechas el 7 de octubre, y lo siguiente era el análisis en español, que cambia R3.4 y toca casi todas las señales: **se le dio un hito propio, `v0.8`, y se cerró antes `v0.7`**, para que quede publicada una versión sin él (ver el plan, arriba).
+
+| Issue | PR | Qué entra |
+|---|---|---|
+| #212 | #218 | NYT deja de disfrazar un fallo de «No articles found» |
+| #210 | #219 | El aviso de pestaña nueva en los enlaces de las noticias |
+| #209 | #220 | La conversación del asistente sobrevive a recargar |
+| #211 | #221 | Las fichas: los límites aparte de las notas de operación |
+| #208 | #222 | La última vuelta con historial: pedir la respuesta, y un tope de salida |
+| #124 | #223 | El engaño desempata, pero no contradice a una forma unánime |
+| #93 | #224 | Los umbrales, configurables |
+| #159 | #225 | El modo de invocación, configurable |
+| #78 y #75 | #226 | El lineal, sobre las palabras del titular y con Webis-17 |
+
+El certificado (#213) salió del hito sin cerrarse: depende de la universidad.
+
+#### El despliegue
+
+La máquina 1 servía `828e2e0` (4 oct), sin nada de #208 en adelante. Se redesplegó `dev` en `24e02ca` con `sudo docker compose up --build --wait`, en **211 s**: la capa de modelos de la imagen se rehízo, porque #93 y #78 tocan los ficheros que la invalidan (#162). Esa capa baja lo que haya en el Hub el día del build, y nada fija la revisión; antes de desplegar se comprobó con la API del Hub que los tres modelos seguían en las revisiones horneadas el 16 de septiembre (`517de05db9ba`, `3216a57f2a0d` y `1110a243fdf4`).
+
+#### Lo que responde en vivo, antes y después
+
+El tercer criterio para etiquetar una versión es que las herramientas respondan en vivo. [`spikes/produccion_en_vivo.py`](spikes/produccion_en_vivo.py) lo comprueba por la API pública, a través de Caddy: el catálogo, cada herramienta con argumentos mínimos, el caso de #124 y la disponibilidad del agente. Se pasó antes y después del despliegue:
+
+```bash
+.venv/bin/python spikes/produccion_en_vivo.py
+```
+
+| | Antes (`828e2e0`, 12:24) | Después (`24e02ca`, 12:43) |
+|---|---|---|
+| Herramientas | 12, todas `ok` | 12, todas `ok` |
+| Ficha del lineal | «…sobre features léxicas (entrenada en Chakraborty)» | «…sobre las palabras del titular (entrenada en Chakraborty y Webis-17)» |
+| Rasgos del lineal, con «10 Secrets Doctors Won't Tell You... Are You Ready?» | `you`, `leading_number`, `ellipsis`, `question` (p 1,000) | `you`, `<leading_number>`, `are`, `tell`, `<number>` (p 0,976) |
+| El umbral, en el resultado del léxico (#93) | no viene | 1 |
+| Titular sobrio con un cuerpo que no le corresponde (#124) | **`deceptive`** | **`ambiguous`** |
+| El agente, con la sesión de GPU cerrada | apagado | apagado |
+
+La primera llamada a `analyze_headline` tardó 7 s en las dos pasadas: es el MCP cargando sus modelos en frío, como midió #164 (7,0 s).
+
+#### El agente, en producción
+
+`spikes/chat_maquina1.sh` (#189) abre una sesión de GPU de 20 min como máximo, con su túnel hacia la máquina 1, y conversa por la API pública con la sesión cerrada, abierta y cerrada otra vez. Es la primera vez que se ve en producción lo de #208.
+
+```bash
+setsid nohup bash spikes/chat_maquina1.sh > /tmp/chat_maquina1_v07.log 2>&1 < /dev/null & disown
+```
+
+| Conversación | Vueltas | Herramientas | Tiempo del agente | `prompt_tokens` máx. |
+|---|---|---|---|---|
+| sencilla | 2 | `analyze_headline` | 41,0 s | 4.761 |
+| larga | 4 | `get_nyt_news`, `analyze_headline` | 73,6 s | 6.247 |
+| larga con 4.000 caracteres de historial | 3 | `get_nyt_news`, `analyze_headline` | 21,5 s | 7.370 |
+| dos a la vez: la primera | 2 | `analyze_headline` | 21,7 s | 4.759 |
+| dos a la vez: la segunda, que esperó en cola | 2 | `analyze_headline` | 26,2 s (46,3 s de reloj) | 4.621 |
+
+Las cinco terminaron con respuesta. En la larga, la tercera vuelta llegó al **tope de 1.500 tokens** de salida (50,7 s) y el agente **pidió la respuesta una vez más** (10,5 s): los dos mecanismos de #208 actuando en producción. Con la sesión cerrada, la API vuelve a decir que el asistente está apagado (503 en 0,03 s), la GPU queda en 0 MiB y en la máquina 1 no queda nada escuchando en el 11434.
+
+| Condiciones | |
+|---|---|
+| Fecha | 2026-10-07: comprobación antes a las 12:24; despliegue (211 s) justo antes de la de después, a las 12:43; agente de 12:44 a 12:48 |
+| Máquina 1 | `dev` en `24e02ca`, Docker Compose, por `https://gongarcia.tfg.etsii.urjc.es/api` |
+| Máquina 2 | La A40, con Ollama 0.34.2 y `gpu-sesion` `6ad6a751d636`; `qwen3.5:27b` (`7653528ba5cb`), cargado en 11,2 s |
+| Guiones | `spikes/produccion_en_vivo.py` `94b9fd90e762`; `spikes/chat_maquina1.py` `cc1bef82d6ed` |
+
+#### Lo que queda
+
+- **El análisis en español**, en `v0.8`, con TA1C como corpus.
+- **Fijar la revisión de cada modelo horneado** (#217): la comprobación de arriba se hizo a mano; en `v0.8` entran modelos nuevos, y es el momento de fijarlas.
 
 
 
