@@ -72,6 +72,38 @@ export function nombreDeCategoria(categoria: string): string {
   return CATEGORIAS[categoria] ?? categoria;
 }
 
+/** El único rasgo del lineal con nombre propio que no es un patrón del léxico. */
+const RASGOS_PROPIOS: Record<string, string> = {
+  number: 'cualquier número',
+};
+
+/** Un rasgo del lineal, listo para pintar: su nombre y si es un patrón. */
+export interface RasgoLegible {
+  texto: string;
+  patron: boolean;
+}
+
+/**
+ * El nombre legible de un rasgo del lineal (#78).
+ *
+ * El lineal parte el titular en palabras y le añade sus patrones con nombre
+ * propio entre `< >` —`<leading_number>`, `<number>`—, que no choca con
+ * ninguna palabra. Los cuatro patrones son los de `lexical.PATTERNS`, así que
+ * se traducen con la misma tabla que las categorías del léxico. Una palabra va
+ * tal cual, porque es la del titular; un `<algo>` que no se conozca, también:
+ * feo, pero visible.
+ *
+ * Lo guardado con el lineal de antes trae los patrones SIN `< >`, y así no se
+ * distinguen de una palabra (`question` es también la palabra inglesa): se
+ * pintan como llegaron.
+ */
+export function nombreDeRasgo(rasgo: string): RasgoLegible {
+  const coincidencia = /^<(\w+)>$/.exec(rasgo);
+  if (!coincidencia) return { texto: rasgo, patron: false };
+  const nombre = coincidencia[1];
+  return { texto: RASGOS_PROPIOS[nombre] ?? CATEGORIAS[nombre] ?? rasgo, patron: true };
+}
+
 /**
  * ¿Llegó esta señal a producir un resultado?
  *

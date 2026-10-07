@@ -6,6 +6,7 @@ import {
   estadoDeSenal,
   funciono,
   nombreDeCategoria,
+  nombreDeRasgo,
   nombreDeSenal,
   numero,
 } from './vocabulario';
@@ -61,6 +62,7 @@ export class SenalCard {
   protected readonly nombre = nombreDeSenal;
   protected readonly estado = estadoDeSenal;
   protected readonly categoria = nombreDeCategoria;
+  protected readonly rasgo = nombreDeRasgo;
   protected readonly numero = numero;
 
   alternar(): void {

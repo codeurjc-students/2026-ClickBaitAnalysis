@@ -173,6 +173,11 @@
   white-space: nowrap;
 }
 
+/* Un patrón del titular (#78), no una palabra suya. */
+.cues .cue--patron {
+  font-style: italic;
+}
+
 .cues .barra {
   height: 0.7rem;
   border-radius: 3px;
