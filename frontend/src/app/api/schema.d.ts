@@ -670,7 +670,7 @@ export interface components {
             origin: components["schemas"]["Origin"];
             /**
              * Headline
-             * @description Titular analizado. Nulo en ejecuciones sueltas.
+             * @description Titular analizado, o el argumento `headline` de una ejecución suelta. Nulo si la herramienta no lo lleva.
              */
             headline?: string | null;
             /**
