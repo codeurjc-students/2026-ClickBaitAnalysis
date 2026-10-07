@@ -12,6 +12,7 @@ import { AnalisisPage } from './analisis-page';
 const RESPUESTA: AnalyzeResponse = {
   headline: "10 Amazing Things You Won't Believe",
   content: null,
+  language: 'en',
   signals: [
     {
       name: 'detect_clickbait_lexical',

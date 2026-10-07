@@ -563,7 +563,7 @@
             "type": "string",
             "minLength": 1,
             "title": "Headline",
-            "description": "Titular a analizar (en inglés)."
+            "description": "Titular a analizar, en inglés. En otro idioma no se analiza: cada señal queda en 'not_applicable' con el motivo."
           },
           "content": {
             "anyOf": [
@@ -601,6 +601,16 @@
             ],
             "title": "Content"
           },
+          "language": {
+            "type": "string",
+            "enum": [
+              "en",
+              "es",
+              "und"
+            ],
+            "title": "Language",
+            "description": "Idioma detectado del titular: 'en', 'es' o 'und' (otro). Si las señales no analizan ese idioma, ninguna se ejecuta."
+          },
           "signals": {
             "items": {
               "$ref": "#/components/schemas/SignalResult"
@@ -622,6 +632,7 @@
         "type": "object",
         "required": [
           "headline",
+          "language",
           "signals",
           "dimensions",
           "verdict"

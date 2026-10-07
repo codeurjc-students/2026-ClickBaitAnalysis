@@ -51,6 +51,7 @@ def test_declara_su_contrato_de_salida(tool):
     assert set(tool.outputSchema["properties"]) == {
         "headline",
         "content",
+        "language",
         "signals",
         "dimensions",
         "verdict",
@@ -90,6 +91,7 @@ async def test_un_cuerpo_none_llega_como_ausencia(monkeypatch):
         return AnalyzeResponse(
             headline=request.headline,
             content=request.content,
+            language="en",
             signals=[],
             dimensions=[],
             verdict=OverallVerdict.NO_DATA,

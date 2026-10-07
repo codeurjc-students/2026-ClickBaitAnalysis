@@ -9,6 +9,7 @@ import { comoAnalisis } from './formas';
 const DE_HOY: AnalyzeResponse = {
   headline: '10 Amazing Things You Won\'t Believe',
   content: null,
+  language: 'en',
   signals: [
     {
       name: 'detect_clickbait_lexical',

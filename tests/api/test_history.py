@@ -285,6 +285,7 @@ def _respuesta_analisis(headline="Un titular"):
     return AnalyzeResponse(
         headline=headline,
         content=None,
+        language="en",
         signals=[
             SignalResult(
                 name="detect_clickbait_lexical",

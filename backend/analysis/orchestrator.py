@@ -311,7 +311,8 @@ async def analyze(request: AnalyzeRequest) -> AnalyzeResponse:
     Por lo demás, sin lógica propia a propósito: cada invariante vive en su
     helper y se puede probar por separado.
     """
-    motivo = motivo_si_no_se_analiza(detectar(request.headline))
+    idioma = detectar(request.headline)
+    motivo = motivo_si_no_se_analiza(idioma)
     signals = (
         _sin_analizar(motivo)
         if motivo
@@ -321,6 +322,7 @@ async def analyze(request: AnalyzeRequest) -> AnalyzeResponse:
     return AnalyzeResponse(
         headline=request.headline,
         content=request.content,
+        language=idioma,
         signals=signals,
         dimensions=dimensions,
         verdict=_overall(dimensions),

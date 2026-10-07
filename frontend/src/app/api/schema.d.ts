@@ -351,7 +351,7 @@ export interface components {
         AnalyzeRequest: {
             /**
              * Headline
-             * @description Titular a analizar (en inglés).
+             * @description Titular a analizar, en inglés. En otro idioma no se analiza: cada señal queda en 'not_applicable' con el motivo.
              */
             headline: string;
             /**
@@ -366,6 +366,12 @@ export interface components {
             headline: string;
             /** Content */
             content?: string | null;
+            /**
+             * Language
+             * @description Idioma detectado del titular: 'en', 'es' o 'und' (otro). Si las señales no analizan ese idioma, ninguna se ejecuta.
+             * @enum {string}
+             */
+            language: "en" | "es" | "und";
             /** Signals */
             signals: components["schemas"]["SignalResult"][];
             /** Dimensions */

@@ -19,6 +19,7 @@ const RESPUESTA: AnalyzeResult = {
   analysis: {
     headline: 'Un titular',
     content: null,
+    language: 'en',
     signals: [],
     dimensions: [],
     verdict: 'no_data',
