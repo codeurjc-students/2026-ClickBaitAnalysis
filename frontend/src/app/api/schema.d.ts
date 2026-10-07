@@ -741,8 +741,9 @@ export interface components {
          * OverallVerdict
          * @description Etiqueta única, para listados compactos como el historial.
          *
-         *     Se deriva de las dimensiones con una jerarquía explícita —el engaño pesa más
-         *     que la forma— en lugar de por mayoría de señales.
+         *     Se deriva de las dimensiones con una jerarquía explícita —el engaño desempata
+         *     una forma dividida, pero no contradice a una forma unánime— en lugar de por
+         *     mayoría de señales.
          * @enum {string}
          */
         OverallVerdict: "deceptive" | "stylistic_clickbait" | "factual" | "ambiguous" | "no_data";
@@ -1086,12 +1087,18 @@ export interface components {
         /**
          * SalidaLexica
          * @description Salida del detector por reglas. La evidencia ES la explicación (R3.8).
+         *
+         *     Lleva el ``threshold`` —cuántas pistas hacen falta— desde #93, cuando pasó a
+         *     configurarse: sin él, la interfaz tendría que dar por hecho que basta una, y
+         *     con otro umbral diría algo falso junto a las mismas pistas.
          */
         SalidaLexica: {
             /** Score */
             score: number;
             /** Is Clickbait */
             is_clickbait: boolean;
+            /** Threshold */
+            threshold: number;
             /** Matches */
             matches: components["schemas"]["Pista"][];
             /** Headline */

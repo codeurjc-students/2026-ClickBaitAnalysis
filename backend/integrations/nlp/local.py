@@ -117,6 +117,18 @@ class LocalNLPClient(NLPBackend):
     async def zero_shot(self, text: str, model: str, labels: list[str]) -> ToolResult:
         try:
             pipe = self._get_pipeline("zero-shot-classification", model)
+            # Un modelo que no es de inferencia (NLI) no tiene etiqueta de
+            # «entailment», y `transformers` NO falla: lo avisa en su log y
+            # sigue con el último logit. Medido (#159, `spikes/
+            # invocacion_casos.py`): el dedicado así daba «factual news» 0,506
+            # a un titular clickbait, una moneda al aire con aspecto de
+            # resultado. Se corta antes de llamarlo.
+            if getattr(pipe, "entailment_id", None) == -1:
+                return ToolResult.fail(
+                    f"El modelo `{model}` no es de inferencia (NLI): no sirve "
+                    "como zero-shot, porque no tiene la etiqueta «entailment» "
+                    "con la que se lee la respuesta. Llámalo como clasificador."
+                )
             output = await asyncio.to_thread(
                 pipe, text, candidate_labels=labels
             )  # candidate_labels NO es posicional, tiene que declararse

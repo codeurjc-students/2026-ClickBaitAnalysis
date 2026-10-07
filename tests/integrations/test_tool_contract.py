@@ -10,6 +10,7 @@ Se habla el protocolo real contra la app en el mismo proceso, con
 `ASGITransport`. Se usan sólo tools locales y deterministas: nada de red.
 """
 
+import json
 from contextlib import asynccontextmanager
 
 import httpx
@@ -67,6 +68,7 @@ async def test_las_tools_de_datos_describen_sus_campos(servidor_mcp):
     assert set(lexical.outputSchema["properties"]) == {
         "score",
         "is_clickbait",
+        "threshold",  # desde #93, como el de la incoherencia
         "matches",
         "headline",
     }
@@ -89,6 +91,30 @@ async def test_una_lista_declara_el_tipo_de_sus_elementos(servidor_mcp):
     assert "print_headline" in articulo["properties"]
 
 
+@pytest.mark.asyncio
+async def test_describe_models_no_publica_las_notas_de_operacion(servidor_mcp):
+    """#211: lo que el agente recibe de `describe_models` son los límites de cada
+    señal, no cómo se instala o se sirve. Las notas de operación —`torch` y
+    `sentence-transformers` fuera de `requirements.txt`, la vía remota que no
+    existe— se las repetía a cualquiera que preguntara. Se mira lo que entrega
+    el protocolo, en sus dos formas: la estructurada y el texto, que FastMCP
+    manda en un bloque por ficha."""
+    from backend.integrations.nlp.model_cards import MODEL_CARDS
+
+    notas = {nota for ficha in MODEL_CARDS for nota in ficha["operation"]}
+    assert notas  # si no, el test no comprobaría nada
+
+    async with sesion(servidor_mcp) as s:
+        resultado = await s.call_tool("describe_models", {})
+
+    assert resultado.isError is False
+    fichas = resultado.structuredContent["result"]
+    assert fichas == [json.loads(bloque.text) for bloque in resultado.content]
+    for ficha in fichas:
+        assert "operation" not in ficha, ficha["signal"]
+        assert notas.isdisjoint(ficha["limitations"]), ficha["signal"]
+
+
 # ----- El eje éxito/fallo lo lleva el protocolo -----
 
 
@@ -103,6 +129,33 @@ async def test_una_ejecucion_correcta_devuelve_datos_estructurados(servidor_mcp)
     # Estructurado, no una cadena que haya que parsear.
     assert resultado.structuredContent["is_clickbait"] is True
     assert resultado.structuredContent["matches"]
+
+
+@pytest.mark.asyncio
+async def test_las_herramientas_deciden_con_el_umbral_configurado(
+    servidor_mcp, monkeypatch
+):
+    """#93 por la fachada MCP: el umbral y el tope se piden a la factoría en
+    cada llamada, así que cambiarlos después de registrar las herramientas cambia
+    lo que devuelven (la trampa de #87). La fachada REST, en `test_nlp.py`."""
+    from backend.config.settings import settings
+
+    monkeypatch.setattr(settings, "nlp_thresholds", {"detect_clickbait_lexical": 2})
+    monkeypatch.setattr(settings, "nlp_linear_top_cues", 1)
+
+    async with sesion(servidor_mcp) as s:
+        lexica = await s.call_tool(
+            "detect_clickbait_lexical", {"headline": "Spain wins the World Cup?"}
+        )
+        lineal = await s.call_tool(
+            "detect_clickbait_linear",
+            {"headline": "10 amazing things you won't believe"},
+        )
+
+    assert lexica.structuredContent["score"] == 1
+    assert lexica.structuredContent["is_clickbait"] is False
+    assert lexica.structuredContent["threshold"] == 2
+    assert len(lineal.structuredContent["top_cues"]) == 1
 
 
 @pytest.mark.asyncio

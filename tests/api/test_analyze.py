@@ -118,18 +118,21 @@ def señales(monkeypatch):
         monkeypatch.setattr(orchestrator, "get_nlp_backend", lambda: api)
         monkeypatch.setattr(orchestrator, "get_incoherence_detector", lambda: detector)
 
-        def fake_lexical(headline):
+        # Con la firma de los de verdad: desde #93 reciben el umbral y el tope
+        # de pistas de la factoría.
+        def fake_lexical(headline, threshold):
             time.sleep(delay)
             return ToolResult.ok(
                 {
                     "score": 2 if lexico else 0,
                     "is_clickbait": lexico,
+                    "threshold": threshold,
                     "matches": [],
                     "headline": headline,
                 }
             )
 
-        def fake_linear(headline):
+        def fake_linear(headline, top_cues):
             time.sleep(delay)
             return ToolResult.ok(
                 {
@@ -297,11 +300,23 @@ def test_sin_dimensiones_es_sin_datos():
     assert _overall([]) == OverallVerdict.NO_DATA
 
 
-def test_el_engaño_pesa_mas_que_la_forma():
-    # Tres señales de forma dicen "no" y una de engaño dice "sí": gana la de
-    # engaño. Por mayoría saldría "factual", que es justo el error a evitar.
+def test_contra_una_forma_unanime_el_engano_no_manda():
+    # Las tres señales de forma dicen "no" y la de engaño dice "sí". Hasta
+    # #124 ganaba el engaño, pero ahí acertaba el 13 % (165 pares de Webis-17):
+    # la discrepancia es entre dimensiones, y se declara en vez de resolverse.
+    # Por mayoría saldría "factual", que tampoco: se declara.
     verdict = _overall([_dim(Dimension.FORM, False), _dim(Dimension.DECEPTION, True)])
+    assert verdict == OverallVerdict.AMBIGUOUS
+
+
+def test_engano_y_forma_de_acuerdo_es_enganoso():
+    verdict = _overall([_dim(Dimension.FORM, True), _dim(Dimension.DECEPTION, True)])
     assert verdict == OverallVerdict.DECEPTIVE
+
+
+def test_sin_forma_el_engano_manda():
+    # Si no votó ninguna señal de forma, no hay con qué discrepar (#124).
+    assert _overall([_dim(Dimension.DECEPTION, True)]) == OverallVerdict.DECEPTIVE
 
 
 def test_forma_sin_engaño_es_clickbait_de_forma():
@@ -320,8 +335,9 @@ def test_dimension_sin_resolver_es_ambiguo():
 
 
 def test_una_deteccion_positiva_pesa_mas_que_una_discrepancia():
-    # Decisión consciente: la ambigüedad de forma no oculta el engaño detectado.
-    # Sigue visible en dimensions[], solo no manda en la etiqueta única.
+    # Con la forma dividida, el engaño desempata: ahí acertaba el 68 % (862
+    # pares de Webis-17, #124). La discrepancia de forma sigue visible en
+    # dimensions[]; sólo no manda en la etiqueta única.
     verdict = _overall([_dim(Dimension.FORM, None), _dim(Dimension.DECEPTION, True)])
     assert verdict == OverallVerdict.DECEPTIVE
 
@@ -405,7 +421,9 @@ async def test_una_señal_que_revienta_no_tumba_a_las_demas(señales, monkeypatc
 async def test_tool_result_fail_se_traduce_a_error_con_su_mensaje(señales, monkeypatch):
     señales()
     monkeypatch.setattr(
-        lexical, "detect", lambda h: ToolResult.fail("El titular está vacío")
+        lexical,
+        "detect",
+        lambda titular, umbral: ToolResult.fail("El titular está vacío"),
     )
 
     signals = {s.name: s for s in await _run_signals("Un titular", "Un cuerpo")}
@@ -418,7 +436,9 @@ async def test_un_formato_inesperado_se_aisla_como_error(señales, monkeypatch):
     # Si una tool cambia de formato, el KeyError del extractor sube al gather y
     # degrada esa señal sola, en vez de devolver un 500.
     señales()
-    monkeypatch.setattr(lexical, "detect", lambda h: ToolResult.ok({"otra_clave": 1}))
+    monkeypatch.setattr(
+        lexical, "detect", lambda titular, umbral: ToolResult.ok({"otra_clave": 1})
+    )
 
     signals = {s.name: s for s in await _run_signals("Un titular", "Un cuerpo")}
     caida = signals["detect_clickbait_lexical"]
@@ -438,7 +458,9 @@ async def test_el_fallo_entero_se_registra_aunque_no_se_publique(señales, monke
     orquestador no registraba nada.
     """
     señales()
-    monkeypatch.setattr(lexical, "detect", lambda h: ToolResult.ok({"otra_clave": 1}))
+    monkeypatch.setattr(
+        lexical, "detect", lambda titular, umbral: ToolResult.ok({"otra_clave": 1})
+    )
 
     with capture_logs() as registrado:
         signals = {s.name: s for s in await _run_signals("Un titular", "Un cuerpo")}
@@ -465,7 +487,9 @@ async def test_la_respuesta_no_publica_interioridad(señales, monkeypatch):
         raise RuntimeError("/app/backend/integrations/nlp/local.py falló")
 
     monkeypatch.setattr(dobles.api, "classify", revienta)
-    monkeypatch.setattr(lexical, "detect", lambda h: ToolResult.ok({"otra_clave": 1}))
+    monkeypatch.setattr(
+        lexical, "detect", lambda titular, umbral: ToolResult.ok({"otra_clave": 1})
+    )
 
     respuesta = await orchestrator.analyze(
         AnalyzeRequest(headline="Un titular", content="Un cuerpo")
@@ -548,10 +572,26 @@ async def test_clickbait_de_forma_con_cuerpo_coherente(señales):
 
 
 @pytest.mark.asyncio
-async def test_forma_sobria_pero_engañosa(señales):
-    # Las dos señales de forma que votan dicen "no es clickbait" y solo la
-    # incoherencia dice que sí. (El zero-shot corre pero no vota desde #109.)
+async def test_forma_sobria_y_cuerpo_incoherente_es_ambiguo(señales):
+    # Las tres señales de forma dicen "no es clickbait" y sólo la incoherencia
+    # dice que sí: desde #124 no la pisa, y se declara la discrepancia.
     señales(label="factual news", lexico=False, lineal=False, similarity=0.22)
+
+    response = await orchestrator.analyze(
+        AnalyzeRequest(headline="Report Details Q3 Financial Results", content="...")
+    )
+
+    assert response.verdict == OverallVerdict.AMBIGUOUS
+    dimensiones = _por_dimension(response.dimensions)
+    assert dimensiones[Dimension.FORM].is_clickbait is False
+    assert dimensiones[Dimension.DECEPTION].is_clickbait is True
+
+
+@pytest.mark.asyncio
+async def test_forma_dividida_y_cuerpo_incoherente_es_enganoso(señales):
+    # La dedicada dice que sí y el léxico y el lineal que no: la forma queda
+    # dividida, y la incoherencia desempata (#124).
+    señales(label="clickbait", lexico=False, lineal=False, similarity=0.22)
 
     response = await orchestrator.analyze(
         AnalyzeRequest(headline="Report Details Q3 Financial Results", content="...")
@@ -559,7 +599,7 @@ async def test_forma_sobria_pero_engañosa(señales):
 
     assert response.verdict == OverallVerdict.DECEPTIVE
     dimensiones = _por_dimension(response.dimensions)
-    assert dimensiones[Dimension.FORM].is_clickbait is False
+    assert dimensiones[Dimension.FORM].is_clickbait is None
     assert dimensiones[Dimension.DECEPTION].is_clickbait is True
 
 
@@ -567,7 +607,9 @@ async def test_forma_sobria_pero_engañosa(señales):
 async def test_si_todas_las_señales_fallan_no_hay_veredicto(señales, monkeypatch):
     dobles = señales()
     for modulo, atributo in ((lexical, "detect"), (linear, "predict")):
-        monkeypatch.setattr(modulo, atributo, lambda h: ToolResult.fail("caído"))
+        monkeypatch.setattr(
+            modulo, atributo, lambda titular, ajuste: ToolResult.fail("caído")
+        )
     for metodo in ("zero_shot", "classify"):
         monkeypatch.setattr(dobles.api, metodo, _falla)
 

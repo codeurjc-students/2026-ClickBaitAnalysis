@@ -24,6 +24,11 @@ La temperatura y el `presence_penalty` se mandan si se dan (#192); si no, decide
 el Modelfile del modelo. La factoría los da siempre, así que el agente los
 manda siempre. Que aquí sean opcionales es para los guiones de `spikes/` que
 se midieron sin mandarlos: repetirlos tiene que seguir midiendo lo mismo.
+
+El tope de salida (`num_predict`, #208) también se manda sólo si se da: cuenta
+el razonamiento y la respuesta. Cuando Ollama para por él, o por la ventana
+llena, lo dice con `done_reason: "length"`, y la respuesta sale marcada como
+`cortada`: puede traer media frase que parecería una respuesta entera.
 """
 
 import json
@@ -64,6 +69,7 @@ class OllamaClient(BaseAPI, LLMBackend):
         timeout: float,
         temperature: float | None = None,
         presence_penalty: float | None = None,
+        num_predict: int | None = None,
     ) -> None:
         super().__init__()
         # `make_request` compone `BASE_URL + endpoint`: sin la barra final, la
@@ -75,6 +81,7 @@ class OllamaClient(BaseAPI, LLMBackend):
         self.keep_alive = keep_alive
         self.temperature = temperature
         self.presence_penalty = presence_penalty
+        self.num_predict = num_predict
 
     async def chat(
         self,
@@ -123,6 +130,8 @@ class OllamaClient(BaseAPI, LLMBackend):
             opciones["temperature"] = self.temperature
         if self.presence_penalty is not None:
             opciones["presence_penalty"] = self.presence_penalty
+        if self.num_predict is not None:
+            opciones["num_predict"] = self.num_predict
         return opciones
 
     async def disponibilidad(self) -> Disponibilidad:
@@ -237,4 +246,5 @@ def _leer_respuesta(datos: dict) -> Respuesta:
             "load_s": datos.get("load_duration", 0) / 1e9,
             "total_s": datos.get("total_duration", 0) / 1e9,
         },
+        "cortada": datos.get("done_reason") == "length",
     }

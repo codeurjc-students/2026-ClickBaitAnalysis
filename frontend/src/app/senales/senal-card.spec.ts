@@ -20,6 +20,27 @@ const LEXICA: SignalResult = {
   },
 };
 
+// #78: el lineal pondera las palabras del titular y sus patrones, que llegan
+// con nombre de máquina entre `< >`.
+const LINEAL: SignalResult = {
+  name: 'detect_clickbait_linear',
+  label: 'Regresión logística sobre las palabras del titular',
+  status: 'ok',
+  dimension: 'form',
+  type: 'interpretable',
+  is_clickbait: true,
+  data: {
+    probability: 0.97,
+    top_cues: [
+      ['<leading_number>', 2.4],
+      ['secrets', 0.8],
+      ['<number>', 0.3],
+      ['<desconocido>', 0.1],
+      ['<question>', -0.67],
+    ],
+  },
+};
+
 const OPACA: SignalResult = {
   name: 'detect_clickbait',
   label: 'RoBERTa dedicado',
@@ -115,6 +136,77 @@ describe('SenalCard', () => {
       (elemento) => elemento.textContent?.trim() ?? '',
     );
     expect(pistas).toEqual(['número inicial: 10', 'hipérbole: Amazing']);
+  });
+
+  const rasgosPintados = (html: HTMLElement) =>
+    [...html.querySelectorAll('.cues .cue')].map(
+      (elemento) => elemento.textContent?.trim() ?? '',
+    );
+
+  it('el lineal pinta sus patrones en castellano y sus palabras tal cual', async () => {
+    const html = await montar(LINEAL);
+
+    expect(rasgosPintados(html)).toEqual([
+      'número inicial',
+      'secrets',
+      'cualquier número',
+      '<desconocido>',
+      'pregunta',
+    ]);
+  });
+
+  it('en el lineal, una palabra va marcada en inglés y un patrón no', async () => {
+    const html = await montar(LINEAL);
+    const [patron, palabra] = html.querySelectorAll('.cues .cue');
+
+    expect(patron.getAttribute('lang')).toBeNull();
+    expect(patron.classList.contains('cue--patron')).toBe(true);
+    expect(palabra.getAttribute('lang')).toBe('en');
+    expect(palabra.classList.contains('cue--patron')).toBe(false);
+  });
+
+  // El lineal de antes de #78 guardaba los patrones sin `< >`: no se distinguen
+  // de una palabra, así que se pintan como llegaron.
+  it('un lineal guardado con los nombres viejos se pinta tal cual', async () => {
+    const html = await montar({
+      ...LINEAL,
+      data: { probability: 0.9, top_cues: [['leading_number', 1.2]] },
+    });
+
+    expect(rasgosPintados(html)).toEqual(['leading_number']);
+  });
+
+  // #93: el umbral del léxico se configura y viaja con el resultado. La nota lo
+  // lee en vez de copiar la regla (#116), que con 2 sería falsa.
+  const lexicaConUmbral = (umbral: number): SignalResult => ({
+    ...LEXICA,
+    data: { ...(LEXICA.data ?? {}), threshold: umbral },
+  });
+
+  it('con el umbral por defecto, la nota dice que basta una pista', async () => {
+    const html = await montar(lexicaConUmbral(1));
+
+    expect(html.querySelector('.nota')?.textContent).toContain(
+      '«¿disparó algún cue?»',
+    );
+  });
+
+  it('con otro umbral, la nota dice cuántas pistas hacen falta', async () => {
+    const html = await montar(lexicaConUmbral(2));
+
+    const nota = html.querySelector('.nota')?.textContent ?? '';
+    expect(nota).toContain('«¿hay al menos 2 pistas?»');
+    expect(nota).not.toContain('disparó');
+  });
+
+  it('un léxico guardado sin umbral no afirma ninguna regla', async () => {
+    // Lo guardado antes de #93 no lo trae, y la tarjeta no supone ninguno.
+    const html = await montar(LEXICA);
+
+    const nota = html.querySelector('.nota')?.textContent ?? '';
+    expect(nota).toContain('Las pistas SON la explicación');
+    expect(nota).not.toContain('disparó');
+    expect(nota).not.toContain('al menos');
   });
 
   it('al alternar la cabecera se despliega la opaca', async () => {

@@ -12,6 +12,16 @@ contrato; los vectores son derivados y se recomputan aguas abajo.
 
 Crear (una vez):  python -m backend.evaluation.splits
 Cargar:           from backend.evaluation.splits import load_split
+
+WEBIS-17, DESDE #78
+
+`validation170630` (19.484) se parte en `webis_dev` (20 %) y `webis_test` (80 %),
+estratificado y con la misma semilla. El lineal se entrena con `train170331`, la
+otra parte de Webis, y elige y se mide con éstas: así el corpus de las
+evaluaciones grandes (#92, #121, #124) no entrena ningún modelo. Se guardan los
+`id` además del titular, para poder cruzarlos con los cuerpos de `var/`.
+
+Crear (una vez):  python -m backend.evaluation.splits webis
 """
 
 import json
@@ -28,6 +38,11 @@ TEST_SIZE = 0.2  # 20% del total, congelado.
 DEV_SIZE = 0.25  # 0.25 * 0.8 = 20% del total.
 
 NAMES = ("train", "dev", "test")
+
+# Webis-17 (#78): la parte grande, partida para elegir y para probar.
+WEBIS_ORIGEN = "validation170630"
+WEBIS_DEV_SIZE = 0.2
+WEBIS_NAMES = ("webis_dev", "webis_test")
 
 
 def _path(name: str) -> Path:
@@ -72,10 +87,47 @@ def create_splits(force: bool = False) -> None:
                 )
 
 
+def create_webis_splits(force: bool = False) -> None:
+    """Parte `validation170630` en `webis_dev` y `webis_test` (#78).
+
+    Falla si ya existen, por lo mismo que `create_splits`: regenerarlos
+    cambiaría qué titulares eligen el modelo y cuáles lo miden.
+    """
+    from backend.evaluation.eval_external import load_records
+
+    existing = [p.name for p in map(_path, WEBIS_NAMES) if p.exists()]
+    if existing and not force:
+        raise FileExistsError(
+            f"Ya existen splits de Webis en {SPLITS_DIR} ({', '.join(existing)})."
+        )
+
+    registros = load_records(WEBIS_ORIGEN)
+    etiquetas = [registro["label"] for registro in registros]
+    dev, test = train_test_split(
+        registros,
+        test_size=1 - WEBIS_DEV_SIZE,
+        stratify=etiquetas,
+        random_state=SEED,
+    )
+
+    SPLITS_DIR.mkdir(parents=True, exist_ok=True)
+    for name, parte in zip(WEBIS_NAMES, (dev, test), strict=True):
+        with open(_path(name), "w", encoding="utf-8") as f:
+            for registro in parte:
+                fila = {
+                    "id": registro["id"],
+                    "headline": registro["headline"],
+                    "label": registro["label"],
+                }
+                f.write(json.dumps(fila, ensure_ascii=False) + "\n")
+
+
 def load_split(name: str) -> list[tuple[str, int]]:
     """Carga un split persistido → lista de (headline, label)."""
-    if name not in NAMES:
-        raise ValueError(f"Split desconocido: {name!r} (usa uno de {NAMES})")
+    if name not in NAMES + WEBIS_NAMES:
+        raise ValueError(
+            f"Split desconocido: {name!r} (usa uno de {NAMES + WEBIS_NAMES})"
+        )
     path = _path(name)
     if not path.exists():
         raise FileNotFoundError(
@@ -86,6 +138,13 @@ def load_split(name: str) -> list[tuple[str, int]]:
 
 
 if __name__ == "__main__":
-    create_splits()
-    for name in NAMES:
+    import sys
+
+    if "webis" in sys.argv:
+        create_webis_splits()
+        nombres = WEBIS_NAMES
+    else:
+        create_splits()
+        nombres = NAMES
+    for name in nombres:
         print(f"{name}: {len(load_split(name))} titulares -> {_path(name)}")

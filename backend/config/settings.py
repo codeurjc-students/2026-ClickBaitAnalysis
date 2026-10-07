@@ -13,9 +13,51 @@ Cada campo lleva al lado el motivo de su valor por defecto. Desde el entorno,
 las listas y los diccionarios se pasan como JSON.
 """
 
-from typing import Literal
+from typing import Literal, get_args
 
+from pydantic import BaseModel, Field, SecretStr, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+# Las señales que deciden con un umbral configurable (#93). Una lista CERRADA a
+# propósito: ver `nlp_thresholds`.
+UmbralConfigurable = Literal["detect_clickbait_lexical", "detect_clickbait_incoherence"]
+
+# Las etiquetas del contrato de `detect_clickbait`: las que publica su
+# herramienta, y a las que `dedicated.py` traduce las del modelo. Van también
+# aquí porque este módulo no puede importar la señal; un test vigila que sean
+# las mismas (`tests/integrations/test_invocacion.py`).
+EtiquetaDeClickbait = Literal["clickbait", "factual news"]
+
+
+class ModeloConInvocacion(BaseModel):
+    """Un modelo con su modo de invocación (#159). Sólo para `detect_clickbait`.
+
+    `labels` dice qué palabra del modelo corresponde a cada etiqueta del
+    contrato, y en los dos modos significa lo mismo. En un clasificador son SU
+    vocabulario (`{"Normal": "factual news", …}`). En un zero-shot son las
+    etiquetas que se le PREGUNTAN, y su redacción forma parte de la pregunta:
+    con otras, el mismo modelo da otro resultado. Sin ellas, las de la señal.
+    """
+
+    id: str
+    task: Literal["text-classification", "zero-shot-classification"] = (
+        "text-classification"
+    )
+    labels: dict[str, EtiquetaDeClickbait] | None = None
+
+    @field_validator("labels")
+    @classmethod
+    def _llevan_a_las_dos(
+        cls, labels: dict[str, EtiquetaDeClickbait] | None
+    ) -> dict[str, EtiquetaDeClickbait] | None:
+        """Si falta una etiqueta del contrato, el modelo nunca podría darla."""
+        if labels is not None and set(labels.values()) != set(
+            get_args(EtiquetaDeClickbait)
+        ):
+            raise ValueError(
+                "las etiquetas tienen que llevar a «clickbait» y a «factual news»"
+            )
+        return labels
 
 
 class Settings(BaseSettings):
@@ -25,9 +67,13 @@ class Settings(BaseSettings):
 
     log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR"] = "INFO"
     log_format: Literal["console", "json"] = "console"
-    guardian_api_key: str  # PS mapea automáticamente
-    nyt_api_key: str
-    hf_token: str
+    # `SecretStr` y no `str` (#93): su `repr` es '**********', así que una traza,
+    # un log o un test que falle sobre este objeto no las enseña. Pasó: un
+    # `AttributeError` sobre `settings` hizo que pytest imprimiera las tres en
+    # claro. El valor se saca con `get_secret_value()` sólo donde se usa.
+    guardian_api_key: SecretStr  # PS mapea automáticamente
+    nyt_api_key: SecretStr
+    hf_token: SecretStr
     nlp_backend: Literal["remote", "local"] = (
         "remote"  # Añadimos dos opciones de backend NLP, así mantenemos remoto sin cambiar mucho.
     )
@@ -48,9 +94,70 @@ class Settings(BaseSettings):
     # modelo puesto a mano es un experimento, no una señal caracterizada. Lo
     # resuelve `ficha_efectiva` en la factoría.
     #
-    # Sólo cambia el id, no el modo de invocación: un zero-shot necesita además
-    # etiquetas candidatas y otra llamada. Eso es #159.
-    nlp_models: dict[str, str] = {}
+    # Desde #159, en `detect_clickbait` puede ser también un objeto con el modo
+    # de invocación y las etiquetas (`ModeloConInvocacion`), para poner un
+    # zero-shot o un clasificador con otro vocabulario:
+    #   NLP_MODELS='{"detect_clickbait": {"id": "facebook/bart-large-mnli",
+    #                "task": "zero-shot-classification"}}'
+    # En las demás señales no: el sentimiento no traduce etiquetas y la
+    # incoherencia no usa `pipeline`. Así falla al arrancar.
+    nlp_models: dict[str, str | ModeloConInvocacion] = {}
+
+    @field_validator("nlp_models")
+    @classmethod
+    def _el_modo_solo_en_la_dedicada(
+        cls, modelos: dict[str, str | ModeloConInvocacion]
+    ) -> dict[str, str | ModeloConInvocacion]:
+        otras = sorted(
+            senal
+            for senal, modelo in modelos.items()
+            if isinstance(modelo, ModeloConInvocacion) and senal != "detect_clickbait"
+        )
+        if otras:
+            raise ValueError(
+                f"sólo `detect_clickbait` admite el modo de invocación; no {otras}"
+            )
+        return modelos
+
+    # El UMBRAL con el que decide cada señal que corta por uno (#93), por si se
+    # quiere probar otro sin tocar código. Vacío significa «el del detector»: el
+    # valor por defecto vive en un solo sitio, la constante `THRESHOLD` de cada
+    # uno, que es donde está escrito por qué vale lo que vale (E4-03, #92).
+    #   NLP_THRESHOLDS='{"detect_clickbait_lexical": 2}'
+    #
+    # Al revés que `nlp_models`, las claves son una lista CERRADA: sólo dos
+    # señales deciden con un umbral, y una clave mal escrita sería un ajuste que
+    # no hace nada sin fallar. Así falla al arrancar, como `llm_prompt`.
+    #
+    # El 0,5 del lineal no está, a propósito: con los pesos de hoy moverlo no
+    # cambia nada —la mitad de los titulares no tiene pistas y reciben todos la
+    # misma probabilidad (`evaluation/eval_umbral_lineal.py`)—, así que se
+    # decide al reentrenar, en #78.
+    #
+    # Las cifras de la ficha se midieron con el umbral por defecto: con otro,
+    # `ficha_efectiva` lo avisa, sin quitar las medidas (el modelo es el mismo).
+    nlp_thresholds: dict[UmbralConfigurable, float] = {}
+
+    # Cuántas pistas devuelve el lineal como explicación (#93). Sólo recorta lo
+    # que se ENSEÑA: la probabilidad suma todas. `None` es el de la señal.
+    nlp_linear_top_cues: int | None = Field(default=None, ge=1)
+
+    @field_validator("nlp_thresholds")
+    @classmethod
+    def _el_lexico_cuenta_pistas(
+        cls, umbrales: dict[UmbralConfigurable, float]
+    ) -> dict[UmbralConfigurable, float]:
+        """El umbral del léxico es un número de PISTAS: un entero desde 1.
+
+        Con 0 todo sería clickbait, y con 1,5 la tarjeta diría «al menos 1,5
+        pistas» cuando la regla es «al menos 2».
+        """
+        lexico = umbrales.get("detect_clickbait_lexical")
+        if lexico is not None and (lexico < 1 or not float(lexico).is_integer()):
+            raise ValueError(
+                "el umbral del léxico es un número de pistas: un entero desde 1"
+            )
+        return umbrales
 
     # Cargar los modelos NLP al arrancar en vez de en la primera petición.
     #
@@ -215,6 +322,18 @@ class Settings(BaseSettings):
     # respuesta salió vacía; con 16.384 escribió 553 y contestó. Cuesta 528 MiB
     # más de VRAM en la A40 (`spikes/fidelidad.py ventana`, 2026-09-30).
     llm_num_ctx: int = 16384
+    # El tope de salida de cada vuelta (#208), que cuenta el razonamiento y la
+    # respuesta. Con historial, alguna vuelta se desbocaba: 2–2,5 min y miles de
+    # tokens de razonamiento, o los 300 s de `llm_timeout` y la conversación
+    # perdida. Con el tope y la vuelta más del agente (`PEDIR_RESPUESTA`), en
+    # la comprobación final (40 conversaciones de cada lado, NYT y Guardian con
+    # el historial máximo) la más larga bajó de 313 a 117 s, las fallidas de 2
+    # a 0 y las vacías de 5 a 2. No evita las desbocadas, las ACOTA: siguieron
+    # saliendo, y el tope cortó 13 vueltas en 12 de las 40 conversaciones (sin
+    # él, una llegó a 6.154 tokens). A cambio, la mediana subió 4 s en
+    # NYT y 15 en Guardian (`spikes/fidelidad.py`, A40, 2026-10-04). `None`
+    # quita el tope.
+    llm_num_predict: int | None = 1500
     # El muestreo, también explícito (#192). Sin mandarlo decide el Modelfile
     # de Ollama —temperatura 1 y `presence_penalty` 1,5, el perfil que los
     # autores de Qwen3.5 dan para tareas generales—, y con ése se midió todo

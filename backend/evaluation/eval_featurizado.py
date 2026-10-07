@@ -31,10 +31,13 @@ contraste entre los dos corpus es el resultado: los mismos rasgos, dos mundos.
     python -m backend.evaluation.eval_featurizado
 """
 
+# El lineal que midió #109, congelado desde #78 en `lineal_pistas`: el de
+# producción ya no tiene este featurizado.
+from backend.evaluation import lineal_pistas as linear
 from backend.evaluation.eval_acoplamiento import acuerdo, predicciones
 from backend.evaluation.eval_external import load_external
 from backend.evaluation.splits import load_split
-from backend.integrations.nlp import lexical, linear
+from backend.integrations.nlp import lexical
 
 
 def vector_vacio(headline: str) -> bool:

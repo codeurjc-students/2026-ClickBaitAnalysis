@@ -158,14 +158,17 @@ class DimensionVerdict(BaseModel):
 class OverallVerdict(str, Enum):
     """Etiqueta única, para listados compactos como el historial.
 
-    Se deriva de las dimensiones con una jerarquía explícita —el engaño pesa más
-    que la forma— en lugar de por mayoría de señales.
+    Se deriva de las dimensiones con una jerarquía explícita —el engaño desempata
+    una forma dividida, pero no contradice a una forma unánime— en lugar de por
+    mayoría de señales.
     """
 
     DECEPTIVE = "deceptive"  # hay engaño: el cuerpo no corresponde al titular
     STYLISTIC_CLICKBAIT = "stylistic_clickbait"  # sensacionalista, pero sin engañar
     FACTUAL = "factual"
-    AMBIGUOUS = "ambiguous"  # las señales de una misma dimensión se contradicen
+    # Las señales de una dimensión se contradicen, o el engaño contradice a una
+    # forma unánime en «no» (#124).
+    AMBIGUOUS = "ambiguous"
     NO_DATA = "no_data"  # ninguna señal llegó a emitir veredicto
 
 

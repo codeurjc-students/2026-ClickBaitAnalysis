@@ -16,7 +16,7 @@ from backend.core.models import ToolResult
 class NYTAPI(BaseAPI):
     BASE_URL = "https://api.nytimes.com/svc/search/v2/"
 
-    API_KEY = settings.nyt_api_key  # Key ya validada
+    API_KEY = settings.nyt_api_key.get_secret_value()  # Key ya validada
     API_KEY_PARAM = "api-key"
 
     RATE_CALLS = 5  # Crea una instancia nueva con rate calls, no pasar por atributo o todos usan el mismo objecto.
@@ -55,6 +55,7 @@ class NYTAPI(BaseAPI):
         Returns:
             ToolResult.ok([{title, print_headline, url, date, content}, ...]) si hay artículos.
             ToolResult.fail("No articles found") si docs está vacío o ausente.
+            El error de `make_request`, tal cual, si la petición falla.
         """
         # UTC explícito, no la zona de la máquina: en Docker el contenedor va en
         # UTC y el equipo de desarrollo no, así que `date.today()` desplazaría la
@@ -68,7 +69,13 @@ class NYTAPI(BaseAPI):
         endpoint = "articlesearch.json"
         response = await self.make_request(endpoint, "get", params)
 
-        if not response.success or not response.has_content():
+        # Un fallo NO es «no hay noticias». El mensaje de `make_request` ya es
+        # público (#89), y el agente decide con él: creyendo que no hay nada,
+        # gastaría cuota probando otros temas (#212, como Guardian en #196).
+        if not response.success:
+            return response
+
+        if not response.has_content():
             return ToolResult.fail("No articles found")
 
         results = response.unwrap().get("response", {}).get("docs")

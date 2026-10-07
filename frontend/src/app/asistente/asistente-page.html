@@ -42,6 +42,13 @@
   }
 
   @if (intercambios().length) {
+    <!-- Si algo de lo que se ve no está guardado, se dice: la pantalla lo enseña
+         todo hasta que se recarga o se cambia de sección (#209). Informa, no
+         interrumpe: sin `role="alert"`. -->
+    @if (avisoGuardado(); as aviso) {
+      <p class="aviso aviso--guardado">{{ aviso }}</p>
+    }
+
     <ol class="conversacion" aria-label="Conversación">
       @for (intercambio of intercambios(); track $index) {
         <li class="intercambio">
@@ -51,7 +58,7 @@
           </p>
 
           @if (intercambio.trabajo; as trabajo) {
-            @if (trabajo.steps.length) {
+            @if (trazaVisible(trabajo)) {
               <!-- `aria-live` educado: cada paso nuevo se anuncia cuando el
                    lector de pantalla termina lo que estaba diciendo, sin
                    interrumpir. -->
@@ -80,14 +87,22 @@
                           @for (noticia of noticias; track $index) {
                             <li>
                               @if (noticia.url) {
-                                <a [href]="noticia.url" lang="en" rel="noopener" target="_blank">{{
-                                  noticia.title
-                                }}</a>
+                                <!-- En otra pestaña, para no perder la conversación, y
+                                     dicho al lector de pantalla: con la vista se nota el
+                                     salto, de oído sólo empieza una página nueva y «Atrás»
+                                     no vuelve aquí (#210). El aviso, fuera del
+                                     `lang="en"`, para que no lo lea como inglés. -->
+                                <a [href]="noticia.url" rel="noopener" target="_blank">
+                                  <span lang="en">{{ noticia.title }}</span>
+                                  <span class="solo-lector"> (se abre en una pestaña nueva)</span>
+                                </a>
                               } @else {
                                 <span lang="en">{{ noticia.title }}</span>
                               }
                               @if (noticia.date) {
-                                <span class="noticia__fecha">· {{ noticia.date.slice(0, 10) }}</span>
+                                <!-- El espacio, dentro: Angular quita el que queda entre
+                                     dos elementos, y la fecha salía pegada al titular. -->
+                                <span class="noticia__fecha"> · {{ noticia.date.slice(0, 10) }}</span>
                               }
                             </li>
                           }
@@ -163,12 +178,26 @@
         </li>
       }
     </ol>
+
+    <!-- Con la conversación guardada (#209), la única forma de empezar otra sin
+         cerrar la pestaña. No con una pregunta en marcha. -->
+    <p class="nueva-conversacion">
+      <button
+        type="button"
+        class="secundario"
+        (click)="empezarDeNuevo()"
+        [disabled]="ocupado()"
+      >
+        Empezar una conversación nueva
+      </button>
+    </p>
   }
 
   @if (disponible()) {
     <form [formGroup]="formulario" (ngSubmit)="enviar()">
       <label for="mensaje">Tu pregunta</label>
       <textarea
+        #campo
         id="mensaje"
         rows="3"
         maxlength="2000"

@@ -8,7 +8,7 @@ Version de Python: 3.12.3
 
 ## Plan de trabajo — hitos hasta la entrega
 
-**Estado actual (octubre 2026): `v0.6.0`.** El núcleo NLP está completo y
+**Estado actual (octubre 2026): `v0.7.0`.** El núcleo NLP está completo y
 validado —cuatro señales de clickbait contrastables, un modelo lineal
 interpretable propio, divulgación de modelos y una evaluación metodológicamente
 cerrada (split train/dev/test + validación externa)—, la capa web sirve sus
@@ -20,7 +20,8 @@ cinco señales respondiendo y el historial sobreviviendo a los redespliegues. Y
 el **agente conversacional** (R13), que da nombre al TFG, contesta en lenguaje
 natural desde la pantalla del asistente: elige las herramientas por MCP, las
 tarjetas salen de sus resultados y no de su texto, y el modelo corre en la A40
-de la universidad, que se enciende bajo demanda. Lo que resta es la memoria.
+de la universidad, que se enciende bajo demanda. Lo que resta es la memoria,
+con el análisis en español (`v0.8`) en paralelo hasta el 15 de diciembre.
 **Entrega: febrero 2027.**
 
 **El agente conversacional (R13) es H5.** Hasta el 7 de septiembre no estaba en
@@ -36,6 +37,8 @@ tenía fecha ni versión.
 | **H3 · `v0.4` SPA funcional** | noviembre | **7 sep** | Angular: análisis con explicabilidad visual, catálogo de tools, historial, responsive y gestión de errores | **R6** |
 | **H4 · `v0.5` Docker y despliegue** | diciembre | **20 sep** | Docker Compose (MCP + API / web), **volumen** para el historial, HTTPS y pruebas E2E | **R7, R8** |
 | **H5 · `v0.6` Agente conversacional** | — | **1 oct** | Bucle del agente, `POST /chat` con sondeo, pantalla de chat y traza de herramientas | **R13**, R6.10/12/13 |
+| **`v0.7` · Mejoras** *(en paralelo con H6)* | — | **7 oct** | Lo que H5 dejó abierto: la última vuelta del agente con historial, el historial que sobrevive a recargar, los enlaces de las noticias, las fichas y el fallo disfrazado de NYT (#208 a #212). Y cinco traídas del trabajo futuro: el veto del engaño (#124), los umbrales (#93) y el modo de invocación (#159) configurables, y el lineal reentrenado sobre las palabras del titular (#78 con #75) | R3.8, R3.9 |
+| **`v0.8` · Español** *(en paralelo con H6)* | — | *oct–15 dic* | El análisis de titulares en español: se detecta el idioma y cada señal usa su modelo para él, entrenado o medido con TA1C | **R3.4** |
 | **H6 · `v1.0` Memoria y defensa** | ene–feb 2027 | *oct–feb* | Redacción de la memoria y preparación de la defensa | — |
 
 **El proyecto va casi tres meses por delante de esta previsión.** H2 se cerró en
@@ -49,6 +52,26 @@ era conservadora— y no un error que tapar. La columna «real» de H6 es la
 **re-previsión hecha con ese adelanto**: la memoria tiene de octubre a febrero,
 en vez del mes de colchón que dejaba la previsión anterior si el agente salía
 como en el spike.
+
+**`v0.7` va en paralelo, no delante (decidido el 2026-10-01).** Al cerrar H5
+quedaban mejoras que el autor quería hacer sin que frenaran la memoria, así que
+van en un hito propio y **sin «H»** a propósito: no es una etapa del plan, sino
+trabajo que corre a la vez que H6. Lo acota una **congelación el martes 15 de
+diciembre de 2026**, el día en que vence el hito: desde entonces sólo entran
+arreglos y lo que pida la defensa, lo que no esté cerrado pasa a trabajo futuro
+(#217), y la versión de ese día es la que describe la memoria. Si compiten por
+tiempo, primero la memoria. Que no espera a la congelación: empieza en octubre
+con lo que no depende de la versión final, y sus issues (#214 a #216) son lo que
+necesita del sistema —el guion de la demostración, las medidas finales y el
+estado final de los requisitos—.
+
+**`v0.7` se cerró el 7 de octubre, antes de la congelación (decidido el
+2026-10-07).** Con todas sus issues hechas, lo siguiente era el análisis en
+español, que cambia R3.4 y toca casi todas las señales. El autor prefirió darle
+un hito propio, `v0.8`, y etiquetar antes `v0.7.0`, para que quede publicada una
+versión sin él. La congelación del 15 de diciembre pasa a `v0.8`, y la memoria
+describe la versión de ese día. El certificado (#213) salió de `v0.7` sin hito:
+depende de la universidad, y puede entrar cuando responda.
 
 **Reparto de H4 a H6, decidido el 2026-09-07.** El H5 original era «responsive,
 gestión de errores, pruebas E2E y despliegue», y #130 se llevó las dos primeras
@@ -71,7 +94,7 @@ _(Corrección de la tabla, 2026-08-11: **R9 —la persistencia— no figuraba en
 
 **Criterios de priorización:**
 
-- **El backlog de NLP queda congelado** como opcional (multi-dominio #78, featurización alternativa #75, fine-tuning neural E5-05, meta-tool de contraste, post-hoc LIME/SHAP). El límite de generalización ya está **medido y documentado** (#76), que es lo que exige el rigor; resolverlo no es condición para la entrega.
+- **El backlog de NLP queda congelado** como opcional (multi-dominio #78, featurización alternativa #75, fine-tuning neural E5-05, meta-tool de contraste, post-hoc LIME/SHAP). El límite de generalización ya está **medido y documentado** (#76), que es lo que exige el rigor; resolverlo no es condición para la entrega. *(#78 y #75 se hicieron en `v0.7`, el 7 de octubre: ver «El lineal, sobre las palabras del titular y con Webis-17».)*
 - **La memoria arranca en octubre**, con H5 cerrado *(hasta #193 decía diciembre, en paralelo con H4, que se cerró en septiembre)*. Esta sección de épicas actúa como **borrador y diario de desarrollo** desde el inicio del proyecto.
 - El stack está fijado en [requisitos.md](docs/requisitos.md): **FastAPI** (R4) + **Angular/TypeScript** (R6) + **Docker Compose** (R7).
 
@@ -781,6 +804,8 @@ Issue #66. Convierte el modelo lineal de E5-06 (script de investigación) en una
 
 **Nota de diseño:** entrenar (sklearn, en `evaluation/`, deps pesadas) y servir (pesos JSON + Python puro, en `integrations/nlp/`) quedan **separados** → CI y runtime siguen ligeros. Tests deterministas (sin mocks, el JSON está versionado).
 
+*(Revisado en #78: el lineal de esta sección ya no es la señal. Desde #78 pondera las palabras del titular con TF-IDF y `featurize_cues` dejó de ser la fuente de sus rasgos; este lineal sigue, congelado, en `backend/evaluation/lineal_pistas.py`, para que los guiones que lo midieron den sus cifras. La separación entre entrenar y servir se mantiene. Ver «El lineal, sobre las palabras del titular y con Webis-17».)*
+
 ### E5-08 · Divulgación de modelos (model cards) — R3.9
 
 Issue #71. Cierra la mitad pendiente de **R3.9** (DEBERÁ): *divulgar los modelos que emplea el sistema* (la otra mitad —intercambiarlos por configuración— ya la cubría la factoría `nlp_backend`).
@@ -830,6 +855,8 @@ Issue #76. Mide la **generalización real** evaluando la vía shipeada sobre un 
 - **No es artefacto de binarización**: el `truthMean` medio de los falsos positivos (0.28) apenas supera al de los verdaderos negativos (0.23) → los FP no son mayormente casos "slightly clickbaiting" mal binarizados.
 
 **Valor para la memoria:** los números en-dominio (0.84–0.87) son válidos **para ese dominio**; la transferencia requiere adaptación (re-entrenar con datos del dominio destino, limpiar convenciones de tuit, o señales semánticas). El extracto conserva `truthMean` → futuro: calibración con scores continuos.
+
+*(Revisado en #78: es lo que se hizo con el lineal. Se reentrenó con este mismo extracto (`train170331`) y sin las convenciones de tuit, así que medirlo aquí ya no es una validación externa; la suya pasa a ser `webis_test`, 15.588 tuits de `validation170630`, donde sube de 0,447 a 0,534. Ver «El lineal, sobre las palabras del titular y con Webis-17».)*
 
 ## Fase B — Diseño de la interfaz y del agente conversacional
 
@@ -988,6 +1015,8 @@ Cierre del tercer bloque de H1 («diseño de los endpoints REST»). Se fija el c
 | **Incoherencia** | **sí es clickbait** |
 
 Tres a uno, y **la correcta es la cuarta**: por mayoría saldría «factual». La jerarquía es explícita —el engaño pesa más que la forma— y las discrepancias *dentro* de una dimensión se declaran (`null` → `ambiguo`) en lugar de resolverse por votación.
+
+*(Revisado en #124: medido en Webis-17, este caso —las tres señales de forma en «no» y la incoherencia en «sí»— es justo donde la cuarta menos acierta, el 13 %. Desde entonces el engaño desempata una forma dividida, pero contra una forma unánime en «no» el veredicto es `ambiguous`. Ver «El engaño desempata, pero no contradice a una forma unánime».)*
 
 **El tono se muestra pero no vota.** Una narrativa marcadamente positiva o negativa aleja de la objetividad, pero eso no es hacer clickbait, y cuánto pesa es juicio de quien lee. No necesita ningún caso especial en el código: la señal devuelve `is_clickbait: null` y el mismo filtro que ignora las señales caídas la ignora a ella.
 
@@ -1787,6 +1816,12 @@ para alegrarse: el punto ciego compartido y el techo de recall son *el mismo
 hecho*, así que rellenarlo desacopla las señales **y** levanta el techo. Una sola
 intervención para los dos problemas.
 
+*(Revisado en #78: hecho, y se cumplió. Con las palabras del titular como
+rasgos, en `webis_test` los vectores vacíos pasan del 53,3 % al 0,5 % y el techo
+de recall, del 65,5 % al 98,1 %; y el acuerdo con el léxico baja de kappa 0,880 a
+0,715 en Chakraborty `dev`. Ver «El lineal, sobre las palabras del titular y con
+Webis-17».)*
+
 #### El sesgo de fuente, ahora con número
 
 El intercepto negativo permite medir cuánto vale por sí solo que **dispare algún
@@ -2261,6 +2296,10 @@ Está en su techo. Lo que se le escapa del clickbait más evidente no se le esca
 por sutil, se le escapa porque **no dispara ningún cue**. Es la misma conclusión
 de #109 llegando por un camino independiente, y vuelve a señalar a #75.
 
+*(Revisado en #78: #75 se hizo para el lineal, no para el léxico, que sigue con
+sus listas y en este techo. Ver «El lineal, sobre las palabras del titular y con
+Webis-17».)*
+
 *(El F1 del léxico BAJA en el subconjunto unánime —0,448 a 0,351— y eso no
 contradice lo anterior: ese subconjunto tiene sólo un 12,9 % de positivos, y con
 tantos negativos una señal que se pasa de marcar pierde precisión y con ella F1.
@@ -2489,6 +2528,11 @@ Le estamos dando derecho de veto a una señal que, en los casos donde discrepan,
 acierta menos que aquella a la que anula. **Los números no sostienen esa
 jerarquía**, y revisarla es una decisión de arquitectura que merece su propia
 issue.
+
+*(Hecho en #124: medido sobre el veredicto entero, el veto acertaba el 13 % con
+las tres señales de forma en «no» y el 68 % con la forma dividida. Se quedó sólo
+en el segundo caso. Ver «El engaño desempata, pero no contradice a una forma
+unánime».)*
 
 Se guarda además un punto de operación que puede servir a la interfaz:
 `dedicada ∧ incoherencia` da **precisión 0,852**, la más alta medida en todo el
@@ -3055,7 +3099,9 @@ módulos de `integrations/nlp/` y sólo perdona a dos. Así un detector nuevo qu
 cubierto sin tocar nada, y meter `settings` en un módulo de esa capa obliga a
 **editar la lista a mano** — que es justo la decisión consciente que se quiere
 forzar cuando llegue #93. La regla no sólo describe el pasado: defiende una
-decisión futura.
+decisión futura. *(Revisado en #93: no hizo falta tocar la lista. Los detectores
+reciben el umbral de la factoría, como el modelo desde #119; ver «Los umbrales,
+configurables».)*
 
 **Se descartó `import-linter`**, que es la herramienta hecha para esto y expresa
 el apilado completo de forma declarativa. Para dos reglas traería una dependencia
@@ -3292,7 +3338,9 @@ exactamente eso**.
 
 Cablear el 0,30 en el frontend habría sido peor que copiar el `label`: #93
 propone parametrizar ese número, así que se estaría duplicando un valor que ya
-está previsto que cambie.
+está previsto que cambie. *(Hecho en #93, que hizo configurable también el del
+léxico, y por eso desde entonces viaja también con su resultado; ver «Los
+umbrales, configurables».)*
 
 Es el más barato de los cuatro —una línea y su declaración en `outputs.py`,
 porque `data` ya es diccionario libre y el esquema no cambia— y el que menos
@@ -4944,6 +4992,9 @@ tarea como una cadena, así que la maquinaria está. Es alcance, y tiene su prop
 issue (**#159**) con las decisiones que arrastra — entre ellas que las etiquetas
 de un zero-shot *forman parte de la pregunta*: cambiar «clickbait» por
 «sensationalist headline» cambia el resultado con el mismo modelo.
+*(Hecho en #159, que además lo midió: con BART, esa pregunta movió el titular
+clickbait de 0,701 a 0,987; y `elozano` funciona dándole sus etiquetas. Ver «El
+modo de invocación, configurable».)*
 
 `docs/requisitos.md` no se toca: R3.9 **se cumple**, no se matiza.
 
@@ -6354,6 +6405,8 @@ Los tiempos no se movieron: `test` 65 s, `frontend` 33 s, las imágenes 38 s (we
 
 `only-from-dev` no corre en una PR a `dev`: su cambio de runner se comprobará en la PR de la release `v0.6`, que es la primera a `main`.
 
+*(Comprobado en la PR #207, la de la release `v0.6.0`, el 1 de octubre: `only-from-dev` salió en verde en 3 s sobre `ubuntu-24.04`, con la imagen `20260920.314.1` (Ubuntu 24.04.5). En su registro aparece una línea `::error::…`, pero es el guion del paso, que el registro enseña antes de ejecutarlo: esa rama no se ejecutó.)*
+
 ### Cómo llega la API a la A40: la red, el túnel y lo que cuesta arrancar Ollama (#181, 24 sep 2026)
 
 §12 de [`docs/arquitectura.md`](docs/arquitectura.md), el plano de H5, dejaba sin decidir dos cosas que condicionan todo lo demás: **cómo llega la API, en la máquina 1, a Ollama, en la máquina 2**, y **quién arranca Ollama y cuándo suelta la GPU**, en una máquina compartida cuya norma es no dejarla bloqueada. Esta issue, la primera de H5, las mide antes de diseñar nada. No construye nada: en el código entran tres guiones en `spikes/`.
@@ -6955,7 +7008,7 @@ Dos cambios en `search_articles`, con el test primero: dos tests con `respx`, ej
 
 #### Lo que queda
 
-- **NYT tiene el mismo disfraz**, y un test lo fija: `test_search_articles_http_error` exige que un error HTTP salga como «No articles found». La issue dejaba NYT fuera; queda anotado.
+- **NYT tiene el mismo disfraz**, y un test lo fija: `test_search_articles_http_error` exige que un error HTTP salga como «No articles found». La issue dejaba NYT fuera; queda anotado. *(Hecho en #212: ver «NYT: el mismo disfraz».)*
 - **No se repitió con el agente.** La aceptación es el guion contra la API real. El docstring de la herramienta, que es lo que lee el modelo, no cambia.
 - **La cuota que da la cabecera no cuadra con las llamadas**: 480, 477 y 455 restantes tras tandas de 32, 37 y 37. Observado, sin explicar; es lo que publica `remaining_quota` (R2.7).
 
@@ -7118,7 +7171,7 @@ bash spikes/chat_registro.sh 2026-09-28T18:22:00Z 2026-09-28T18:24:00Z
 
 #### Lo que queda
 
-- **El historial se pierde al recargar**: vive en la memoria de la pantalla, y el servidor no guarda las conversaciones (decidido al definir H5). Hay dos caminos para más adelante: `sessionStorage`, sin tocar el backend, o guardarlas en el historial del servidor, que reabre esa decisión.
+- **El historial se pierde al recargar**: vive en la memoria de la pantalla, y el servidor no guarda las conversaciones (decidido al definir H5). Hay dos caminos para más adelante: `sessionStorage`, sin tocar el backend, o guardarlas en el historial del servidor, que reabre esa decisión. *(Hecho en #209, con `sessionStorage`: ver «La conversación del asistente sobrevive a recargar».)*
 - **Las respuestas son demasiado técnicas** para quien no conoce las señales (observado por el autor). El prompt `04-preciso` pide cifras exactas y nombres de señales, y el modelo copia los decimales enteros (#188). Se itera en #192, con las 26 consultas como examen, para que un prompt más llano no pierda fidelidad sin que se note.
 - **Una llamada repetida**: en la vuelta de 98,8 s, el modelo volvió a pedir `analyze_headline` con el mismo titular. Costó 0,27 s y una vuelta más. Para #192.
 - **La primera conversación tras un despliegue paga el MCP en frío**, 6,9 s las dos veces (aceptado en H4).
@@ -7295,7 +7348,7 @@ Todo con `05-llano`, `num_ctx` 16.384 y los mismos 14 turnos, en la A40, Ollama 
 - **Respuestas vacías con el razonamiento lleno**: en las dos que guardaron la traza, el modelo escribió la respuesta entera dentro del razonamiento, acabó con «la respuesta está lista» y no la sacó como texto; unas 3 de cada 60 con historial. La pantalla enseña las tarjetas igual. El autor lo deja como mejora futura; lo más sencillo sería pedirle una vuelta más cuando contesta sin texto ni llamadas.
 - **Vueltas desbocadas**: con historial, algunas últimas vueltas razonaron entre 11.000 y 31.000 caracteres (116–311 s), y una agotó los 300 s de `llm_timeout`, así que la conversación falló. Con 8.192 no habrían cabido.
 - **La prueba en producción, al cierre de H5 (#193)**, decidido por el autor. Esta rama acabó tocando la API (`Turno.tools` y su validación) y la pantalla, que manda los nombres, aunque la issue no dependía de ellas. Está cubierto por tests y por las 60 conversaciones medidas en el backend, pero no se ha visto en la pantalla real: hace falta redesplegar y abrir una sesión de GPU. *(Hecha en #193: el historial llegó con los nombres y la segunda respuesta analizó la noticia; ver «El cierre de H5».)*
-- Fuera de esta issue, anotado: los enlaces de las noticias en la pantalla, sacados de la traza y no del texto del modelo (idea del autor); las fichas de `describe_models` mezclan los límites de cada señal con detalles de operación que el agente repite a cualquiera (nota del autor al validar); y el léxico no encuentra ninguna pista en «Top 5 Secrets Finally Revealed», un ejemplo del techo de cobertura que midió #121, para #75.
+- Fuera de esta issue, anotado: los enlaces de las noticias en la pantalla, sacados de la traza y no del texto del modelo (idea del autor) *(ya estaban desde #191: ver «Los enlaces de las noticias, que ya estaban», #210)*; las fichas de `describe_models` mezclan los límites de cada señal con detalles de operación que el agente repite a cualquiera (nota del autor al validar) *(separados en #211)*; y el léxico no encuentra ninguna pista en «Top 5 Secrets Finally Revealed», un ejemplo del techo de cobertura que midió #121, para #75.
 
 ### El cierre de H5: el plano contra lo construido, y el agente en producción (#193, 30 sep 2026)
 
@@ -7386,8 +7439,927 @@ Se probaron como quedaron escritos:
 
 #### Lo que queda
 
-- **La release `v0.6`**, con esta PR en `dev`: la PR de `dev` a `main`, mergeada con merge commit, que será la primera ejecución de `only-from-dev` sobre `ubuntu-24.04` desde #178; el tag anotado `v0.6.0`, por consola; y las notas de la release.
-- **Lo que H5 deja abierto**, con su condición en la sección de cada issue: las respuestas vacías con el razonamiento lleno y las vueltas desbocadas (#192); el historial, que se pierde al recargar (#191); el arranque con la caché de disco fría, el modo persistente —una pregunta al administrador sin respuesta— y el túnel, que no se reconecta si se cae (#181); y los enlaces de las noticias y las fichas de `describe_models` (#192).
+- **La release `v0.6`**, con esta PR en `dev`: la PR de `dev` a `main`, mergeada con merge commit, que será la primera ejecución de `only-from-dev` sobre `ubuntu-24.04` desde #178; el tag anotado `v0.6.0`, por consola; y las notas de la release. *(Publicada el 1 de octubre; `only-from-dev`, en verde: ver la nota en la sección de #178.)*
+- **Lo que H5 deja abierto**, con su condición en la sección de cada issue: las respuestas vacías con el razonamiento lleno y las vueltas desbocadas (#192); el historial, que se pierde al recargar (#191); el arranque con la caché de disco fría, el modo persistente —una pregunta al administrador sin respuesta— y el túnel, que no se reconecta si se cae (#181); y los enlaces de las noticias y las fichas de `describe_models` (#192). *(Pasado a issues el 2 de octubre: #208 a #213 en `v0.7`, y el resto en #217, el trabajo futuro. El modo persistente se descartó: no se pide.)*
+
+### NYT: el mismo disfraz (#212, 2 oct 2026)
+
+#196 le quitó a Guardian un disfraz: cuando la petición fallaba —una clave mala, la cuota agotada, la red—, el cliente decía «No articles found», lo mismo que cuando de verdad no hay noticias. NYT tenía el mismo, y un test lo exigía (`test_search_articles_http_error`). Importa por el agente, que decide con ese mensaje: en #188, creyendo que no había noticias, probó tres temas más. Y en NYT, que admite 500 llamadas al día, el fallo más probable es justo la cuota agotada: el agente daría vueltas probando temas para acabar diciendo que no hay noticias, cuando lo que pasa es que hoy no se puede preguntar.
+
+#### El arreglo
+
+El mismo que en Guardian. Si la petición falla, `search_articles` devuelve el mensaje de `make_request`, que es público desde #89 y dice qué pasó sin decir cómo está hecho por dentro; «No articles found» queda para una respuesta que llega bien y sin artículos. La herramienta no cambia: su docstring ya decía «si no hay resultados o la API falla», así que el catálogo del agente es el mismo y no hace falta repetir las 26 consultas de #188.
+
+Los tests, primero:
+
+- `test_search_articles_http_error`, que exigía el disfraz, pasa a ser `test_un_fallo_de_la_api_no_se_disfraza_de_sin_noticias`, con un 401, un 429 y un 500: el error trae el código y no dice «No articles found». **Contra el código de antes falló en los tres.**
+- `test_el_error_publicado_no_lleva_la_clave_ni_la_url`: con un 401 cuyo cuerpo repite la clave, el error no lleva ni la clave ni `nytimes.com`, porque sale por la herramienta y es una salida pública (#163). Éste **pasa también con el código de antes**, porque el disfraz lo tapaba todo: no demuestra el arreglo, sino que el error nuevo no filtra nada.
+- Que una respuesta correcta sin artículos siga diciendo «No articles found» ya lo cubrían `test_search_articles_no_results` y `test_search_articles_missing_docs_key`.
+
+**417 tests**, y pyright sin errores.
+
+#### Contra la API real
+
+Con un test nuevo marcado `integration` —que el CI no ejecuta—, `test_una_clave_mala_da_el_error_real`, junto a los dos que ya había:
+
+| Condiciones | |
+|---|---|
+| Fecha | 2026-10-02: antes del arreglo a las 15:28:29 UTC y después a las 15:28:57 UTC |
+| Código | `0e9da56`, la base de la rama; la segunda tanda, con el arreglo sin commitear |
+| Máquina | WSL (Ubuntu) en el portátil |
+| API | Article Search de NYT (`articlesearch.json`), con la ventana del defecto: 7 días |
+| Coste | 3 llamadas por tanda |
+
+```bash
+.venv/bin/python -m pytest tests/integrations/test_nyt.py -m integration
+```
+
+| Test | Antes | Después |
+|---|---|---|
+| `test_search_articles_valid_use`: un tema con noticias | pasa | pasa |
+| `test_search_articles_invalid_topic`: un tema que no existe | pasa, «No articles found» | pasa, «No articles found» |
+| `test_una_clave_mala_da_el_error_real`: una clave que no existe | **falla**: «No articles found» | pasa: «La API externa respondió HTTP 401 Unauthorized.» |
+
+NYT responde **401** a una clave que no existe, y el test lo fija desde entonces; la clave no aparece en el mensaje. Los temas con noticias siguen trayéndolas, y uno que no existe sigue diciendo que no hay.
+
+**No se miró en la pantalla de Sistema**, como pedía la issue: exigía redesplegar la máquina 1, y el autor lo dio por comprobado con estos tests, que usan el mismo `NYTAPI` que la herramienta. Se verá con el próximo despliegue. *(Visto el 3 oct, al desplegar la rama de #209: desde Sistema, `get_nyt_news` con un tema trae noticias.)*
+
+### Los enlaces de las noticias, que ya estaban (#210, 3 oct 2026)
+
+La issue pedía que cada titular de la lista de noticias del asistente enlazara a su noticia, porque la pantalla «lee la `url` pero no la enseña». **Era falso**: el enlace está en la plantilla desde la pantalla del asistente (#191, PR #203), sacado de la traza y abierto en otra pestaña. Se había anotado como pendiente validando #192, y al redactar la issue se copió sin abrir la plantilla. El autor lo sospechó; el código lo confirmó (`git log -S` sitúa el `<a [href]="noticia.url" …>` de `asistente-page.html` en #191), y la aplicación también.
+
+#### Comprobado en producción
+
+| Condiciones | |
+|---|---|
+| Fecha | 2026-10-03, con una sesión de GPU abierta a las 09:06 UTC con `gpu-sesion` (30 min como máximo) y cerrada al terminar, con la GPU a 0 MiB |
+| Código servido | `dev` en `66fed98`, en la máquina 1: la plantilla de la lista es la de #191 |
+| Consulta | «Tráeme noticias de NYT sobre inteligencia artificial», desde el navegador del autor |
+
+`get_nyt_news` trajo diez noticias, y cada titular era un enlace que abría su noticia en una pestaña nueva y pasaba a ella. La captura enseñó además un detalle: la fecha iba pegada al titular («…Hypocrisy.· 2026-09-29»), porque Angular quita el espacio que queda entre dos elementos.
+
+#### Lo que se hizo
+
+La issue se redujo a lo que de verdad faltaba (decidido por el autor):
+
+- **Avisar al lector de pantalla de que se abre otra pestaña.** Con la vista se nota el salto; de oído sólo empieza una página nueva, y «Atrás» no vuelve a la conversación, que sigue en la otra pestaña. Un texto que sólo lee el lector, «(se abre en una pestaña nueva)», va dentro del enlace y **fuera del `lang="en"`** del titular, para que no lo pronuncie como inglés; antes el `lang="en"` estaba en el enlace entero. Lo recomiendan las pautas WCAG (técnica G201), sin exigirlo en el nivel AA: va por la regla del proyecto de cuidar la accesibilidad aunque R6 no la pida. Abrir en la misma pestaña no era la alternativa, porque la conversación vive en la memoria de la pantalla y se perdería (#209).
+- **El espacio antes de la fecha**, dentro del propio texto de la fecha, que es donde Angular no lo quita.
+- **Los specs que faltaban**: ninguno miraba la lista de noticias de la pantalla. Uno nuevo comprueba el enlace, su destino, la pestaña nueva, el aviso fuera del inglés, la fecha separada, y que una noticia sin `url` se pinta sin enlace; **falló contra la plantilla de antes**. Otro, en `conversacion.ts`, cubre una noticia sin `url` o con una que no es texto: pasa también con el código de antes, porque eso ya estaba bien, y queda como cobertura.
+
+**160 specs** del frontend, y el lint y el build, en verde.
+
+#### Lo que se descartó, y por qué
+
+- **`rel="noreferrer"`**, que impediría que el navegador le dijera a NYT o a Guardian de qué página viene quien pulsa. Ni Caddy ni `index.html` fijan una política propia, así que los navegadores aplican la suya por defecto (`strict-origin-when-cross-origin`), que a otro sitio sólo le manda el dominio, sin la ruta; y la ruta sería `/asistente`, sin nada privado. El `noopener` que ya lleva lo aplican también por su cuenta los navegadores actuales con `target="_blank"`.
+- **Aceptar sólo `http` y `https`.** Las URL vienen de las API de NYT y Guardian por la traza, no del texto del modelo, y Angular ya neutraliza un `javascript:` en un `href` anteponiéndole `unsafe:`. Sólo cambiaría que una URL rara, de una fuente de noticias futura, saliera como titular sin enlace en vez de como enlace roto.
+
+#### Lo que queda
+
+- **Verlo en producción con el próximo despliegue.** El aviso no se ve: se comprueba con un lector de pantalla o con el inspector del navegador. *(Visto el 3 oct, al desplegar la rama de #209: la fecha sale separada del titular, y el aviso está dentro del enlace, en el inspector.)*
+
+### La conversación del asistente sobrevive a recargar (#209, 3 oct 2026)
+
+Hasta ahora la conversación vivía en la memoria de la pantalla: recargar, o ir a otra sección y volver, la borraba (visto en #191). En una demostración, un recargar sin querer se la lleva por delante, y el momento en que más tienta recargar es justo una vuelta larga del modelo, que en #191 se leyó como un cuelgue.
+
+#### Por qué en el navegador y no en el servidor
+
+Al definir H5 se decidió que las conversaciones no fueran al historial, y lo que se escribió entonces fue sólo que el historial es de `/analyze`. Los motivos completos, que la issue dejó por escrito:
+
+- **El historial se diseñó para análisis**: cada fila es un `POST /analyze` con su resultado, y `/analisis/:id` lo vuelve a pintar. Una conversación es otra cosa —turnos, traza y narración—, con otra forma y otra pantalla.
+- **La exposición**: la aplicación es pública y sin autenticación, y `GET /history` le enseña a cualquiera todo lo guardado. Guardar ahí las conversaciones publicaría lo que escribió cada visitante. Los ids de las conversaciones son aleatorios (16 bytes, #189) justo para que nadie lea las ajenas.
+- **El servidor no guarda nada entre turnos**: el historial lo manda la pantalla, y los trabajos caducan a los 15 minutos de terminar.
+
+Tampoco `localStorage`: sobreviviría a cerrar el navegador, y en un ordenador compartido la siguiente persona vería la conversación. `sessionStorage` dura lo que la pestaña y no sale del navegador.
+
+#### Qué se guarda, y qué pasa al volver
+
+- **La conversación entera**, con la traza de cada pregunta, que es de donde salen las tarjetas (R13.4). Se guarda con cada cambio, bajo la clave `asistente.conversacion.v1`. La versión va en la clave: si un día cambia de verdad la forma de lo guardado, se sube, y lo viejo se ignora entero.
+- **El id de cada conversación, en cuanto `POST /chat` contesta**, antes de la primera lectura. Con él, **una pregunta en marcha se retoma** al volver: el servidor no se enteró de la recarga, siguió trabajando, y la sirve hasta 15 minutos después de terminar. Si se salió antes de que `POST /chat` contestara, no hay id con el que preguntar por ella, y la pantalla dice «Se salió de la página antes de que el asistente aceptara la pregunta».
+- **Lo guardado se lee con un guardián**, como el historial de análisis con `comoAnalisis` (#129): puede venir de una versión anterior de la pantalla, así que un intercambio que la plantilla no sabría pintar se descarta y los demás se quedan.
+- **«Empezar una conversación nueva»** vacía la pantalla y lo guardado: con la conversación persistente, sería la única forma de empezar otra sin cerrar la pestaña. Está desactivado con una pregunta en marcha —el servidor seguiría trabajando en algo que ya nadie miraría—, y devuelve el foco al campo de la pregunta, porque el botón desaparece con la conversación.
+- **Si el navegador no deja guardar** —navegación privada, almacenamiento bloqueado o lleno—, la pantalla funciona como antes de esta issue.
+
+**Y se avisa de lo que no se conserva** (decidido con el autor, repasando los flujos): sin almacenamiento, «Este navegador no deja guardar la conversación: se perderá si recargas la página o vas a otra sección»; con el tope, «Las N preguntas más antiguas ya no se guardan, por espacio». La alternativa, quitar de la pantalla lo que no cabe para que pantalla y almacenamiento coincidieran siempre, borraría lo que se está leyendo, que es justo lo que la issue quería evitar.
+
+Cómo queda cada caso:
+
+| Situación | Qué se ve |
+|---|---|
+| Recargar, o ir a otra sección y volver, con la respuesta ya dada | La conversación entera; la pregunta siguiente la lleva como historial |
+| Recargar mientras el modelo razona | Los pasos que ya habían llegado y la espera, que sigue contando desde el envío; la respuesta llega como si nada |
+| Recargar justo al pulsar «Enviar», antes de que el servidor la acepte | La pregunta con el aviso de que se salió antes de que se aceptara |
+| Volver más de 15 minutos después, o tras un redespliegue, con una pregunta a medias | Lo terminado, y en esa pregunta, «la conversación ya no está en el servidor» (el 404 de #191) |
+| Volver con el asistente apagado | El aviso de siempre, sin campo de texto, y debajo la conversación |
+| Cerrar la pestaña o abrir otra | Vacía: `sessionStorage` es de cada pestaña |
+| Navegación privada o almacenamiento bloqueado | La pantalla de antes, con el aviso de que no se guardará |
+| Una conversación que pasa del tope | Todo, mientras no se recargue, con el aviso de cuántas de las más antiguas se perderán |
+
+#### El tope, medido
+
+Los resultados de las herramientas van enteros, y `sessionStorage` tiene un límite por origen, del orden de 5 MB según el navegador. La regla se fijó **antes de medir** (decidida por el autor): el tope es de **1.000.000 de caracteres** de JSON, una quinta parte de ese límite, y se queda si caben al menos 20 intercambios de tamaño mediano.
+
+[`spikes/historial_tamano.py`](spikes/historial_tamano.py) lo mide con las conversaciones que guardó #192 en `spikes/fidelidad/` —las del corpus y las de cada condición comparada—, con los pasos tal como los produce el agente. A cada paso de señal le añade su tarjeta con `senal_de`, la misma función que usa `api/chat.py` al servir `GET /chat/{id}`, y monta cada intercambio con la forma que guarda la pantalla.
+
+| Condiciones | |
+|---|---|
+| Fecha | 2026-10-03, 09:50 UTC |
+| Máquina | WSL (Ubuntu) en el portátil, sin GPU ni red |
+| Datos | 228 conversaciones de `spikes/fidelidad/`: `corpus.json` y los cinco `comparacion-*.json` de #192 |
+| Código | `d6aac4b`, la base de la rama, con el guion sin commitear |
+
+```bash
+.venv/bin/python spikes/historial_tamano.py
+```
+
+| Caracteres por intercambio | |
+|---|---|
+| Mínimo | 685 |
+| Mediana | 2.422 |
+| p95 | 9.426 |
+| Máximo | 21.174 |
+
+Con el tope caben **412 intercambios medianos**, o 47 del más grande: **la regla se cumple**, y el aviso del tope no debería verse en una sesión normal. Los tres más grandes llevan `describe_models`, y uno sólo con esa herramienta ya ocupa 12.087 caracteres: las fichas de las señales son el resultado más largo. (El guion cuenta puntos de código y el navegador unidades UTF-16; sólo difieren en los caracteres fuera del plano básico, como los emojis.)
+
+#### Comprobado
+
+- **18 specs nuevos**: 11 de `conversacion.ts` —guardar y leer de vuelta, el tope por intercambios enteros, lo que no encaja, la pregunta a medias con y sin id, el aviso— y 7 de la pantalla —recargar, con lo recuperado como historial de la pregunta siguiente; retomar una en marcha; la caducada; la que no se llegó a aceptar; sin almacenamiento; empezar de nuevo, y que no se pueda con una pregunta en marcha—. Se escribieron antes del código, y contra el de antes no compilaban: las funciones no existían. **178 specs**, y el lint y el build, en verde.
+- **Visto en local con el asistente apagado** (la API en el 8001 con el agente configurado y apagado, y el frontend en el 4200), metiendo una conversación en `sessionStorage` y recargando: vuelve entera, con la tarjeta de la señal y la narración, debajo de «Ahora mismo no se puede usar»; «Empezar una conversación nueva» la vacía y borra la clave; y una pregunta sin id sale con su aviso. Sin errores en la consola.
+
+#### En producción, con el modelo
+
+| Condiciones | |
+|---|---|
+| Fecha | 2026-10-03, con una sesión de GPU abierta a las 10:55 UTC con `gpu-sesion` (30 min como máximo) y cerrada al terminar, con la GPU a 0 MiB |
+| Código servido | `10cea77`, la rama de esta issue, desplegada en la máquina 1 con `sudo docker compose up --build --wait` (196 s); lleva también #212 y #210, que ya estaban en `dev` |
+| Navegador | el del autor |
+
+El autor probó todos los casos, y salieron bien: **recargar a mitad de una pregunta** —la pantalla la siguió y la respuesta llegó—, recargar con la respuesta ya dada, ir a Analizar y volver, una segunda pregunta y «Empezar una conversación nueva». Que la segunda pregunta llevó la primera como historial se ve en la respuesta: el modelo repitió con otras palabras el aviso de #192, que sólo se añade cuando hay historial.
+
+**Visto de paso, y no es de esta issue.** La segunda pregunta fue «¿por qué?», y el modelo no llamó a ninguna herramienta: contestó que los resultados anteriores ya no están y pidió el titular, aunque estaba en el historial. Es el aviso de #192 llevado al extremo —se puso para que no se inventara el análisis, y aquí se niega a rehacerlo—, y pasa a #208 como tercer caso de la última vuelta con historial, con el texto del aviso como variante medida.
+
+#### Lo que queda
+
+- **Una lista vacía en la traza**: si la única vuelta del modelo no llama a ninguna herramienta, la pantalla pinta un «1.» vacío, la lista de la traza sin pasos que enseñar. Viene de #191, y se arregla pintando la lista sólo cuando haya algo en ella. *(Hecho en #211: ver «Las fichas: los límites, para quien las lee; la operación, aparte».)*
+- **Duplicar la pestaña copia lo guardado**: la copia enseña la misma conversación y, si había una pregunta en marcha, las dos la sondean. No hace daño, pero son dos lecturas cada 2 s dentro del presupuesto de 60 por minuto.
+
+### Las fichas: los límites, para quien las lee; la operación, aparte (#211, 3 oct 2026)
+
+Validando #192, el autor vio que el agente le contaba a quien preguntaba por los modelos que `torch` no viene en `requirements.txt`. Salía de las `limitations` de `backend/integrations/nlp/model_cards.py`, que mezclaban dos cosas para dos públicos: **lo que una señal no sabe hacer**, medido y público por R3.9, y **cómo se instala o se sirve**, que es de quien opera el sistema. `describe_models`, el catálogo REST y la pantalla de Sistema lo publicaban todo junto.
+
+#### Qué frase es cada cosa
+
+Leídas una a una, y validadas por el autor antes de mover nada, de las cinco fichas sólo tres frases son de operación:
+
+| Señal | Nota de operación |
+|---|---|
+| `detect_clickbait` | No se puede servir en remoto: `hf-inference` responde 400, así que con `nlp_backend=remote` la señal sale siempre en error |
+| `detect_clickbait` | La vía local depende de `torch`, que `requirements.txt` no trae; la imagen lo instala |
+| `detect_clickbait_incoherence` | Depende de `sentence-transformers`, que `requirements.txt` no trae; la imagen lo instala |
+
+- **Una dudosa, que se queda**: «Sustituye a `facebook/bart-large-mnli` (#115)…» es historia del proyecto, pero trae la medida que justifica el modelo (F1 0.946 frente a 0.473).
+- **La ficha del modelo de lenguaje no tiene ninguna.** La más cercana, «sólo está disponible mientras hay una sesión abierta en la máquina de la GPU», le dice a quien pregunta cuándo puede usarlo.
+- **El campo `backend` de cada ficha también es de operación**, pero forma parte del contrato, y quitarlo sería otra issue: se deja.
+
+#### Cómo
+
+- **Las tres notas se mueven tal cual a un campo `operation` de la misma ficha**, para que si el modelo cambia se vean en el mismo sitio (decidido al definir la issue). Se movieron, no se borraron. La ficha escrita en el código es ahora una `FichaDeclarada`: la publicada más ese campo.
+- **Lo que se publica sigue siendo `FichaModelo`, sin cambios**, así que el contrato no se toca y no hay que regenerarlo.
+- **`ficha_efectiva` construye la ficha publicada clave a clave** (`_publicable`), en sus dos ramas. Hasta ahora, sin un modelo puesto por configuración, devolvía el mismo diccionario declarado: con el campo nuevo, lo habría publicado. Es la única puerta: por ella salen `describe_models`, el catálogo y el orquestador, igual que el modelo efectivo desde #119.
+- **Los tests, escritos antes:** que las notas siguen declaradas y fuera de los límites; que no salen por `describe_models` —hablando el protocolo, como lo recibe el agente— ni por el catálogo REST, dos de las puertas que #116 enseñó a probar una a una; y que tampoco salen con un modelo puesto por configuración. Los tres primeros fallaron contra el código de antes; el último pasa también con él, porque vigila la proyección. Dos tests que comparaban la ficha efectiva con la declarada entera la comparan ahora sin `operation`. **421 tests**, y pyright sin errores.
+- **Un detalle del protocolo**, que el primer test daba por hecho y era falso: FastMCP manda el texto de una lista en un bloque por elemento, no en uno solo. El test compara la forma estructurada con todos los bloques.
+
+#### El catálogo del agente, igual
+
+| Condiciones | |
+|---|---|
+| Fecha | 2026-10-03: antes a las 11:35 UTC, sobre `d8f4466`; después a las 11:45 UTC, con los cambios sin commitear |
+| Máquina | WSL (Ubuntu) en el portátil |
+
+```bash
+NLP_BACKEND=local .venv/bin/python spikes/catalogo_peso.py
+```
+
+Antes y después, **idéntico**: 12 herramientas y 10.285 caracteres entre descripciones y esquemas, herramienta a herramienta. Ni las descripciones ni el esquema de `describe_models` cambian, así que no hace falta repetir las 26 consultas de #188 en la A40. Lo que cambia es lo que **devuelve** `describe_models`: tres notas menos.
+
+**Coste conocido:** la capa de modelos de la imagen copia `model_cards.py`, así que se rehace en el próximo despliegue, unos 2 minutos (#162).
+
+#### Y el «1.» vacío de la traza
+
+Visto probando #209: con una sola vuelta del modelo que no pide ninguna herramienta, la pantalla del asistente pintaba la lista de la traza vacía, un «1.» suelto. Venía de #191: la lista se pintaba si había pasos, no si alguno tenía algo que enseñar. Ahora lo decide `trazaVisible`, en `asistente/conversacion.ts`. Dos specs escritos antes, uno de la función y otro de la pantalla, que contra el código de antes no compilaban. **181 specs**, y el lint y el build, en verde.
+
+Visto en local con el asistente apagado, con una conversación como la de la prueba de #209 metida en `sessionStorage`: sin lista, y con la narración y el aviso de respuesta sin herramientas.
+
+#### Lo que queda
+
+- **Verlo en producción con el próximo despliegue**: en Sistema, la ficha de la señal dedicada sin las dos notas, y `describe_models` sin las tres. *(Visto el 4 oct, con la máquina 1 redesplegada en `828e2e0` —134 s, con la capa de modelos rehecha—: el catálogo publica la ficha de la dedicada con 9 límites y ninguna nota de operación, y `describe_models`, ejecutado por `/api/tools/describe_models/execute`, sale `ok` sin ellas.)*
+
+### La última vuelta con historial: pedir la respuesta y un tope de salida (#208, 4 oct 2026)
+
+Con historial, la última vuelta del modelo fallaba de tres maneras, vistas en #192 o probando #209 en producción:
+
+- **Vacías**: escribe la respuesta dentro del razonamiento y no la saca (`empty_answer`, con `done_reason` `stop`). 3 de 57 conversaciones con historial en #192. La pantalla enseña las tarjetas sin texto.
+- **Desbocadas**: una vuelta razona miles de tokens. En #192, últimas vueltas de 116 a 311 s, y una agotó los 300 s de `llm_timeout` y la conversación acabó en `failed`.
+- **Seguimientos sin herramientas**: a «¿por qué?», después de analizar un titular, no llama a nada y pide el titular, que está en el historial (visto probando #209).
+
+Las tres arriesgan una demostración en directo, y por eso es la primera de `v0.7`. Las vacías y las desbocadas se miden juntas porque el tope que frena una desbocada puede convertirla en vacía.
+
+#### El método: repetir la vuelta que falló
+
+Los fallos rondan el 15 % de las conversaciones con historial. Con 20 por variante saldrían unos 3 en el control frente a 0, y eso puede salir por azar (Fisher, p ≈ 0,23); además, entre sesiones la deriva ya engañó una vez (#192). Así que se repite **la vuelta exacta que falló**: los datos de #192 (`spikes/fidelidad/ventana*.json`) guardan los pasos y el razonamiento, y `_mensajes_hasta` reconstruye los mensajes de esa vuelta tal como los montó el agente. Que la reconstrucción es exacta se comprueba con los `prompt_tokens` de la primera repetición de cada caso: si no cuadran, el guion aborta. Hay 16 casos con traza: 6 vacías, 9 desbocadas y 1 fallida.
+
+**La regla se escribió en la issue antes de la primera sesión** ([comentario](https://github.com/codeurjc-students/2026-ClickBaitAnalysis/issues/208#issuecomment-5980962259)):
+
+- **desbocada**: alguna vuelta con más de 1.000 tokens de salida (una normal no pasa de 421, el p95 de 434 vueltas de #192); **rescatada**: la conversación acaba en `answered`;
+- «una vuelta más» se queda si rescata al menos 4 de cada 5 repeticiones de las vacías; el tope de 1.500 tokens, si rescata las desbocadas —solo o con la vuelta más— en al menos 4 de 5; el aviso que pide rehacer, si baja los seguimientos sin herramientas frente al actual;
+- y cada uno, sólo si en una comprobación final contra producción no suben las inventadas ni las fallidas.
+
+| Condiciones | |
+|---|---|
+| Fecha | 2026-10-04, cuatro sesiones de GPU seguidas, en hora de Madrid: 16:57–17:09, 17:10–17:24, 17:25–17:40 y 17:53–19:10 |
+| Máquina | La A40 de la máquina 2, con Ollama 0.34.2 y `gpu-sesion` `6ad6a751d636`; el guion corre en WSL, por un túnel propio en el 11500 |
+| Modelo | `qwen3.5:27b` (`7653528ba5cb`), `num_ctx` 16384, el perfil preciso (0,6 y 0) y `05-llano` |
+| Código | `5652e46` en las tres primeras sesiones, y `b1abebc` en la cuarta, que sólo añade la variante `con-arreglos-208` a `spikes/fidelidad.py` |
+| Datos | `spikes/fidelidad/repeticion-20261004-1458.json`, `seguimiento-20261004-1511.json`, `repeticion-20261004-1526.json` y `ventana-bucle-encadena-nyt-bucle-encadena-guardian-16384-x20-preciso-con-herramientas-aviso-con-arreglos-208.json` |
+
+```bash
+FIDELIDAD_MINUTOS=30 setsid nohup bash spikes/fidelidad_a40.sh repeticion vacias > /tmp/fidelidad_rep_vacias.log 2>&1 < /dev/null & disown
+FIDELIDAD_MINUTOS=30 setsid nohup bash spikes/fidelidad_a40.sh seguimiento > /tmp/fidelidad_seguimiento.log 2>&1 < /dev/null & disown
+FIDELIDAD_MINUTOS=75 setsid nohup bash spikes/fidelidad_a40.sh repeticion desbocadas > /tmp/fidelidad_rep_desbocadas.log 2>&1 < /dev/null & disown
+FIDELIDAD_MINUTOS=75 setsid nohup bash spikes/fidelidad_a40.sh ventana --ctx 16384 --veces 20 --casos bucle-encadena-nyt:preciso-con-herramientas-aviso,bucle-encadena-nyt:con-arreglos-208,bucle-encadena-guardian:preciso-con-herramientas-aviso,bucle-encadena-guardian:con-arreglos-208 > /tmp/fidelidad_final.log 2>&1 < /dev/null & disown
+```
+
+#### Las vacías: una vuelta más
+
+Se repite cada vuelta vacía con su respuesta vacía y, detrás, un mensaje de sistema con `PEDIR_RESPUESTA` («No has escrito la respuesta. Escríbela ahora para el usuario, con lo que ya tienes.»). Va como sistema, igual que el aviso del historial: no lo escribió la persona. **30 de 30 rescatadas**, todas a la primera: los 6 casos pasan la regla.
+
+#### Los seguimientos: el aviso que pide rehacer no cambia nada
+
+«¿Por qué?» después de la conversación de la prueba de #209, que analizó «You Won't Believe What This Dog Did Next» con `analyze_headline`, 20 veces con el aviso actual y 20 con el que añade «Si la pregunta se refiere a un titular o una noticia de un turno anterior, vuelve a llamar a las herramientas con él», intercaladas:
+
+| Aviso | Sin llamar a ninguna herramienta |
+|---|---|
+| El actual | 6 de 20 |
+| El que pide rehacer | 5 de 20 |
+
+- **Al pie de la letra, la regla lo daba por bueno**, porque baja. Pero es un caso de diferencia, del tamaño que la propia regla dice que sale por azar: **el autor decidió dejarlo fuera**.
+- **Las 11 respuestas sin herramientas fallan igual con los dos avisos**: dicen que los resultados anteriores ya no están y preguntan si deben volver a analizarlo, y en 10 citan el titular, que tienen delante. Es el aviso de #192 llevado al extremo: se puso para que no se inventara el análisis, y aquí pide permiso para rehacerlo. No inventa nada, pero obliga a contestar «sí». **Queda en #217**, y para la demostración, anotado en #214: preguntar nombrando el titular.
+- **El recuento marcó 2 como inventadas, y no lo eran**: piden el titular. El clasificador (`VEREDICTO`, una expresión regular) las marcó porque dicen «clickbait». Una «inventada» automática es un aviso para leerla, no una medida.
+
+#### Las desbocadas: el tope acota, pero apenas actuó
+
+Con un tope de 1.500 tokens de salida por vuelta (`num_predict`, que cuenta el razonamiento y la respuesta) y, si la vuelta sale vacía o cortada, una vuelta más: **49 de 50 rescatadas**, 5 de 5 en 9 de los 10 casos y 4 de 5 en el otro. La regla lo da por bueno. Pero los tokens de cada repetición dicen que el tope apenas actuó:
+
+| Al repetir la vuelta | Repeticiones |
+|---|---|
+| No volvió a desbocarse (120–675 tokens) | 45 de 50 |
+| Se desbocó, el tope la cortó y una vuelta más la rescató | 2 |
+| Se desbocó y terminó sola antes del tope (1.366 tokens) | 1 |
+| Salió vacía (1.280 y 1.381 tokens): la vuelta más rescató una, y la otra la cortó el tope | 2 |
+
+La desbocada casi no se repite —5 de 50—, así que las 49 rescatadas miden sobre todo eso. Donde el tope y la vuelta más sí actúan, resuelven 3 de 4 casos: evidencia real, pero escasa. **El autor decidió quedárselo** con esta lectura a la vista: lo que compra es acotar la espera, y eso lo mide la comprobación final.
+
+#### La comprobación final, contra producción
+
+40 conversaciones de cada lado, intercaladas en una sesión: las de NYT y Guardian con el historial máximo de #192 (14 turnos), 20 de cada, con la configuración de producción (`preciso-con-herramientas-aviso`) y con la misma más la vuelta extra y el tope (`con-arreglos-208`).
+
+| | Producción | Con los arreglos |
+|---|---|---|
+| Llamó a una señal | 32 | 37 |
+| Vacías | 5 | 2 |
+| Fallidas (agotaron los 300 s) | 2 | 0 |
+| Inventadas | 1 | 0 |
+| Fallo de la medida (el MCP no respondió) | 0 | 1 |
+| Vueltas de más de 1.000 tokens | 12 | 20 |
+| … cortadas por el tope | — | 13, en 12 conversaciones |
+| La conversación más larga | 313 s | 117 s |
+| Mediana, NYT / Guardian | 24,3 / 54,6 s | 28,5 / 69,2 s |
+
+**La regla se cumple**: no suben ni las inventadas (1 → 0) ni las fallidas (2 → 0), así que entran los dos arreglos. Lo que cuestan, y lo que no arreglan:
+
+- **El tope no evita las desbocadas, las acota**: siguen saliendo, y sin él una vuelta de producción llegó a 6.154 tokens.
+- **Las 2 vacías que quedan** son de la vuelta más, que a su vez se desbocó (Guardian #14: 1.500 y 1.500 tokens; NYT #20: 1.482 y 1.500).
+- **La mediana sube** 4 s con NYT y 15 s con Guardian: cortar y volver a pedir cuesta más que dejar terminar una vuelta que se pasa por poco. A cambio, la conversación más larga baja de 313 a 117 s y desaparecen los timeouts.
+- **Una inventada en producción, y real**: sólo llamó a `get_nyt_news` y narró cifras de tres señales que no ejecutó (88 %, 12 % y 75 %). En #192 fueron 0 de 60 con la misma configuración. No es lo que mide esta issue, y queda en la ficha del modelo.
+- **El fallo de la medida**: el servidor MCP que el guion sirve en su propio proceso no respondió a tiempo al descubrir las herramientas (`TimeoutError`), y la conversación acabó sin ninguna vuelta del modelo. Sin explicar; se cuenta aparte porque no es del agente.
+
+#### Qué entra
+
+- **El cliente** (`integrations/llm/`): `Respuesta.cortada`, que es `done_reason: "length"` —el tope o la ventana llena— y va fuera de `Medidas` porque `Medidas` se publica; y `num_predict` en `OllamaClient`, que sólo se manda si se da.
+- **El agente**: una respuesta cortada con texto no se da por buena —sin el arreglo acaba en `empty_answer`, como una vacía—, y `pedir_respuesta_si_vacia` viene **encendido por defecto** con `PEDIR_RESPUESTA`. Se pide una vez por conversación, la vuelta cuenta dentro de las 6, y se registra como `agent.respuesta_pedida` con el motivo (vacía o cortada).
+- **La configuración**: `llm_num_predict`, 1.500 por defecto, que la factoría pasa al cliente y forma parte de su clave de caché (#119). `None` quita el tope.
+- **La ficha del modelo** (`integrations/llm/model_card.py`), con lo medido: la inventada de la comprobación, las vacías, los seguimientos y el tope.
+- **Los guiones**: en `spikes/fidelidad.py`, las partes `fallos`, `repeticion` y `seguimiento`, y las variantes de #208 en `ventana`; en `fidelidad_a40.sh`, la duración de la sesión (`FIDELIDAD_MINUTOS`) y el 27B con 16384 para estas partes. `spikes/agente_a40.py` apaga el arreglo, como ya apagaba el aviso de #192, para que repetirlo mida lo mismo que #188.
+- **Tests**, 9 nuevos: que una respuesta cortada no se da por buena; que con el arreglo se pide la respuesta, también a una cortada, una sola vez y no en la última vuelta; que viene encendido por defecto; que el cliente manda el tope y marca lo cortado; y que la factoría pasa el tope. **430 tests**, y pyright sin errores.
+
+#### Lo que queda
+
+- **Los seguimientos sin herramientas**, en #217.
+- **El fallo del MCP servido en el proceso del guion**, sin explicar.
+- **Verlo en producción con el próximo despliegue**: el tope y la vuelta más van por defecto, sin tocar el compose.
+
+### El engaño desempata, pero no contradice a una forma unánime (#124, 5 oct 2026)
+
+`_overall` derivaba el veredicto global con una jerarquía: si la dimensión de engaño decía «sí», el veredicto era `deceptive` dijera lo que dijera la forma. El argumento venía de H1 (#85): un titular sobrio cuyo cuerpo no cumple lo prometido tiene tres señales diciendo «no» y una diciendo «sí», y la correcta es la cuarta. Calibrando el umbral de la incoherencia, #92 vio que esa cuarta acertaba el 12 % justo donde decide sola, y de ahí salió esta issue (1 sep): no es cambiar un número, es decidir qué argumenta el trabajo. Al cerrar H5 quedó como trabajo futuro (#217), y entró en `v0.7` el 4 oct, cuando el autor decidió cerrar las issues posibles antes de empezar la memoria.
+
+#### La regla, antes de medir
+
+Se publicó en la issue antes de ejecutar nada ([comentario](https://github.com/codeurjc-students/2026-ClickBaitAnalysis/issues/124#issuecomment-5981620535)). Tres reglas, que sólo difieren cuando el engaño dice «sí» y la forma no lo apoya:
+
+| Regla | Engaño «sí» y forma «no» | Engaño «sí» y forma en discrepancia |
+|---|---|---|
+| La de antes de #124 | `deceptive` | `deceptive` |
+| Sin veto (opción 2 de la issue) | `ambiguous` | `ambiguous` |
+| Cascada (opción 4) | `factual` | `ambiguous` |
+
+**La de antes se quedaba si `deceptive` acertaba al menos la mitad de las veces donde la forma no lo apoya**: el suelo de 0,50 que #92 fijó para una señal que pisa a las demás. Las otras dos opciones de la issue no se midieron: condicionar el veto a la confianza exigía calibrar un segundo corte, y ponderar las señales por su fiabilidad es la que más se aleja de la tesis, porque convierte el contraste en un número opaco.
+
+#### Con el código de producción
+
+[`backend/evaluation/eval_veredicto.py`](backend/evaluation/eval_veredicto.py) pasa cada par titular–cuerpo de Webis-17 (`validation170630`), los mismos con los que #92 calibró el umbral, por `analyze()` del orquestador. Las similitudes que #92 guardó se calcularon con el cuerpo entero, y producción lo recorta a 1.000 caracteres antes de comparar (`IncoherenceDetector._lead`): reutilizarlas habría medido otro sistema. El resultado de cada par se guarda en `var/`, con una huella del código y los datos de las señales, el orquestador y los modelos, así que repetir el informe tarda segundos y una caché de otro sistema no se cuela. La etiqueta humana es la de clickbait de Webis (`truthMean`): no hay una de engaño, la misma limitación que en #92.
+
+| Condiciones | |
+|---|---|
+| Primera ejecución | 2026-10-04, desde las 17:35, unos 18 min, sobre `5652e46` (el código de las señales y del orquestador, igual que en `dev`), con el guion aún sin commitear; huella `32ae28233478` |
+| Segunda ejecución | 2026-10-05, 19:06–19:24, sobre `d001304`, con el cambio de esta issue y el guion commiteado; huella `8732c2a4b246` |
+| Máquina | WSL (Ubuntu) en el portátil, con torch 2.12.1 sobre la GTX: producción corre en CPU, y las diferencias de coma flotante sólo moverían un caso en el filo del corte |
+| Modelos | `Stremie/roberta-base-clickbait`, `cardiffnlp/twitter-roberta-base-sentiment-latest` y `sentence-transformers/all-MiniLM-L6-v2`; umbral de incoherencia 0,3 |
+| Datos | 19.484 pares; ninguno rechazado por la API |
+
+```bash
+NLP_BACKEND=local .venv/bin/python -m backend.evaluation.eval_veredicto
+```
+
+Las cifras que siguen son las de la segunda ejecución, y coinciden una a una con las de la primera: el cambio sólo toca el veredicto, no las señales.
+
+#### Lo que dio la regla, y lo que escondía
+
+Las comprobaciones primero: la dedicada da F1 0,758, el número de #124, y reaplicar `_overall` sobre lo guardado da lo mismo que `analyze()` en los 19.484 pares, así que comparar reglas sobre la caché es fiel.
+
+**Con la regla fijada, la de antes se quedaba**: donde la forma no apoya al engaño, `deceptive` acierta el 59,6 % (612 de 1.027). Pero ese número junta dos casos opuestos:
+
+| La forma… | Pares | `deceptive` acierta |
+|---|---|---|
+| dice «no»: las tres señales coinciden | 165 | **13,3 %** |
+| discrepa entre sus señales | 862 | **68,4 %** |
+
+Con la forma dividida, el engaño desempata bien. Contra una forma unánime en «no» —el caso exacto del argumento de #85— se equivoca 87 veces de cada 100. Por eso las dos alternativas de la issue pierden: quitan también el veto donde acierta.
+
+| «Es clickbait» (`deceptive` o `stylistic_clickbait`) | P | R | F1 | F1 en los unánimes |
+|---|---|---|---|---|
+| La de antes de #124 | 0,676 | 0,581 | 0,625 | 0,767 |
+| Sin veto | 0,703 | 0,451 | 0,550 | 0,651 |
+| Cascada | 0,703 | 0,451 | 0,550 | 0,651 |
+| **Veto si discrepa** | **0,699** | **0,576** | **0,632** | **0,788** |
+
+(«Unánimes»: los 6.808 titulares en los que los cinco anotadores coinciden, el subconjunto que #121 usó para separar la zona gris.)
+
+#### La decisión, después de ver los datos
+
+**El autor decidió «veto si discrepa»**: el engaño desempata una forma dividida, pero no contradice a una forma unánime, y entonces el veredicto es `ambiguous`. El destino es una decisión de postura, no de los datos —`factual` daría las mismas cifras, porque ninguna de las dos cuenta como clickbait—: la discrepancia entre dimensiones se enseña, no se resuelve, igual que la que hay dentro de una. Cambian 165 veredictos de 19.484, y la precisión de `deceptive` pasa del 66,3 % al 73,1 %.
+
+**Esta regla no estaba en la fijada antes de medir**: se eligió al ver el desglose. Por eso se validó como #92 validó su umbral, eligiendo en una mitad del corpus (la misma semilla y proporción) y comprobando en la otra:
+
+| Precisión de `deceptive` | Mitad de elección | Mitad de comprobación |
+|---|---|---|
+| Forma «no» | 13,7 % de 73 → sin veto | 13,0 % de 92 |
+| Forma en discrepancia | 69,4 % de 447 → veto | 67,5 % de 415 |
+
+La regla que sale de la primera mitad es exactamente «veto si discrepa», y en la mitad que no la eligió mejora a la de antes: F1 0,621 → 0,628, y en los unánimes, 0,739 → 0,757. Se publicó en la issue con su desglose ([comentario](https://github.com/codeurjc-students/2026-ClickBaitAnalysis/issues/124#issuecomment-5981923864)).
+
+#### Qué entra
+
+- **`_overall`**: dentro de la rama del engaño, si la forma votó y dijo «no», `ambiguous`. Una forma que no votó no cuenta como desacuerdo: sin ella, el engaño sigue mandando.
+- **Los tests, escritos antes**: el que exigía que el engaño ganara a una forma unánime pasa a exigir `ambiguous`, igual que su versión de extremo a extremo, y los dos fallaron contra el código de antes. Tres nuevos fijan lo que no cambia: engaño y forma de acuerdo, forma dividida —también de extremo a extremo— y sin forma. **433 tests**, y pyright sin errores.
+- **Lo que describía la jerarquía**: el docstring del módulo del orquestador, donde el ejemplo de los tres «no» pasa a ser el argumento en contra; el de `OverallVerdict` y la definición de `ambiguous` en `domain.py`, que entran en el contrato (`openapi.json` y `schema.d.ts`, regenerados: sólo cambian esas descripciones); el comentario del umbral en `incoherence.py`; y el párrafo de §3 en `docs/arquitectura.md`, con una nota bajo el diagrama, que se deja como se dibujó.
+- **El guion deja escrita la regla de antes** (`regla_antes_de_124`): importar `_overall` ya no reproduciría la comparación. Y comprueba que la de producción es la elegida: en la segunda ejecución, **0 diferencias** entre `_overall` y «veto si discrepa» en los 19.484 pares.
+- **La pantalla no cambia.** Un `ambiguous` por discrepancia entre dimensiones se ve debajo del veredicto («Forma: no · Engaño: sí»); explicarlo con una frase propia habría sido otra copia de la regla en la interfaz, el patrón de #116 (decidido por el autor).
+
+#### Las 26 consultas: el docstring que lee el agente
+
+El docstring de `analyze_headline` decía «el engaño pesa más que la forma», y lo lee el modelo del agente al elegir herramienta. Pasa a «el engaño desempata cuando las señales de forma discrepan»: el catálogo crece de 10.285 a 10.318 caracteres (`spikes/catalogo_peso.py`), y sólo cambia esa herramienta. Desde #188, un docstring de herramienta sólo cambia con sus 26 consultas como examen: #183 había mostrado que unas palabras de más mueven la elección. **La regla, fijada antes de medir**: se queda si la selección razonando no baja de 24/26 en ninguna de las dos condiciones que razonan.
+
+| Condiciones | |
+|---|---|
+| Fecha | 2026-10-05, 19:06–19:17 |
+| Máquina | La A40 de la máquina 2, con Ollama 0.34.2 y `gpu-sesion` `6ad6a751d636`; el guion corre en WSL por un túnel propio |
+| Modelo | `qwen3.5:27b` (`7653528ba5cb`), con las condiciones de #188: `num_ctx` 8192, `04-preciso`, el muestreo del Modelfile, sin el aviso del historial ni la vuelta más |
+| Código | `d001304`; guion `963fafdbf3bb` |
+| Datos | [`spikes/agente_a40/seleccion-124.json`](spikes/agente_a40/seleccion-124.json) |
+
+```bash
+AGENTE_A40_JSON=spikes/agente_a40/seleccion-124.json setsid nohup bash spikes/agente_a40.sh seleccion > /tmp/agente_a40_124.log 2>&1 < /dev/null & disown
+```
+
+| `think` | #188 | #124 |
+|---|---|---|
+| sin el campo | 25/26 | **25/26** |
+| `true` | 25/26 y 24/26 | **25/26** |
+| `false` (el agente no lo usa) | 13/26 | 11/26 |
+
+**La regla se cumple**, y por categorías las dos condiciones que razonan salen idénticas a las de #188. Ninguno de los dos fallos toca `analyze_headline`: sin el campo, una consulta de contraste («¿Cuántas papeletas tiene … de ser clickbait, en porcentaje?») eligió el léxico en vez del lineal (el contraste también salió 5/6 en #188); y con `true`, «¿Por qué es difícil detectar clickbait en español?» llamó a `describe_models`, el mismo fallo que en #188.
+
+#### Lo que queda
+
+- **Verlo en producción con el próximo despliegue**: un titular sobrio con un cuerpo que no le corresponde dará «Ambiguo» y no «Engañoso».
+- **El punto de operación de la issue, sin hacer**: `dedicada ∧ incoherencia` da precisión 0,852 (#92), y podría marcarse en la interfaz como «clickbait con alta confianza». No cambia el veredicto, y no entra aquí.
+
+### Los umbrales, configurables (#93, 5 oct 2026)
+
+La issue es del 4 de agosto: dos números cableados en los detectores, con un TODO cada uno —el umbral del léxico en `lexical.py` y el tope de pistas del lineal en `linear.py`—, y el de la incoherencia, que entonces estaba «sin calibrar». Eso último caducó con #92, que lo calibró; lo que pedía la issue seguía en pie. Entró en `v0.7` el 4 de octubre, con las demás que el autor quiso cerrar antes de la memoria.
+
+#### Qué se configura, y dónde vive cada número
+
+Dos ajustes nuevos en `settings.py`:
+
+- **`nlp_thresholds`**, un diccionario por señal como `nlp_models` (#119): `NLP_THRESHOLDS='{"detect_clickbait_lexical": 2}'`. Al revés que aquél, **sus claves son una lista cerrada**: sólo el léxico y la incoherencia deciden con un umbral, y una clave mal escrita sería un ajuste que no hace nada sin fallar. Así el proceso no arranca, como con `llm_prompt`. El del léxico, además, tiene que ser un entero desde 1: es un número de pistas, y con 1,5 la tarjeta diría «al menos 1,5 pistas» cuando la regla es «al menos 2».
+- **`nlp_linear_top_cues`**, cuántas pistas devuelve el lineal como explicación. Sólo recorta lo que se enseña: la probabilidad suma todas.
+
+**El valor por defecto sigue en el detector** (`lexical.THRESHOLD`, `IncoherenceDetector.THRESHOLD`, `linear.TOP_CUES`), que es donde está escrito por qué vale lo que vale, y los guiones de `evaluation/` siguen midiendo con él. La configuración sólo lo sustituye. Lo resuelve `factory.py` en cada llamada (`get_threshold`, `get_top_cues`), y los detectores lo **reciben**, como el modelo desde #119: ninguno lee `settings`, y la lista de excepciones de `tests/test_arquitectura.py` quedó igual. El detector de incoherencia se cachea por modelo y umbral, así que otro umbral es otro detector. Los tests comprueban lo que pedía la issue: cambiar la configuración **después** de importar cambia el veredicto, por las dos fachadas (la trampa de #87).
+
+#### El umbral del léxico, con su resultado
+
+La tarjeta del léxico decía «El veredicto es exactamente "¿disparó algún cue?"», y eso sólo es cierto con el umbral en 1. Con 2, la pantalla enseñaría «1 pistas encontradas» junto a un «no» y una explicación falsa: una regla copiada en la interfaz, el patrón de #116. La incoherencia ya lo resolvió en #133, enviando su umbral con el resultado, y el léxico hace ahora lo mismo: `SalidaLexica` gana `threshold` (contrato regenerado), y la nota sale de él. Con 1 dice lo de siempre; con otro, «¿hay al menos N pistas?»; y en un análisis guardado antes de #93, que no lo trae, no afirma ninguna regla.
+
+Comprobado en el navegador con una API local arrancada con `NLP_THRESHOLDS='{"detect_clickbait_lexical": 2}'`: «Spain wins the World Cup?» da en la tarjeta del léxico «no clickbait · 1 pistas encontradas · pregunta: ? · El veredicto es «¿hay al menos 2 pistas?»».
+
+#### La ficha avisa, sin quitar las medidas
+
+Con otro modelo, `ficha_efectiva` deja de publicar las medidas, porque eran de otro modelo (#119). Con otro umbral el modelo es el mismo, y límites como «sólo inglés» o «acoplada al léxico» siguen siendo ciertos; lo que deja de valer son las cifras de acierto, medidas con el umbral por defecto. **Decidido por el autor**: la ficha publica un aviso delante de sus limitaciones —«UMBRAL PUESTO POR CONFIGURACIÓN: 2 en lugar de 1. Las cifras de esta ficha se midieron con 1…»— y conserva el resto. Poner a mano el umbral que ya estaba no avisa de nada.
+
+#### El 0,5 del lineal se queda fuera
+
+La issue no lo incluía, y el autor preguntó si se podía calibrar como el de la incoherencia. Antes de decidir se midió si moverlo cambia algo, con [`backend/evaluation/eval_umbral_lineal.py`](backend/evaluation/eval_umbral_lineal.py):
+
+| Condiciones | |
+|---|---|
+| Fecha | 2026-10-05, 20:53 |
+| Máquina | WSL (Ubuntu) en el portátil, Python 3.12.3; sólo CPU (el léxico y el lineal son Python puro) |
+| Código | `b966174`; los pesos, `linear_clickbait.json` de `5a6d771` (16 jul), sin cambios desde entonces |
+| Datos | Chakraborty `dev` (#72; el `test` sigue congelado) y Webis-17 `validation170630` (19.484) |
+
+```bash
+.venv/bin/python -m backend.evaluation.eval_umbral_lineal
+```
+
+| Umbral | F1 en Chakraborty `dev` | F1 en Webis-17 |
+|---|---|---|
+| 0,30 | 0,871 | 0,446 |
+| **0,50** | **0,868** | **0,448** |
+| 0,60 | 0,862 | 0,451 |
+| 0,70 | 0,857 | 0,446 |
+| 0,80 | 0,830 | 0,436 |
+
+**La curva es plana.** La mitad de los titulares (el 50,0 % en Chakraborty y el 53,6 % en Webis-17) no dispara ninguna pista, y con el vector vacío todos reciben la misma probabilidad, la del intercepto: 0,163. El umbral no puede separar esos titulares entre sí; sólo reordena la otra mitad, que en su mayoría queda lejos de 0,5. El límite no es el corte sino el featurizado: el recall no puede pasar del 84,5 % en Chakraborty ni del 65,5 % en Webis-17, que es lo que ataca #75. (Las cifras de Webis-17 de la ficha son del split pequeño, `train170331`, y por eso no coinciden con éstas.)
+
+Y no habría criterio con el que elegir. En #92 lo había: un falso positivo de la incoherencia decidía «engañoso» por encima de la forma, y la precisión pesaba más que el recall. El lineal vota en la forma junto a otras dos señales, y en F1 el umbral no mueve nada. Además, #78 reentrena el modelo, y con otros pesos un umbral calibrado hoy dejaría de valer. **Decidido por el autor**: fuera de #93, y a #78 un punto para elegirlo en `dev` tras reentrenar, con el criterio escrito antes de mirar la curva ([comentario](https://github.com/codeurjc-students/2026-ClickBaitAnalysis/issues/78#issuecomment-6000045029)).
+
+*(Revisado en #78: elegido en `dev` tras reentrenar, se queda en 0,5. Con el lineal nuevo la curva ya no es plana por los vectores vacíos, pero el mejor corte, 0,40, sube el F1 medio de los dos dominios sólo 0,001. Ver «El lineal, sobre las palabras del titular y con Webis-17».)*
+
+#### R3.8, al día
+
+El matiz de R3.8 en `docs/requisitos.md` decía que el umbral de la incoherencia está «sin calibrar», y no lo estaba desde #92. Pasa a «calibrado (#92) y configurable (#93)». No cambia lo que el requisito pide, sólo un dato que había caducado.
+
+#### Lo que lee el agente, igual
+
+Los docstrings de las herramientas hablan del umbral sin dar su valor («`score` ≥ umbral», «por debajo del umbral»), y el esquema de salida no va en el catálogo que recibe el modelo. `spikes/catalogo_peso.py` da 10.318 caracteres antes y después, con el léxico en 866 de descripción y 159 de esquema, así que no se repitieron las 26 consultas.
+
+#### Las claves de API, en una traza
+
+Al ejecutar los tests nuevos contra el código de antes, uno falló con un `AttributeError` sobre `settings`, que aún no tenía `nlp_thresholds`. El mensaje de ese error incluye el `repr` del objeto, y pytest lo imprimió entero, **con las tres claves de API en claro**: la de Guardian, la de NYT y el token de Hugging Face. Quedaron en el registro de la sesión de trabajo.
+
+La causa era que las tres eran `str`. Ahora son `SecretStr`, cuyo `repr` es `'**********'`, y el valor se saca con `get_secret_value()` sólo donde se usa: los clientes de Guardian, NYT y Hugging Face, la sonda de salud y `spikes/guardian_temas.py`. Lo fija `tests/test_settings.py`, con claves de prueba: ni el `repr` ni el `str` de la configuración las enseñan. Lo decidió el autor dentro de esta issue. Lo que deja, para cualquier secreto nuevo: **un test que falla sobre un objeto imprime su `repr`**, así que un secreto guardado como cadena se escapa por cualquier fallo, no sólo por un log descuidado.
+
+#### Qué más entra
+
+- **Los tests, escritos antes**: 15 del backend y 3 specs de la tarjeta, que fallaban con el código de antes (las specs, dos de tres: la del umbral 1 protege el texto de siempre), más los 3 de las claves. **451 tests y 184 specs**; pyright, ruff y lint sin avisos.
+- **Los dobles de `test_analyze.py`**, con la firma nueva de `lexical.detect` y `linear.predict`. Uno pasaba con el código nuevo por un motivo equivocado: aislaba un `TypeError` del doble en vez del `KeyError` que dice probar.
+- **`eval_veredicto.py`** (#124) lleva los umbrales efectivos en la huella de su caché: con otro umbral, reutilizaría sin avisar los resultados del anterior. Con el léxico en 2, la huella pasa de `0af2fbb883f8` a `6c87a82d5ddb`.
+- **`docs/estructura.md`**, con el guion nuevo y una nota en «los umbrales no van en `config/`»: el valor por defecto sigue en el detector, y en `config/` sólo vive la sustitución. Y una nota en `docs/arquitectura.md`, que preveía meter `settings` en un detector para esta issue.
+
+#### Lo que queda
+
+- **El despliegue no lo lleva** (la máquina 1 sirve `828e2e0`). Sin configurar nada, lo servido no cambia salvo el `threshold` del léxico en su resultado. `outputs.py` se copia en la capa de modelos de la imagen (#162), así que el próximo despliegue la rehará.
+- **El umbral del lineal**, en #78. *(Hecho en #78: se queda en 0,5.)*
+
+### El modo de invocación, configurable (#159, 6 oct 2026)
+
+Desde #119 el modelo de cada señal se cambia por configuración, pero sólo el **id**: `detect_clickbait` llamaba siempre a su modelo como clasificador y traducía sus etiquetas con las del dedicado (`Clickbait`/`Not Clickbait`). Aquella misma issue midió las dos consecuencias. No se podía poner un modelo zero-shot, como `facebook/bart-large-mnli`, el que usaba la señal hasta #115. Y `elozano/bert-base-cased-clickbait-news`, que dice `Normal` donde el dedicado dice `Not Clickbait`, funcionaba con un titular clickbait y fallaba con uno factual: media convención coincidía. La issue es del 8 de septiembre, y entró en `v0.7` el 4 de octubre.
+
+#### Las cuatro decisiones, antes de escribir código
+
+**Decididas por el autor**, con la propuesta delante:
+
+1. **La forma**: una entrada de `NLP_MODELS` puede ser, además de la cadena de siempre, un objeto con el modelo, el modo y las etiquetas. El id y el modo van juntos porque tienen que casar entre sí.
+   ```
+   NLP_MODELS='{"detect_clickbait": {"id": "facebook/bart-large-mnli", "task": "zero-shot-classification"}}'
+   ```
+2. **Las etiquetas significan lo mismo en los dos modos**: qué palabra del modelo corresponde a cada etiqueta del contrato. En un clasificador, su vocabulario (`{"Clickbait": "clickbait", "Normal": "factual news"}` para `elozano`). En un zero-shot, **las etiquetas que se le preguntan**, y su redacción forma parte de la pregunta. Sin ellas, el clasificador usa las del dedicado y el zero-shot pregunta «clickbait» y «factual news», las mismas con que E3-02 y #109 midieron a BART. Al arrancar se comprueba que lleven a las dos etiquetas del contrato: si falta una, el modelo nunca podría darla.
+3. **Sólo `detect_clickbait`**: el sentimiento no traduce etiquetas y la incoherencia no usa `pipeline`. El objeto en otra señal no deja arrancar.
+4. **Los errores, medidos antes de escribirlos**, como en #158 y #162: lo siguiente.
+
+#### Los casos, provocados con los modelos de verdad
+
+[`spikes/invocacion_casos.py`](spikes/invocacion_casos.py) llama a cada modelo en cada modo con el `LocalNLPClient` de producción, sobre un titular clickbait y uno factual, y apunta lo que `transformers` escribe en su log. Con `--remoto`, lo mismo por la Inference API de Hugging Face.
+
+| Condiciones | |
+|---|---|
+| Fecha | 2026-10-06, 09:53, y repetido a las 12:23 sobre `75cd1dd`, con las mismas cifras; el remoto, a las 12:27 |
+| Máquina | WSL (Ubuntu) en el portátil, Python 3.12.3, `transformers` 5.12.0 y torch 2.12.1+cu130, que pone los modelos en la GTX (producción corre en CPU) |
+| Modelos (revisión) | `Stremie/roberta-base-clickbait` (`517de05db9ba`), `elozano/bert-base-cased-clickbait-news` (`af3154cf4325`), `facebook/bart-large-mnli` (`d7645e127eaf`) y `MoritzLaurer/DeBERTa-v3-base-mnli-fever-anli` (`6f5cf0a2b59c`) |
+| Titulares | «10 Amazing Things You Won't Believe» y «Federal Reserve raises interest rates by a quarter point» |
+
+```bash
+.venv/bin/python spikes/invocacion_casos.py --remoto
+```
+
+| Modelo y modo | Titular clickbait | Titular factual |
+|---|---|---|
+| el dedicado, como clasificador | Clickbait 0,967 | Not Clickbait 0,971 |
+| `elozano`, como clasificador | Clickbait 1,000 | **Normal** 1,000 |
+| BART, como zero-shot | clickbait 0,701 | factual news 0,830 |
+| DeBERTa, como zero-shot | clickbait 0,942 | factual news 0,944 |
+| **el dedicado, pedido como zero-shot** | factual news **0,506** | factual news 0,578 |
+| **BART, pedido como clasificador** | **neutral** 0,834 | neutral 0,959 |
+
+- ⚠️ **Un clasificador pedido como zero-shot NO falla.** El zero-shot lee la respuesta en la etiqueta de «entailment» de un modelo de inferencia (NLI); el dedicado no la tiene, y `transformers` sólo lo avisa en su log («Failed to determine 'entailment' label id…») y sigue con el último logit. Sale una moneda al aire con aspecto de resultado: «factual news» 0,506 para el titular clickbait. Por eso `local.py` lo comprueba al cargar el modelo (`entailment_id`) y falla antes de llamarlo, diciendo que no es de inferencia.
+- **Un modelo de inferencia pedido como clasificador** responde «neutral», y la señal ya fallaba porque esa etiqueta no está en la traducción. El mensaje dice ahora qué revisar: las etiquetas, o si hay que llamarlo como zero-shot.
+- **Por la vía remota, Hugging Face sigue sirviendo BART**, con las mismas puntuaciones que en local (0,7006 y 0,8297), mientras el dedicado da `400 Model not supported` (#127). Con `nlp_backend=remote`, un zero-shot configurado funcionaría donde la señal se cae (medido llamando al cliente remoto, no por `analyze()`).
+
+#### Qué entra
+
+- **`config/settings.py`**: `ModeloConInvocacion` y los dos validadores. Las etiquetas del contrato van también aquí (`EtiquetaDeClickbait`), porque `settings` no puede importar la señal; un test vigila que sean las de `dedicated.py`.
+- **`nlp/dedicated.py`**: `detect` recibe el modo y las etiquetas. Con zero-shot llama a `zero_shot` con las claves de la traducción como preguntas, y si no a `classify`. **La traducción es la misma en los dos caminos**, y su fallo nombra las dos causas medidas.
+- **`nlp/local.py`**: la comprobación del modelo de inferencia.
+- **`nlp/factory.py`**: `get_invocacion` resuelve, en cada llamada, el modelo con su modo. `ficha_efectiva` publica el modo y lo que se le pregunta: el nombre lleva «zero-shot», la tarea lo dice, y una limitación enumera las preguntas («se le pregunta entre «clickbait» (→ clickbait) y «factual news» (→ factual news)…»). El mismo id con otro modo también cuenta como cambiado, porque es otra señal.
+- **Quien llama**: el orquestador (`_detectar_clickbait`, que usan el análisis y `precalentar`) y la herramienta MCP.
+- **`evaluation/eval_veredicto.py`**: el modo y las etiquetas, en la huella de su caché.
+- **16 tests, escritos antes**, que fallaban con el código de antes. **467 tests**; pyright y ruff sin avisos.
+
+#### Comprobado por el camino de producción
+
+El mismo guion con `--analisis` pasa cada configuración por `analyze()`, validada como al arrancar, con los dos titulares. Uno solo no basta: así se escapó lo de `elozano` en #119. Sobre `75cd1dd`, a las 12:23.
+
+| Configuración de `detect_clickbait` | Titular clickbait | Titular factual |
+|---|---|---|
+| sin configurar | clickbait 0,967 | factual news 0,971 |
+| BART como zero-shot | clickbait 0,701 | factual news 0,830 |
+| DeBERTa como zero-shot | clickbait 0,942 | factual news 0,944 |
+| **BART con otra pregunta** («sensationalist headline» / «news report») | clickbait **0,987** | factual news **0,662** |
+| `elozano` con sus etiquetas | clickbait 1,000 | factual news 1,000 |
+| `elozano` sin ellas | clickbait 1,000 | error: «Normal» no está en la traducción |
+| el dedicado como zero-shot | error: no es de inferencia | error: no es de inferencia |
+| BART como clasificador | error: «neutral»… llamarlo como zero-shot | el mismo error |
+
+**La fila de «otra pregunta» es la que justifica publicar las etiquetas en la ficha**: con el mismo modelo y los mismos titulares, cambiar la redacción de las etiquetas mueve el clickbait de 0,701 a 0,987 y el factual de 0,830 a 0,662. La tarjeta lo rotula como «facebook/bart-large-mnli (zero-shot, puesto por configuración)».
+
+No es una comparación de calidad entre modelos: dos titulares sirven para ver que el camino funciona, no para medir quién acierta más. Eso lo hicieron #109 y #115 con corpus enteros.
+
+#### El docstring que lee el agente, en dos intentos
+
+El docstring de la herramienta decía «Es un clasificador neuronal afinado para esta tarea…», que con un zero-shot configurado sería falso. **El autor pidió cambiarlo** en vez de dejarlo y contarlo aquí. Desde #188, un docstring de herramienta sólo cambia con las 26 consultas como examen, y la regla se publicó en la issue antes de medir ([comentario](https://github.com/codeurjc-students/2026-ClickBaitAnalysis/issues/159#issuecomment-6014049769)), la misma que en #124: **se queda si la selección razonando no baja de 24/26 en ninguna de las dos condiciones que razonan**.
+
+| Condiciones | |
+|---|---|
+| Fecha | 2026-10-06: primera variante, 12:11–12:22 sobre `75cd1dd`; segunda, 12:36–12:47 sobre `b62caad` |
+| Máquina | La A40 de la máquina 2, con Ollama 0.34.2 y `gpu-sesion` `6ad6a751d636`; el guion corre en WSL por un túnel propio |
+| Modelo | `qwen3.5:27b` (`7653528ba5cb`), con las condiciones de #188: `num_ctx` 8192, `04-preciso`, el muestreo del Modelfile, sin el aviso del historial ni la vuelta más |
+| Guion | `spikes/agente_a40.py` `963fafdbf3bb`, el de #124 |
+| Datos | [`seleccion-159.json`](spikes/agente_a40/seleccion-159.json) y [`seleccion-159b.json`](spikes/agente_a40/seleccion-159b.json) |
+
+```bash
+AGENTE_A40_JSON=spikes/agente_a40/seleccion-159b.json setsid nohup bash spikes/agente_a40.sh seleccion > /tmp/agente_a40_159b.log 2>&1 < /dev/null & disown
+```
+
+| `think` | #124 | Primera variante | Segunda variante |
+|---|---|---|---|
+| sin el campo | 25/26 | **23/26** | **26/26** |
+| `true` | 25/26 | 24/26 | 25/26 |
+| `false` (el agente no lo usa) | 11/26 | 9/26 | 14/26 |
+| catálogo | 10.318 | 10.369 | 10.480 caracteres |
+
+**La primera variante no pasó** (23/26 sin el campo). Describía el tipo y no al ocupante, como pedía #183: «Es un modelo neuronal entrenado fuera de este proyecto; cuál es, y si clasifica o elige entre etiquetas que se le dan (zero-shot), lo dice `describe_models`». Comparada consulta a consulta con #124, cambiaban tres de contraste, y una apuntaba al docstring: «Clasifica '5 Signs You Need a Vacation' con el clasificador afinado sobre anotación humana» se fue al lineal, porque la variante quitaba justo esas palabras. Las otras dos no tocaban lo cambiado (la frontera léxico–lineal, y una que pidió `analyze_headline`).
+
+**La segunda, elegida después de ver esos datos** y publicada como tal antes de medirla ([comentario](https://github.com/codeurjc-students/2026-ClickBaitAnalysis/issues/159#issuecomment-6014453539)), conserva al ocupante por defecto y añade el caso configurado:
+
+> Por defecto es un clasificador neuronal afinado para esta tarea sobre titulares anotados por personas, fuera de este proyecto; por configuración puede ser otro, también un zero-shot que elige entre etiquetas que se le dan (`describe_models` dice cuál).
+
+**Pasó** (26/26 y 25/26), y la consulta que fallaba por el docstring vuelve a `detect_clickbait`. Con `true` sólo falla la de siempre, «¿Por qué es difícil detectar clickbait en español?», que llama a `describe_models` como en #188 y #124. **El 26/26 no se lee como una mejora**: la consulta que gana respecto a #124 es la de las «papeletas», que está en la frontera léxico–lineal y falló en #188 y en #124, y cada variante tuvo una sola sesión con el muestreo del Modelfile. Lo que dice la medida es que la regla se cumple. Si la segunda tampoco hubiera pasado, se volvía al docstring de antes sin más intentos (escrito en el comentario).
+
+La lección vale para cualquier docstring: **describir el tipo y no al ocupante (#183) no basta si el ocupante por defecto es lo que el usuario nombra**. Quien pregunta por «el clasificador afinado sobre anotación humana» describe al dedicado, y el modelo del agente necesita esas palabras para encontrarlo.
+
+#### Lo que no cambia
+
+- **La salida de la señal**: las etiquetas del contrato, y la regla del voto (`label == "clickbait"`), que no sabe qué modelo hay debajo.
+- **Sin configurar, nada**: la señal llama al dedicado como clasificador con sus etiquetas, y la ficha es la declarada.
+- **Con otro modelo o modo, las medidas de la ficha no se publican** (#119): un zero-shot puesto a mano es un experimento, no una señal caracterizada.
+
+#### Lo que queda
+
+- **Un clasificador servido por Hugging Face y pedido como zero-shot**: sin medir, porque Hugging Face no sirve ningún clasificador de clickbait. La comprobación del modelo de inferencia está sólo en `local.py`.
+
+### El lineal, sobre las palabras del titular y con Webis-17 (#78 y #75, 7 oct 2026)
+
+El lineal de E5-06 era una regresión logística sobre las 390 pistas del léxico (sus cuatro patrones y sus listas de palabras), entrenada sólo con Chakraborty. Tres secciones habían medido sus límites por caminos distintos. En #109 resultó ser una función del léxico: la mitad de los titulares no dispara ninguna pista y a todos ellos les da la misma probabilidad, 0,163, así que su techo de recall en el extracto de Webis-17 era del 67,5 %; y de ahí concluyó que #75 —cambiar las pistas por el vocabulario del titular— era el prerrequisito de #78 —reentrenar con más de un dominio—, porque rellenar ese hueco desacoplaría las dos señales y levantaría el techo a la vez. En #121 el léxico estaba ya en ese techo. Y en #93 la curva del umbral del lineal salió plana por lo mismo, y el umbral se dejó para aquí. Las dos issues entraron juntas en `v0.7` el 4 de octubre. El cuerpo de #78 traía dos datos caducados: el 31 % de clickbait es del extracto pequeño de Webis-17 (`validation170630` tiene el 24,2 %), y el corpus grande estaba bajado desde #121.
+
+#### El diseño y la regla, antes de medir
+
+Se publicaron en la issue antes de ejecutar nada ([comentario](https://github.com/codeurjc-students/2026-ClickBaitAnalysis/issues/78#issuecomment-6015449115)). Todas las variantes usan la misma regresión logística (`LogisticRegression(max_iter=1000)`, sin tocar `C`): el algoritmo no es la palanca; los rasgos y los datos, sí.
+
+**Los rasgos** (#75): F0, las pistas de siempre, como referencia; F1, las palabras del titular en presencia o ausencia (`CountVectorizer` binario, `min_df=2`), partidas como en el léxico, más sus cuatro patrones de estructura (número inicial, interrogación, mayúsculas y puntos suspensivos), que una palabra suelta no ve; y F2, lo mismo con TF-IDF. Cada una, con y sin Webis-17 en el entrenamiento.
+
+**Los datos** (#78):
+
+| | Chakraborty | Webis-17 |
+|---|---|---|
+| Entrenar | `train` (19.200), de #72 | `train170331` (2.458): el extracto de #76, sin el titular que está también en `validation170630` |
+| Elegir | `dev` (6.400) | `webis_dev`: el 20 % de `validation170630`, estratificado con semilla 24 (3.896) |
+| Probar, una sola vez | `test` (6.400), congelado desde #72 | `webis_test`: el 80 % restante (15.588, 3.773 clickbait) |
+
+Así `validation170630`, el corpus de las evaluaciones grandes (#92, #121, #124), no entrena el lineal. Las dos particiones nuevas se guardan en `data/splits/` con su `id`, como las de #72 (`python -m backend.evaluation.splits webis`). El coste, aceptado al diseñar: medir el lineal sobre `train170331` deja de ser la validación externa que fue en #76.
+
+**La regla**: (1) en `dev` gana el mejor F1 en Webis entre las combinaciones que no bajen el de Chakraborty más de 0,02 respecto al lineal actual; (2) en `test`, la ganadora se queda sólo si el F1 en Webis sube al menos 0,05 y el de Chakraborty no baja más de 0,02 de 0,865; y (3) el umbral se elige en `dev` y se queda en 0,5 salvo que otro corte suba el F1 medio de los dos dominios al menos 0,01. Siempre F1 por dominio, nunca sobre los dos corpus mezclados.
+
+#### Los rasgos en `dev`: lo que preguntaba #75
+
+| Condiciones | |
+|---|---|
+| Fecha | 2026-10-06, publicado en la issue de 14:31 a 14:38; repetido el 7 oct sobre `6d21055`, con las mismas cifras |
+| Máquina | WSL (Ubuntu) en el portátil, Python 3.12.3 y scikit-learn 1.9.0; sólo CPU |
+| Guion | [`backend/evaluation/eval_reentreno.py`](backend/evaluation/eval_reentreno.py), con el umbral en 0,5 |
+
+```bash
+.venv/bin/python -m backend.evaluation.splits webis
+.venv/bin/python -m backend.evaluation.eval_reentreno
+```
+
+| Rasgos | Datos | Rasgos aprendidos | F1 Chakraborty `dev` | F1 `webis_dev` | Vectores vacíos en Webis | Techo de recall en Webis |
+|---|---|---|---|---|---|---|
+| el lineal de antes | — | 390 | 0,868 | 0,455 | 53,7 % | 66,0 % |
+| F0 pistas | Chakraborty | 390 | 0,868 | 0,455 | 53,7 % | 66,0 % |
+| F1 palabras | Chakraborty | 9.852 | 0,969 | 0,508 | 0,5 % | 98,1 % |
+| F2 tf-idf | Chakraborty | 9.852 | 0,962 | 0,532 | 0,5 % | 98,1 % |
+| F3 tf-idf normalizado | Chakraborty | 9.661 | 0,961 | 0,530 | 0,5 % | 98,1 % |
+| F0 pistas | + Webis | 390 | 0,861 | 0,478 | 53,7 % | 66,0 % |
+| F1 palabras | + Webis | 11.196 | 0,964 | 0,520 | 0,4 % | 98,4 % |
+| **F2 tf-idf** | **+ Webis** | 11.196 | **0,959** | **0,544** | 0,4 % | 98,4 % |
+| **F3 tf-idf normalizado** | **+ Webis** | 10.812 | **0,958** | **0,542** | 0,4 % | 98,4 % |
+
+- **F0 con Chakraborty reproduce el lineal de antes** cifra a cifra: el guion mide lo mismo que la señal servida.
+- **Las palabras sacan al lineal de su techo**, que era el del featurizado y no el de los pesos, como había dicho #109: los vectores vacíos pasan del 53,7 % al 0,5 %, y el techo de recall, del 66,0 % al 98,1 %. Con los mismos datos, entre +0,09 y +0,10 en Chakraborty y entre +0,05 y +0,08 en Webis.
+- **TF-IDF frente a presencia o ausencia**, la pregunta literal de #75: TF-IDF gana en Webis (0,508 → 0,532 sin Webis en el entrenamiento, 0,520 → 0,544 con él) y cede algo en Chakraborty (0,969 → 0,962).
+- **Webis en el entrenamiento** sube Webis poco (+0,012 con F2) y baja Chakraborty menos (−0,003).
+
+**La regla elegía F2 con Webis** (el suelo de Chakraborty era 0,848). Pero sus pesos traían vocabulario de época y de formato de tuit: `2015` (+3,95), `2007`, `2008`, `rt` y `http`. Un titular cualquiera con «2015» sumaría hacia clickbait. **Después de ver esos pesos, y antes de medirla**, se añadió F3, y se declaró así en la issue ([comentario](https://github.com/codeurjc-students/2026-ClickBaitAnalysis/issues/78#issuecomment-6016299185)): F2 sin enlaces, menciones ni la marca `RT` de los tuits, y con cada número convertido en un rasgo `<number>`.
+
+F2 y F3 empataron: F1(F2) − F1(F3) en `webis_dev` = +0,0019, con un intervalo del 95 % de [−0,0039, +0,0084] (bootstrap emparejado, 2.000 remuestreos, semilla 24), y discrepan en 61 de 3.896 titulares. **Al pie de la letra la regla elegía F2, pero no preveía un empate dentro del ruido, y el autor eligió F3** ([comentario](https://github.com/codeurjc-students/2026-ClickBaitAnalysis/issues/78#issuecomment-6016371190)): quita los rasgos de época y de formato sin coste medible, y el producto analiza titulares cualquiera, no los de estos dos corpus.
+
+#### La prueba final, una sola vez
+
+```bash
+.venv/bin/python -m backend.evaluation.eval_reentreno --test
+```
+
+| | El lineal de antes | F3 con Webis |
+|---|---|---|
+| **`webis_test`** (15.588): P / R / F1 | 0,408 / 0,494 / 0,447 | 0,464 / 0,628 / **0,534** |
+| vectores vacíos · techo de recall | 53,3 % · 65,5 % | 0,5 % · 98,1 % |
+| **Chakraborty `test`** (6.400): P / R / F1 | 0,928 / 0,810 / 0,865 | 0,979 / 0,943 / **0,961** |
+| vectores vacíos · techo de recall | 50,2 % · 84,1 % | 0,0 % · 100,0 % |
+
+Webis sube +0,087 (hacían falta +0,05) y Chakraborty queda en 0,961 (el suelo era 0,845): **se queda** ([comentario](https://github.com/codeurjc-students/2026-ClickBaitAnalysis/issues/78#issuecomment-6016433011)). El lineal de antes reproduce en `test` el 0,865 de su ficha. En Chakraborty, parte de la subida es vocabulario de fuente, y lo cuenta el apartado siguiente.
+
+#### Lo que aprendió, y lo que no se esperaba
+
+Los pesos de F3, que lista el mismo guion:
+
+- **A favor**: `<leading_number>` (+12,12), `you` (+9,62), `this` (+8,14), `your` (+7,36), `these` (+5,36), `how` (+5,32) y `here's` (+4,97). La segunda persona y las referencias hacia delante («this», «these», «here's»), la misma familia que la categoría `forward_reference` del léxico, aprendidas con su peso.
+- **En contra**: `in` (−4,01), `wins` (−3,07), `says` (−2,73), `court` (−2,70), `dies` (−2,68), `uk` (−2,64), `dead` (−2,48), `obama` (−2,14) y `china` (−2,13). El vocabulario de la noticia dura, y el de la fuente: `wikinews` (−1,83), uno de los medios de los que Chakraborty sacó sus titulares no clickbait, dice de dónde viene un titular y no si es clickbait. Allí las etiquetas son por medio, y eso explica parte del 0,961. No se poda a mano: va como límite en la ficha.
+- **Tres de los cuatro patrones pesan EN CONTRA**: interrogación −1,59, mayúsculas −1,49 y puntos suspensivos −1,51; el número inicial, +12,12, y `<number>`, +1,79. Donde el léxico ve una pista de clickbait, el lineal puede restar. **No se ha medido por qué.** Las hipótesis, escritas como tales en la ficha, son que las palabras interrogativas (`why`, `how`) ya llevan el peso de la pregunta, y que en los tuits de Webis-17 los puntos suspensivos son de recorte —#76 ya lo vio en sus errores— y las mayúsculas, de «BREAKING».
+- **Se desacopla del léxico**, que era el bug 2 de [`docs/estructura.md`](docs/estructura.md): ahora sólo comparten la manera de partir las palabras y los cuatro patrones. Con `eval_reentreno --ficha`:
+
+| Acuerdo con el léxico (umbral 1) | Antes | Ahora |
+|---|---|---|
+| Chakraborty `dev` | 94,0 % · kappa 0,880 | 85,8 % · kappa 0,715 |
+| `webis_dev` | 82,8 % · kappa 0,644 | 69,2 % · kappa 0,368 |
+
+#109 predijo que rellenar el hueco de los vectores vacíos desacoplaría las dos señales **y** levantaría el techo, con una sola intervención. Se cumplió.
+
+#### El umbral sigue en 0,5
+
+El punto que #93 dejó aquí, con la tercera parte de la regla (`eval_reentreno --umbral`, sobre el lineal de producción):
+
+| Umbral | F1 Chakraborty `dev` | F1 `webis_dev` | F1 medio |
+|---|---|---|---|
+| 0,30 | 0,957 | 0,522 | 0,740 |
+| 0,40 | 0,961 | 0,540 | **0,751** |
+| **0,50** | 0,958 | 0,542 | **0,750** |
+| 0,60 | 0,942 | 0,536 | 0,739 |
+| 0,70 | 0,920 | 0,506 | 0,713 |
+
+El mejor corte, 0,40, sube el F1 medio 0,001, lejos del +0,01 que pedía la regla. La curva ya no es plana por los vectores vacíos, pero tiene la cima ancha. El 0,5 sigue sin ser configurable.
+
+#### La señal: los mismos rasgos, en Python puro
+
+- **`linear.rasgos()` es la única definición de los rasgos**: el entrenamiento la usa como analizador de `TfidfVectorizer`, y la señal, para partir el titular. Parte las palabras con `lexical.TOKEN`, el patrón del léxico, que se sacó a nombre propio para que las dos señales partan igual, y mira los patrones sobre el titular sin pasar a minúsculas, que es donde se ven las mayúsculas.
+- **`linear.vectorizar()` replica `TfidfVectorizer`** con sus valores por defecto —cuántas veces aparece cada rasgo por su idf, y el vector normalizado a longitud 1— sin `sklearn` en ejecución, como desde E5-07: la señal sigue sin dependencias.
+- **La paridad, vigilada**: `train_linear.py` guarda en el JSON una `comprobacion` con los diez primeros titulares de cada `dev` y la probabilidad que les da `sklearn`, y `tests/integrations/test_lineal.py` exige que la señal dé lo mismo, con una tolerancia de 1e-9. Si alguien cambia `rasgos()` sin reentrenar, falla.
+- **El JSON**: 667 KB con 10.812 rasgos (antes 390), el peso y el idf de cada uno, y el intercepto (−1,494). Se regenera con `python -m backend.evaluation.train_linear`.
+- **El lineal de antes, congelado** en [`backend/evaluation/lineal_pistas.py`](backend/evaluation/lineal_pistas.py), con una copia de sus pesos. `eval_featurizado`, `eval_acoplamiento` y `eval_umbral_lineal` lo importan, porque lo que midieron era ese lineal, y siguen dando sus cifras: el 0,868 y el 0,448 de #93, y el acuerdo forzado del 100 % de #109.
+- **El contrato no cambia**: `top_cues` sigue siendo una lista de pares (rasgo, contribución), con la contribución ahora como peso × tf-idf. Cambian los nombres de los rasgos: palabras, y patrones entre `< >`.
+
+#### La ficha y la tarjeta
+
+En `model_cards.py` el nombre pasa a «Regresión logística sobre las palabras del titular (entrenada en Chakraborty y Webis-17)», y las limitaciones se reescriben con lo medido aquí: el F1 por dominio con el de antes al lado, el vocabulario de fuente, el desacoplamiento con su kappa, los vectores vacíos y el techo, una explicación hecha de palabras que a veces no se entienden solas (`the` a favor, `in` en contra), los patrones que pesan en contra, que `train170331` ya no es validación externa, y sólo inglés. En la ficha del léxico, las frases que comparaban con el lineal pasan a decir «el lineal de entonces», con #109.
+
+En la pantalla, los patrones salían con su nombre de máquina (`<leading_number>`). Ahora se leen en castellano y en cursiva, con la tabla que ya traducía las categorías del léxico (`nombreDeRasgo`, en `senales/vocabulario.ts`) y `<number>` como «cualquier número»; las palabras llevan `lang="en"`, porque son del titular. Lo guardado con el lineal de antes trae los patrones sin `< >`, y así no se distinguen de una palabra (`question` es también la palabra inglesa): se pinta como llegó. Comprobado en el navegador con la API local.
+
+#### Los docstrings que lee el agente, en dos sesiones
+
+Con el lineal nuevo, dos docstrings eran falsos. El del lineal decía «una regresión logística sobre pistas léxicas (hipérbole, referencias vagas, listas numeradas…), en la que cada pista tiene un peso visible»; el del léxico, que el lineal «pondera estas mismas pistas». La primera versión, `v1` (`a54f14c`), dice en el lineal:
+
+> Es el modelo entrenado en este proyecto: una regresión logística sobre las palabras del titular y su estructura (número inicial, interrogación…), en la que cada palabra tiene un peso visible. El veredicto se explica con las que más pesaron. Para la opinión de un modelo sin pesos visibles, `detect_clickbait` (caja negra). Pensada para inglés.
+
+La contribución pasa de «peso × frecuencia» a «peso × tf-idf», y en el léxico el lineal pondera «las palabras del titular». El catálogo, de 10.480 a 10.486 caracteres (`spikes/catalogo_peso.py`).
+
+**La primera sesión no pasó la regla de siempre**, ≥ 24/26 en las dos condiciones que razonan, publicada antes ([comentario](https://github.com/codeurjc-students/2026-ClickBaitAnalysis/issues/78#issuecomment-6017635464)):
+
+| `think` | #159 | `v1` |
+|---|---|---|
+| sin el campo | 26/26 | **23/26** |
+| `true` | 25/26 | 25/26 |
+| `false` (el agente no lo usa) | 14/26 | 10/26 |
+
+Los fallos nuevos eran dos consultas que llamaron a `describe_models` cuando lo correcto era no llamar a nada —«Explícame cómo funciona una regresión logística», que podía venir del cambio, y «¿Por qué es difícil detectar clickbait en español?», que con `true` falla en las cuatro sesiones—, más la de las «papeletas», que falla casi siempre.
+
+**Pero el umbral de 24/26 está dentro del ruido entre sesiones**: con descripciones casi iguales, el mismo examen había dado 23, 25 y 26, porque el muestreo del Modelfile (temperatura 1, la condición de #188) cambia de una sesión a otra. **Por decisión del autor, después de ver esa sesión y antes de medir otra vez**, la regla pasó a ser relativa y medida dentro de una sola sesión, intercalada como pide #192, y se publicó así ([comentario](https://github.com/codeurjc-students/2026-ClickBaitAnalysis/issues/78#issuecomment-6018323652)):
+
+- Tres variantes de los dos docstrings, **intercaladas** y **repetidas dos veces**, con las 26 consultas sin el campo y con `true`: `antes`, los textos de #159, falsos con el lineal nuevo y sólo como vara de medir; `v1`; y `v2`, el texto de antes cambiando sólo lo falso («una regresión logística sobre las pistas del titular —sus palabras y su estructura—…»).
+- Una variante se queda si (a) su total en las cuatro pasadas (104 consultas) no baja más de 2 del de `antes`, y (b) ninguna consulta que `antes` acierta en sus cuatro pasadas falla en las cuatro de la variante. Con preferencia por `v1`.
+
+Para eso `spikes/agente_a40.py` tiene una sexta parte, `variantes`, que cambia la descripción de las dos herramientas en el mismo objeto `mcp` de producción y la devuelve al terminar, y `spikes/agente_a40.sh` acepta la duración de la sesión (`AGENTE_A40_MAX_MIN`).
+
+| Condiciones | |
+|---|---|
+| Fecha | 2026-10-06: primera sesión a las 15:46, sobre `a54f14c`; variantes de 16:24 a 17:06, sobre `cd92aab` |
+| Máquina | La A40 de la máquina 2, con Ollama 0.34.2 y `gpu-sesion` `6ad6a751d636`; el guion corre en WSL por un túnel propio |
+| Modelo | `qwen3.5:27b` (`7653528ba5cb`), con las condiciones de #188: `num_ctx` 8192, `04-preciso`, el muestreo del Modelfile, sin el aviso del historial ni la vuelta más |
+| Guion | `spikes/agente_a40.py`: `963fafdbf3bb` en la primera sesión, el de #124 y #159; `176e85d47384` en las variantes |
+| Datos | [`seleccion-78.json`](spikes/agente_a40/seleccion-78.json) y [`variantes-78.json`](spikes/agente_a40/variantes-78.json) |
+
+```bash
+AGENTE_A40_MAX_MIN=60 AGENTE_A40_JSON=spikes/agente_a40/variantes-78.json setsid nohup bash spikes/agente_a40.sh variantes > /tmp/agente_a40_78v.log 2>&1 < /dev/null & disown
+.venv/bin/python spikes/agente_a40.py --analisis spikes/agente_a40/variantes-78.json
+```
+
+| | 1.ª repetición | 2.ª repetición | Total (de 104) |
+|---|---|---|---|
+| `antes` | 50 | 48 | **98** |
+| `v1` | 49 | 50 | **99** |
+| `v2` | 48 | 48 | **96** |
+
+Las dos cumplen: (a) 99 y 96 frente al mínimo de 96, y (b) ninguna consulta rota. Por la preferencia publicada **se queda `v1`**, que ya estaba en `tool.py` ([comentario](https://github.com/codeurjc-students/2026-ClickBaitAnalysis/issues/78#issuecomment-6019404448)). Aciertos, de cuatro, de las consultas que alguna variante falla alguna vez:
+
+| `antes` | `v1` | `v2` | Consulta |
+|---|---|---|---|
+| 4 | 4 | 3 | 'You Won't Believe What Happened Next' — ¿es un titular engañoso? |
+| 4 | 3 | 4 | Compara titular y contenido: titular 'Miracle Diet Works', cuerpo 'A small study shows modest effects' |
+| 4 | 4 | 3 | ¿Qué es el clickbait? Explícamelo en dos frases. |
+| 3 | 4 | 3 | Explícame cómo funciona una regresión logística |
+| 2 | 1 | 0 | ¿Por qué es difícil detectar clickbait en español? |
+| 3 | 4 | 4 | ¿Cuántas papeletas tiene 'You Won't Guess What She Did' de ser clickbait, en porcentaje? |
+| 4 | 3 | 4 | Puntúa 'Ten Foods Doctors Never Eat' y dime qué pistas pesan más en la nota |
+| 2 | 4 | 3 | ¿Con qué peso contribuye cada palabra de 'Amazing Secrets Revealed' al veredicto? |
+
+- **Las diferencias entre variantes, de 96 a 99, son del tamaño del ruido**: `antes` dio 50 y 48 en sus dos repeticiones con el mismo texto. El 23/26 de la primera sesión no era el docstring: «Explícame cómo funciona una regresión logística», uno de aquellos fallos, sale aquí 4 de 4 con `v1`.
+- **La consulta del peso de cada palabra**, en la frontera léxico–lineal de #183, pasa de 2 de 4 con `antes` a 4 de 4 con `v1`, que dice «cada palabra tiene un peso visible». Es una sola consulta y cuatro intentos: se cuenta, no se generaliza.
+- **«¿Por qué es difícil detectar clickbait en español?» falla con los tres textos** (2, 1 y 0): no depende de estos dos docstrings.
+
+La lección vale para el próximo docstring: **un umbral absoluto sobre una sola sesión mide también la suerte de esa sesión.** La regla relativa compara con el texto de antes en las mismas condiciones, y la repetición enseña cuánto se mueve el mismo texto.
+
+#### El veredicto global
+
+[`eval_veredicto.py`](backend/evaluation/eval_veredicto.py) (#124) pasa los 19.484 pares de `validation170630` por `analyze()`. Con el lineal nuevo cambia la huella de su caché y se recalcula entero. Las cifras de antes son las de #124, que la caché anterior reproduce exactas.
+
+| Condiciones | |
+|---|---|
+| Fecha | 2026-10-06, 17:15, sobre `cd92aab` (huella `669a9c175fc1`) |
+| Máquina | WSL en el portátil, con torch 2.12.1+cu130 en la GTX, como en #124 (producción corre en CPU) |
+
+```bash
+NLP_BACKEND=local .venv/bin/python -m backend.evaluation.eval_veredicto
+```
+
+| Con «veto si discrepa», la regla de producción | Lineal de antes | Lineal de #78 |
+|---|---|---|
+| F1 del lineal solo | 0,448 | 0,535 |
+| «Es clickbait» frente a la etiqueta humana: P / R / F1 | 0,699 / 0,576 / 0,632 | 0,696 / 0,595 / **0,641** |
+| F1 en los 6.808 unánimes | 0,788 | **0,804** |
+| `factual` / `ambiguous` / `stylistic_clickbait` | 44,3 % / 35,8 % / 13,3 % | 40,0 % / 39,3 % / 13,9 % |
+| Clickbait dentro de `factual` | 5,2 % | 4,7 % |
+| Precisión de `deceptive` | 73,1 % | 72,0 % |
+
+Sube el recall sin perder precisión: `factual` pierde 838 titulares y `ambiguous` gana 698 (saldos netos), y lo que queda en `factual` es más limpio. Es un efecto pequeño, contado sin intervalo. Y **#124 sigue en pie**: con la forma unánime en «no», `deceptive` acierta el 12,8 % (141 pares; antes, 13,3 % de 165), y con la forma en discrepancia, el 66,6 % (877; antes, 68,4 % de 862); las dos mitades vuelven a elegir «veto si discrepa» (13,8 % y 11,8 %; 67,6 % y 65,6 %), y `_overall` coincide con lo que devolvió `analyze()` en los 19.484. `validation170630` incluye el 20 % (`webis_dev`) con el que se eligieron los rasgos; restringido a `webis_test` las conclusiones no cambian, pero no se citan cifras porque ese recorte no tiene guion en el repositorio.
+
+#### Qué entra
+
+- **`evaluation/splits.py`**: `webis_dev` y `webis_test`, con su `id`.
+- **`evaluation/eval_reentreno.py`**, nuevo: la comparación en `dev`, `--test`, `--umbral` y `--ficha`.
+- **`evaluation/lineal_pistas.py`** y su JSON, nuevos: el lineal de antes, congelado; los tres guiones que lo medían lo importan.
+- **`nlp/linear.py`**, reescrito: `rasgos`, `vectorizar` y `predict`, con `pesos()` leyendo el JSON en el primer uso como desde #108. **`nlp/lexical.py`**: `TOKEN`.
+- **`evaluation/train_linear.py`**, reescrito, y **`linear_clickbait.json`**, regenerado.
+- **`model_cards.py`**, **`nlp/tool.py`** (los dos docstrings) y la tarjeta en **`frontend/src/app/senales/`**.
+- **`spikes/agente_a40.py`** y **`.sh`**: la parte `variantes`, `--analisis` y la duración configurable.
+- **Tests**: `test_lineal.py`, 6 nuevos; **473 tests**. En el frontend, 3 specs nuevos (187).
+
+#### Lo que no cambia
+
+- **La salida de la señal**: `is_clickbait`, `probability` y `top_cues`, con el umbral en 0,5 y el tope de pistas de #93 (`nlp_linear_top_cues`).
+- **Los prompts del agente.** `05-llano`, el de por defecto desde #192, dice que el lineal «da una probabilidad y dice qué palabras pesan más», que sigue siendo cierto. **`03-estricto` y `04-preciso` dicen ahora algo falso**, «probabilidad ponderada sobre esas mismas pistas», y se dejan como están: son el registro de lo que se midió con ellos, y cambiarlos exigiría medirlos otra vez.
+- **El léxico**: sus listas, su umbral y su resultado.
+- **Producción**: la máquina 1 sirve `828e2e0`, sin el lineal nuevo.
+
+#### Lo que queda
+
+- **Por qué tres patrones pesan en contra**: las hipótesis, sin medir.
+- **El vocabulario de fuente** (`wikinews`, `obama`, `uk`): no se poda a mano, y quitarlo de verdad pediría un corpus con etiquetas que no fueran por medio; en inglés no hay más (medido el 25 de agosto).
+- **`truthMean` como objetivo graduado** —la media de los cinco anotadores de Webis-17 en vez de la etiqueta binaria—: fuera desde el diseño, para #217.
+- **«Top 5 Secrets Finally Revealed»**, el ejemplo que #217 dejaba «para #75»: el lineal ya lo ve, con `revealed` (+0,57) y `finally` (+0,49) a favor y `top` en contra, pero da 0,427, por debajo de 0,5. El de antes daba 0,163 sin ningún rasgo, y el léxico sigue sin ninguna pista.
+  ```bash
+  .venv/bin/python -c "from backend.integrations.nlp import linear; print(linear.predict('Top 5 Secrets Finally Revealed'))"
+  ```
+- **«¿Por qué es difícil detectar clickbait en español?»** falla con los tres docstrings: no es de éstos, y viene de #188.
+- **Sólo inglés.**
+
+### El cierre de `v0.7`, comprobado en producción (7 oct 2026, PR #227)
+
+`v0.7` nació el 1 de octubre para lo que H5 dejó abierto, en paralelo con la memoria y hasta la congelación del 15 de diciembre. El 4 de octubre el autor le trajo cinco issues del trabajo futuro (#217) para cerrarlas antes de escribir. Todas estaban hechas el 7 de octubre, y lo siguiente era el análisis en español, que cambia R3.4 y toca casi todas las señales: **se le dio un hito propio, `v0.8`, y se cerró antes `v0.7`**, para que quede publicada una versión sin él (ver el plan, arriba).
+
+| Issue | PR | Qué entra |
+|---|---|---|
+| #212 | #218 | NYT deja de disfrazar un fallo de «No articles found» |
+| #210 | #219 | El aviso de pestaña nueva en los enlaces de las noticias |
+| #209 | #220 | La conversación del asistente sobrevive a recargar |
+| #211 | #221 | Las fichas: los límites aparte de las notas de operación |
+| #208 | #222 | La última vuelta con historial: pedir la respuesta, y un tope de salida |
+| #124 | #223 | El engaño desempata, pero no contradice a una forma unánime |
+| #93 | #224 | Los umbrales, configurables |
+| #159 | #225 | El modo de invocación, configurable |
+| #78 y #75 | #226 | El lineal, sobre las palabras del titular y con Webis-17 |
+
+El certificado (#213) salió del hito sin cerrarse: depende de la universidad.
+
+#### El despliegue
+
+La máquina 1 servía `828e2e0` (4 oct), sin nada de #208 en adelante. Se redesplegó `dev` en `24e02ca` con `sudo docker compose up --build --wait`, en **211 s**: la capa de modelos de la imagen se rehízo, porque #93 y #78 tocan los ficheros que la invalidan (#162). Esa capa baja lo que haya en el Hub el día del build, y nada fija la revisión; antes de desplegar se comprobó con la API del Hub que los tres modelos seguían en las revisiones horneadas el 16 de septiembre (`517de05db9ba`, `3216a57f2a0d` y `1110a243fdf4`).
+
+#### Lo que responde en vivo, antes y después
+
+El tercer criterio para etiquetar una versión es que las herramientas respondan en vivo. [`spikes/produccion_en_vivo.py`](spikes/produccion_en_vivo.py) lo comprueba por la API pública, a través de Caddy: el catálogo, cada herramienta con argumentos mínimos, el caso de #124 y la disponibilidad del agente. Se pasó antes y después del despliegue:
+
+```bash
+.venv/bin/python spikes/produccion_en_vivo.py
+```
+
+| | Antes (`828e2e0`, 12:24) | Después (`24e02ca`, 12:43) |
+|---|---|---|
+| Herramientas | 12, todas `ok` | 12, todas `ok` |
+| Ficha del lineal | «…sobre features léxicas (entrenada en Chakraborty)» | «…sobre las palabras del titular (entrenada en Chakraborty y Webis-17)» |
+| Rasgos del lineal, con «10 Secrets Doctors Won't Tell You... Are You Ready?» | `you`, `leading_number`, `ellipsis`, `question` (p 1,000) | `you`, `<leading_number>`, `are`, `tell`, `<number>` (p 0,976) |
+| El umbral, en el resultado del léxico (#93) | no viene | 1 |
+| Titular sobrio con un cuerpo que no le corresponde (#124) | **`deceptive`** | **`ambiguous`** |
+| El agente, con la sesión de GPU cerrada | apagado | apagado |
+
+La primera llamada a `analyze_headline` tardó 7 s en las dos pasadas: es el MCP cargando sus modelos en frío, como midió #164 (7,0 s).
+
+#### El agente, en producción
+
+`spikes/chat_maquina1.sh` (#189) abre una sesión de GPU de 20 min como máximo, con su túnel hacia la máquina 1, y conversa por la API pública con la sesión cerrada, abierta y cerrada otra vez. Es la primera vez que se ve en producción lo de #208.
+
+```bash
+setsid nohup bash spikes/chat_maquina1.sh > /tmp/chat_maquina1_v07.log 2>&1 < /dev/null & disown
+```
+
+| Conversación | Vueltas | Herramientas | Tiempo del agente | `prompt_tokens` máx. |
+|---|---|---|---|---|
+| sencilla | 2 | `analyze_headline` | 41,0 s | 4.761 |
+| larga | 4 | `get_nyt_news`, `analyze_headline` | 73,6 s | 6.247 |
+| larga con 4.000 caracteres de historial | 3 | `get_nyt_news`, `analyze_headline` | 21,5 s | 7.370 |
+| dos a la vez: la primera | 2 | `analyze_headline` | 21,7 s | 4.759 |
+| dos a la vez: la segunda, que esperó en cola | 2 | `analyze_headline` | 26,2 s (46,3 s de reloj) | 4.621 |
+
+Las cinco terminaron con respuesta. En la larga, la tercera vuelta llegó al **tope de 1.500 tokens** de salida (50,7 s) y el agente **pidió la respuesta una vez más** (10,5 s): los dos mecanismos de #208 actuando en producción. Con la sesión cerrada, la API vuelve a decir que el asistente está apagado (503 en 0,03 s), la GPU queda en 0 MiB y en la máquina 1 no queda nada escuchando en el 11434.
+
+| Condiciones | |
+|---|---|
+| Fecha | 2026-10-07: comprobación antes a las 12:24; despliegue (211 s) justo antes de la de después, a las 12:43; agente de 12:44 a 12:48 |
+| Máquina 1 | `dev` en `24e02ca`, Docker Compose, por `https://gongarcia.tfg.etsii.urjc.es/api` |
+| Máquina 2 | La A40, con Ollama 0.34.2 y `gpu-sesion` `6ad6a751d636`; `qwen3.5:27b` (`7653528ba5cb`), cargado en 11,2 s |
+| Guiones | `spikes/produccion_en_vivo.py` `94b9fd90e762`; `spikes/chat_maquina1.py` `cc1bef82d6ed` |
+
+#### Lo que queda
+
+- **El análisis en español**, en `v0.8`, con TA1C como corpus.
+- **Fijar la revisión de cada modelo horneado** (#217): la comprobación de arriba se hizo a mano; en `v0.8` entran modelos nuevos, y es el momento de fijarlas.
 
 
 

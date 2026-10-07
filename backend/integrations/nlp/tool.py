@@ -18,8 +18,11 @@ from backend.integrations.nlp import dedicated, lexical, linear, model_cards
 from backend.integrations.nlp.factory import (
     ficha_efectiva,
     get_incoherence_detector,
+    get_invocacion,
     get_model_id,
     get_nlp_backend,
+    get_threshold,
+    get_top_cues,
 )
 from backend.integrations.nlp.outputs import (
     Etiqueta,
@@ -39,20 +42,24 @@ def register(mcp: FastMCP):
     # efecto en esta fachada (#87).
     #
     # Los ids salen de la ficha (#116) y de la configuración si la hay (#119),
-    # y también por llamada: una constante aquí volvería a congelarlos.
+    # y también por llamada: una constante aquí volvería a congelarlos. Lo
+    # mismo los umbrales y el tope de pistas del lineal (#93).
 
     @mcp.tool(meta=tool_meta("Señales de análisis", __name__))
     @log_tool_invocation
     async def detect_clickbait(headline: str) -> Etiqueta:
         """Clasifica un titular como clickbait o noticia factual con un modelo de caja negra.
 
-        Es un clasificador neuronal afinado para esta tarea sobre titulares
-        anotados por personas, fuera de este proyecto. Devuelve una etiqueta y
-        la confianza del modelo en ESA etiqueta, sin explicar por qué: no es una
-        probabilidad de clickbait (con "factual news" y 0.9, lo que afirma es
-        que NO lo es). Si hace falta una probabilidad de clickbait o saber qué
-        la explica, lo da `detect_clickbait_linear`; qué pistas aparecen y
-        dónde, `detect_clickbait_lexical`. Pensada para inglés.
+        Por defecto es un clasificador neuronal afinado para esta tarea sobre
+        titulares anotados por personas, fuera de este proyecto; por
+        configuración puede ser otro, también un zero-shot que elige entre
+        etiquetas que se le dan (`describe_models` dice cuál). Devuelve una
+        etiqueta y la confianza del modelo en ESA etiqueta, sin explicar por
+        qué: no es una probabilidad de
+        clickbait (con "factual news" y 0.9, lo que afirma es que NO lo es).
+        Si hace falta una probabilidad de clickbait o saber qué la explica, lo
+        da `detect_clickbait_linear`; qué pistas aparecen y dónde,
+        `detect_clickbait_lexical`. Pensada para inglés.
 
         Args:
             headline (str): titular a evaluar (en inglés).
@@ -66,8 +73,14 @@ def register(mcp: FastMCP):
         Raises:
             Si la llamada al modelo falla (timeout o caída del proveedor).
         """
+        # El modelo, el modo y las etiquetas, de la configuración (#159).
+        invocacion = get_invocacion("detect_clickbait")
         response = await dedicated.detect(
-            get_nlp_backend(), headline, get_model_id("detect_clickbait")
+            get_nlp_backend(),
+            headline,
+            invocacion.id,
+            invocacion.task,
+            invocacion.labels,
         )
         if not response.has_content():
             raise ToolError(response.error or "Error al analizar el titular")
@@ -151,7 +164,7 @@ def register(mcp: FastMCP):
         frases gancho, número inicial (listicle), interrogación, mayúsculas, elipsis—
         y devuelve qué pistas dispararon y dónde. Señal white-box (la evidencia ES la
         explicación), complementaria a `detect_clickbait` (caja negra), a
-        `detect_clickbait_linear` (que pondera estas mismas pistas) y a
+        `detect_clickbait_linear` (que pondera las palabras del titular) y a
         `detect_clickbait_incoherence`. Pensada para titulares en inglés.
 
         Args:
@@ -164,7 +177,7 @@ def register(mcp: FastMCP):
         Raises:
             Si el titular está vacío.
         """
-        response = lexical.detect(headline)
+        response = lexical.detect(headline, get_threshold("detect_clickbait_lexical"))
         if not response.has_content():
             raise ToolError(response.error or "Error al analizar léxico en el titular")
         return response.unwrap()
@@ -175,23 +188,24 @@ def register(mcp: FastMCP):
         """Da la probabilidad de que un titular sea clickbait y las pistas que la explican.
 
         Es el modelo entrenado en este proyecto: una regresión logística sobre
-        pistas léxicas (hipérbole, referencias vagas, listas numeradas…), en la
-        que cada pista tiene un peso visible. El veredicto se explica con las
-        pistas que más pesaron. Para la opinión de un modelo que no parte de
-        esas pistas, `detect_clickbait` (caja negra). Pensada para inglés.
+        las palabras del titular y su estructura (número inicial,
+        interrogación…), en la que cada palabra tiene un peso visible. El
+        veredicto se explica con las que más pesaron. Para la opinión de un
+        modelo sin pesos visibles, `detect_clickbait` (caja negra). Pensada
+        para inglés.
 
         Args:
             headline (str): titular a evaluar (en inglés).
 
         Returns:
             `is_clickbait`, `probability` (0-1, de que sea clickbait), `top_cues`
-            —las pistas que más empujaron el veredicto (peso × frecuencia), que
+            —las palabras que más empujaron el veredicto (peso × tf-idf), que
             son su explicación intrínseca (R3.8)— y `headline`.
 
         Raises:
             Si el titular está vacío.
         """
-        response = linear.predict(headline)
+        response = linear.predict(headline, get_top_cues())
         if not response.has_content():
             raise ToolError(response.error or "Error al predecir clickbait")
         return response.unwrap()

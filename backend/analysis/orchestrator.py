@@ -10,11 +10,16 @@ uniforme de ``domain`` y agrega el resultado. Tres invariantes lo gobiernan:
    expresarlo sin tocar la agregación: la palanca ya estaba puesta.
 2. **Una dimensión aparece si alguna de sus señales votó.** Si las que votaron
    discrepan, no se promedia ni se resuelve por mayoría: se declara ``None``.
-3. **El veredicto global sale de las dimensiones con jerarquía** —el engaño pesa
-   más que la forma—, nunca de contar señales.
+3. **El veredicto global sale de las dimensiones con jerarquía** —el engaño
+   desempata una forma dividida, pero no contradice a una forma unánime—, nunca
+   de contar señales.
 
-Por qué no vale la mayoría: un titular sobrio cuyo cuerpo no cumple lo prometido
-tiene tres señales diciendo «no» y una diciendo «sí», y la correcta es la cuarta.
+Por qué no vale la mayoría: las señales no miden lo mismo, y contar votos
+escondería las discrepancias que el sistema existe para enseñar. Por qué el
+engaño no manda siempre (#124): el caso que lo justificaba —un titular sobrio,
+tres señales de forma en «no» y la incoherencia en «sí»— resultó ser donde la
+incoherencia menos acierta (13 % en Webis-17). Ahí la discrepancia es entre
+dimensiones, y se declara.
 
 El aislamiento de fallos es el punto delicado: una señal caída no puede tumbar
 las otras cuatro (~1 de cada 5 llamadas a HuggingFace da timeout, medido en la
@@ -53,8 +58,11 @@ from backend.integrations.nlp import dedicated, lexical, linear
 from backend.integrations.nlp.factory import (
     ficha_efectiva,
     get_incoherence_detector,
+    get_invocacion,
     get_model_id,
     get_nlp_backend,
+    get_threshold,
+    get_top_cues,
 )
 
 log = structlog.get_logger()
@@ -110,6 +118,19 @@ def _con_cuerpo(content: str | None) -> str:
     return content
 
 
+def _detectar_clickbait(titular: str) -> Awaitable[ToolResult]:
+    """La señal de clickbait con el modelo y el modo configurados (#159).
+
+    El modo y las etiquetas se piden a la factoría en cada llamada, como el id:
+    la tabla de abajo se lee al importar. Lo usan el análisis y `precalentar`,
+    para que caliente el mismo modelo, de la misma forma.
+    """
+    invocacion = get_invocacion("detect_clickbait")
+    return dedicated.detect(
+        get_nlp_backend(), titular, invocacion.id, invocacion.task, invocacion.labels
+    )
+
+
 @dataclass(frozen=True)
 class _Signal:
     """Cómo se ejecuta una señal y cómo se lee su veredicto.
@@ -150,9 +171,7 @@ class _Signal:
 _SIGNALS: tuple[_Signal, ...] = (
     _Signal(
         name="detect_clickbait",
-        run=lambda titular, cuerpo: dedicated.detect(
-            get_nlp_backend(), titular, get_model_id("detect_clickbait")
-        ),
+        run=lambda titular, cuerpo: _detectar_clickbait(titular),
         # VUELVE A VOTAR (#115), después de que #109 se lo quitara. No es una
         # marcha atrás: aquel silencio se declaró condicional en la ficha —
         # «placeholder pendiente de #115»— y esto es la condición cumpliéndose.
@@ -177,12 +196,18 @@ _SIGNALS: tuple[_Signal, ...] = (
         name="detect_clickbait_lexical",
         # Síncrona y de milisegundos: va a un hilo solo para que el bucle trate a
         # todas igual. El coste del hilo es despreciable frente a la uniformidad.
-        run=lambda titular, cuerpo: asyncio.to_thread(lexical.detect, titular),
+        #
+        # El umbral, de la factoría en cada uso (#93), como el modelo.
+        run=lambda titular, cuerpo: asyncio.to_thread(
+            lexical.detect, titular, get_threshold("detect_clickbait_lexical")
+        ),
         verdict=lambda datos: datos["is_clickbait"],
     ),
     _Signal(
         name="detect_clickbait_linear",
-        run=lambda titular, cuerpo: asyncio.to_thread(linear.predict, titular),
+        run=lambda titular, cuerpo: asyncio.to_thread(
+            linear.predict, titular, get_top_cues()
+        ),
         verdict=lambda datos: datos["is_clickbait"],
     ),
     _Signal(
@@ -256,12 +281,7 @@ async def precalentar() -> dict[str, float]:
         tiempos[etiqueta] = time.perf_counter() - inicio
 
     if settings.nlp_backend == "local":
-        await cronometrar(
-            "detect_clickbait",
-            lambda: dedicated.detect(
-                get_nlp_backend(), titular, get_model_id("detect_clickbait")
-            ),
-        )
+        await cronometrar("detect_clickbait", lambda: _detectar_clickbait(titular))
         await cronometrar(
             "analyze_sentiment",
             lambda: get_nlp_backend().classify(
@@ -487,9 +507,16 @@ def _overall(dimensions: list[DimensionVerdict]) -> OverallVerdict:
     deception = by_dimension.get(Dimension.DECEPTION)
     form = by_dimension.get(Dimension.FORM)
 
-    # El engaño manda: un titular que promete lo que el cuerpo no cumple es
-    # clickbait aunque esté redactado con sobriedad.
+    # El engaño desempata una forma dividida, pero no contradice a una forma
+    # unánime (#124). Medido en 19.484 pares de Webis-17 pasados por `analyze()`:
+    # con las tres señales de forma en «no», `deceptive` acertaba el 13 % (165
+    # pares); con la forma dividida, el 68 % (862). La regla se eligió AL VER
+    # ese desglose y se validó eligiendo en una mitad y comprobando en la otra
+    # (`evaluation/eval_veredicto.py`). Contra una forma unánime, la
+    # discrepancia es entre dimensiones: se declara, no se resuelve.
     if deception is not None and deception.is_clickbait:
+        if form is not None and form.is_clickbait is False:
+            return OverallVerdict.AMBIGUOUS
         return OverallVerdict.DECEPTIVE
     if form is not None and form.is_clickbait:
         return OverallVerdict.STYLISTIC_CLICKBAIT

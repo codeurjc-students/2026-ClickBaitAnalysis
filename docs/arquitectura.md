@@ -130,9 +130,14 @@ cuarto dio timeout sería el error de verdad.
 finalización, así que la interfaz pinta las tarjetas siempre igual.
 
 **El veredicto no sale de contar señales**, sino de agrupar por dimensión y
-aplicar una jerarquía explícita donde el engaño pesa más que la forma. Un titular
-sobrio cuyo cuerpo no cumple lo prometido tiene tres señales diciendo «no» y una
-diciendo «sí», y la correcta es la cuarta.
+aplicar una jerarquía explícita: el engaño desempata una forma dividida, pero no
+contradice a una forma unánime, y entonces el veredicto es `ambiguous`. Hasta
+#124 el engaño mandaba siempre, con este argumento: un titular sobrio cuyo cuerpo
+no cumple lo prometido tiene tres señales diciendo «no» y una diciendo «sí», y la
+correcta es la cuarta. Medido en Webis-17, ése era justo el caso en que la cuarta
+menos acierta (13 %, frente al 68 % con la forma dividida). *(El diagrama, de
+antes de #124, sigue diciendo que «el engaño manda sobre la forma»: se deja como
+se dibujó, por la regla de los diagramas desfasados.)*
 
 ## 4 · Secuencia de `POST /tools/.../execute`
 
@@ -404,7 +409,9 @@ test de arquitectura que pasa, pero que nadie ha visto fallar, no demuestra nada
 nuevo queda cubierto sin tocar nada, y sacarlo obliga a editar la lista a mano —
 que es la decisión consciente que se quiere forzar. Vale para meter `settings` en
 un módulo de la capa NLP al parametrizar los umbrales (issue 93), y para añadir
-un paquete que no debería hablar con las fachadas.
+un paquete que no debería hablar con las fachadas. *(En la issue 93 no hizo
+falta: los detectores reciben el umbral de `factory.py`, como el modelo desde la
+119, y la lista quedó igual.)*
 
 La primera lleva además un `assert modulos` delante del recorrido: si la
 travesía del árbol se rompiera, la prueba se convertiría en un `assert not []`
