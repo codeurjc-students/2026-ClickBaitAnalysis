@@ -58,6 +58,11 @@ Sin partes, las tres primeras. `OLLAMA_URL` cambia el servidor (defecto
 `http://127.0.0.1:11500`), `OLLAMA_MODELO` el modelo (defecto `qwen3.5:27b`), y
 `AGENTE_A40_JSON` el fichero donde se guarda todo lo medido, con las respuestas
 enteras para leerlas.
+
+El resumen de `variantes` —totales, la regla de #78 y los aciertos de cada
+consulta— se rehace sin sesión desde lo guardado:
+
+    .venv/bin/python spikes/agente_a40.py --analisis spikes/agente_a40/variantes-78.json
 """
 
 import asyncio
@@ -589,21 +594,62 @@ async def variantes(registro: dict) -> None:
         for nombre, descripcion in originales.items():
             gestor.get_tool(nombre).description = descripcion
 
+    resumen_variantes(registro["variantes"])
+
+
+# La regla, publicada en #78 antes de la sesión (comentario 6018323652): una
+# variante se queda si (a) su total no baja más de MARGEN_VARIANTES del de
+# `antes`, y (b) ninguna consulta que `antes` acierta en todas sus pasadas la
+# falla en todas la variante.
+MARGEN_VARIANTES = 2
+
+
+def resumen_variantes(medido: dict) -> None:
+    """Los totales, la regla de #78 y los aciertos de cada consulta.
+
+    Sólo lee lo guardado en `medido` (el `variantes` del JSON), así que se
+    repite sin sesión de GPU con `--analisis <json>`.
+    """
+    totales: dict[str, list[int]] = {}
+    posibles: dict[str, int] = {}
+    aciertos: dict[str, dict[str, list[bool]]] = {}
+    for pasada in medido["pasadas"]:
+        variante = pasada["variante"]
+        filas = [fila for filas in pasada["seleccion"].values() for fila in filas]
+        totales.setdefault(variante, []).append(sum(fila["acierto"] for fila in filas))
+        posibles[variante] = posibles.get(variante, 0) + len(filas)
+        por_consulta = aciertos.setdefault(variante, {})
+        for fila in filas:
+            por_consulta.setdefault(fila["consulta"], []).append(bool(fila["acierto"]))
+
     print("\n== variantes: aciertos razonando (sin campo + true), por repetición")
-    for variante in textos:
-        suyas = [
-            pasada
-            for pasada in registro["variantes"]["pasadas"]
-            if pasada["variante"] == variante
+    for variante, suyos in totales.items():
+        print(f"  {variante:6s} {' + '.join(map(str, suyos))} = {sum(suyos)}/{posibles[variante]}")
+
+    referencia = aciertos["antes"]
+    minimo = sum(totales["antes"]) - MARGEN_VARIANTES
+    print(f"\n== la regla de #78: (a) total ≥ {minimo}; (b) nada que `antes` acierta siempre, fallado siempre")
+    for variante in aciertos:
+        if variante == "antes":
+            continue
+        suficiente = sum(totales[variante]) >= minimo
+        rotas = [
+            consulta
+            for consulta, suyos in aciertos[variante].items()
+            if all(referencia[consulta]) and not any(suyos)
         ]
-        totales = [
-            sum(fila["acierto"] for filas in pasada["seleccion"].values() for fila in filas)
-            for pasada in suyas
-        ]
+        veredicto = "cumple" if suficiente and not rotas else "NO cumple"
         print(
-            f"  {variante:6s} {' + '.join(map(str, totales))} = "
-            f"{sum(totales)}/{52 * len(suyas)}"
+            f"  {variante:6s} (a) {sum(totales[variante])}: {'sí' if suficiente else 'no'}"
+            f" · (b) {rotas or 'ninguna'} → {veredicto}"
         )
+
+    print("\n== aciertos de las consultas que alguna variante falla alguna vez")
+    print("  " + " ".join(f"{variante:>5}" for variante in aciertos) + "  consulta")
+    for consulta, intentos in referencia.items():
+        cuentas = [sum(aciertos[variante][consulta]) for variante in aciertos]
+        if min(cuentas) < len(intentos):
+            print("  " + " ".join(f"{cuenta:>5}" for cuenta in cuentas) + f"  {consulta}")
 
 
 PARTES = {
@@ -654,6 +700,11 @@ async def main(partes: list[str]) -> None:
 
 
 if __name__ == "__main__":
+    if sys.argv[1:2] == ["--analisis"]:
+        # Sin sesión: el resumen de la parte `variantes`, desde su JSON.
+        guardado = json.loads(Path(sys.argv[2]).read_text(encoding="utf-8"))
+        resumen_variantes(guardado["variantes"])
+        sys.exit()
     elegidas = sys.argv[1:] or PRIMERA_SESION
     desconocidas = [parte for parte in elegidas if parte not in PARTES]
     if desconocidas:
