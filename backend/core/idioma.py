@@ -55,9 +55,13 @@ LÍMITES
 - Un titular inglés con un nombre propio con tilde y sin palabras funcionales
   («Peña Nieto wins») puede salir español.
 - Portugués, italiano o francés muy cortos, sin ninguna palabra de sus listas,
-  pueden salir español por las tildes, o inglés por no tener pruebas («Governo
-  anuncia novas medidas para a economia» sale español). Para ellos no hay
-  corpus con el que medirlo: se prueban con ejemplos.
+  pueden salir español por una tilde o por una palabra que comparten con él, o
+  inglés por no tener pruebas («Governo anuncia novas medidas para a economia»
+  sale español por «para»). Para ellos no hay corpus con el que medirlo: se
+  prueban con ejemplos (`tests/core/test_idioma.py`).
+- «Otro idioma» sólo gana si supera a los dos, así que un empate con el español
+  sale español: en «Non crederai mai a cosa ha fatto questo cane», «ha» cuenta
+  como español y empata con «questo».
 - «che» es italiano, pero también se dice en Argentina: «Che Guevara» sale
   «otro idioma».
 """

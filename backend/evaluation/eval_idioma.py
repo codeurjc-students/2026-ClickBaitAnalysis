@@ -26,8 +26,10 @@ from collections import Counter
 from collections.abc import Callable
 
 from backend.core import idioma
-from backend.evaluation.eval_external import load_external
-from backend.evaluation.splits import load_split
+
+# `load_split` y `load_external` se importan dentro de quien los usa: sus dos
+# módulos importan scikit-learn, que el CI no instala, y
+# `tests/core/test_idioma.py` importa éste por sus ejemplos (#229).
 
 MAXIMO_FUERA_DEL_INGLES = 0.01
 MINIMO_DEL_ESPANOL = 0.95
@@ -37,16 +39,26 @@ Conjunto = tuple[str, Callable[[], list[str]], idioma.Idioma]
 
 
 def _titulares(split: str) -> Callable[[], list[str]]:
-    return lambda: [titular for titular, _ in load_split(split)]
+    def leer() -> list[str]:
+        from backend.evaluation.splits import load_split
+
+        return [titular for titular, _ in load_split(split)]
+
+    return leer
+
+
+def _titulares_de_webis(nombre: str) -> Callable[[], list[str]]:
+    def leer() -> list[str]:
+        from backend.evaluation.eval_external import load_external
+
+        return [titular for titular, _, _ in load_external(nombre)]
+
+    return leer
 
 
 CONJUNTOS_TRAIN: list[Conjunto] = [
     ("Chakraborty train", _titulares("train"), idioma.INGLES),
-    (
-        "Webis-17 train170331",
-        lambda: [titular for titular, _, _ in load_external("train170331")],
-        idioma.INGLES,
-    ),
+    ("Webis-17 train170331", _titulares_de_webis("train170331"), idioma.INGLES),
     ("TA1C train", _titulares("ta1c_train"), idioma.ESPANOL),
 ]
 CONJUNTOS_REGLA: list[Conjunto] = [
