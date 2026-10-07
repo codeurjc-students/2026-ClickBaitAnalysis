@@ -17,18 +17,27 @@ por qué falló.
 Para otros idiomas no hay corpus: unos titulares escritos a mano en francés,
 portugués, italiano y alemán, que son ejemplos y no una medida.
 
-    .venv/bin/python -m backend.evaluation.eval_idioma --train   # para afinar
-    .venv/bin/python -m backend.evaluation.eval_idioma           # la regla
+`--cuerpos` aplica la misma regla a cuerpos de noticia (los de `webis_dev` y
+los de TA1C `validation`): desde #229 la puerta mira también el cuerpo, porque
+la incoherencia compara titular y cuerpo con un modelo inglés, y el detector
+se afinó con titulares. Esa regla también se publicó antes de medir
+(https://github.com/codeurjc-students/2026-ClickBaitAnalysis/issues/229#issuecomment-6045492294).
+
+    .venv/bin/python -m backend.evaluation.eval_idioma --train     # para afinar
+    .venv/bin/python -m backend.evaluation.eval_idioma             # la regla
+    .venv/bin/python -m backend.evaluation.eval_idioma --cuerpos   # en cuerpos
 """
 
+import gzip
+import json
 import sys
 from collections import Counter
 from collections.abc import Callable
 
 from backend.core import idioma
 
-# `load_split` y `load_external` se importan dentro de quien los usa: sus dos
-# módulos importan scikit-learn, que el CI no instala, y
+# `load_split`, `load_external` y los cargadores de cuerpos se importan dentro
+# de quien los usa: sus módulos importan scikit-learn, que el CI no instala, y
 # `tests/core/test_idioma.py` importa éste por sus ejemplos (#229).
 
 MAXIMO_FUERA_DEL_INGLES = 0.01
@@ -67,6 +76,47 @@ CONJUNTOS_REGLA: list[Conjunto] = [
     ("TA1C validation", _titulares("ta1c_validation"), idioma.ESPANOL),
 ]
 
+
+def _cuerpos_de_webis(split: str) -> Callable[[], list[str]]:
+    """Los cuerpos de los titulares de un split de Webis, sin los vacíos."""
+
+    def leer() -> list[str]:
+        from backend.evaluation.eval_incoherencia import CUERPOS
+        from backend.evaluation.splits import SPLITS_DIR
+
+        with open(SPLITS_DIR / f"{split}.jsonl", encoding="utf-8") as fichero:
+            ids = [json.loads(linea)["id"] for linea in fichero]
+        with gzip.open(CUERPOS, "rt", encoding="utf-8") as fichero:
+            cuerpos = {
+                registro["id"]: " ".join(registro["paragraphs"]).strip()
+                for registro in map(json.loads, fichero)
+            }
+        return [
+            cuerpos[identificador]
+            for identificador in ids
+            if cuerpos.get(identificador)
+        ]
+
+    return leer
+
+
+def _cuerpos_de_ta1c(parte: str) -> Callable[[], list[str]]:
+    """Los cuerpos de los artículos de una parte de TA1C, sin los vacíos."""
+
+    def leer() -> list[str]:
+        from backend.evaluation.eval_ta1c import cargar
+
+        return [fila["cuerpo"] for fila in cargar(parte) if fila["cuerpo"].strip()]
+
+    return leer
+
+
+# Los mismos conjuntos de elección que los titulares, con sus cuerpos.
+CONJUNTOS_CUERPOS: list[Conjunto] = [
+    ("webis_dev, cuerpos", _cuerpos_de_webis("webis_dev"), idioma.INGLES),
+    ("TA1C validation, cuerpos", _cuerpos_de_ta1c("validation"), idioma.ESPANOL),
+]
+
 # Escritos para esto, no sacados de ningún corpus: sirven para ver qué hace el
 # detector, no para medirlo.
 EJEMPLOS_DE_OTROS_IDIOMAS = [
@@ -86,26 +136,29 @@ EJEMPLOS_DE_OTROS_IDIOMAS = [
 
 
 def medir(
-    nombre: str, titulares: list[str], esperado: idioma.Idioma
+    nombre: str,
+    textos: list[str],
+    esperado: idioma.Idioma,
+    unidad: str = "titulares",
 ) -> dict[str, float]:
     """El reparto de idiomas detectados y los fallos, con sus pruebas."""
-    detectados = [idioma.detectar(titular) for titular in titulares]
+    detectados = [idioma.detectar(texto) for texto in textos]
     reparto = Counter(detectados)
     proporciones = {
-        codigo: reparto[codigo] / len(titulares)
+        codigo: reparto[codigo] / len(textos)
         for codigo in (idioma.INGLES, idioma.ESPANOL, idioma.INDETERMINADO)
     }
     print(
-        f"\n== {nombre}: {len(titulares)} titulares, se espera «{esperado}» · "
+        f"\n== {nombre}: {len(textos)} {unidad}, se espera «{esperado}» · "
         + " · ".join(f"{codigo} {parte:.2%}" for codigo, parte in proporciones.items())
     )
     fallos = [
-        (titular, detectado)
-        for titular, detectado in zip(titulares, detectados, strict=True)
+        (texto, detectado)
+        for texto, detectado in zip(textos, detectados, strict=True)
         if detectado != esperado
     ]
-    for titular, detectado in fallos[:FALLOS_A_ENSEÑAR]:
-        print(f"   {detectado} {idioma.contar(titular)} · {titular[:110]}")
+    for texto, detectado in fallos[:FALLOS_A_ENSEÑAR]:
+        print(f"   {detectado} {idioma.contar(texto)} · {texto[:110]}")
     if len(fallos) > FALLOS_A_ENSEÑAR:
         print(f"   … y {len(fallos) - FALLOS_A_ENSEÑAR} fallos más")
     return proporciones
@@ -117,11 +170,13 @@ def afinar() -> None:
         medir(nombre, cargar(), esperado)
 
 
-def regla() -> None:
+def regla(
+    conjuntos: list[Conjunto] = CONJUNTOS_REGLA, unidad: str = "titulares"
+) -> None:
     """Los conjuntos de elección, con la regla de #229."""
     cumple = True
-    for nombre, cargar, esperado in CONJUNTOS_REGLA:
-        proporciones = medir(nombre, cargar(), esperado)
+    for nombre, cargar, esperado in conjuntos:
+        proporciones = medir(nombre, cargar(), esperado, unidad)
         if esperado == idioma.INGLES:
             fuera = 1 - proporciones[idioma.INGLES]
             bien = fuera <= MAXIMO_FUERA_DEL_INGLES
@@ -150,6 +205,8 @@ def ejemplos() -> None:
 if __name__ == "__main__":
     if "--train" in sys.argv:
         afinar()
+    elif "--cuerpos" in sys.argv:
+        regla(CONJUNTOS_CUERPOS, unidad="cuerpos")
     else:
         regla()
     ejemplos()
