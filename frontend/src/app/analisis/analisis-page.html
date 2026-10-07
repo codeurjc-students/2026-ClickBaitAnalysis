@@ -12,7 +12,7 @@
     } @else {
       <p class="barra__etiqueta">Titular analizado</p>
     }
-    <p class="barra__titular" lang="en">«{{ analisis.headline }}»</p>
+    <p class="barra__titular" [lang]="idioma()">«{{ analisis.headline }}»</p>
     <p class="barra__meta">
       @if (analisis.content) {
         con cuerpo · {{ analisis.content.length }} caracteres

@@ -65,12 +65,35 @@ const RESPUESTA: AnalyzeResponse = {
  */
 const SOBRE: AnalyzeResult = { id: 7, analysis: RESPUESTA };
 
+/**
+ * Un titular en español, como lo devuelve `/analyze` desde #229: ninguna señal
+ * se ejecuta, y cada una dice por qué con la frase de la factoría.
+ */
+const EN_ESPANOL: AnalyzeResponse = {
+  headline: 'No vas a creer lo que hizo este perro cuando su dueño volvió a casa',
+  content: null,
+  language: 'es',
+  signals: RESPUESTA.signals.map((senal) => ({
+    ...senal,
+    status: 'not_applicable' as const,
+    is_clickbait: null,
+    data: null,
+    detail:
+      'El titular parece estar en español: por ahora las señales sólo analizan titulares en inglés.',
+  })),
+  dimensions: [],
+  verdict: 'no_data',
+};
+
 describe('AnalisisPage', () => {
   let fixture: ComponentFixture<AnalisisPage>;
   let pagina: AnalisisPage;
   let http: HttpTestingController;
 
   const html = () => fixture.nativeElement as HTMLElement;
+
+  /** El `lang` del primer elemento que casa con el selector (#229). */
+  const idiomaDe = (selector: string) => html().querySelector(selector)?.getAttribute('lang');
 
   /** El `(ngSubmit)` de Angular escucha el `submit` nativo del formulario. */
   const enviar = async () => {
@@ -139,6 +162,22 @@ describe('AnalisisPage', () => {
     const resaltado = marcas.map((marca) => marca.textContent);
     expect(resaltado).toContain('10');
     expect(resaltado).toContain('Amazing');
+  });
+
+  // #229: el `lang` del titular es el idioma que detectó el análisis, no un
+  // «en» fijo. Un titular en español no se analiza, pero se pinta, y el lector
+  // de pantalla tiene que leerlo en castellano.
+  it('el titular lleva el idioma que detectó el análisis', async () => {
+    pagina.formulario.controls.headline.setValue(EN_ESPANOL.headline);
+    await enviar();
+
+    http.expectOne('/api/analyze').flush({ id: 8, analysis: EN_ESPANOL });
+    await fixture.whenStable();
+
+    expect(idiomaDe('.barra__titular')).toBe('es');
+    expect(idiomaDe('app-titular-resaltado .titular')).toBe('es');
+    // Y cada tarjeta dice por qué no se analizó.
+    expect(html().textContent).toContain('sólo analizan titulares en inglés');
   });
 
   // Una señal sin resultado no se esconde: se muestra diciendo por qué.
@@ -279,6 +318,18 @@ describe('AnalisisPage', () => {
     // Sin `label`, el nombre cae al identificador de la herramienta.
     expect(html().textContent).toContain('detect_clickbait_lexical');
     expect(html().querySelector('.veredicto')?.textContent).toContain('ambiguo');
+  });
+
+  // Lo guardado antes de #229 no trae `language`, y entonces el contrato decía
+  // que el titular era inglés.
+  it('un análisis guardado sin idioma pinta el titular en inglés', async () => {
+    const sinIdioma = Object.fromEntries(
+      Object.entries(RESPUESTA).filter(([clave]) => clave !== 'language'),
+    );
+    await abrirGuardado(sinIdioma);
+
+    expect(idiomaDe('.barra__titular')).toBe('en');
+    expect(idiomaDe('app-titular-resaltado .titular')).toBe('en');
   });
 
   // El 404 aquí no es una avería: la retención borra las entradas viejas, así

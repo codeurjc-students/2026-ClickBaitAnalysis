@@ -93,9 +93,9 @@
                 <code>{{ entrada.tool }}</code>
               }
               @if (entrada.headline) {
-                <!-- El contrato dice que los titulares analizados son ingleses,
-                     y la página está en castellano. -->
-                <span class="titular" lang="en">{{ entrada.headline }}</span>
+                <!-- La página está en castellano y el titular puede no estarlo:
+                     su idioma sale de la respuesta guardada (#229). -->
+                <span class="titular" [lang]="idioma(entrada)">{{ entrada.headline }}</span>
               }
             </td>
             <td>
