@@ -795,6 +795,8 @@ Issue #66. Convierte el modelo lineal de E5-06 (script de investigación) en una
 
 **Nota de diseño:** entrenar (sklearn, en `evaluation/`, deps pesadas) y servir (pesos JSON + Python puro, en `integrations/nlp/`) quedan **separados** → CI y runtime siguen ligeros. Tests deterministas (sin mocks, el JSON está versionado).
 
+*(Revisado en #78: el lineal de esta sección ya no es la señal. Desde #78 pondera las palabras del titular con TF-IDF y `featurize_cues` dejó de ser la fuente de sus rasgos; este lineal sigue, congelado, en `backend/evaluation/lineal_pistas.py`, para que los guiones que lo midieron den sus cifras. La separación entre entrenar y servir se mantiene. Ver «El lineal, sobre las palabras del titular y con Webis-17».)*
+
 ### E5-08 · Divulgación de modelos (model cards) — R3.9
 
 Issue #71. Cierra la mitad pendiente de **R3.9** (DEBERÁ): *divulgar los modelos que emplea el sistema* (la otra mitad —intercambiarlos por configuración— ya la cubría la factoría `nlp_backend`).
@@ -844,6 +846,8 @@ Issue #76. Mide la **generalización real** evaluando la vía shipeada sobre un 
 - **No es artefacto de binarización**: el `truthMean` medio de los falsos positivos (0.28) apenas supera al de los verdaderos negativos (0.23) → los FP no son mayormente casos "slightly clickbaiting" mal binarizados.
 
 **Valor para la memoria:** los números en-dominio (0.84–0.87) son válidos **para ese dominio**; la transferencia requiere adaptación (re-entrenar con datos del dominio destino, limpiar convenciones de tuit, o señales semánticas). El extracto conserva `truthMean` → futuro: calibración con scores continuos.
+
+*(Revisado en #78: es lo que se hizo con el lineal. Se reentrenó con este mismo extracto (`train170331`) y sin las convenciones de tuit, así que medirlo aquí ya no es una validación externa; la suya pasa a ser `webis_test`, 15.588 tuits de `validation170630`, donde sube de 0,447 a 0,534. Ver «El lineal, sobre las palabras del titular y con Webis-17».)*
 
 ## Fase B — Diseño de la interfaz y del agente conversacional
 
@@ -1803,6 +1807,12 @@ para alegrarse: el punto ciego compartido y el techo de recall son *el mismo
 hecho*, así que rellenarlo desacopla las señales **y** levanta el techo. Una sola
 intervención para los dos problemas.
 
+*(Revisado en #78: hecho, y se cumplió. Con las palabras del titular como
+rasgos, en `webis_test` los vectores vacíos pasan del 53,3 % al 0,5 % y el techo
+de recall, del 65,5 % al 98,1 %; y el acuerdo con el léxico baja de kappa 0,880 a
+0,715 en Chakraborty `dev`. Ver «El lineal, sobre las palabras del titular y con
+Webis-17».)*
+
 #### El sesgo de fuente, ahora con número
 
 El intercepto negativo permite medir cuánto vale por sí solo que **dispare algún
@@ -2276,6 +2286,10 @@ del **67,5 %**.
 Está en su techo. Lo que se le escapa del clickbait más evidente no se le escapa
 por sutil, se le escapa porque **no dispara ningún cue**. Es la misma conclusión
 de #109 llegando por un camino independiente, y vuelve a señalar a #75.
+
+*(Revisado en #78: #75 se hizo para el lineal, no para el léxico, que sigue con
+sus listas y en este techo. Ver «El lineal, sobre las palabras del titular y con
+Webis-17».)*
 
 *(El F1 del léxico BAJA en el subconjunto unánime —0,448 a 0,351— y eso no
 contradice lo anterior: ese subconjunto tiene sólo un 12,9 % de positivos, y con
@@ -7890,6 +7904,8 @@ La issue no lo incluía, y el autor preguntó si se podía calibrar como el de l
 
 Y no habría criterio con el que elegir. En #92 lo había: un falso positivo de la incoherencia decidía «engañoso» por encima de la forma, y la precisión pesaba más que el recall. El lineal vota en la forma junto a otras dos señales, y en F1 el umbral no mueve nada. Además, #78 reentrena el modelo, y con otros pesos un umbral calibrado hoy dejaría de valer. **Decidido por el autor**: fuera de #93, y a #78 un punto para elegirlo en `dev` tras reentrenar, con el criterio escrito antes de mirar la curva ([comentario](https://github.com/codeurjc-students/2026-ClickBaitAnalysis/issues/78#issuecomment-6000045029)).
 
+*(Revisado en #78: elegido en `dev` tras reentrenar, se queda en 0,5. Con el lineal nuevo la curva ya no es plana por los vectores vacíos, pero el mejor corte, 0,40, sube el F1 medio de los dos dominios sólo 0,001. Ver «El lineal, sobre las palabras del titular y con Webis-17».)*
+
 #### R3.8, al día
 
 El matiz de R3.8 en `docs/requisitos.md` decía que el umbral de la incoherencia está «sin calibrar», y no lo estaba desde #92. Pasa a «calibrado (#92) y configurable (#93)». No cambia lo que el requisito pide, sólo un dato que había caducado.
@@ -7914,7 +7930,7 @@ La causa era que las tres eran `str`. Ahora son `SecretStr`, cuyo `repr` es `'**
 #### Lo que queda
 
 - **El despliegue no lo lleva** (la máquina 1 sirve `828e2e0`). Sin configurar nada, lo servido no cambia salvo el `threshold` del léxico en su resultado. `outputs.py` se copia en la capa de modelos de la imagen (#162), así que el próximo despliegue la rehará.
-- **El umbral del lineal**, en #78.
+- **El umbral del lineal**, en #78. *(Hecho en #78: se queda en 0,5.)*
 
 ### El modo de invocación, configurable (#159, 6 oct 2026)
 
@@ -8031,6 +8047,239 @@ La lección vale para cualquier docstring: **describir el tipo y no al ocupante 
 #### Lo que queda
 
 - **Un clasificador servido por Hugging Face y pedido como zero-shot**: sin medir, porque Hugging Face no sirve ningún clasificador de clickbait. La comprobación del modelo de inferencia está sólo en `local.py`.
+
+### El lineal, sobre las palabras del titular y con Webis-17 (#78 y #75, 7 oct 2026)
+
+El lineal de E5-06 era una regresión logística sobre las 390 pistas del léxico (sus cuatro patrones y sus listas de palabras), entrenada sólo con Chakraborty. Tres secciones habían medido sus límites por caminos distintos. En #109 resultó ser una función del léxico: la mitad de los titulares no dispara ninguna pista y a todos ellos les da la misma probabilidad, 0,163, así que su techo de recall en el extracto de Webis-17 era del 67,5 %; y de ahí concluyó que #75 —cambiar las pistas por el vocabulario del titular— era el prerrequisito de #78 —reentrenar con más de un dominio—, porque rellenar ese hueco desacoplaría las dos señales y levantaría el techo a la vez. En #121 el léxico estaba ya en ese techo. Y en #93 la curva del umbral del lineal salió plana por lo mismo, y el umbral se dejó para aquí. Las dos issues entraron juntas en `v0.7` el 4 de octubre. El cuerpo de #78 traía dos datos caducados: el 31 % de clickbait es del extracto pequeño de Webis-17 (`validation170630` tiene el 24,2 %), y el corpus grande estaba bajado desde #121.
+
+#### El diseño y la regla, antes de medir
+
+Se publicaron en la issue antes de ejecutar nada ([comentario](https://github.com/codeurjc-students/2026-ClickBaitAnalysis/issues/78#issuecomment-6015449115)). Todas las variantes usan la misma regresión logística (`LogisticRegression(max_iter=1000)`, sin tocar `C`): el algoritmo no es la palanca; los rasgos y los datos, sí.
+
+**Los rasgos** (#75): F0, las pistas de siempre, como referencia; F1, las palabras del titular en presencia o ausencia (`CountVectorizer` binario, `min_df=2`), partidas como en el léxico, más sus cuatro patrones de estructura (número inicial, interrogación, mayúsculas y puntos suspensivos), que una palabra suelta no ve; y F2, lo mismo con TF-IDF. Cada una, con y sin Webis-17 en el entrenamiento.
+
+**Los datos** (#78):
+
+| | Chakraborty | Webis-17 |
+|---|---|---|
+| Entrenar | `train` (19.200), de #72 | `train170331` (2.458): el extracto de #76, sin el titular que está también en `validation170630` |
+| Elegir | `dev` (6.400) | `webis_dev`: el 20 % de `validation170630`, estratificado con semilla 24 (3.896) |
+| Probar, una sola vez | `test` (6.400), congelado desde #72 | `webis_test`: el 80 % restante (15.588, 3.773 clickbait) |
+
+Así `validation170630`, el corpus de las evaluaciones grandes (#92, #121, #124), no entrena el lineal. Las dos particiones nuevas se guardan en `data/splits/` con su `id`, como las de #72 (`python -m backend.evaluation.splits webis`). El coste, aceptado al diseñar: medir el lineal sobre `train170331` deja de ser la validación externa que fue en #76.
+
+**La regla**: (1) en `dev` gana el mejor F1 en Webis entre las combinaciones que no bajen el de Chakraborty más de 0,02 respecto al lineal actual; (2) en `test`, la ganadora se queda sólo si el F1 en Webis sube al menos 0,05 y el de Chakraborty no baja más de 0,02 de 0,865; y (3) el umbral se elige en `dev` y se queda en 0,5 salvo que otro corte suba el F1 medio de los dos dominios al menos 0,01. Siempre F1 por dominio, nunca sobre los dos corpus mezclados.
+
+#### Los rasgos en `dev`: lo que preguntaba #75
+
+| Condiciones | |
+|---|---|
+| Fecha | 2026-10-06, publicado en la issue de 14:31 a 14:38; repetido el 7 oct sobre `6d21055`, con las mismas cifras |
+| Máquina | WSL (Ubuntu) en el portátil, Python 3.12.3 y scikit-learn 1.9.0; sólo CPU |
+| Guion | [`backend/evaluation/eval_reentreno.py`](backend/evaluation/eval_reentreno.py), con el umbral en 0,5 |
+
+```bash
+.venv/bin/python -m backend.evaluation.splits webis
+.venv/bin/python -m backend.evaluation.eval_reentreno
+```
+
+| Rasgos | Datos | Rasgos aprendidos | F1 Chakraborty `dev` | F1 `webis_dev` | Vectores vacíos en Webis | Techo de recall en Webis |
+|---|---|---|---|---|---|---|
+| el lineal de antes | — | 390 | 0,868 | 0,455 | 53,7 % | 66,0 % |
+| F0 pistas | Chakraborty | 390 | 0,868 | 0,455 | 53,7 % | 66,0 % |
+| F1 palabras | Chakraborty | 9.852 | 0,969 | 0,508 | 0,5 % | 98,1 % |
+| F2 tf-idf | Chakraborty | 9.852 | 0,962 | 0,532 | 0,5 % | 98,1 % |
+| F3 tf-idf normalizado | Chakraborty | 9.661 | 0,961 | 0,530 | 0,5 % | 98,1 % |
+| F0 pistas | + Webis | 390 | 0,861 | 0,478 | 53,7 % | 66,0 % |
+| F1 palabras | + Webis | 11.196 | 0,964 | 0,520 | 0,4 % | 98,4 % |
+| **F2 tf-idf** | **+ Webis** | 11.196 | **0,959** | **0,544** | 0,4 % | 98,4 % |
+| **F3 tf-idf normalizado** | **+ Webis** | 10.812 | **0,958** | **0,542** | 0,4 % | 98,4 % |
+
+- **F0 con Chakraborty reproduce el lineal de antes** cifra a cifra: el guion mide lo mismo que la señal servida.
+- **Las palabras sacan al lineal de su techo**, que era el del featurizado y no el de los pesos, como había dicho #109: los vectores vacíos pasan del 53,7 % al 0,5 %, y el techo de recall, del 66,0 % al 98,1 %. Con los mismos datos, entre +0,09 y +0,10 en Chakraborty y entre +0,05 y +0,08 en Webis.
+- **TF-IDF frente a presencia o ausencia**, la pregunta literal de #75: TF-IDF gana en Webis (0,508 → 0,532 sin Webis en el entrenamiento, 0,520 → 0,544 con él) y cede algo en Chakraborty (0,969 → 0,962).
+- **Webis en el entrenamiento** sube Webis poco (+0,012 con F2) y baja Chakraborty menos (−0,003).
+
+**La regla elegía F2 con Webis** (el suelo de Chakraborty era 0,848). Pero sus pesos traían vocabulario de época y de formato de tuit: `2015` (+3,95), `2007`, `2008`, `rt` y `http`. Un titular cualquiera con «2015» sumaría hacia clickbait. **Después de ver esos pesos, y antes de medirla**, se añadió F3, y se declaró así en la issue ([comentario](https://github.com/codeurjc-students/2026-ClickBaitAnalysis/issues/78#issuecomment-6016299185)): F2 sin enlaces, menciones ni la marca `RT` de los tuits, y con cada número convertido en un rasgo `<number>`.
+
+F2 y F3 empataron: F1(F2) − F1(F3) en `webis_dev` = +0,0019, con un intervalo del 95 % de [−0,0039, +0,0084] (bootstrap emparejado, 2.000 remuestreos, semilla 24), y discrepan en 61 de 3.896 titulares. **Al pie de la letra la regla elegía F2, pero no preveía un empate dentro del ruido, y el autor eligió F3** ([comentario](https://github.com/codeurjc-students/2026-ClickBaitAnalysis/issues/78#issuecomment-6016371190)): quita los rasgos de época y de formato sin coste medible, y el producto analiza titulares cualquiera, no los de estos dos corpus.
+
+#### La prueba final, una sola vez
+
+```bash
+.venv/bin/python -m backend.evaluation.eval_reentreno --test
+```
+
+| | El lineal de antes | F3 con Webis |
+|---|---|---|
+| **`webis_test`** (15.588): P / R / F1 | 0,408 / 0,494 / 0,447 | 0,464 / 0,628 / **0,534** |
+| vectores vacíos · techo de recall | 53,3 % · 65,5 % | 0,5 % · 98,1 % |
+| **Chakraborty `test`** (6.400): P / R / F1 | 0,928 / 0,810 / 0,865 | 0,979 / 0,943 / **0,961** |
+| vectores vacíos · techo de recall | 50,2 % · 84,1 % | 0,0 % · 100,0 % |
+
+Webis sube +0,087 (hacían falta +0,05) y Chakraborty queda en 0,961 (el suelo era 0,845): **se queda** ([comentario](https://github.com/codeurjc-students/2026-ClickBaitAnalysis/issues/78#issuecomment-6016433011)). El lineal de antes reproduce en `test` el 0,865 de su ficha. En Chakraborty, parte de la subida es vocabulario de fuente, y lo cuenta el apartado siguiente.
+
+#### Lo que aprendió, y lo que no se esperaba
+
+Los pesos de F3, que lista el mismo guion:
+
+- **A favor**: `<leading_number>` (+12,12), `you` (+9,62), `this` (+8,14), `your` (+7,36), `these` (+5,36), `how` (+5,32) y `here's` (+4,97). La segunda persona y las referencias hacia delante («this», «these», «here's»), la misma familia que la categoría `forward_reference` del léxico, aprendidas con su peso.
+- **En contra**: `in` (−4,01), `wins` (−3,07), `says` (−2,73), `court` (−2,70), `dies` (−2,68), `uk` (−2,64), `dead` (−2,48), `obama` (−2,14) y `china` (−2,13). El vocabulario de la noticia dura, y el de la fuente: `wikinews` (−1,83), uno de los medios de los que Chakraborty sacó sus titulares no clickbait, dice de dónde viene un titular y no si es clickbait. Allí las etiquetas son por medio, y eso explica parte del 0,961. No se poda a mano: va como límite en la ficha.
+- **Tres de los cuatro patrones pesan EN CONTRA**: interrogación −1,59, mayúsculas −1,49 y puntos suspensivos −1,51; el número inicial, +12,12, y `<number>`, +1,79. Donde el léxico ve una pista de clickbait, el lineal puede restar. **No se ha medido por qué.** Las hipótesis, escritas como tales en la ficha, son que las palabras interrogativas (`why`, `how`) ya llevan el peso de la pregunta, y que en los tuits de Webis-17 los puntos suspensivos son de recorte —#76 ya lo vio en sus errores— y las mayúsculas, de «BREAKING».
+- **Se desacopla del léxico**, que era el bug 2 de [`docs/estructura.md`](docs/estructura.md): ahora sólo comparten la manera de partir las palabras y los cuatro patrones. Con `eval_reentreno --ficha`:
+
+| Acuerdo con el léxico (umbral 1) | Antes | Ahora |
+|---|---|---|
+| Chakraborty `dev` | 94,0 % · kappa 0,880 | 85,8 % · kappa 0,715 |
+| `webis_dev` | 82,8 % · kappa 0,644 | 69,2 % · kappa 0,368 |
+
+#109 predijo que rellenar el hueco de los vectores vacíos desacoplaría las dos señales **y** levantaría el techo, con una sola intervención. Se cumplió.
+
+#### El umbral sigue en 0,5
+
+El punto que #93 dejó aquí, con la tercera parte de la regla (`eval_reentreno --umbral`, sobre el lineal de producción):
+
+| Umbral | F1 Chakraborty `dev` | F1 `webis_dev` | F1 medio |
+|---|---|---|---|
+| 0,30 | 0,957 | 0,522 | 0,740 |
+| 0,40 | 0,961 | 0,540 | **0,751** |
+| **0,50** | 0,958 | 0,542 | **0,750** |
+| 0,60 | 0,942 | 0,536 | 0,739 |
+| 0,70 | 0,920 | 0,506 | 0,713 |
+
+El mejor corte, 0,40, sube el F1 medio 0,001, lejos del +0,01 que pedía la regla. La curva ya no es plana por los vectores vacíos, pero tiene la cima ancha. El 0,5 sigue sin ser configurable.
+
+#### La señal: los mismos rasgos, en Python puro
+
+- **`linear.rasgos()` es la única definición de los rasgos**: el entrenamiento la usa como analizador de `TfidfVectorizer`, y la señal, para partir el titular. Parte las palabras con `lexical.TOKEN`, el patrón del léxico, que se sacó a nombre propio para que las dos señales partan igual, y mira los patrones sobre el titular sin pasar a minúsculas, que es donde se ven las mayúsculas.
+- **`linear.vectorizar()` replica `TfidfVectorizer`** con sus valores por defecto —cuántas veces aparece cada rasgo por su idf, y el vector normalizado a longitud 1— sin `sklearn` en ejecución, como desde E5-07: la señal sigue sin dependencias.
+- **La paridad, vigilada**: `train_linear.py` guarda en el JSON una `comprobacion` con los diez primeros titulares de cada `dev` y la probabilidad que les da `sklearn`, y `tests/integrations/test_lineal.py` exige que la señal dé lo mismo, con una tolerancia de 1e-9. Si alguien cambia `rasgos()` sin reentrenar, falla.
+- **El JSON**: 667 KB con 10.812 rasgos (antes 390), el peso y el idf de cada uno, y el intercepto (−1,494). Se regenera con `python -m backend.evaluation.train_linear`.
+- **El lineal de antes, congelado** en [`backend/evaluation/lineal_pistas.py`](backend/evaluation/lineal_pistas.py), con una copia de sus pesos. `eval_featurizado`, `eval_acoplamiento` y `eval_umbral_lineal` lo importan, porque lo que midieron era ese lineal, y siguen dando sus cifras: el 0,868 y el 0,448 de #93, y el acuerdo forzado del 100 % de #109.
+- **El contrato no cambia**: `top_cues` sigue siendo una lista de pares (rasgo, contribución), con la contribución ahora como peso × tf-idf. Cambian los nombres de los rasgos: palabras, y patrones entre `< >`.
+
+#### La ficha y la tarjeta
+
+En `model_cards.py` el nombre pasa a «Regresión logística sobre las palabras del titular (entrenada en Chakraborty y Webis-17)», y las limitaciones se reescriben con lo medido aquí: el F1 por dominio con el de antes al lado, el vocabulario de fuente, el desacoplamiento con su kappa, los vectores vacíos y el techo, una explicación hecha de palabras que a veces no se entienden solas (`the` a favor, `in` en contra), los patrones que pesan en contra, que `train170331` ya no es validación externa, y sólo inglés. En la ficha del léxico, las frases que comparaban con el lineal pasan a decir «el lineal de entonces», con #109.
+
+En la pantalla, los patrones salían con su nombre de máquina (`<leading_number>`). Ahora se leen en castellano y en cursiva, con la tabla que ya traducía las categorías del léxico (`nombreDeRasgo`, en `senales/vocabulario.ts`) y `<number>` como «cualquier número»; las palabras llevan `lang="en"`, porque son del titular. Lo guardado con el lineal de antes trae los patrones sin `< >`, y así no se distinguen de una palabra (`question` es también la palabra inglesa): se pinta como llegó. Comprobado en el navegador con la API local.
+
+#### Los docstrings que lee el agente, en dos sesiones
+
+Con el lineal nuevo, dos docstrings eran falsos. El del lineal decía «una regresión logística sobre pistas léxicas (hipérbole, referencias vagas, listas numeradas…), en la que cada pista tiene un peso visible»; el del léxico, que el lineal «pondera estas mismas pistas». La primera versión, `v1` (`a54f14c`), dice en el lineal:
+
+> Es el modelo entrenado en este proyecto: una regresión logística sobre las palabras del titular y su estructura (número inicial, interrogación…), en la que cada palabra tiene un peso visible. El veredicto se explica con las que más pesaron. Para la opinión de un modelo sin pesos visibles, `detect_clickbait` (caja negra). Pensada para inglés.
+
+La contribución pasa de «peso × frecuencia» a «peso × tf-idf», y en el léxico el lineal pondera «las palabras del titular». El catálogo, de 10.480 a 10.486 caracteres (`spikes/catalogo_peso.py`).
+
+**La primera sesión no pasó la regla de siempre**, ≥ 24/26 en las dos condiciones que razonan, publicada antes ([comentario](https://github.com/codeurjc-students/2026-ClickBaitAnalysis/issues/78#issuecomment-6017635464)):
+
+| `think` | #159 | `v1` |
+|---|---|---|
+| sin el campo | 26/26 | **23/26** |
+| `true` | 25/26 | 25/26 |
+| `false` (el agente no lo usa) | 14/26 | 10/26 |
+
+Los fallos nuevos eran dos consultas que llamaron a `describe_models` cuando lo correcto era no llamar a nada —«Explícame cómo funciona una regresión logística», que podía venir del cambio, y «¿Por qué es difícil detectar clickbait en español?», que con `true` falla en las cuatro sesiones—, más la de las «papeletas», que falla casi siempre.
+
+**Pero el umbral de 24/26 está dentro del ruido entre sesiones**: con descripciones casi iguales, el mismo examen había dado 23, 25 y 26, porque el muestreo del Modelfile (temperatura 1, la condición de #188) cambia de una sesión a otra. **Por decisión del autor, después de ver esa sesión y antes de medir otra vez**, la regla pasó a ser relativa y medida dentro de una sola sesión, intercalada como pide #192, y se publicó así ([comentario](https://github.com/codeurjc-students/2026-ClickBaitAnalysis/issues/78#issuecomment-6018323652)):
+
+- Tres variantes de los dos docstrings, **intercaladas** y **repetidas dos veces**, con las 26 consultas sin el campo y con `true`: `antes`, los textos de #159, falsos con el lineal nuevo y sólo como vara de medir; `v1`; y `v2`, el texto de antes cambiando sólo lo falso («una regresión logística sobre las pistas del titular —sus palabras y su estructura—…»).
+- Una variante se queda si (a) su total en las cuatro pasadas (104 consultas) no baja más de 2 del de `antes`, y (b) ninguna consulta que `antes` acierta en sus cuatro pasadas falla en las cuatro de la variante. Con preferencia por `v1`.
+
+Para eso `spikes/agente_a40.py` tiene una sexta parte, `variantes`, que cambia la descripción de las dos herramientas en el mismo objeto `mcp` de producción y la devuelve al terminar, y `spikes/agente_a40.sh` acepta la duración de la sesión (`AGENTE_A40_MAX_MIN`).
+
+| Condiciones | |
+|---|---|
+| Fecha | 2026-10-06: primera sesión a las 15:46, sobre `a54f14c`; variantes de 16:24 a 17:06, sobre `cd92aab` |
+| Máquina | La A40 de la máquina 2, con Ollama 0.34.2 y `gpu-sesion` `6ad6a751d636`; el guion corre en WSL por un túnel propio |
+| Modelo | `qwen3.5:27b` (`7653528ba5cb`), con las condiciones de #188: `num_ctx` 8192, `04-preciso`, el muestreo del Modelfile, sin el aviso del historial ni la vuelta más |
+| Guion | `spikes/agente_a40.py`: `963fafdbf3bb` en la primera sesión, el de #124 y #159; `176e85d47384` en las variantes |
+| Datos | [`seleccion-78.json`](spikes/agente_a40/seleccion-78.json) y [`variantes-78.json`](spikes/agente_a40/variantes-78.json) |
+
+```bash
+AGENTE_A40_MAX_MIN=60 AGENTE_A40_JSON=spikes/agente_a40/variantes-78.json setsid nohup bash spikes/agente_a40.sh variantes > /tmp/agente_a40_78v.log 2>&1 < /dev/null & disown
+.venv/bin/python spikes/agente_a40.py --analisis spikes/agente_a40/variantes-78.json
+```
+
+| | 1.ª repetición | 2.ª repetición | Total (de 104) |
+|---|---|---|---|
+| `antes` | 50 | 48 | **98** |
+| `v1` | 49 | 50 | **99** |
+| `v2` | 48 | 48 | **96** |
+
+Las dos cumplen: (a) 99 y 96 frente al mínimo de 96, y (b) ninguna consulta rota. Por la preferencia publicada **se queda `v1`**, que ya estaba en `tool.py` ([comentario](https://github.com/codeurjc-students/2026-ClickBaitAnalysis/issues/78#issuecomment-6019404448)). Aciertos, de cuatro, de las consultas que alguna variante falla alguna vez:
+
+| `antes` | `v1` | `v2` | Consulta |
+|---|---|---|---|
+| 4 | 4 | 3 | 'You Won't Believe What Happened Next' — ¿es un titular engañoso? |
+| 4 | 3 | 4 | Compara titular y contenido: titular 'Miracle Diet Works', cuerpo 'A small study shows modest effects' |
+| 4 | 4 | 3 | ¿Qué es el clickbait? Explícamelo en dos frases. |
+| 3 | 4 | 3 | Explícame cómo funciona una regresión logística |
+| 2 | 1 | 0 | ¿Por qué es difícil detectar clickbait en español? |
+| 3 | 4 | 4 | ¿Cuántas papeletas tiene 'You Won't Guess What She Did' de ser clickbait, en porcentaje? |
+| 4 | 3 | 4 | Puntúa 'Ten Foods Doctors Never Eat' y dime qué pistas pesan más en la nota |
+| 2 | 4 | 3 | ¿Con qué peso contribuye cada palabra de 'Amazing Secrets Revealed' al veredicto? |
+
+- **Las diferencias entre variantes, de 96 a 99, son del tamaño del ruido**: `antes` dio 50 y 48 en sus dos repeticiones con el mismo texto. El 23/26 de la primera sesión no era el docstring: «Explícame cómo funciona una regresión logística», uno de aquellos fallos, sale aquí 4 de 4 con `v1`.
+- **La consulta del peso de cada palabra**, en la frontera léxico–lineal de #183, pasa de 2 de 4 con `antes` a 4 de 4 con `v1`, que dice «cada palabra tiene un peso visible». Es una sola consulta y cuatro intentos: se cuenta, no se generaliza.
+- **«¿Por qué es difícil detectar clickbait en español?» falla con los tres textos** (2, 1 y 0): no depende de estos dos docstrings.
+
+La lección vale para el próximo docstring: **un umbral absoluto sobre una sola sesión mide también la suerte de esa sesión.** La regla relativa compara con el texto de antes en las mismas condiciones, y la repetición enseña cuánto se mueve el mismo texto.
+
+#### El veredicto global
+
+[`eval_veredicto.py`](backend/evaluation/eval_veredicto.py) (#124) pasa los 19.484 pares de `validation170630` por `analyze()`. Con el lineal nuevo cambia la huella de su caché y se recalcula entero. Las cifras de antes son las de #124, que la caché anterior reproduce exactas.
+
+| Condiciones | |
+|---|---|
+| Fecha | 2026-10-06, 17:15, sobre `cd92aab` (huella `669a9c175fc1`) |
+| Máquina | WSL en el portátil, con torch 2.12.1+cu130 en la GTX, como en #124 (producción corre en CPU) |
+
+```bash
+NLP_BACKEND=local .venv/bin/python -m backend.evaluation.eval_veredicto
+```
+
+| Con «veto si discrepa», la regla de producción | Lineal de antes | Lineal de #78 |
+|---|---|---|
+| F1 del lineal solo | 0,448 | 0,535 |
+| «Es clickbait» frente a la etiqueta humana: P / R / F1 | 0,699 / 0,576 / 0,632 | 0,696 / 0,595 / **0,641** |
+| F1 en los 6.808 unánimes | 0,788 | **0,804** |
+| `factual` / `ambiguous` / `stylistic_clickbait` | 44,3 % / 35,8 % / 13,3 % | 40,0 % / 39,3 % / 13,9 % |
+| Clickbait dentro de `factual` | 5,2 % | 4,7 % |
+| Precisión de `deceptive` | 73,1 % | 72,0 % |
+
+Sube el recall sin perder precisión: `factual` pierde 838 titulares y `ambiguous` gana 698 (saldos netos), y lo que queda en `factual` es más limpio. Es un efecto pequeño, contado sin intervalo. Y **#124 sigue en pie**: con la forma unánime en «no», `deceptive` acierta el 12,8 % (141 pares; antes, 13,3 % de 165), y con la forma en discrepancia, el 66,6 % (877; antes, 68,4 % de 862); las dos mitades vuelven a elegir «veto si discrepa» (13,8 % y 11,8 %; 67,6 % y 65,6 %), y `_overall` coincide con lo que devolvió `analyze()` en los 19.484. `validation170630` incluye el 20 % (`webis_dev`) con el que se eligieron los rasgos; restringido a `webis_test` las conclusiones no cambian, pero no se citan cifras porque ese recorte no tiene guion en el repositorio.
+
+#### Qué entra
+
+- **`evaluation/splits.py`**: `webis_dev` y `webis_test`, con su `id`.
+- **`evaluation/eval_reentreno.py`**, nuevo: la comparación en `dev`, `--test`, `--umbral` y `--ficha`.
+- **`evaluation/lineal_pistas.py`** y su JSON, nuevos: el lineal de antes, congelado; los tres guiones que lo medían lo importan.
+- **`nlp/linear.py`**, reescrito: `rasgos`, `vectorizar` y `predict`, con `pesos()` leyendo el JSON en el primer uso como desde #108. **`nlp/lexical.py`**: `TOKEN`.
+- **`evaluation/train_linear.py`**, reescrito, y **`linear_clickbait.json`**, regenerado.
+- **`model_cards.py`**, **`nlp/tool.py`** (los dos docstrings) y la tarjeta en **`frontend/src/app/senales/`**.
+- **`spikes/agente_a40.py`** y **`.sh`**: la parte `variantes`, `--analisis` y la duración configurable.
+- **Tests**: `test_lineal.py`, 6 nuevos; **473 tests**. En el frontend, 3 specs nuevos (187).
+
+#### Lo que no cambia
+
+- **La salida de la señal**: `is_clickbait`, `probability` y `top_cues`, con el umbral en 0,5 y el tope de pistas de #93 (`nlp_linear_top_cues`).
+- **Los prompts del agente.** `05-llano`, el de por defecto desde #192, dice que el lineal «da una probabilidad y dice qué palabras pesan más», que sigue siendo cierto. **`03-estricto` y `04-preciso` dicen ahora algo falso**, «probabilidad ponderada sobre esas mismas pistas», y se dejan como están: son el registro de lo que se midió con ellos, y cambiarlos exigiría medirlos otra vez.
+- **El léxico**: sus listas, su umbral y su resultado.
+- **Producción**: la máquina 1 sirve `828e2e0`, sin el lineal nuevo.
+
+#### Lo que queda
+
+- **Por qué tres patrones pesan en contra**: las hipótesis, sin medir.
+- **El vocabulario de fuente** (`wikinews`, `obama`, `uk`): no se poda a mano, y quitarlo de verdad pediría un corpus con etiquetas que no fueran por medio; en inglés no hay más (medido el 25 de agosto).
+- **`truthMean` como objetivo graduado** —la media de los cinco anotadores de Webis-17 en vez de la etiqueta binaria—: fuera desde el diseño, para #217.
+- **«Top 5 Secrets Finally Revealed»**, el ejemplo que #217 dejaba «para #75»: el lineal ya lo ve, con `revealed` (+0,57) y `finally` (+0,49) a favor y `top` en contra, pero da 0,427, por debajo de 0,5. El de antes daba 0,163 sin ningún rasgo, y el léxico sigue sin ninguna pista.
+  ```bash
+  .venv/bin/python -c "from backend.integrations.nlp import linear; print(linear.predict('Top 5 Secrets Finally Revealed'))"
+  ```
+- **«¿Por qué es difícil detectar clickbait en español?»** falla con los tres docstrings: no es de éstos, y viene de #188.
+- **Sólo inglés.**
 
 
 
