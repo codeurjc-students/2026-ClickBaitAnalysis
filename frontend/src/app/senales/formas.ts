@@ -137,11 +137,17 @@ export function idiomaDelTitular(analisis: AnalisisGuardado | null): string {
  *
  * Una ejecución guarda su `ExecuteResponse` entera, y desde #230 la salida de
  * cada señal dice su idioma en `data.language`, como un análisis lo dice en
- * `language`. Una ejecución anterior, o de una herramienta que no es una señal,
- * no lo trae: queda en «en», como antes.
+ * `language`. Una con salida pero sin él es de antes de #230, cuando todo se
+ * analizaba en inglés: queda en «en».
+ *
+ * Una SIN salida —rechazada o fallida— no dice nada del idioma, y el caso que
+ * más pesa es justo el de un titular que no está en inglés: la señal se niega
+ * y no devuelve nada. Dar «en» sería afirmar lo contrario de lo que pasó, así
+ * que queda en `und`, «indeterminado» en BCP 47 (decidido en #230).
  */
 export function idiomaDeLaEjecucion(crudo: unknown): string {
   const ejecucion = crudo as { data?: { language?: unknown } | null } | null;
-  const idioma = ejecucion?.data?.language;
-  return typeof idioma === 'string' ? idioma : 'en';
+  const datos = ejecucion?.data;
+  if (!datos || typeof datos !== 'object') return 'und';
+  return typeof datos.language === 'string' ? datos.language : 'en';
 }

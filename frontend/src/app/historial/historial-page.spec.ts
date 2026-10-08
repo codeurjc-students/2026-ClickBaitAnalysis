@@ -156,6 +156,25 @@ describe('HistorialPage', () => {
     expect(raiz.querySelector('.titular')?.getAttribute('lang')).toBe('es');
   });
 
+  // Una señal rechaza un titular que no analiza y no devuelve salida: no se
+  // sabe su idioma, y «en» afirmaría lo contrario de lo que pasó (#230).
+  it('una ejecución rechazada marca su titular como indeterminado', async () => {
+    const rechazada = {
+      ...PAGINA.items[0],
+      headline: 'No vas a creer lo que hizo este perro',
+      status: 'error',
+      payload: {
+        tool: 'detect_clickbait_lexical',
+        status: 'error',
+        data: null,
+        detail: 'El titular parece estar en español: el léxico no lo analiza.',
+      },
+    };
+    const raiz = await montar({ ...PAGINA, items: [rechazada] });
+
+    expect(raiz.querySelector('.titular')?.getAttribute('lang')).toBe('und');
+  });
+
   // #134 pasó las claves a inglés. Una entrada anterior se pinta con lo que
   // tiene, no se esconde: el vocabulario cae al valor crudo.
   it('pinta un veredicto anterior al cambio de claves', async () => {

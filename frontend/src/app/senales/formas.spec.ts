@@ -134,13 +134,21 @@ describe('idiomaDeLaEjecucion', () => {
     ).toBe('es');
   });
 
-  // Lo de antes de #230, una herramienta que no es una señal, un fallo sin
-  // datos o algo que ni siquiera es un objeto: lo de siempre, «en».
-  it('sin idioma en la salida, inglés', () => {
+  // Con salida pero sin idioma es de antes de #230, cuando todo se analizaba
+  // en inglés; o de una herramienta que no es una señal.
+  it('con salida sin idioma, inglés', () => {
     expect(idiomaDeLaEjecucion({ tool: 'detect_clickbait', data: { score: 4 } })).toBe('en');
     expect(idiomaDeLaEjecucion({ tool: 'get_nyt_news', data: { result: [] } })).toBe('en');
-    expect(idiomaDeLaEjecucion({ tool: 'detect_clickbait', status: 'error', data: null })).toBe('en');
-    expect(idiomaDeLaEjecucion('texto')).toBe('en');
-    expect(idiomaDeLaEjecucion(null)).toBe('en');
+  });
+
+  // Sin salida no se sabe, y el caso típico es un titular que no está en
+  // inglés y la señal rechazó: «en» afirmaría lo contrario.
+  it('sin salida, indeterminado', () => {
+    expect(idiomaDeLaEjecucion({ tool: 'detect_clickbait', status: 'error', data: null })).toBe(
+      'und',
+    );
+    expect(idiomaDeLaEjecucion({ tool: 'detect_clickbait', status: 'error' })).toBe('und');
+    expect(idiomaDeLaEjecucion('texto')).toBe('und');
+    expect(idiomaDeLaEjecucion(null)).toBe('und');
   });
 });
