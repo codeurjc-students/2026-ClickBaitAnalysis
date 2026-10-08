@@ -596,6 +596,7 @@ def test_importar_la_senal_lineal_no_lee_los_pesos(monkeypatch):
 def test_model_cards_wellformed():
     required = {
         "signal",
+        "language",
         "model_id",
         "name",
         "task",
@@ -609,6 +610,8 @@ def test_model_cards_wellformed():
     assert isinstance(model_cards.MODEL_CARDS, list) and model_cards.MODEL_CARDS
     for card in model_cards.MODEL_CARDS:
         assert required <= card.keys()
+        # Una ficha es de un idioma que se analiza, nunca de «otro» (#230).
+        assert card["language"] in {INGLES, ESPANOL}
         assert card["type"] in valid_types
         assert card["dimension"] in valid_dimensions
         assert isinstance(card["limitations"], list) and card["limitations"]
@@ -619,7 +622,7 @@ def test_las_notas_de_operacion_van_aparte_de_los_limites():
     se sirve es de quien la opera. Las tres notas se movieron, no se borraron:
     siguen junto al modelo al que se refieren, para que si cambia se vea en el
     mismo sitio."""
-    fichas = model_cards.cards_by_signal()
+    fichas = model_cards.fichas_en(INGLES)
     for ficha in model_cards.MODEL_CARDS:
         assert isinstance(ficha["operation"], list), ficha["signal"]
         assert set(ficha["operation"]).isdisjoint(ficha["limitations"]), ficha["signal"]
@@ -683,7 +686,7 @@ async def test_las_dos_fachadas_usan_el_id_de_la_ficha(monkeypatch):
     from backend.analysis import orchestrator
     from backend.core.models import ToolResult
 
-    fichas = model_cards.cards_by_signal()
+    fichas = model_cards.fichas_en(INGLES)
 
     class _Espia:
         """Registra CADA llamada, no la última por método.
@@ -802,6 +805,41 @@ async def test_model_cards_signals_match_registered_tools():
 
     carded = {card["signal"] for card in model_cards.MODEL_CARDS}
     assert carded <= registered, f"fichas sin tool: {carded - registered}"
+
+
+def test_cada_senal_tiene_ficha_en_ingles_y_el_hueco_no_cambia_con_el_idioma():
+    """#230: una ficha por señal e idioma. Toda señal tiene la inglesa; una
+    segunda en el mismo idioma pisaría a la primera en el índice sin fallar; y
+    la dimensión y el tipo describen el hueco, no al modelo: el veredicto agrega
+    por dimensión, y una señal no puede medir otra cosa según el idioma."""
+    claves = [(card["signal"], card["language"]) for card in model_cards.MODEL_CARDS]
+    assert len(claves) == len(set(claves)), "una señal con dos fichas en un idioma"
+
+    inglesas = model_cards.fichas_en(INGLES)
+    for card in model_cards.MODEL_CARDS:
+        inglesa = inglesas.get(card["signal"])
+        assert inglesa is not None, f"{card['signal']} no tiene ficha en inglés"
+        assert card["dimension"] == inglesa["dimension"], card["signal"]
+        assert card["type"] == inglesa["type"], card["signal"]
+
+
+def test_la_ficha_y_el_modelo_se_piden_por_idioma(monkeypatch):
+    """Hoy ninguna señal tiene ficha en español: llegan con C–E. Con una de
+    prueba, cada idioma da la suya y el modelo inglés no se cuela en español."""
+    assert model_cards.ficha_declarada("detect_clickbait", ESPANOL) is None
+    with pytest.raises(ValueError, match="no tiene ficha en español"):
+        model_cards.model_id_de("detect_clickbait", ESPANOL)
+
+    inglesa = model_cards.ficha_declarada("detect_clickbait", INGLES)
+    assert inglesa is not None
+    espanola = {**inglesa, "language": ESPANOL, "model_id": "prueba/multilingue"}
+    monkeypatch.setattr(
+        model_cards, "MODEL_CARDS", [*model_cards.MODEL_CARDS, espanola]
+    )
+
+    assert model_cards.model_id_de("detect_clickbait", ESPANOL) == "prueba/multilingue"
+    assert model_cards.model_id_de("detect_clickbait", INGLES) == inglesa["model_id"]
+    assert set(model_cards.fichas_en(ESPANOL)) == {"detect_clickbait"}
 
 
 # --Dependencias que la instalación de producción no trae
@@ -967,7 +1005,7 @@ def test_si_falta_un_modelo_declarado_sigue_siendo_una_averia(monkeypatch):
     """Los declarados se hornean en la imagen: si uno falta, está mal construida,
     y eso sí debe seguir diciéndose como fallo."""
     _descarga_desactivada(monkeypatch)
-    declarado = model_cards.cards_by_signal()["detect_clickbait"]["model_id"]
+    declarado = model_cards.fichas_en(INGLES)["detect_clickbait"]["model_id"]
     assert declarado is not None
 
     assert dependencias.motivo_si_falta_modelo(declarado, _no_descargable()) is None
@@ -1014,7 +1052,7 @@ async def test_la_incoherencia_explica_el_modelo_sin_descargar(monkeypatch):
 
 
 def test_sin_configuracion_el_modelo_es_el_de_la_ficha():
-    esperado = model_cards.cards_by_signal()["detect_clickbait"]["model_id"]
+    esperado = model_cards.fichas_en(INGLES)["detect_clickbait"]["model_id"]
     assert get_model_id("detect_clickbait") == esperado
 
 
@@ -1023,7 +1061,7 @@ def test_la_configuracion_manda_sobre_la_ficha(monkeypatch):
 
     assert get_model_id("detect_clickbait") == "otra/cosa"
     # Sólo la señal configurada: las demás siguen con su ficha.
-    esperado = model_cards.cards_by_signal()["analyze_sentiment"]["model_id"]
+    esperado = model_cards.fichas_en(INGLES)["analyze_sentiment"]["model_id"]
     assert get_model_id("analyze_sentiment") == esperado
 
 
@@ -1063,7 +1101,7 @@ def test_el_backend_se_reutiliza_dentro_de_la_misma_configuracion(monkeypatch):
 def test_la_ficha_sin_configurar_no_cambia():
     # Salvo las notas de operación, que no se publican nunca (#211).
     assert ficha_efectiva("detect_clickbait") == _sin_notas_de_operacion(
-        model_cards.cards_by_signal()["detect_clickbait"]
+        model_cards.fichas_en(INGLES)["detect_clickbait"]
     )
 
 
@@ -1082,7 +1120,7 @@ def test_al_configurar_otro_modelo_las_medidas_dejan_de_publicarse(monkeypatch):
     a issue (#109, #115, #121). Heredarlas sería divulgar como propias unas
     medidas ajenas — y su ausencia es información: dice que esto es un
     experimento, no una señal caracterizada."""
-    declarada = model_cards.cards_by_signal()["detect_clickbait"]
+    declarada = model_cards.fichas_en(INGLES)["detect_clickbait"]
     monkeypatch.setattr(settings, "nlp_models", {"detect_clickbait": "otra/cosa"})
 
     ficha = ficha_efectiva("detect_clickbait")
@@ -1100,7 +1138,7 @@ def test_al_configurar_otro_modelo_las_medidas_dejan_de_publicarse(monkeypatch):
 def test_configurar_el_mismo_id_que_la_ficha_no_borra_las_medidas(monkeypatch):
     """Poner explícitamente el modelo que ya estaba no es sustituirlo, así que
     las medidas siguen siendo suyas."""
-    declarada = model_cards.cards_by_signal()["detect_clickbait"]
+    declarada = model_cards.fichas_en(INGLES)["detect_clickbait"]
     monkeypatch.setattr(
         settings, "nlp_models", {"detect_clickbait": declarada["model_id"]}
     )
@@ -1214,7 +1252,7 @@ def test_con_otro_umbral_la_ficha_lo_avisa_sin_quitar_las_medidas(monkeypatch):
     """Al revés que con otro modelo (#119), las medidas se quedan: el modelo es
     el mismo, y límites como «sólo inglés» siguen siendo ciertos. Lo que deja
     de valer son las cifras, medidas con el umbral por defecto, y eso se avisa."""
-    declarada = model_cards.cards_by_signal()["detect_clickbait_lexical"]
+    declarada = model_cards.fichas_en(INGLES)["detect_clickbait_lexical"]
     monkeypatch.setattr(settings, "nlp_thresholds", {"detect_clickbait_lexical": 2})
 
     aviso, *medidas = ficha_efectiva("detect_clickbait_lexical")["limitations"]
@@ -1226,7 +1264,7 @@ def test_con_otro_umbral_la_ficha_lo_avisa_sin_quitar_las_medidas(monkeypatch):
 
 def test_el_umbral_por_defecto_puesto_a_mano_no_avisa(monkeypatch):
     """Poner el umbral que ya estaba no es cambiarlo, como con el modelo."""
-    declarada = model_cards.cards_by_signal()["detect_clickbait_incoherence"]
+    declarada = model_cards.fichas_en(INGLES)["detect_clickbait_incoherence"]
     monkeypatch.setattr(
         settings,
         "nlp_thresholds",

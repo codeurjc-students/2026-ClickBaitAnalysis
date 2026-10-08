@@ -29,7 +29,7 @@ from backend.integrations.nlp.incoherence import IncoherenceDetector
 from backend.integrations.nlp.local import LocalNLPClient  # local.py
 from backend.integrations.nlp.model_cards import (
     FichaDeclarada,
-    cards_by_signal,
+    fichas_en,
     model_id_de,
 )
 from backend.integrations.nlp.outputs import FichaModelo
@@ -178,7 +178,7 @@ def get_invocacion(signal: str) -> ModeloConInvocacion:
     configurado = settings.nlp_models.get(signal)
     if isinstance(configurado, ModeloConInvocacion):
         return configurado
-    return ModeloConInvocacion(id=configurado or model_id_de(signal))
+    return ModeloConInvocacion(id=configurado or model_id_de(signal, INGLES))
 
 
 def ficha_efectiva(signal: str) -> FichaModelo:
@@ -210,7 +210,7 @@ def ficha_efectiva(signal: str) -> FichaModelo:
     modelo: un zero-shot o un clasificador con otras etiquetas es otra señal
     aunque el id sea el mismo, y la ficha publica qué se le pregunta.
     """
-    ficha = cards_by_signal()[signal]
+    ficha = fichas_en(INGLES)[signal]
     configurado = settings.nlp_models.get(signal)
     if isinstance(configurado, ModeloConInvocacion):
         invocacion, modelo = configurado, configurado.id
@@ -304,6 +304,7 @@ def _publicable(ficha: FichaDeclarada) -> FichaModelo:
     """
     return {
         "signal": ficha["signal"],
+        "language": ficha["language"],
         "model_id": ficha["model_id"],
         "name": ficha["name"],
         "task": ficha["task"],

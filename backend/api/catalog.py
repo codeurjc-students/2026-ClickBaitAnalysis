@@ -42,9 +42,10 @@ from backend.api.schemas import (
 )
 from backend.config.settings import settings
 from backend.core.errores import describir_error
+from backend.core.idioma import INGLES
 from backend.core.mcp import tools as mcp_tools
 from backend.integrations.nlp.factory import ficha_efectiva
-from backend.integrations.nlp.model_cards import cards_by_signal
+from backend.integrations.nlp.model_cards import fichas_en
 
 log = structlog.get_logger()
 
@@ -121,7 +122,7 @@ def _ficha_de(nombre: str) -> ToolModelCard | None:
     dice otro — que es exactamente la divergencia que cerró #116, reabierta por
     la puerta de al lado.
     """
-    if nombre not in cards_by_signal():
+    if nombre not in fichas_en(INGLES):
         return None
 
     card = ficha_efectiva(nombre)

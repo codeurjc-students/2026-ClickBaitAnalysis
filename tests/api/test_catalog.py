@@ -21,8 +21,9 @@ import pytest
 from backend.api import catalog
 from backend.api.schemas import ServerStatus
 from backend.config.settings import settings
+from backend.core.idioma import INGLES
 from backend.core.mcp import session as mcp_session
-from backend.integrations.nlp.model_cards import cards_by_signal
+from backend.integrations.nlp.model_cards import fichas_en
 
 # El Host debe llevar puerto: la protección anti DNS-rebinding de FastMCP acepta
 # `127.0.0.1:*` y rechazaría con 421 un Host sin él.
@@ -125,7 +126,7 @@ async def test_una_tool_del_nucleo_no_tiene_integracion(monkeypatch, servidor_mc
 async def test_las_senales_traen_su_ficha_de_modelo(monkeypatch, servidor_mcp):
     tools = await _tools(monkeypatch, servidor_mcp)
 
-    fichas = cards_by_signal()
+    fichas = fichas_en(INGLES)
 
     ficha = tools["detect_clickbait_lexical"].model_card
     assert ficha is not None
@@ -152,7 +153,7 @@ async def test_el_catalogo_no_publica_las_notas_de_operacion(monkeypatch, servid
     pantalla de Sistema lo pinta tal cual."""
     tools = await _tools(monkeypatch, servidor_mcp)
     notas = {
-        nota for ficha in cards_by_signal().values() for nota in ficha["operation"]
+        nota for ficha in fichas_en(INGLES).values() for nota in ficha["operation"]
     }
     assert notas  # si no, el test no comprobaría nada
 
@@ -176,7 +177,7 @@ async def test_un_model_id_nulo_es_informacion_y_viaja(monkeypatch, servidor_mcp
     assert lexico is not None and dedicado is not None
 
     assert lexico.model_id is None
-    assert dedicado.model_id == cards_by_signal()["detect_clickbait"]["model_id"]
+    assert dedicado.model_id == fichas_en(INGLES)["detect_clickbait"]["model_id"]
 
 
 @pytest.mark.asyncio
@@ -259,4 +260,4 @@ async def test_la_ficha_del_catalogo_es_la_del_modelo_QUE_SE_EJECUTA(
     assert len(dedicado.limitations) == 1
     assert "SIN EVALUAR" in dedicado.limitations[0]
     # Lo que describe a la señal y no al modelo se conserva: el hueco no cambia.
-    assert dedicado.dimension == cards_by_signal()["detect_clickbait"]["dimension"]
+    assert dedicado.dimension == fichas_en(INGLES)["detect_clickbait"]["dimension"]

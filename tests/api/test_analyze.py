@@ -44,7 +44,7 @@ from backend.integrations.nlp.factory import (
     motivo_si_el_cuerpo_no_se_compara,
     motivo_si_no_se_analiza,
 )
-from backend.integrations.nlp.model_cards import cards_by_signal
+from backend.integrations.nlp.model_cards import fichas_en
 
 _SPECS = {spec.name: spec for spec in _SIGNALS}
 
@@ -549,7 +549,7 @@ async def test_la_etiqueta_legible_sale_de_la_ficha(señales):
     escrita a mano, así que cambiar el nombre en un sitio no puede desalinearlos.
     """
     señales()
-    fichas = cards_by_signal()
+    fichas = fichas_en(INGLES)
     signals = await _run_signals("Un titular", "Un cuerpo")
 
     assert signals, "sin señales no se está comprobando nada"

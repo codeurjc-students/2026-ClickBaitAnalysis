@@ -37,4 +37,6 @@ for ficha in MODEL_CARDS:
     # Lista los nombres de `main`, se queda con los que encajan en los patrones
     # y descarga sólo ésos: lo que no encaja nunca se transfiere.
     snapshot_download(identificador, allow_patterns=["*.json", "*.txt", pesos])
-    print(f"horneado: {ficha['signal']} -> {identificador} ({pesos})")
+    print(
+        f"horneado: {ficha['signal']} ({ficha['language']}) -> {identificador} ({pesos})"
+    )

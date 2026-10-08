@@ -13,9 +13,14 @@ nada, sólo declarar la forma que ya tienen.
 **No se declara aquí el éxito o el fallo.** Ese eje lo lleva el protocolo, con
 ``isError``: las tools **lanzan** cuando algo va mal, en vez de devolver un
 mensaje de error por el mismo canal que un resultado válido.
+
+**El idioma (#230).** Cada ficha es de un idioma (``language``): una señal
+tiene una por cada idioma en que la analiza un modelo declarado.
 """
 
 from typing import TypedDict
+
+from backend.core.idioma import Idioma
 
 
 class Etiqueta(TypedDict):
@@ -94,6 +99,9 @@ class FichaModelo(TypedDict):
     """
 
     signal: str
+    # El idioma de los titulares que analiza ESTE modelo (#230). La dimensión
+    # y el tipo describen el hueco y no cambian con él; el modelo, sí.
+    language: Idioma
     model_id: str | None
     name: str
     task: str
