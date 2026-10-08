@@ -115,6 +115,29 @@ async def test_describe_models_no_publica_las_notas_de_operacion(servidor_mcp):
         assert notas.isdisjoint(ficha["limitations"]), ficha["signal"]
 
 
+@pytest.mark.asyncio
+async def test_describe_models_publica_una_ficha_por_idioma(servidor_mcp, monkeypatch):
+    """#230: una ficha por cada idioma que analiza cada señal, con la misma
+    regla que la puerta. Hoy, todas en inglés; un modelo puesto por
+    configuración en español añade la suya, y sólo la suya."""
+    from backend.config.settings import settings
+
+    # Una sola sesión: la app sólo se puede arrancar una vez, y la
+    # configuración se lee en cada llamada, así que basta cambiarla entre dos.
+    async with sesion(servidor_mcp) as s:
+        antes = (await s.call_tool("describe_models", {})).structuredContent["result"]
+        monkeypatch.setattr(
+            settings, "nlp_models_es", {"detect_clickbait": "prueba/multilingue"}
+        )
+        despues = (await s.call_tool("describe_models", {})).structuredContent["result"]
+
+    assert {ficha["language"] for ficha in antes} == {"en"}
+    nuevas = [ficha for ficha in despues if ficha not in antes]
+    assert [
+        (ficha["signal"], ficha["language"], ficha["model_id"]) for ficha in nuevas
+    ] == [("detect_clickbait", "es", "prueba/multilingue")]
+
+
 # ----- El eje éxito/fallo lo lleva el protocolo -----
 
 

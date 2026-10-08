@@ -201,7 +201,7 @@ def test_las_etiquetas_llevan_a_las_dos_del_contrato(etiquetas):
 
 
 def test_sin_configurar_es_el_de_la_ficha_como_clasificador():
-    invocacion = get_invocacion("detect_clickbait")
+    invocacion = get_invocacion("detect_clickbait", INGLES)
 
     assert invocacion.id == model_cards.model_id_de("detect_clickbait", INGLES)
     assert invocacion.task == "text-classification"
@@ -215,8 +215,8 @@ def test_con_el_modo_configurado_el_id_sale_igual(monkeypatch):
         {"detect_clickbait": ModeloConInvocacion(**ZERO_SHOT_CON_PREGUNTA)},
     )
 
-    assert get_model_id("detect_clickbait") == BART
-    assert get_invocacion("detect_clickbait").task == "zero-shot-classification"
+    assert get_model_id("detect_clickbait", INGLES) == BART
+    assert get_invocacion("detect_clickbait", INGLES).task == "zero-shot-classification"
 
 
 # --Las dos fachadas
@@ -239,7 +239,7 @@ async def test_las_dos_fachadas_llaman_como_dice_la_configuracion(monkeypatch):
     monkeypatch.setattr(orchestrator, "get_nlp_backend", lambda: espia_rest)
     senales = {senal.name: senal for senal in orchestrator._SIGNALS}
     resultado = await orchestrator._run_one(
-        senales["detect_clickbait"], "Un titular", None
+        senales["detect_clickbait"], "Un titular", None, INGLES
     )
     assert espia_rest.llamadas == [esperada]
     assert resultado.is_clickbait is True
@@ -265,7 +265,7 @@ def test_la_ficha_de_un_zero_shot_publica_lo_que_se_le_pregunta(monkeypatch):
         {"detect_clickbait": ModeloConInvocacion(**ZERO_SHOT_CON_PREGUNTA)},
     )
 
-    ficha = ficha_efectiva("detect_clickbait")
+    ficha = ficha_efectiva("detect_clickbait", INGLES)
 
     assert ficha["model_id"] == BART
     assert "zero-shot" in ficha["name"]
@@ -283,7 +283,7 @@ def test_la_ficha_de_un_clasificador_con_otras_etiquetas_dice_la_traduccion(
         settings, "nlp_models", {"detect_clickbait": ModeloConInvocacion(**ELOZANO)}
     )
 
-    texto = " ".join(ficha_efectiva("detect_clickbait")["limitations"])
+    texto = " ".join(ficha_efectiva("detect_clickbait", INGLES)["limitations"])
 
     assert "«Normal» → factual news" in texto
 
@@ -298,7 +298,7 @@ def test_el_declarado_puesto_como_objeto_no_cambia_la_ficha(monkeypatch):
         {"detect_clickbait": ModeloConInvocacion(id=declarada["model_id"])},
     )
 
-    ficha = ficha_efectiva("detect_clickbait")
+    ficha = ficha_efectiva("detect_clickbait", INGLES)
 
     assert ficha["model_id"] == declarada["model_id"]
     assert ficha["limitations"] == declarada["limitations"]

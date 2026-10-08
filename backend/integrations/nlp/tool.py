@@ -11,7 +11,7 @@ indistinguible desde fuera.
 from mcp.server.fastmcp import FastMCP
 from mcp.server.fastmcp.exceptions import ToolError
 
-from backend.core.idioma import detectar
+from backend.core.idioma import INGLES, Idioma, detectar
 from backend.core.observability import log_tool_invocation
 from backend.core.texto import es_ausente
 from backend.integrations.metadata import tool_meta
@@ -24,6 +24,7 @@ from backend.integrations.nlp.factory import (
     get_nlp_backend,
     get_threshold,
     get_top_cues,
+    idiomas_de,
     motivo_si_el_cuerpo_no_se_compara,
     motivo_si_no_se_analiza,
 )
@@ -36,16 +37,21 @@ from backend.integrations.nlp.outputs import (
 )
 
 
-def _rechazar_si_no_se_analiza(texto: str) -> None:
-    """Corta con el motivo si las señales no analizan el idioma del texto (#229).
+def _idioma_si_se_analiza(signal: str, texto: str) -> Idioma:
+    """El idioma del titular, si la señal lo analiza; si no, corta con el motivo.
 
-    La misma puerta que `analyze()`, para quien llama a una señal suelta: el
+    La misma puerta que `_run_signals`, para quien llama a una señal suelta: el
     agente por MCP, o Sistema por `/tools/{name}/execute`. La frase sale de la
     factoría, así que las dos fachadas dicen lo mismo (#116).
+
+    Desde #230 es por señal y devuelve el idioma: con él pide cada herramienta
+    a la factoría su modelo y su umbral. Hasta entonces era una puerta para
+    todas a la vez (#229).
     """
-    motivo = motivo_si_no_se_analiza(detectar(texto))
-    if motivo:
+    idioma = detectar(texto)
+    if motivo := motivo_si_no_se_analiza(signal, idioma):
         raise ToolError(motivo)
+    return idioma
 
 
 def register(mcp: FastMCP):
@@ -88,9 +94,10 @@ def register(mcp: FastMCP):
         Raises:
             Si la llamada al modelo falla (timeout o caída del proveedor).
         """
-        _rechazar_si_no_se_analiza(headline)
-        # El modelo, el modo y las etiquetas, de la configuración (#159).
-        invocacion = get_invocacion("detect_clickbait")
+        idioma = _idioma_si_se_analiza("detect_clickbait", headline)
+        # El modelo, el modo y las etiquetas, de la configuración (#159), los
+        # del idioma del titular (#230).
+        invocacion = get_invocacion("detect_clickbait", idioma)
         response = await dedicated.detect(
             get_nlp_backend(),
             headline,
@@ -120,9 +127,9 @@ def register(mcp: FastMCP):
         Raises:
             Si la llamada al modelo falla (timeout o caída del proveedor).
         """
-        _rechazar_si_no_se_analiza(text)
+        idioma = _idioma_si_se_analiza("analyze_sentiment", text)
         response = await get_nlp_backend().classify(
-            text, get_model_id("analyze_sentiment")
+            text, get_model_id("analyze_sentiment", idioma)
         )
         if not response.has_content():
             raise ToolError(response.error or "Error al analizar el sentimiento")
@@ -156,9 +163,9 @@ def register(mcp: FastMCP):
         Raises:
             Si el cálculo de los embeddings falla.
         """
-        # El idioma antes que el cuerpo, como en `analyze()`: con un titular que
-        # no se analiza, pedir el cuerpo sería una pista falsa (#229).
-        _rechazar_si_no_se_analiza(headline)
+        # El idioma antes que el cuerpo, como en `_run_signals`: con un titular
+        # que no se analiza, pedir el cuerpo sería una pista falsa (#229).
+        idioma = _idioma_si_se_analiza("detect_clickbait_incoherence", headline)
         # Un cuerpo que sólo dice «None» no es un cuerpo (#197): medir la
         # similitud contra esa palabra daría un «incoherente» inventado. El
         # error vuelve al modelo del agente para que lo corrija.
@@ -167,12 +174,12 @@ def register(mcp: FastMCP):
                 "Hace falta el cuerpo o el teaser de la noticia para medir la "
                 "incoherencia; sin él, esta señal no se puede aplicar."
             )
-        # Ni un cuerpo en otro idioma: el modelo que los compara es inglés
-        # (`motivo_si_el_cuerpo_no_se_compara` dice por qué, #229).
+        # Ni un cuerpo en un idioma que no compara: el modelo que los compara es
+        # de un idioma (`motivo_si_el_cuerpo_no_se_compara` dice por qué, #229).
         motivo_del_cuerpo = motivo_si_el_cuerpo_no_se_compara(detectar(content))
         if motivo_del_cuerpo:
             raise ToolError(motivo_del_cuerpo)
-        response = await get_incoherence_detector().detect(headline, content)
+        response = await get_incoherence_detector(idioma).detect(headline, content)
         if not response.has_content():
             raise ToolError(
                 response.error or "Error al analizar incoherencia en el titular"
@@ -202,8 +209,10 @@ def register(mcp: FastMCP):
         Raises:
             Si el titular está vacío.
         """
-        _rechazar_si_no_se_analiza(headline)
-        response = lexical.detect(headline, get_threshold("detect_clickbait_lexical"))
+        idioma = _idioma_si_se_analiza("detect_clickbait_lexical", headline)
+        response = lexical.detect(
+            headline, get_threshold("detect_clickbait_lexical", idioma)
+        )
         if not response.has_content():
             raise ToolError(response.error or "Error al analizar léxico en el titular")
         return response.unwrap()
@@ -231,7 +240,9 @@ def register(mcp: FastMCP):
         Raises:
             Si el titular está vacío.
         """
-        _rechazar_si_no_se_analiza(headline)
+        # Sin idioma para el detector: hoy sólo hay pesos en inglés, y la puerta
+        # no deja llegar otro. Los del español, en #231.
+        _idioma_si_se_analiza("detect_clickbait_linear", headline)
         response = linear.predict(headline, get_top_cues())
         if not response.has_content():
             raise ToolError(response.error or "Error al predecir clickbait")
@@ -256,4 +267,12 @@ def register(mcp: FastMCP):
         # La ficha EFECTIVA, no la declarada: si alguien ha puesto otro modelo
         # por configuración, esto publica ese id y deja de publicar unas medidas
         # que eran del anterior (#119).
-        return [ficha_efectiva(card["signal"]) for card in model_cards.MODEL_CARDS]
+        #
+        # Y desde #230, una por cada idioma que analiza cada señal (`idiomas_de`,
+        # la misma regla que la puerta): la de un modelo que no se ejecuta no
+        # sale, y la de uno puesto por configuración en español, sí.
+        return [
+            ficha_efectiva(senal, idioma)
+            for senal in model_cards.fichas_en(INGLES)
+            for idioma in idiomas_de(senal)
+        ]

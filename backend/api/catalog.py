@@ -125,7 +125,7 @@ def _ficha_de(nombre: str) -> ToolModelCard | None:
     if nombre not in fichas_en(INGLES):
         return None
 
-    card = ficha_efectiva(nombre)
+    card = ficha_efectiva(nombre, INGLES)
 
     return ToolModelCard(
         name=card["name"],
