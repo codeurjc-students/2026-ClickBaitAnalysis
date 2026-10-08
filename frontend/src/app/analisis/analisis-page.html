@@ -28,10 +28,14 @@
 } @else {
   <form [formGroup]="formulario" (ngSubmit)="analizar()">
     <label for="headline">Titular <span aria-hidden="true">*</span></label>
+    <!-- `lang=""` es «idioma desconocido» en HTML (#230): antes de analizar no
+         se sabe, y sin el atributo heredaría el castellano de la página, con su
+         pronunciación y su corrector. Lo que se pinta DESPUÉS lleva el idioma
+         que detectó el análisis (`idiomaDelTitular`). -->
     <input
       id="headline"
       type="text"
-      lang="en"
+      lang=""
       required
       formControlName="headline"
       placeholder="10 Amazing Things You Won't Believe"
@@ -61,7 +65,7 @@
     <textarea
       id="content"
       rows="5"
-      lang="en"
+      lang=""
       formControlName="content"
       placeholder="Pega aquí el cuerpo o el teaser…"
       aria-describedby="ayuda-content"

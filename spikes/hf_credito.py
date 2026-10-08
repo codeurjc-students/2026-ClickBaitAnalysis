@@ -36,6 +36,7 @@ RAIZ = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(RAIZ))
 
 from backend.config.settings import settings  # noqa: E402
+from backend.core.idioma import INGLES  # noqa: E402
 from backend.integrations.nlp.model_cards import model_id_de  # noqa: E402
 from backend.integrations.nlp.remote import HFClient  # noqa: E402
 
@@ -68,13 +69,13 @@ def _cuenta(cliente: httpx.Client, cabeceras: dict[str, str]) -> None:
 def _codigos(cliente: httpx.Client, cabeceras: dict[str, str]) -> None:
     print("2 · hf-inference, directo:")
     pruebas = [
-        ("tono", model_id_de("analyze_sentiment"), {"inputs": TITULAR}),
+        ("tono", model_id_de("analyze_sentiment", INGLES), {"inputs": TITULAR}),
         (
             "zero-shot",
             ZERO_SHOT,
             {"inputs": TITULAR, "parameters": {"candidate_labels": ETIQUETAS}},
         ),
-        ("dedicada", model_id_de("detect_clickbait"), {"inputs": TITULAR}),
+        ("dedicada", model_id_de("detect_clickbait", INGLES), {"inputs": TITULAR}),
     ]
     for nombre, modelo, cuerpo in pruebas:
         respuesta = cliente.post(
@@ -87,7 +88,7 @@ def _codigos(cliente: httpx.Client, cabeceras: dict[str, str]) -> None:
 async def _produccion() -> None:
     print("3 · lo que devuelve HFClient (la tarjeta, con nlp_backend=remote):")
     cliente = HFClient()
-    tono = await cliente.classify(TITULAR, model_id_de("analyze_sentiment"))
+    tono = await cliente.classify(TITULAR, model_id_de("analyze_sentiment", INGLES))
     bart = await cliente.zero_shot(TITULAR, ZERO_SHOT, ETIQUETAS)
     for nombre, resultado in [("tono", tono), ("zero-shot", bart)]:
         dicho = resultado.data if resultado.success else resultado.error

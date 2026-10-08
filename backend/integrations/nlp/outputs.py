@@ -13,9 +13,24 @@ nada, sólo declarar la forma que ya tienen.
 **No se declara aquí el éxito o el fallo.** Ese eje lo lleva el protocolo, con
 ``isError``: las tools **lanzan** cuando algo va mal, en vez de devolver un
 mensaje de error por el mismo canal que un resultado válido.
+
+**El idioma (#230).** Cada ficha es de un idioma (``language``): una señal
+tiene una por cada idioma en que la analiza un modelo declarado. Y cada salida
+de señal dice en qué idioma se analizó el titular, también ``language``: la
+añaden quienes ejecutan la señal —cada herramienta suelta y el orquestador—,
+porque los detectores no saben de idiomas. Lo lee el historial, que guarda la
+salida de cada herramienta y no sabía en qué idioma pintar su titular.
+
+Es obligatorio, y no ``NotRequired``, por dos cosas medidas al escribirlo. Una:
+FastMCP escribe como ``null`` un campo opcional que falta, y después lo rechaza
+contra su propio esquema («None is not one of ['en', 'es', 'und']»). Otra: el
+contrato publica estas formas también para el ``data`` de ``/analyze``, así que
+lo que digan tiene que ser cierto en las dos rutas.
 """
 
 from typing import TypedDict
+
+from backend.core.idioma import Idioma
 
 
 class Etiqueta(TypedDict):
@@ -23,6 +38,7 @@ class Etiqueta(TypedDict):
 
     label: str
     score: float
+    language: Idioma
 
 
 class Pista(TypedDict):
@@ -46,6 +62,7 @@ class SalidaLexica(TypedDict):
     threshold: float
     matches: list[Pista]
     headline: str
+    language: Idioma
 
 
 class SalidaLineal(TypedDict):
@@ -59,6 +76,7 @@ class SalidaLineal(TypedDict):
     probability: float
     top_cues: list[tuple[str, float]]
     headline: str
+    language: Idioma
 
 
 class SalidaIncoherencia(TypedDict):
@@ -78,6 +96,7 @@ class SalidaIncoherencia(TypedDict):
     threshold: float
     headline: str
     content: str
+    language: Idioma
 
 
 class FichaModelo(TypedDict):
@@ -94,6 +113,9 @@ class FichaModelo(TypedDict):
     """
 
     signal: str
+    # El idioma de los titulares que analiza ESTE modelo (#230). La dimensión
+    # y el tipo describen el hueco y no cambian con él; el modelo, sí.
+    language: Idioma
     model_id: str | None
     name: str
     task: str

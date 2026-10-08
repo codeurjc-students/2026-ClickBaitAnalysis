@@ -67,7 +67,8 @@ const SOBRE: AnalyzeResult = { id: 7, analysis: RESPUESTA };
 
 /**
  * Un titular en español, como lo devuelve `/analyze` desde #229: ninguna señal
- * se ejecuta, y cada una dice por qué con la frase de la factoría.
+ * se ejecuta, y cada una dice por qué con la frase de la factoría (la de #230;
+ * el léxico trae la suya, que aquí no hace falta).
  */
 const EN_ESPANOL: AnalyzeResponse = {
   headline: 'No vas a creer lo que hizo este perro cuando su dueño volvió a casa',
@@ -78,8 +79,7 @@ const EN_ESPANOL: AnalyzeResponse = {
     status: 'not_applicable' as const,
     is_clickbait: null,
     data: null,
-    detail:
-      'El titular parece estar en español: por ahora las señales sólo analizan titulares en inglés.',
+    detail: 'El titular parece estar en español: esta señal aún no lo analiza.',
   })),
   dimensions: [],
   verdict: 'no_data',
@@ -177,7 +177,14 @@ describe('AnalisisPage', () => {
     expect(idiomaDe('.barra__titular')).toBe('es');
     expect(idiomaDe('app-titular-resaltado .titular')).toBe('es');
     // Y cada tarjeta dice por qué no se analizó.
-    expect(html().textContent).toContain('sólo analizan titulares en inglés');
+    expect(html().textContent).toContain('esta señal aún no lo analiza');
+  });
+
+  // #230: antes de analizar no se sabe el idioma. `lang=""` lo dice así; sin
+  // el atributo, los campos heredarían el castellano de la página.
+  it('los campos del formulario no dan por hecho un idioma', () => {
+    expect(idiomaDe('#headline')).toBe('');
+    expect(idiomaDe('#content')).toBe('');
   });
 
   // Una señal sin resultado no se esconde: se muestra diciendo por qué.

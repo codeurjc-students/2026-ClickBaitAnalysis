@@ -14,6 +14,11 @@ artículo para la incoherencia, y compara con la etiqueta humana:
 - el veredicto: «es clickbait» (`deceptive` o `stylistic_clickbait`, como en
   `eval_veredicto`) frente a la etiqueta, y el reparto de los veredictos.
 
+Desde #230 la puerta del idioma vive en `_run_signals`, así que este guion le
+pasa `INGLES` como idioma del titular y del cuerpo, a propósito: es lo que
+reproduce el punto de partida, el español tratado como inglés. Medir el
+español de verdad, con sus modelos, es otra pregunta (#231–#233).
+
 Sobre `validation` (700), no sobre `test`, que queda para elegir los modelos del
 español (#231–#233). Por eso estas cifras NO se comparan tal cual con las
 publicadas en TA1C (TF-IDF + XGBoost 0,61 y BETO afinado 0,84), que son de su
@@ -32,6 +37,7 @@ from sklearn.metrics import precision_recall_fscore_support
 
 from backend.analysis.domain import OverallVerdict, SignalStatus
 from backend.analysis.orchestrator import _aggregate, _overall, _run_signals
+from backend.core.idioma import INGLES
 from backend.evaluation.ta1c_extract import DESTINO_CUERPOS, DESTINO_TEASERS
 
 PARTE = "validation"
@@ -57,7 +63,11 @@ async def evaluar(filas: list[dict]) -> list[dict]:
     resultados = []
     inicio = time.perf_counter()
     for indice, fila in enumerate(filas, start=1):
-        senales = await _run_signals(fila["headline"], fila["cuerpo"] or None)
+        # `INGLES` en los dos, a propósito: ver el docstring.
+        cuerpo = fila["cuerpo"] or None
+        senales = await _run_signals(
+            fila["headline"], cuerpo, INGLES, INGLES if cuerpo else None
+        )
         resultados.append(
             {
                 "senales": {

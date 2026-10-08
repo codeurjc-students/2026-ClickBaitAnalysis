@@ -61,8 +61,18 @@ el sistema, y **no se publica**. Estaban mezclados, y el agente le repetía a
 cualquiera que ``torch`` no viene en ``requirements.txt``. Van en la misma ficha
 para que, si el modelo cambia, se vean en el mismo sitio; la que se publica la
 construye ``factory.ficha_efectiva``, que es la única puerta.
+
+UNA FICHA POR SEÑAL E IDIOMA (#230)
+
+Una señal analiza un idioma si tiene un modelo para él, y cada modelo trae sus
+límites medidos, así que la ficha es por señal e idioma: ``language`` dice de
+cuál. Toda señal tiene la suya en inglés; en español, sólo las que tengan
+modelo propio (C–E de ``v0.8``). Lo que describe el HUECO —la dimensión y el
+tipo— es el mismo en todos los idiomas, y un test lo exige: el veredicto
+agrega por dimensión, y una señal no puede medir otra cosa según el idioma.
 """
 
+from backend.core.idioma import INGLES, NOMBRES, Idioma
 from backend.integrations.nlp.outputs import FichaModelo
 
 
@@ -73,8 +83,8 @@ class FichaDeclarada(FichaModelo):
     operation: list[str]
 
 
-def model_id_de(signal: str) -> str:
-    """El id de HuggingFace de una señal, exigiendo que lo tenga.
+def model_id_de(signal: str, idioma: Idioma) -> str:
+    """El id de HuggingFace de una señal en un idioma, exigiendo que lo tenga.
 
     ``model_id`` es ``None`` a propósito en el léxico y el lineal, que no son un
     modelo descargable, y ese ``None`` es información. El precio lo pagaba quien
@@ -84,27 +94,46 @@ def model_id_de(signal: str) -> str:
     Si una ficha perdiera su id, hoy el fallo saldría dentro de la llamada HTTP
     —una URL con ``None`` dentro— y el mensaje no diría de qué señal viene. Aquí
     dice cuál y por qué. Detectado por pyright en #139.
+
+    El idioma es obligatorio (#230): con un valor por defecto, quien lo
+    olvidara recibiría el modelo inglés para un titular en español sin que
+    nada fallara, que es justo lo que #229 vino a cortar.
     """
-    identificador = cards_by_signal()[signal]["model_id"]
+    ficha = ficha_declarada(signal, idioma)
+    if ficha is None:
+        raise ValueError(f"La señal «{signal}» no tiene ficha en {NOMBRES[idioma]}.")
+    identificador = ficha["model_id"]
     if identificador is None:
         raise ValueError(f"La señal «{signal}» no usa un modelo descargable.")
     return identificador
 
 
-def cards_by_signal() -> dict[str, FichaDeclarada]:
-    """Índice de fichas por nombre de tool.
+def fichas_en(idioma: Idioma) -> dict[str, FichaDeclarada]:
+    """Índice de las fichas de un idioma por nombre de tool.
 
-    Vive aquí y no en quien lo usa porque lo necesitan DOS consumidores —la
+    Vive aquí y no en quien lo usa porque lo necesitan varios consumidores —la
     orquestación de ``/analyze``, para leer la dimensión de cada señal, y el
     catálogo, para adjuntar la ficha— y dos copias del mismo índice acabarían
-    divergiendo.
+    divergiendo. Era ``cards_by_signal()`` hasta #230, cuando cada señal pasó
+    a poder tener una ficha por idioma.
     """
-    return {card["signal"]: card for card in MODEL_CARDS}
+    return {card["signal"]: card for card in MODEL_CARDS if card["language"] == idioma}
+
+
+def ficha_declarada(signal: str, idioma: Idioma) -> FichaDeclarada | None:
+    """La ficha de una señal en un idioma, o ``None`` si no tiene (#230).
+
+    ``None`` dice que ningún modelo declarado analiza la señal en ese idioma;
+    si se ejecuta igual, por configuración o con su motivo de no hacerlo, lo
+    decide la factoría.
+    """
+    return fichas_en(idioma).get(signal)
 
 
 MODEL_CARDS: list[FichaDeclarada] = [
     {
         "signal": "detect_clickbait",
+        "language": INGLES,
         "model_id": "Stremie/roberta-base-clickbait",
         "name": "RoBERTa dedicado (entrenado en Webis-17)",
         "task": "Clasifica el titular como clickbait vs factual con un modelo afinado específicamente para esta tarea.",
@@ -131,6 +160,7 @@ MODEL_CARDS: list[FichaDeclarada] = [
     },
     {
         "signal": "analyze_sentiment",
+        "language": INGLES,
         "model_id": "cardiffnlp/twitter-roberta-base-sentiment-latest",
         "name": "RoBERTa afinado en tuits (3 clases)",
         "task": "Análisis de sentimiento en 3 clases (positivo / neutral / negativo).",
@@ -151,6 +181,7 @@ MODEL_CARDS: list[FichaDeclarada] = [
     },
     {
         "signal": "detect_clickbait_incoherence",
+        "language": INGLES,
         "dimension": "deception",
         "model_id": "sentence-transformers/all-MiniLM-L6-v2",
         "name": "MiniLM-L6-v2 (embeddings de frase)",
@@ -172,6 +203,7 @@ MODEL_CARDS: list[FichaDeclarada] = [
     },
     {
         "signal": "detect_clickbait_lexical",
+        "language": INGLES,
         "dimension": "form",
         # Sin `model_id`: no hay nada que descargar. Son regex y listas de cues.
         "model_id": None,
@@ -192,6 +224,7 @@ MODEL_CARDS: list[FichaDeclarada] = [
     },
     {
         "signal": "detect_clickbait_linear",
+        "language": INGLES,
         "dimension": "form",
         # Sin `model_id`: los pesos son un JSON del repo, no un modelo de la Hub.
         "model_id": None,

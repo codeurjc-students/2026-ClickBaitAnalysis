@@ -176,8 +176,9 @@ class OverallVerdict(str, Enum):
 class AnalyzeRequest(BaseModel):
     headline: NonBlankStr = Field(
         description=(
-            "Titular a analizar, en inglés. En otro idioma no se analiza: cada "
-            "señal queda en 'not_applicable' con el motivo."
+            "Titular a analizar. Cada señal lo analiza si tiene un modelo en "
+            "su idioma —hoy, sólo en inglés—; si no, queda en 'not_applicable' "
+            "con el motivo."
         )
     )
     # «None» o «null» escritos como texto son la AUSENCIA de cuerpo, no un

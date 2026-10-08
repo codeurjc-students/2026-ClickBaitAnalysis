@@ -71,6 +71,7 @@ async def test_las_tools_de_datos_describen_sus_campos(servidor_mcp):
         "threshold",  # desde #93, como el de la incoherencia
         "matches",
         "headline",
+        "language",  # desde #230, en qué idioma se analizó
     }
 
     # Las de texto sí van envueltas, y es lo esperado.
@@ -115,6 +116,29 @@ async def test_describe_models_no_publica_las_notas_de_operacion(servidor_mcp):
         assert notas.isdisjoint(ficha["limitations"]), ficha["signal"]
 
 
+@pytest.mark.asyncio
+async def test_describe_models_publica_una_ficha_por_idioma(servidor_mcp, monkeypatch):
+    """#230: una ficha por cada idioma que analiza cada señal, con la misma
+    regla que la puerta. Hoy, todas en inglés; un modelo puesto por
+    configuración en español añade la suya, y sólo la suya."""
+    from backend.config.settings import settings
+
+    # Una sola sesión: la app sólo se puede arrancar una vez, y la
+    # configuración se lee en cada llamada, así que basta cambiarla entre dos.
+    async with sesion(servidor_mcp) as s:
+        antes = (await s.call_tool("describe_models", {})).structuredContent["result"]
+        monkeypatch.setattr(
+            settings, "nlp_models_es", {"detect_clickbait": "prueba/multilingue"}
+        )
+        despues = (await s.call_tool("describe_models", {})).structuredContent["result"]
+
+    assert {ficha["language"] for ficha in antes} == {"en"}
+    nuevas = [ficha for ficha in despues if ficha not in antes]
+    assert [
+        (ficha["signal"], ficha["language"], ficha["model_id"]) for ficha in nuevas
+    ] == [("detect_clickbait", "es", "prueba/multilingue")]
+
+
 # ----- El eje éxito/fallo lo lleva el protocolo -----
 
 
@@ -129,6 +153,8 @@ async def test_una_ejecucion_correcta_devuelve_datos_estructurados(servidor_mcp)
     # Estructurado, no una cadena que haya que parsear.
     assert resultado.structuredContent["is_clickbait"] is True
     assert resultado.structuredContent["matches"]
+    # Y dice en qué idioma lo analizó (#230): lo lee el historial.
+    assert resultado.structuredContent["language"] == "en"
 
 
 @pytest.mark.asyncio

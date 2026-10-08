@@ -563,7 +563,7 @@
             "type": "string",
             "minLength": 1,
             "title": "Headline",
-            "description": "Titular a analizar, en inglés. En otro idioma no se analiza: cada señal queda en 'not_applicable' con el motivo."
+            "description": "Titular a analizar. Cada señal lo analiza si tiene un modelo en su idioma —hoy, sólo en inglés—; si no, queda en 'not_applicable' con el motivo."
           },
           "content": {
             "anyOf": [
@@ -1641,23 +1641,21 @@
             "title": "Server",
             "description": "Servidor MCP que la expone."
           },
-          "model_card": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/ToolModelCard"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Sólo para las señales de análisis; None para el resto."
+          "model_cards": {
+            "items": {
+              "$ref": "#/components/schemas/ToolModelCard"
+            },
+            "type": "array",
+            "title": "Model Cards",
+            "description": "Las fichas de una señal de análisis, una por cada idioma que analiza (#230), empezando por el inglés; vacía para el resto. Hasta #230 era `model_card`, una sola."
           }
         },
         "type": "object",
         "required": [
           "name",
           "input_schema",
-          "server"
+          "server",
+          "model_cards"
         ],
         "title": "ToolInfo",
         "description": "Una herramienta del catálogo, con su procedencia y sus metadatos."
@@ -1698,6 +1696,16 @@
             },
             "type": "array",
             "title": "Limitations"
+          },
+          "language": {
+            "type": "string",
+            "enum": [
+              "en",
+              "es",
+              "und"
+            ],
+            "title": "Language",
+            "description": "El idioma de los titulares que analiza este modelo (#230), en BCP 47."
           }
         },
         "type": "object",
@@ -1706,10 +1714,11 @@
           "task",
           "type",
           "dimension",
-          "limitations"
+          "limitations",
+          "language"
         ],
         "title": "ToolModelCard",
-        "description": "Ficha del modelo que hay detrás de una señal de análisis.\n\nEs lo que evita que el catálogo enseñe «detect_clickbait_linear — Señales de\nanálisis» y esconda que es interpretable, que mide forma y que su F1 cae\nfuera de dominio. Reutiliza los enums de las señales en vez de duplicar\ncadenas sueltas.\n\nPublicaba tres de los siete campos de la ficha hasta #128, y con eso la\npantalla no podía enseñar ni cómo se llama el modelo ni qué hace: seguía\ndiciendo «detect_clickbait_linear», que es justo lo que este tipo existe para\nevitar. El dato estaba en ``MODEL_CARDS`` y no salía — la misma forma que los\ncuatro huecos de #133."
+        "description": "Ficha del modelo que hay detrás de una señal de análisis.\n\nEs lo que evita que el catálogo enseñe «detect_clickbait_linear — Señales de\nanálisis» y esconda que es interpretable, que mide forma y que su F1 cae\nfuera de dominio. Reutiliza los enums de las señales en vez de duplicar\ncadenas sueltas.\n\nPublicaba tres de los siete campos de la ficha hasta #128, y con eso la\npantalla no podía enseñar ni cómo se llama el modelo ni qué hace: seguía\ndiciendo «detect_clickbait_linear», que es justo lo que este tipo existe para\nevitar. El dato estaba en ``MODEL_CARDS`` y no salía — la misma forma que los\ncuatro huecos de #133.\n\nDesde #230 es la ficha de UN idioma: una señal trae una por cada idioma en\nque la analiza un modelo, y ``language`` dice cuál."
       },
       "Turno": {
         "properties": {
@@ -1791,11 +1800,21 @@
           "score": {
             "title": "Score",
             "type": "number"
+          },
+          "language": {
+            "enum": [
+              "en",
+              "es",
+              "und"
+            ],
+            "title": "Language",
+            "type": "string"
           }
         },
         "required": [
           "label",
-          "score"
+          "score",
+          "language"
         ],
         "title": "Etiqueta",
         "type": "object"
@@ -1852,6 +1871,15 @@
           "headline": {
             "title": "Headline",
             "type": "string"
+          },
+          "language": {
+            "enum": [
+              "en",
+              "es",
+              "und"
+            ],
+            "title": "Language",
+            "type": "string"
           }
         },
         "required": [
@@ -1859,7 +1887,8 @@
           "is_clickbait",
           "threshold",
           "matches",
-          "headline"
+          "headline",
+          "language"
         ],
         "title": "SalidaLexica",
         "type": "object"
@@ -1895,13 +1924,23 @@
           "headline": {
             "title": "Headline",
             "type": "string"
+          },
+          "language": {
+            "enum": [
+              "en",
+              "es",
+              "und"
+            ],
+            "title": "Language",
+            "type": "string"
           }
         },
         "required": [
           "is_clickbait",
           "probability",
           "top_cues",
-          "headline"
+          "headline",
+          "language"
         ],
         "title": "SalidaLineal",
         "type": "object"
@@ -1928,6 +1967,15 @@
           "content": {
             "title": "Content",
             "type": "string"
+          },
+          "language": {
+            "enum": [
+              "en",
+              "es",
+              "und"
+            ],
+            "title": "Language",
+            "type": "string"
           }
         },
         "required": [
@@ -1935,7 +1983,8 @@
           "incoherent",
           "threshold",
           "headline",
-          "content"
+          "content",
+          "language"
         ],
         "title": "SalidaIncoherencia",
         "type": "object"

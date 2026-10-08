@@ -9,7 +9,7 @@ import type {
   ToolInfo,
 } from '../api/models';
 import { ToolsService } from '../api/tools.service';
-import { nombreDeDimension } from '../senales/vocabulario';
+import { nombreDeDimension, nombreDeIdioma } from '../senales/vocabulario';
 import { EsquemaForm } from './esquema-form';
 
 /**
@@ -137,7 +137,11 @@ export class SistemaPage {
    */
   readonly ejecutando = signal<string | null>(null);
 
-  /** Qué ficha de modelo tiene sus límites desplegados. */
+  /**
+   * Qué ficha de modelo tiene sus límites desplegados, por su clave
+   * (`claveDeFicha`): desde #230 una señal trae una por idioma, y cada una se
+   * pliega por su lado.
+   */
   readonly fichaAbierta = signal<string | null>(null);
 
   // Por nombre de herramienta, para que el resultado se quede donde se pidió al
@@ -180,10 +184,11 @@ export class SistemaPage {
 
   /** Las que llevan ficha son exactamente las señales de análisis. */
   readonly fichas = computed(() =>
-    this.herramientas().filter((herramienta) => herramienta.model_card),
+    this.herramientas().filter((herramienta) => herramienta.model_cards.length > 0),
   );
 
   protected readonly dimension = nombreDeDimension;
+  protected readonly idioma = nombreDeIdioma;
 
   constructor() {
     this.cargar();
@@ -226,13 +231,18 @@ export class SistemaPage {
    * recortan —son los límites MEDIDOS, que es el motivo de que la ficha
    * exista—, se pliegan: el mismo patrón que `senal-card` con las opacas.
    */
-  limitesDe(nombre: string, limites: string[]): string[] {
-    if (this.fichaAbierta() === nombre) return limites;
+  limitesDe(clave: string, limites: string[]): string[] {
+    if (this.fichaAbierta() === clave) return limites;
     return limites.slice(0, LIMITES_VISIBLES);
   }
 
-  alternarFicha(nombre: string): void {
-    this.fichaAbierta.update((actual) => (actual === nombre ? null : nombre));
+  alternarFicha(clave: string): void {
+    this.fichaAbierta.update((actual) => (actual === clave ? null : clave));
+  }
+
+  /** Una ficha es de una herramienta EN un idioma (#230). */
+  claveDeFicha(herramienta: string, idioma: string): string {
+    return `${herramienta}:${idioma}`;
   }
 
   alternar(nombre: string): void {

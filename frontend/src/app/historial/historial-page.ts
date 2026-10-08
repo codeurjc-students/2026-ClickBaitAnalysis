@@ -11,7 +11,7 @@ import type {
   OverallVerdict,
   RetentionPolicy,
 } from '../api/models';
-import { comoAnalisis, idiomaDelTitular } from '../senales/formas';
+import { comoAnalisis, idiomaDeLaEjecucion, idiomaDelTitular } from '../senales/formas';
 import { nombreDeVeredicto } from '../senales/vocabulario';
 
 /** Entradas por página. El contrato admite hasta 100. */
@@ -165,16 +165,18 @@ export class HistorialPage {
   }
 
   /**
-   * El idioma del titular de una fila, para su `lang` (#229): el que guardó la
-   * respuesta del análisis.
+   * El idioma del titular de una fila, para su `lang` (#229): el que guardó su
+   * respuesta. Un análisis lo dice en `language`; una ejecución suelta, desde
+   * #230, en la salida de la señal (`data.language`). Lo guardado antes no lo
+   * dice, y queda en «en»; una ejecución sin salida, en `und`
+   * (`idiomaDeLaEjecucion` dice por qué).
    *
-   * Una ejecución suelta también guarda el titular que recibió, pero su
-   * respuesta no dice en qué idioma lo leyó la señal: `comoAnalisis` da `null`
-   * y queda en «en», como antes de #229. Que el resultado de cada señal lo
-   * diga está apuntado en #230.
+   * Se distingue por la forma del `payload` y no por `kind`, como hace
+   * `comoAnalisis`: lo que importa es qué se puede leer, no qué se pidió.
    */
   idioma(entrada: HistoryEntry): string {
-    return idiomaDelTitular(comoAnalisis(entrada.payload));
+    const analisis = comoAnalisis(entrada.payload);
+    return analisis ? idiomaDelTitular(analisis) : idiomaDeLaEjecucion(entrada.payload);
   }
 
   crudoDe(entrada: HistoryEntry): string {
