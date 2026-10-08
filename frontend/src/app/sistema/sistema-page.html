@@ -145,8 +145,11 @@
       Es lo que evita leer un veredicto sin saber de dónde sale.
     </p>
 
+    <!-- Una ficha por señal E idioma (#230): la misma señal puede analizar
+         dos idiomas con dos modelos, y cada uno trae sus límites. -->
     @for (herramienta of fichas(); track herramienta.name) {
-      @if (herramienta.model_card; as ficha) {
+      @for (ficha of herramienta.model_cards; track ficha.language) {
+        @let clave = claveDeFicha(herramienta.name, ficha.language);
         <article class="ficha" [attr.data-tipo]="ficha.type">
           <h3>{{ ficha.name }}</h3>
           <p class="ficha__tarea">{{ ficha.task }}</p>
@@ -154,6 +157,7 @@
           <p class="ficha__meta">
             <span class="badge">{{ ficha.type }}</span>
             <span>Dimensión: {{ dimension(ficha.dimension) }}</span>
+            <span>Titulares en {{ idioma(ficha.language) }}</span>
             @if (ficha.model_id) {
               <code>{{ ficha.model_id }}</code>
             } @else {
@@ -166,7 +170,7 @@
           <h4>Límites</h4>
           <ul class="ficha__limites">
             @for (
-              limite of limitesDe(herramienta.name, ficha.limitations);
+              limite of limitesDe(clave, ficha.limitations);
               track $index
             ) {
               <li>{{ limite }}</li>
@@ -179,10 +183,10 @@
             <button
               type="button"
               class="secundario"
-              (click)="alternarFicha(herramienta.name)"
-              [attr.aria-expanded]="fichaAbierta() === herramienta.name"
+              (click)="alternarFicha(clave)"
+              [attr.aria-expanded]="fichaAbierta() === clave"
             >
-              @if (fichaAbierta() === herramienta.name) {
+              @if (fichaAbierta() === clave) {
                 Plegar los límites
               } @else {
                 Ver los {{ ficha.limitations.length }} límites

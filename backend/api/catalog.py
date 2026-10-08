@@ -44,7 +44,7 @@ from backend.config.settings import settings
 from backend.core.errores import describir_error
 from backend.core.idioma import INGLES
 from backend.core.mcp import tools as mcp_tools
-from backend.integrations.nlp.factory import ficha_efectiva
+from backend.integrations.nlp.factory import ficha_efectiva, idiomas_de
 from backend.integrations.nlp.model_cards import fichas_en
 
 log = structlog.get_logger()
@@ -105,16 +105,20 @@ def _envolver(tool: Tool, servidor: str) -> ToolInfo:
         category=meta.get("category"),
         integration=meta.get("integration"),
         server=servidor,
-        model_card=_ficha_de(tool.name),
+        model_cards=_fichas_de(tool.name),
     )
 
 
-def _ficha_de(nombre: str) -> ToolModelCard | None:
-    """Busca la ficha de modelo de una tool, si es una señal de análisis.
+def _fichas_de(nombre: str) -> list[ToolModelCard]:
+    """Las fichas de modelo de una tool, si es una señal de análisis.
 
     El índice vive en ``model_cards`` porque lo comparte con la orquestación de
-    ``/analyze``: dos copias acabarían divergiendo. Devuelve None para las
-    herramientas que no son señales — fuentes de contenido y utilidades.
+    ``/analyze``: dos copias acabarían divergiendo. Devuelve una lista vacía
+    para las herramientas que no son señales — fuentes de contenido y utilidades.
+
+    Desde #230, una por cada idioma que analiza la señal (``idiomas_de``, la
+    misma regla que la puerta y ``describe_models``): la pantalla de Sistema no
+    puede enseñar la ficha de un modelo que no se ejecuta.
 
     **La ficha que se publica es la EFECTIVA** (#119): si alguien ha puesto otro
     modelo por configuración, aquí sale ese, no el declarado. Leer el índice a
@@ -123,15 +127,18 @@ def _ficha_de(nombre: str) -> ToolModelCard | None:
     la puerta de al lado.
     """
     if nombre not in fichas_en(INGLES):
-        return None
+        return []
 
-    card = ficha_efectiva(nombre, INGLES)
-
-    return ToolModelCard(
-        name=card["name"],
-        task=card["task"],
-        model_id=card["model_id"],
-        type=SignalType(card["type"]),
-        dimension=Dimension(card["dimension"]),
-        limitations=card["limitations"],
-    )
+    fichas = [ficha_efectiva(nombre, idioma) for idioma in idiomas_de(nombre)]
+    return [
+        ToolModelCard(
+            name=ficha["name"],
+            task=ficha["task"],
+            model_id=ficha["model_id"],
+            type=SignalType(ficha["type"]),
+            dimension=Dimension(ficha["dimension"]),
+            limitations=ficha["limitations"],
+            language=ficha["language"],
+        )
+        for ficha in fichas
+    ]

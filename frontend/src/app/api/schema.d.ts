@@ -991,8 +991,11 @@ export interface components {
              * @description Servidor MCP que la expone.
              */
             server: string;
-            /** @description Sólo para las señales de análisis; None para el resto. */
-            model_card?: components["schemas"]["ToolModelCard"] | null;
+            /**
+             * Model Cards
+             * @description Las fichas de una señal de análisis, una por cada idioma que analiza (#230), empezando por el inglés; vacía para el resto. Hasta #230 era `model_card`, una sola.
+             */
+            model_cards: components["schemas"]["ToolModelCard"][];
         };
         /**
          * ToolModelCard
@@ -1008,6 +1011,9 @@ export interface components {
          *     diciendo «detect_clickbait_linear», que es justo lo que este tipo existe para
          *     evitar. El dato estaba en ``MODEL_CARDS`` y no salía — la misma forma que los
          *     cuatro huecos de #133.
+         *
+         *     Desde #230 es la ficha de UN idioma: una señal trae una por cada idioma en
+         *     que la analiza un modelo, y ``language`` dice cuál.
          */
         ToolModelCard: {
             /**
@@ -1029,6 +1035,12 @@ export interface components {
             dimension: components["schemas"]["Dimension"];
             /** Limitations */
             limitations: string[];
+            /**
+             * Language
+             * @description El idioma de los titulares que analiza este modelo (#230), en BCP 47.
+             * @enum {string}
+             */
+            language: "en" | "es" | "und";
         };
         /**
          * Turno
