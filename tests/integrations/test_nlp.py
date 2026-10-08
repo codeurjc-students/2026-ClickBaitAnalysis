@@ -543,6 +543,17 @@ def test_lexical_acronym_no_false_positive():
     assert result.data["is_clickbait"] is False
 
 
+@pytest.mark.parametrize(
+    "titular",
+    ["ÚLTIMA hora: el Gobierno aprueba el decreto", "ESPAÑA gana el Mundial"],
+)
+def test_las_mayusculas_con_tilde_cuentan_como_mayusculas(titular):
+    # #231: con `[A-Z]` a secas, «ÚLTIMA» y «ESPAÑA» no contaban, porque la
+    # letra con tilde corta la secuencia y no deja frontera de palabra. Lo
+    # usan el léxico y los rasgos del lineal, que en español lo necesita.
+    assert lexical.PATTERNS["all_caps"].search(titular)
+
+
 # --Lineal Determinista!!! (Si cambia seed, cambia test)
 
 
@@ -827,8 +838,9 @@ def test_cada_senal_tiene_ficha_en_ingles_y_el_hueco_no_cambia_con_el_idioma():
 
 
 def test_la_ficha_y_el_modelo_se_piden_por_idioma(monkeypatch):
-    """Hoy ninguna señal tiene ficha en español: llegan con C–E. Con una de
-    prueba, cada idioma da la suya y el modelo inglés no se cuela en español."""
+    """Hoy sólo el lineal tiene ficha en español (#231); la dedicada, no. Con
+    una de prueba, cada idioma da la suya y el modelo inglés no se cuela en
+    español."""
     assert model_cards.ficha_declarada("detect_clickbait", ESPANOL) is None
     with pytest.raises(ValueError, match="no tiene ficha en español"):
         model_cards.model_id_de("detect_clickbait", ESPANOL)
@@ -842,7 +854,10 @@ def test_la_ficha_y_el_modelo_se_piden_por_idioma(monkeypatch):
 
     assert model_cards.model_id_de("detect_clickbait", ESPANOL) == "prueba/multilingue"
     assert model_cards.model_id_de("detect_clickbait", INGLES) == inglesa["model_id"]
-    assert set(model_cards.fichas_en(ESPANOL)) == {"detect_clickbait"}
+    assert set(model_cards.fichas_en(ESPANOL)) == {
+        "detect_clickbait",
+        "detect_clickbait_linear",
+    }
 
 
 # --Dependencias que la instalación de producción no trae
@@ -1333,6 +1348,9 @@ SENALES_SUELTAS = [
     "detect_clickbait_lexical",
     "detect_clickbait_linear",
 ]
+# Las que analizan el español por su ficha: el lineal, bilingüe desde #231.
+ANALIZAN_ESPANOL = {"detect_clickbait_linear"}
+SIN_ESPANOL = [senal for senal in SENALES_SUELTAS if senal not in ANALIZAN_ESPANOL]
 
 
 def _argumentos(senal: str, titular: str) -> dict[str, str]:
@@ -1392,6 +1410,7 @@ def detectores(monkeypatch):
             {
                 "is_clickbait": False,
                 "probability": 0.2,
+                "threshold": 0.35,
                 "top_cues": [],
                 "headline": headline,
             }
@@ -1408,7 +1427,7 @@ def detectores(monkeypatch):
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("senal", SENALES_SUELTAS)
+@pytest.mark.parametrize("senal", SIN_ESPANOL)
 async def test_una_senal_suelta_no_analiza_un_titular_en_espanol(detectores, senal):
     """La puerta de `_run_signals`, por la otra fachada: el agente y Sistema
     llaman a cada señal suelta, y hasta #229 un titular en español recibía un
@@ -1439,6 +1458,22 @@ async def test_un_titular_en_ingles_sigue_llegando_al_detector(detectores, senal
     await mcp.call_tool(senal, _argumentos(senal, TITULAR_EN_INGLES))
 
     assert detectores == [senal]
+
+
+@pytest.mark.asyncio
+async def test_el_lineal_analiza_un_titular_en_espanol(detectores):
+    """#231: el lineal es bilingüe, así que su puerta deja pasar el español, y
+    lo que devuelve dice en qué idioma leyó el titular."""
+    mcp = FastMCP("test")
+    nlp_tool.register(mcp)
+
+    _, salida = await mcp.call_tool(
+        "detect_clickbait_linear",
+        _argumentos("detect_clickbait_linear", TITULAR_EN_ESPANOL),
+    )
+
+    assert detectores == ["detect_clickbait_linear"]
+    assert salida["language"] == ESPANOL
 
 
 @pytest.mark.asyncio
@@ -1497,8 +1532,16 @@ def test_en_ingles_el_cuerpo_se_compara():
     assert motivo_si_el_cuerpo_no_se_compara(INGLES) is None
 
 
-@pytest.mark.parametrize("senal", SENALES_SUELTAS)
-@pytest.mark.parametrize(("idioma", "nombre"), FUERA_DEL_INGLES)
+@pytest.mark.parametrize(
+    ("senal", "idioma", "nombre"),
+    [
+        (senal, idioma, nombre)
+        for senal in SENALES_SUELTAS
+        for idioma, nombre in FUERA_DEL_INGLES
+        # El lineal analiza el español (#231): ese par no tiene motivo.
+        if not (senal in ANALIZAN_ESPANOL and idioma == ESPANOL)
+    ],
+)
 def test_fuera_del_ingles_el_motivo_dice_en_que_idioma(senal, idioma, nombre):
     motivo = motivo_si_no_se_analiza(senal, idioma)
 
@@ -1520,9 +1563,9 @@ def test_el_motivo_del_cuerpo_dice_en_que_idioma(idioma, nombre):
 def test_el_espanol_se_activa_por_configuracion_solo_en_los_modelos(monkeypatch):
     """Con un modelo en español puesto por configuración, la señal analiza
     español como experimento. Al léxico y al lineal no: no tienen un modelo que
-    cambiar (el lineal en español serán otros pesos, #231), y el léxico no
-    analiza español por decisión, con su propio motivo."""
-    assert all(idiomas_de(senal) == [INGLES] for senal in SENALES_SUELTAS)
+    cambiar. El léxico no analiza español por decisión, con su propio motivo, y
+    el lineal lo analiza por su ficha (bilingüe, #231), no por configuración."""
+    assert all(idiomas_de(senal) == [INGLES] for senal in SIN_ESPANOL)
 
     monkeypatch.setattr(
         settings,
@@ -1534,11 +1577,11 @@ def test_el_espanol_se_activa_por_configuracion_solo_en_los_modelos(monkeypatch)
     assert idiomas_de("analyze_sentiment") == [INGLES, ESPANOL]
     assert idiomas_de("detect_clickbait_incoherence") == [INGLES, ESPANOL]
     assert idiomas_de("detect_clickbait_lexical") == [INGLES]
-    assert idiomas_de("detect_clickbait_linear") == [INGLES]
+    assert idiomas_de("detect_clickbait_linear") == [INGLES, ESPANOL]
     assert "léxico" in (
         motivo_si_no_se_analiza("detect_clickbait_lexical", ESPANOL) or ""
     )
-    assert motivo_si_no_se_analiza("detect_clickbait_linear", ESPANOL) is not None
+    assert motivo_si_no_se_analiza("detect_clickbait_linear", ESPANOL) is None
 
 
 def test_un_modelo_en_espanol_sin_ficha_se_publica_como_experimento(monkeypatch):

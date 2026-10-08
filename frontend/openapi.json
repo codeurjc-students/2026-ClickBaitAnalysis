@@ -1894,7 +1894,7 @@
         "type": "object"
       },
       "SalidaLineal": {
-        "description": "Salida del modelo lineal interpretable.\n\n``top_cues`` empareja cada cue con su contribución al veredicto (peso ×\nfrecuencia); es la explicación intrínseca del modelo.",
+        "description": "Salida del modelo lineal interpretable.\n\n``top_cues`` empareja cada cue con su contribución al veredicto (peso ×\nfrecuencia); es la explicación intrínseca del modelo.\n\nLleva el ``threshold`` desde #231, cuando dejó de ser 0,5: sin él, quien\nleyera «probabilidad 0,41» junto a «clickbait» pensaría que no cuadra.",
         "properties": {
           "is_clickbait": {
             "title": "Is Clickbait",
@@ -1902,6 +1902,10 @@
           },
           "probability": {
             "title": "Probability",
+            "type": "number"
+          },
+          "threshold": {
+            "title": "Threshold",
             "type": "number"
           },
           "top_cues": {
@@ -1938,6 +1942,7 @@
         "required": [
           "is_clickbait",
           "probability",
+          "threshold",
           "top_cues",
           "headline",
           "language"

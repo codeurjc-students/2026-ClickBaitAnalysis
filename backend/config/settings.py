@@ -121,8 +121,9 @@ class Settings(BaseSettings):
     #   NLP_MODELS_ES='{"detect_clickbait": {"id": "MoritzLaurer/mDeBERTa-v3-base-mnli-xnli",
     #                   "task": "zero-shot-classification"}}'
     # Sólo cuenta en las señales que son un modelo descargable (la dedicada, el
-    # tono y la incoherencia): el léxico no analiza español, y el lineal en
-    # español son otros pesos, no otro id (#231). Eso lo decide la factoría.
+    # tono y la incoherencia): el léxico no analiza español, y el lineal no
+    # tiene un id que cambiar: desde #231 es bilingüe, con los mismos pesos para
+    # los dos idiomas. Eso lo decide la factoría.
     nlp_models_es: dict[str, str | ModeloConInvocacion] = {}
 
     @field_validator("nlp_models", "nlp_models_es")

@@ -72,7 +72,7 @@ tipo— es el mismo en todos los idiomas, y un test lo exige: el veredicto
 agrega por dimensión, y una señal no puede medir otra cosa según el idioma.
 """
 
-from backend.core.idioma import INGLES, NOMBRES, Idioma
+from backend.core.idioma import ESPANOL, INGLES, NOMBRES, Idioma
 from backend.integrations.nlp.outputs import FichaModelo
 
 
@@ -228,19 +228,42 @@ MODEL_CARDS: list[FichaDeclarada] = [
         "dimension": "form",
         # Sin `model_id`: los pesos son un JSON del repo, no un modelo de la Hub.
         "model_id": None,
-        "name": "Regresión logística sobre las palabras del titular (entrenada en Chakraborty y Webis-17)",
+        "name": "Regresión logística sobre las palabras del titular (entrenada en Chakraborty, Webis-17 y TA1C)",
         "task": "Clickbait ponderado: aprende el peso de cada palabra y patrón del titular, y devuelve los que más contribuyeron al veredicto.",
         "type": "interpretable",
         "limitations": [
             "Detecta clickbait de ESTILO, no engaño semántico: mira qué palabras usa el titular, no si el cuerpo cumple lo que promete.",
-            "Medido por dominio, en titulares que no vio (#78): F1 0.961 en titulares de noticias (Chakraborty test) y 0.534 en tuits (Webis-17, 15.588 de `validation170630`); hasta #78, sobre las pistas del léxico, 0.865 y 0.447. Fuera de dominio sigue lejos del techo humano de la tarea en Webis-17 (F1 0.665, #121).",
+            "Medido por dominio, en titulares que no vio: F1 0.960 en titulares de noticias (Chakraborty test) y 0.523 en tuits (Webis-17, 15.588 de `validation170630`), con umbral 0.35 (#231; para ese test, su segunda apertura). Con el lineal de #78, 0.961 y 0.534; hasta #78, sobre las pistas del léxico, 0.865 y 0.447. Fuera de dominio sigue lejos del techo humano de la tarea en Webis-17 (F1 0.665, #121).",
             "Parte de su acierto en Chakraborty es VOCABULARIO DE FUENTE: allí las etiquetas son por medio (BuzzFeed sí, NYT o WikiNews no), y entre sus pesos fuertes hay `wikinews`, `obama`, `uk` o `china`, que dicen de dónde viene el titular y no si es clickbait. Los años y las marcas de tuit se quitaron al normalizar los rasgos (#78); éstos no se podan a mano.",
-            "Desde #78 no está acoplada al léxico por construcción: comparte con él sólo los cuatro patrones de estructura y la manera de partir las palabras. Acuerdo con el léxico: kappa 0.715 en Chakraborty dev y 0.368 en Webis (antes de #78, 0.880 y 0.644).",
+            "Desde #78 no está acoplada al léxico por construcción: comparte con él sólo los cuatro patrones de estructura y la manera de partir las palabras. Acuerdo con el léxico: kappa 0.712 en Chakraborty dev y 0.384 en Webis (con el lineal de #78, 0.715 y 0.368; antes de #78, 0.880 y 0.644).",
             "Casi ningún titular se queda sin rasgos (0.5% en Webis-17, antes el 53.3%), y el techo de recall pasa del 65.5% al 98.1%: el límite ya no es el featurizado. Una palabra que no vio al entrenar no cuenta.",
             "La explicación son palabras con su contribución (peso × tf-idf), no pistas de una lista: más cobertura, a cambio de pesos que a veces no se entienden solos (`the` a favor, `in` en contra).",
-            "Tres de los cuatro patrones de estructura pesan EN CONTRA (interrogación −1.59, mayúsculas −1.49, elipsis −1.51; el número inicial, +12.12): donde el léxico ve una pista de clickbait, el lineal puede restar. Sin medir por qué; las hipótesis son que las palabras interrogativas (`why`, `how`) ya llevan el peso, y que en los tuits de Webis-17 los puntos suspensivos son de recorte y las mayúsculas, de «BREAKING».",
+            "Dos de los cuatro patrones de estructura pesan EN CONTRA (mayúsculas −1.60, elipsis −0.87); la interrogación casi no pesa (+0.43; −1.59 con el lineal de #78), y el número inicial, +12.49: donde el léxico ve una pista de clickbait, el lineal puede restar. Sin medir por qué; las hipótesis son que las palabras interrogativas (`why`, `how`) ya llevan el peso, y que en los tuits de Webis-17 los puntos suspensivos son de recorte y las mayúsculas, de «BREAKING».",
             "Se entrenó con `train170331` de Webis-17: medirla sobre ese split ya no es una validación externa.",
-            "Solo inglés.",
+            "Vota con umbral 0.35, no 0.5 (#231): lo eligió la regla de #78 sobre la media de los tres dev (Chakraborty, Webis-17 y TA1C), y es el mismo en los dos idiomas.",
+            "Bilingüe desde #231: los mismos pesos analizan el español, con su ficha aparte.",
+        ],
+        "operation": [],
+        "backend": "local",
+    },
+    {
+        "signal": "detect_clickbait_linear",
+        "language": ESPANOL,
+        "dimension": "form",
+        # El mismo modelo que la ficha inglesa: es bilingüe desde #231.
+        "model_id": None,
+        "name": "Regresión logística sobre las palabras del titular (entrenada en Chakraborty, Webis-17 y TA1C)",
+        "task": "Clickbait ponderado: aprende el peso de cada palabra y patrón del titular, y devuelve los que más contribuyeron al veredicto.",
+        "type": "interpretable",
+        "limitations": [
+            "Detecta clickbait de ESTILO, no engaño semántico: mira qué palabras usa el titular, no si el cuerpo cumple lo que promete.",
+            "Medido en TA1C test (#231), tuits en español: F1 0.674 (P 0.756, R 0.608) con umbral 0.35, frente a 0.61 de la base publicada con el corpus (TF-IDF + XGBoost) y 0.84 de BETO afinado. Hasta #231, con el español tratado como inglés, 0.019 en TA1C validation (#229).",
+            "Es el MISMO modelo que analiza el inglés: el bilingüe empató en TA1C validation con uno entrenado sólo con TA1C (0.390 frente a 0.368 con umbral 0.5, dentro del ruido) sin bajar el inglés, y la regla publicada en #231 lo prefería en el empate.",
+            "Aprende VOCABULARIO DE FUENTE también en español: nombres de medios y etiquetas de sección pesan en contra (`euvzla` −2.10, `diariolibre` −1.28, `opinión` −1.21, `columna` −0.59), y dicen de dónde viene el tuit, no si es clickbait.",
+            "TA1C son tuits con los que 18 medios de 12 países anuncian una noticia, no titulares de portada: fuera de ese registro, sin medir.",
+            "El umbral 0.35 es el de los dos idiomas: lo eligió la media de los tres dev. En TA1C validation solo, el mejor corte quedaba por debajo de 0.30, fuera de la rejilla que publicó la regla.",
+            "Las mayúsculas con tilde cuentan desde #231 (`ÚLTIMA`, `ESPAÑA`), pero de los 51 tuits de TA1C que las ganan, 42 las ganan por una etiqueta de sección (`#ATENCIÓN`, `#OPINIÓN`); el patrón pesa en contra (−1.60).",
+            "Sin acuerdo con el léxico que medir: el léxico no analiza español.",
         ],
         "operation": [],
         "backend": "local",

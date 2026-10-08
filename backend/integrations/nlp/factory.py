@@ -104,7 +104,8 @@ def _analiza(signal: str, idioma: Idioma) -> bool:
     por configuración para ese idioma: un experimento, que se ejecuta con una
     ficha «sin evaluar». No si no lo analiza por decisión (`_NO_ANALIZA`), ni si
     no es un modelo descargable: al léxico y al lineal no se les puede cambiar
-    un modelo que no tienen (el lineal en español serán otros pesos, #231).
+    un modelo que no tienen. El lineal analiza el español por su ficha: es
+    bilingüe desde #231.
     """
     if (signal, idioma) in _NO_ANALIZA:
         return False

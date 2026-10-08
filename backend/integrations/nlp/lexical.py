@@ -45,8 +45,10 @@ PATTERNS = {
     # Números iniciales (tras espacios en blanco)
     "question": re.compile(r"\?\s*$"),
     # Interrogacion (no entre comillas para excluir citas) Solo pilla comilla cierre
-    "all_caps": re.compile(r"\b[A-Z]{4,}\b"),
-    # 4 mayúsculas seguidas (evitar pillar ALGUNAS siglas) NASA, NATO...
+    "all_caps": re.compile(r"\b[A-ZÁÉÍÓÚÜÑ]{4,}\b"),
+    # 4 mayúsculas seguidas (evitar pillar ALGUNAS siglas) NASA, NATO... Con
+    # las del español desde #231: con `[A-Z]` a secas, la letra con tilde
+    # cortaba la palabra, y «ÚLTIMA» o «ESPAÑA» no contaban.
     "ellipsis": re.compile(r"\.\.\.|…"),  # ... o …
 }
 
