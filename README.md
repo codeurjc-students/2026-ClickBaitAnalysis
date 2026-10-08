@@ -8449,7 +8449,7 @@ Los fallos son nombres propios en titulares sin palabras inglesas («Tour de Fra
 
 `AnalyzeResponse` gana `language` (`en`, `es` o `und`, que en BCP 47 es «indeterminado» y vale tal cual para el atributo `lang`): el idioma con el que el análisis decidió, que es el que se guarda en el historial. El contrato se regeneró, y con él los dobles de los tests y tres specs del frontend.
 
-`_run_signals` no lleva la puerta: `eval_ta1c` y los tests que lo llaman directamente siguen ejecutando todas las señales, y así el guion sigue midiendo el español tratado como inglés.
+`_run_signals` no lleva la puerta: `eval_ta1c` y los tests que lo llaman directamente siguen ejecutando todas las señales, y así el guion sigue midiendo el español tratado como inglés. *(Revisado en #230: la puerta pasó a `_run_signals`, señal a señal, y `eval_ta1c` le pasa `INGLES` a propósito, con las mismas cifras. Ver «Cada señal, en su idioma: el enrutado».)*
 
 #### La puerta del cuerpo
 
@@ -8478,8 +8478,8 @@ El titular llevaba `lang="en"` fijo, porque el contrato decía que era inglés. 
 
 Quedan en «en», a propósito y apuntado donde toca:
 
-- **las filas del historial de una herramienta suelta**: su respuesta no dice en qué idioma leyó el titular; que la salida de cada señal lo diga, en #230;
-- **los dos campos del formulario**: antes de analizar no hay idioma que leer, y el contrato aún dice «en inglés»; en #230;
+- **las filas del historial de una herramienta suelta**: su respuesta no dice en qué idioma leyó el titular; que la salida de cada señal lo diga, en #230; *(hecho en #230: la salida lleva `language`, y una ejecución sin salida va en `und`)*
+- **los dos campos del formulario**: antes de analizar no hay idioma que leer, y el contrato aún dice «en inglés»; en #230; *(hecho en #230: `lang=""`, idioma desconocido)*
 - **las palabras del lineal en su tarjeta**: hoy no salen en español, porque en español no se ejecuta; en #231.
 
 **Y la página entera estaba declarada en inglés.** `index.html` traía `<html lang="en">` desde el andamiaje de #132, el valor por defecto de Angular: un lector de pantalla leía toda la interfaz, que está en castellano, con voz inglesa, y el `lang="en"` de los titulares no cambiaba nada. Ahora es `lang="es"`, comprobado en el navegador y en la compilación de producción.
@@ -8492,7 +8492,7 @@ Quedan en «en», a propósito y apuntado donde toca:
 
 #### Lo que deja a las siguientes
 
-- **B (#230)** enruta por idioma, y tiene apuntados los campos del formulario, la descripción de `AnalyzeRequest.headline` y el idioma en la salida de cada señal.
+- **B (#230)** enruta por idioma, y tiene apuntados los campos del formulario, la descripción de `AnalyzeRequest.headline` y el idioma en la salida de cada señal. *(Hecho: ver «Cada señal, en su idioma: el enrutado».)*
 - **C (#231)**: el riesgo de fuente de TA1C, y el `lang` de las palabras del lineal.
 - **D y E (#232, #233)**: los modelos multilingües, por medir. E decidirá además qué hace la puerta del cuerpo cuando la incoherencia compare en español.
 - **G (#235)**: las noticias en español, con dos APIs, NewsData.io y GNews; el autor exige al menos dos, o el idioma tiene poco sentido. Se descartaron los RSS, que no buscan por tema, y GDELT, que dio un 429 a la primera consulta.
@@ -8557,6 +8557,91 @@ Los tests pasan de 530 a 535, en verde también con el venv de sólo `requiremen
 | Código | `d3db011` |
 | Servicio | `https://router.huggingface.co/hf-inference/models/<modelo>`, y `https://huggingface.co/api/whoami-v2` para la cuenta |
 | Guiones | `spikes/hf_credito.py`: una petición directa por modelo y otra por `HFClient`, el cliente de producción; no imprime el token |
+
+### Cada señal, en su idioma: el enrutado (#230, 8 oct 2026)
+
+#229 cerró la puerta a lo que no está en inglés con una sola decisión para todo el titular. Para analizar español hace falta lo contrario: que cada señal pueda tener su modelo, su umbral y su ficha en cada idioma, y decida por sí misma si analiza el titular que le llega. Ésta es la pieza B de `v0.8 · Español`, y sólo construye el enrutado: los modelos del español llegan con C, D y E (#231–#233). Así que, al terminar, un titular en español sigue dando `no_data`, pero ahora lo dice cada señal con su motivo, y un modelo en español se puede poner por configuración y se ejecuta como experimento, que es justo lo que D necesitará para medir sus candidatos.
+
+#### Una ficha por señal e idioma
+
+Cada ficha de `model_cards.py` lleva ahora su `language`, y una señal tendrá una por cada idioma en que la analice un modelo declarado. El índice es por idioma (`fichas_en`, que sustituye a `cards_by_signal`, y `ficha_declarada`), y `model_id_de` pide el idioma. Un test exige dos cosas: que toda señal tenga su ficha en inglés, y que la dimensión y el tipo —el hueco— sean los mismos en todos los idiomas, porque el veredicto agrega por dimensión y una señal no puede medir otra cosa según el idioma. La capa de modelos del `Dockerfile` copia además `core/idioma.py`, que las fichas importan; el horneado no cambia, porque ya recorre todas las fichas.
+
+#### La configuración y la factoría
+
+`NLP_MODELS_ES` y `NLP_THRESHOLDS_ES` tienen la forma y las reglas de sus equivalentes en inglés. En español sólo se configura el umbral de la incoherencia: el léxico no analiza español, y su umbral sería un ajuste que no hace nada, así que falla al arrancar, como las claves cerradas de #93.
+
+En la factoría, el idioma pasa a ser un parámetro **obligatorio** de `get_model_id`, `get_invocacion`, `get_threshold`, `get_incoherence_detector` y `ficha_efectiva`. Con un valor por defecto, quien lo olvidara recibiría el modelo inglés para un titular en español sin que nada fallara, que es justo lo que #229 vino a cortar. Y una sola regla, `_analiza`, dice qué señal analiza qué idioma:
+
+- sí, si tiene ficha en él;
+- sí, si es un modelo descargable —la dedicada, el tono, la incoherencia— y hay uno puesto por configuración para ese idioma: un experimento, que se publica con el hueco de su ficha inglesa y «sin evaluar»;
+- nunca el léxico en español, por la decisión del 7 oct (sus listas son de Chakraborty), ni el lineal por configuración, porque no tiene un id que cambiar: en español serán otros pesos (#231).
+
+Esa regla la miran la puerta, las fichas que se publican (`idiomas_de`) y `precalentar`, así que no se puede publicar la ficha de un modelo que no se ejecuta, ni dejar uno sin calentar. Sin umbral configurado, el español usa el del detector, que se calibró en inglés: el suyo lo calibrará en TA1C la issue que traiga el modelo (#233), y hasta entonces un modelo en español es un experimento. La caché del detector de incoherencia sube de 2 a 4 instancias, para que un idioma no eche al otro; la del backend no cambia, porque no depende del idioma.
+
+#### La puerta, señal a señal
+
+**La puerta del idioma vive ahora en `_run_signals`**, que era lo que #229 dejó por decidir: el enrutado ya es por señal ahí, y dejar la puerta en `analyze()` y el modelo en `_run_signals` habría duplicado la decisión. `_run_signals(titular, cuerpo, idioma, idioma_del_cuerpo)` recibe los dos idiomas, también obligatorios, y `analyze()` sólo los detecta. Eso es lo que permite medir: `eval_ta1c` le pasa `INGLES` a propósito para repetir el punto de partida de #229, el español tratado como inglés.
+
+Los motivos viven en la factoría (#116) y empiezan igual, para que la tarjeta se lea sola: «El titular parece estar en español: esta señal aún no lo analiza.»; en otro idioma, «ninguna señal lo analiza»; y el léxico da el suyo, porque no es que le falte un modelo, es que no lo tiene. La puerta del cuerpo sigue como en #229, pero mirando la regla: la incoherencia compara un cuerpo si analiza su idioma. Qué hacer con un titular y un cuerpo en idiomas distintos, los dos analizados, lo decidirá #233. Cada herramienta suelta pasa por la puerta de su señal (`_idioma_si_se_analiza`) y pide a la factoría lo del idioma que le devuelve.
+
+#### Cada salida dice su idioma
+
+Las cuatro salidas de señal —`Etiqueta`, `SalidaLexica`, `SalidaLineal` y `SalidaIncoherencia`— llevan `language`, **obligatorio**, y lo añaden quienes las ejecutan, cada herramienta y el orquestador, porque los detectores no saben de idiomas. Se planteó opcional, rellenado sólo por las herramientas, y no se pudo, por dos cosas medidas al escribirlo. Una: FastMCP escribe como `null` un campo opcional que falta, y después lo rechaza contra su propio esquema («None is not one of ['en', 'es', 'und']»). Otra: el contrato publica estas formas también para el `data` de `/analyze` (#133), así que lo que digan tiene que ser cierto en las dos rutas. Se acepta el dato repetido en `/analyze`, que ya lleva `AnalyzeResponse.language` (decidido por el autor). Con él, `senal_de` rotula una señal suelta del agente con la ficha del idioma en que se ejecutó.
+
+#### El catálogo, Sistema, el historial y el formulario
+
+- **El catálogo** pasa de `model_card` a `model_cards`: una ficha por cada idioma que analiza la señal, y vacía para lo que no es una señal. Es un cambio del contrato, y la pantalla de Sistema pinta una ficha por señal e idioma, con «Titulares en inglés» a la vista; cada una se pliega por su lado.
+- **El historial** toma el `lang` de una ejecución suelta de su salida (`data.language`), como el de un análisis. Probándolo en el navegador apareció un caso que seguía mal: un titular en español que una señal rechaza no devuelve salida, y la fila caía en «en», afirmando lo contrario de lo que pasó. Una ejecución sin salida va ahora en `und`, «indeterminado» (decidido por el autor); las de antes de #230, con salida y sin idioma, siguen en «en».
+- **Los dos campos del formulario** pasan de `lang="en"` a `lang=""`, que en HTML es «idioma desconocido»: antes de analizar no se sabe, y sin el atributo heredarían el castellano de la página, con su pronunciación y su corrector. Un ejemplo en español, junto a los tres en inglés, queda para F (#234), cuando dé un veredicto: hoy daría «Sin datos».
+- **La descripción de `AnalyzeRequest.headline`** dice ya que cada señal analiza su idioma.
+
+#### Medido: en inglés, todo igual
+
+El criterio de la issue era que en inglés no cambiara nada, y se comprobó par a par, no sólo en el agregado.
+
+`eval_ta1c`, con `INGLES` en los dos idiomas, da exactamente las cifras de #229: veredicto F1 0,038 con `factual` en el 79,7 %, dedicada 0,322, léxico 0,223 (sin pistas en el 85,9 %), lineal e incoherencia 0,019.
+
+`eval_veredicto` pasa los 19.484 pares de Webis-17 por `analyze()` y guarda el resultado de cada uno. Su caché era del 6 oct, de #78, **anterior a #229**: la puerta del idioma nunca se había medido con él. Se guardó como `var/veredicto_validation170630.antes-229.json` antes de rehacerla, y [`spikes/veredicto_por_idioma.py`](spikes/veredicto_por_idioma.py) compara las dos par a par y explica cada diferencia por el idioma que detecta en el titular y en el cuerpo:
+
+| | Pares |
+|---|---|
+| Iguales: el estado y el voto de cada señal, y el veredicto (la similitud de la incoherencia, idéntica) | 19.439 |
+| Cambian porque el titular no se detecta en inglés —17 en español, 9 en otro idioma—, y pasan a `no_data` | 26 |
+| Cambian porque el cuerpo no se detecta en inglés —18 en otro idioma, 1 en español—, y sólo cambia la incoherencia | 19 |
+| Cambian por otro motivo | **0** |
+
+Los 45 que cambian son de la puerta de #229, no del enrutado. Los 26 titulares fuera del inglés son el 0,13 %, la misma tasa que #229 midió en `webis_dev`, y como Webis-17 es de medios en inglés serán en su mayoría fallos del detector; no se miraron uno a uno.
+
+| «Es clickbait» frente a la etiqueta | F1, todos (19.484) | F1, unánimes (6.808) |
+|---|---|---|
+| Antes, la caché de #78 | 0,641 | 0,804 |
+| Ahora | 0,641 | 0,802 |
+
+Las de antes son las que publicó #78. La pequeña bajada en los unánimes es de esos 45 pares.
+
+El catálogo del agente no cambió —huella sha256 `25e9c973154f097e`, la misma que en #229 y #236—, así que no se repitieron las 26 consultas: el esquema de salida no entra en él (#93). En el navegador integrado, con la API, el MCP y el frontend de la rama: un titular en español da «Sin datos», con cada tarjeta diciendo su motivo y `lang="es"` en el titular; Sistema enseña las cinco fichas en inglés; y el historial marca en `es` el análisis en español, en `en` la ejecución inglesa del léxico y en `und` la española que el léxico rechazó.
+
+#### Lo que se encontró por el camino
+
+- ⚠️ **`eval_veredicto` no arrancaba.** Seguía llamando a la factoría con la firma de antes, y nada lo avisó: pyright excluye `backend/evaluation/` (#139) y ningún test ejecuta los guiones. Se vio al lanzarlo; se arregló, y con él el spike de #229, y una búsqueda por `evaluation/` y `spikes/` de cada función que cambió de firma no encontró más. **Al cambiar una firma de la factoría o del orquestador, buscar también en `evaluation/` y `spikes/`**, que pyright no mira.
+- **La huella de `eval_veredicto` recorre ahora los idiomas** de cada señal: los pocos pares de Webis que no se detectan en inglés los decidiría un modelo en español si se configurara, y sin eso en la huella una caché de otro sistema se colaría sin avisar (#119). Sin ninguno, las claves y los valores son los de antes.
+
+#### Lo que queda
+
+- **C (#231)**: los pesos del lineal en español, con su ficha; hoy su `run` no mira el idioma. Y el `lang` de sus palabras en la tarjeta.
+- **D (#232)**: el zero-shot multilingüe, que ya se puede poner con `NLP_MODELS_ES` y medir.
+- **E (#233)**: incoherencia y tono en español, el umbral de la incoherencia calibrado en TA1C —hasta entonces, el inglés— y el titular y el cuerpo en idiomas distintos.
+- **F (#234)**: los docstrings de las herramientas («Pensada para inglés»), que cambian el catálogo del agente; y el ejemplo en español del formulario.
+
+Los tests pasan de 535 a 564 en el backend, en verde también con el venv de sólo `requirements.txt`, y de 194 a 201 specs en el frontend.
+
+| Condiciones | |
+|---|---|
+| Fecha | 2026-10-08, por la tarde (hora de Madrid): `eval_ta1c` hacia las 15:25 y `eval_veredicto` de 15:30 a 15:49; la comparación y la prueba en el navegador, después |
+| Máquina | El portátil del autor: WSL2 (Ubuntu 24.04.4, núcleo 6.6.87.2), Python 3.12.3 y una GeForce GTX 1650 SUPER, que `transformers` usa en WSL aunque nadie le pase `device`. Producción corre en CPU |
+| Código | `f3d7f12` para las dos evaluaciones. El arreglo de `eval_veredicto` (`160454c`) se ejecutó antes de commitearlo, pero sólo toca el guion, que no está entre lo que decide el resultado: su huella cubre las señales, el orquestador y `domain.py`. La comparación, repetida sobre `0b06d59` |
+| Modelos | Los de las fichas: `Stremie/roberta-base-clickbait`, `cardiffnlp/twitter-roberta-base-sentiment-latest` y `sentence-transformers/all-MiniLM-L6-v2`, con transformers 5.12.0, sentence-transformers 5.6.0 y torch 2.12.1 |
+| Guiones | `backend/evaluation/eval_ta1c.py` (~2 min); `backend/evaluation/eval_veredicto.py` (~19 min, caché nueva con huella `386cefbaea5d`; la de antes, `669a9c175fc1`); `spikes/veredicto_por_idioma.py` |
 
 
 
