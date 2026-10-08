@@ -10,6 +10,12 @@ Ojo: `hf-inference` NO sirve ningún modelo de clickbait. El dedicado responde
 `400 Model not supported by provider`, y es permanente, así que en despliegue
 va `nlp_backend=local` (#156).
 
+Y desde el 7 oct 2026 es DE PAGO: Hugging Face retiró el crédito de las cuentas
+gratuitas (huggingface/hub-docs#2865), y con la del proyecto el tono y el
+zero-shot responden `402`. Se conserva porque elegir dónde corre el modelo es
+una opción de la arquitectura (#87) y con crédito vuelve a funcionar, pero ya
+no es el defecto de `nlp_backend` (#236).
+
 Una respuesta con forma inesperada se registra entera y NO se publica: hasta el
 2026-09-24 el mensaje de fallo llevaba la respuesta cruda del proveedor, y salía
 por `/analyze`, por `/tools/.../execute` y por MCP. Era una quinta puerta de #89,

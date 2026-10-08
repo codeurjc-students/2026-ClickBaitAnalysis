@@ -554,6 +554,8 @@ Primer cliente que rompe el patrón GET + api-key en query: HF exige **POST con 
 
 Lo **único** viable para clickbait en remoto es **zero-shot vía `facebook/bart-large-mnli`** (confirmado servido; discrimina bien, ver ejemplo arriba).
 
+*(Revisado en #236, 8 oct 2026: desde el 7 de octubre, Hugging Face ya no sirve BART a una cuenta gratuita; con la del proyecto responde `402`, sin crédito. Ver «Hugging Face sin crédito gratuito: la vía remota pasa a ser de pago».)*
+
 **Decisión:** zero-shot remoto con `bart-large-mnli` para el MVP. Definimos nosotros las etiquetas (`["clickbait", "factual"]`) y dejamos `elozano` (modelo dedicado, más preciso) como **mejora futura** en backend local, si llega la infra.
 
 **Implicación de código:** la respuesta zero-shot del router es una **lista plana** `[{label, score}, ...]` (ordenada), distinta del text-classification `[[...]]`. Por eso `classify` (que normaliza `data[0][0]`) **no sirve** tal cual: E3-02 añade una **variante `zero_shot(text, labels)`** que envía `parameters.candidate_labels` y normaliza `data[0]`.
@@ -563,6 +565,8 @@ Lo **único** viable para clickbait en remoto es **zero-shot vía `facebook/bart
 Tool `analyze_sentiment(text)` que **reutiliza `classify`** (es *text-classification*, no necesita variante nueva) sobre `cardiffnlp/twitter-roberta-base-sentiment-latest`.
 
 **Por qué `cardiffnlp` (3 vías) y no `distilbert` (binario):** en titulares de noticias el **neutral** es frecuente (enunciados factuales); forzarlos a *positive/negative* distorsiona. cardiffnlp clasifica en `positive` / `neutral` / `negative`. Verificado: *"The committee will meet on Tuesday"* → `neutral` (0.94). Ambos están servidos en remoto; `distilbert` quedaría como opción si se priorizara latencia.
+
+*(Revisado en #236, 8 oct 2026: desde el 7 de octubre, el de sentimiento tampoco responde por la vía remota a una cuenta gratuita (`402`, sin crédito), y su ficha pasó a `local`. Ver «Hugging Face sin crédito gratuito: la vía remota pasa a ser de pago».)*
 
 > **Fiabilidad:** la inferencia remota da *timeouts* puntuales (HF); el cliente ya los reporta como `ToolResult.fail("Request timed out.")`. El reintento queda como mejora futura.
 
@@ -696,7 +700,7 @@ Desacopla el NLP del proveedor concreto para poder ejecutarlo **en local** (con 
 - **Dos implementaciones, un contrato (polimorfismo):**
   - `HFClient(BaseAPI, NLPBackend)` — backend **remoto** (HTTP a HF). Herencia múltiple: es a la vez cliente HTTP y backend NLP; `NLPBackend` actúa de interfaz (sin lógica), `BaseAPI` aporta el transporte.
   - `LocalNLPClient(NLPBackend)` — backend **local** con `transformers.pipeline`. **Carga perezosa + cache** por clave `(task, model)` (cargar un modelo es caro → se crea una vez y se reutiliza), e **inferencia en hilo** (`asyncio.to_thread`) para no bloquear el *event loop*.
-- **Factoría `get_nlp_backend()`** (`nlp/factory.py`): elige `remote`/`local` según el setting `nlp_backend` (`Literal`, default `"remote"`). Las tools llaman a la factoría, no a una clase concreta.
+- **Factoría `get_nlp_backend()`** (`nlp/factory.py`): elige `remote`/`local` según el setting `nlp_backend` (`Literal`, default `"remote"`). Las tools llaman a la factoría, no a una clase concreta. *(Desde #236, 8 oct 2026, el defecto es `"local"`: la vía remota ya no responde sin crédito. Ver «Hugging Face sin crédito gratuito: la vía remota pasa a ser de pago».)*
 - **Las tools no cambian:** `detect_clickbait` / `analyze_sentiment` siguen llamando `api.zero_shot` / `api.classify`; como **ambos** backends cumplen el contrato, cambiar de backend es **una línea**. Ese es el premio del ABC + factoría.
 
 **Motivo:** mitigar el riesgo de fiabilidad/disponibilidad del backend remoto (ver Épicas 3 y 4) y ganar control total del modelo — precondición de **R3.7** (incoherencia) y del **fine-tuning** local. La inferencia local es viable en el hardware de desarrollo (GTX 1650 SUPER 4 GB / CPU Ryzen 5).
@@ -4490,6 +4494,9 @@ Lo que hay, en tres momentos:
   sentimiento sí responde, por la misma vía y con el mismo token: 3.248.238
   descargas/mes frente a 59. **HuggingFace sirve por demanda.** Doce reintentos
   en dos minutos no lo reactivan.
+  *(Revisado en #236, 8 oct 2026: el de sentimiento ya no responde por esa vía
+  a una cuenta gratuita desde que Hugging Face retiró el crédito, el 7 de
+  octubre: `402`. Ver «Hugging Face sin crédito gratuito: la vía remota pasa a ser de pago».)*
 
 Un timeout se reintenta; esto no. La diferencia decide qué se hace en H4 —
 desplegar con `nlp_backend=local`, porque el modelo existe en el Hub aunque su
@@ -7986,7 +7993,7 @@ Desde #119 el modelo de cada señal se cambia por configuración, pero sólo el 
 
 - ⚠️ **Un clasificador pedido como zero-shot NO falla.** El zero-shot lee la respuesta en la etiqueta de «entailment» de un modelo de inferencia (NLI); el dedicado no la tiene, y `transformers` sólo lo avisa en su log («Failed to determine 'entailment' label id…») y sigue con el último logit. Sale una moneda al aire con aspecto de resultado: «factual news» 0,506 para el titular clickbait. Por eso `local.py` lo comprueba al cargar el modelo (`entailment_id`) y falla antes de llamarlo, diciendo que no es de inferencia.
 - **Un modelo de inferencia pedido como clasificador** responde «neutral», y la señal ya fallaba porque esa etiqueta no está en la traducción. El mensaje dice ahora qué revisar: las etiquetas, o si hay que llamarlo como zero-shot.
-- **Por la vía remota, Hugging Face sigue sirviendo BART**, con las mismas puntuaciones que en local (0,7006 y 0,8297), mientras el dedicado da `400 Model not supported` (#127). Con `nlp_backend=remote`, un zero-shot configurado funcionaría donde la señal se cae (medido llamando al cliente remoto, no por `analyze()`).
+- **Por la vía remota, Hugging Face sigue sirviendo BART**, con las mismas puntuaciones que en local (0,7006 y 0,8297), mientras el dedicado da `400 Model not supported` (#127). Con `nlp_backend=remote`, un zero-shot configurado funcionaría donde la señal se cae (medido llamando al cliente remoto, no por `analyze()`). *(Revisado en #236, 8 oct 2026: desde el 7 de octubre, la vía remota responde `402` a BART con la cuenta gratuita del proyecto, así que ese zero-shot tampoco funcionaría sin crédito. Ver «Hugging Face sin crédito gratuito: la vía remota pasa a ser de pago».)*
 
 #### Qué entra
 
@@ -8499,6 +8506,57 @@ Los tests pasan de 473 a 530 en el backend, en verde también con el venv de só
 | Código | `4af8cd0`. Las variantes V0 a V4 se midieron sobre `b81966b`, con `idioma.py` y `eval_idioma.py` aún sin commitear |
 | Modelos | Los de las fichas: `Stremie/roberta-base-clickbait`, `cardiffnlp/twitter-roberta-base-sentiment-latest` y `sentence-transformers/all-MiniLM-L6-v2` (revisión `1110a243fdf4`), con transformers 5.12.0, sentence-transformers 5.6.0 y torch 2.12.1 |
 | Guiones | `spikes/ta1c_medios.py`; `backend/evaluation/eval_ta1c.py` (70 s); `backend/evaluation/eval_idioma.py` con `--train`, sin argumentos y con `--cuerpos` (sólo Python, sin modelos); `spikes/incoherencia_cuerpo_traducido.py` |
+
+### Hugging Face sin crédito gratuito: la vía remota pasa a ser de pago (#236, 8 oct 2026)
+
+El 7 de octubre, probando #229 con la API local, que arrancaba con el defecto `nlp_backend=remote`, la señal de tono salió en `error`, y el registro guardaba un 402 de Hugging Face: «You have no remaining credits». No era un cupo agotado: ese mismo día Hugging Face retiró el crédito mensual que incluía en las cuentas gratuitas. Esta issue pone el sistema de acuerdo con eso: el defecto pasa a `local`, la tarjeta explica un 402, la ficha del tono deja de prometer la vía remota y los tests que llamaban a Hugging Face se saltan con su motivo. Producción no cambia, porque ya corría en local.
+
+#### Lo que cambió en Hugging Face
+
+La tabla de precios de Inference Providers (`huggingface.co/docs/inference-providers/pricing`) daba a «Free Users» un crédito mensual de «$0.10, subject to change»; desde huggingface/hub-docs#2865, mergeada el 7 de octubre a las 12:31 UTC, dice «None». La misma PR quita el «free tier» del resto de la documentación y deja el crédito mensual sólo para PRO (2 $) y para las organizaciones Team y Enterprise. `hf-inference` cobra por tiempo de cómputo, así que sin crédito no queda ninguna llamada gratuita. Hugging Face no dice desde cuándo se aplica; el 402 es de esa misma tarde.
+
+Medido con [`spikes/hf_credito.py`](spikes/hf_credito.py), con el token del proyecto:
+
+| | Respuesta |
+|---|---|
+| La cuenta (`whoami-v2`) | gratuita: `isPro` y `canPay` a `false`, con un token de lectura |
+| Tono (`cardiffnlp/twitter-roberta-base-sentiment-latest`) | `402`: «You have no remaining credits. Purchase pre-paid credits…» |
+| Zero-shot de #159 (`facebook/bart-large-mnli`) | `402`, el mismo |
+| Dedicada (`Stremie/roberta-base-clickbait`) | `400 Model not supported by provider`, como desde septiembre (#127) |
+
+**Decidido (autor): no se paga PRO ni crédito.** PRO cuesta 9 $ al mes con 2 $ de crédito, y no aporta al desarrollo, a la implementación de `v0.8` ni a la presentación. Si hiciera falta un respaldo para la defensa, un Space se decidiría con #214.
+
+#### Qué cambia
+
+- **El defecto de `nlp_backend` pasa de `remote` a `local`.** Con una instalación hecha sólo con `requirements.txt`, que no trae `torch` ni `sentence-transformers`, en remoto fallaban la dedicada (400) y la incoherencia (que no tiene vía remota), y ahora también el tono (402). En local fallan las mismas tres, pero diciendo qué paquete falta y cómo instalarlo (#158), que es lo que puede arreglar quien lo lee. El despliegue no cambia: `compose.yaml` fija `local` en la API y en el MCP desde #164. Sí cambia el desarrollo: el `.env` de WSL no fija `NLP_BACKEND`, ni las configuraciones de `.claude/launch.json` ni, según se comprobó al abrir la issue, el servidor MCP de Claude Desktop, así que todos heredaban `remote`; con el defecto nuevo no hay que tocarlos. Un test fija el defecto, sin `.env` ni variable de entorno.
+- **`remote.py` se conserva.** Elegir dónde corre el modelo es una opción de la arquitectura (#87), y con crédito la vía remota vuelve a responder; su docstring dice ahora que es de pago. Quitarlo, con la opción `nlp_backend`, era la alternativa, y se descartó porque lo que cambió fue el precio, no la arquitectura.
+- **Un 402 que se entiende.** La tarjeta decía «La API externa respondió HTTP 402 Payment Required.», que suena a que el sistema le pide pagar a quien lo usa, y la causa sólo quedaba en el registro. Ahora dice «La API externa respondió HTTP 402 Payment Required: rechaza la llamada por falta de crédito o de pago en la cuenta.». Lo añade `describir_respuesta_http`, en `core/errores.py`, que es el único sitio donde se describe un error para una salida pública (#164), y sólo para el 402: un código se añade cuando se ve llegar. `describir_error` no cambia, así que `/health` y el catálogo dicen lo mismo que antes. El cuerpo del proveedor sigue yendo sólo al registro (#89, #185), y un test lo vigila junto al mensaje nuevo, por `classify` y por `zero_shot`.
+- **La ficha del tono**: `backend` pasa de `"remote | local"` a `"local"`, como la de la dedicada el 7 de septiembre, con dos notas de operación nuevas: la del 402, con la fuente, y que la vía local depende de `torch`, que antes no hacía falta decir porque quedaba la remota. En la de la dedicada se corrigen dos cosas que ya no eran ciertas: que el de sentimiento «sí responde» por la vía remota, y que en remoto el veredicto «se emite con las otras cuatro» (son tres: el léxico, el lineal y la incoherencia). Las notas de operación no se publican (#211); `describe_models` publica `backend`.
+- **Los dos tests `integration` contra Hugging Face** (`test_classify_real_contract` y `test_zero_shot_real_contract`) se saltan con el motivo y la fuente en la marca. No se borran: la vía remota se conserva, y con crédito volverían a medir lo mismo. El estado de hoy lo da `spikes/hf_credito.py`. El CI no los ejecuta (`-m "not integration"`), así que sólo fallaban a quien los lanzara a mano.
+- **`eval_acoplamiento.py`**: con `--con-zero-shot` pide BART a la factoría, y su docstring no decía que hiciera falta `NLP_BACKEND=local`, como sí dicen los demás guiones de evaluación.
+
+**El catálogo del agente no cambia**: la huella de nombres, descripciones y esquemas de entrada sigue siendo `25e9c973154f097e`, y `spikes/catalogo_peso.py` da 10.486 caracteres, lo mismo que en #229, así que no se repitieron las 26 consultas. Tocar la ficha sí rehará la capa de modelos de la imagen (#162) en el próximo despliegue.
+
+#### Lo que no entra
+
+- **Pagar PRO o crédito** (decidido arriba).
+- **Una sonda de salud de Hugging Face**: `/health` no lo sondea, así que el indicador seguiría en verde sin crédito. Está en #217, con la sonda por modelo.
+- **Los docstrings de las herramientas**, que hablan de «timeout o caída del proveedor»: tocarlos cambia el catálogo del agente y obliga a repetir las 26 consultas, así que van con F (#234).
+- **`HF_TOKEN` sigue siendo obligatorio** aunque el defecto sea `local`: hacerlo opcional cambiaría la configuración del despliegue.
+- **Un patch `v0.7.1`**: lo publicado describe un despliegue en local, que no ha cambiado, así que no induce a error a quien lo despliegue o lo lea.
+
+Las secciones que daban la vía remota por buena —E3-02, E3-03, E5-01 (donde se eligió el defecto `remote`), «Corrección: la señal caída no era una caída del proveedor» y la de #159— llevan una nota que remite aquí; lo medido entonces no se toca.
+
+Los tests pasan de 530 a 535, en verde también con el venv de sólo `requirements.txt`.
+
+| Condiciones | |
+|---|---|
+| Fecha | 2026-10-07 (el primer 402, probando #229, y la comprobación con la que se abrió la issue, hecha con un guion de la carpeta temporal) y 2026-10-08, 09:02 UTC (`spikes/hf_credito.py` sobre el código final, con el mismo resultado) |
+| Máquina | El portátil del autor: WSL2 (Ubuntu 24.04.4, núcleo 6.6.87.2), Python 3.12.3 y httpx 0.28.1 |
+| Cuenta | La del proyecto en Hugging Face, gratuita, con un token de lectura |
+| Código | `d3db011` |
+| Servicio | `https://router.huggingface.co/hf-inference/models/<modelo>`, y `https://huggingface.co/api/whoami-v2` para la cuenta |
+| Guiones | `spikes/hf_credito.py`: una petición directa por modelo y otra por `HFClient`, el cliente de producción; no imprime el token |
 
 
 

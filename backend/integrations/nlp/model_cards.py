@@ -122,7 +122,7 @@ MODEL_CARDS: list[FichaDeclarada] = [
             "Contexto imprescindible para leer cualquiera de estos números: el techo humano de la tarea es F1 0.665, y sólo el 34.9% de los titulares tiene a los 5 anotadores de acuerdo (#121). Sus errores se concentran donde las personas discrepan (92.9% de los fallos en el 65.1% dudoso) y su confianza baja ahí (0.918 vs 0.834), sin haber visto nunca los juicios individuales.",
         ],
         "operation": [
-            "NO SE PUEDE SERVIR EN REMOTO, y es permanente: `hf-inference` responde `400 Model not supported by provider`. Detectado el 2026-09-03 al ejecutar la pantalla contra la API de verdad, y confirmado el 2026-09-07 contra el catálogo del proveedor: la ficha del Hub no declara ninguno (`inferenceProviderMapping` vacío) y NINGUNO de los 40 modelos de clickbait del Hub lo tiene. HuggingFace sirve por demanda, y éste tiene 59 descargas/mes frente a los 3.248.238 del de sentimiento, que sí responde por la misma vía y con el mismo token. Doce reintentos en dos minutos no lo reactivan. Con `nlp_backend=remote` esta señal sale SIEMPRE en `error` y el veredicto se emite con las otras cuatro.",
+            "NO SE PUEDE SERVIR EN REMOTO, y es permanente: `hf-inference` responde `400 Model not supported by provider`. Detectado el 2026-09-03 al ejecutar la pantalla contra la API de verdad, y confirmado el 2026-09-07 contra el catálogo del proveedor: la ficha del Hub no declara ninguno (`inferenceProviderMapping` vacío) y NINGUNO de los 40 modelos de clickbait del Hub lo tiene. HuggingFace sirve por demanda, y éste tiene 59 descargas/mes frente a los 3.248.238 del de sentimiento, que entonces sí respondía por la misma vía y con el mismo token (desde el 7 oct 2026 da 402, sin crédito: ver su ficha). Doce reintentos en dos minutos no lo reactivan. Con `nlp_backend=remote` esta señal sale SIEMPRE en `error`, y desde el 7 oct el tono también: el veredicto se emite con el léxico, el lineal y la incoherencia, que corren en el propio proceso con cualquier backend.",
             "Y la vía local, que es la única que queda, DEPENDE DE UN PAQUETE QUE `requirements.txt` NO TRAE: `torch`. No es un descuido —es lo que mantiene ligero al CI, que mockea los backends—, así que una instalación hecha sólo con `requirements.txt` no puede ejecutar esta señal por ninguna de las dos vías. El despliegue sí: la imagen instala la rueda CPU-only de torch (#162) y el compose fija `nlp_backend=local` (#164). Medido el 2026-09-08: con esa rueda (769 MB) la señal responde sin GPU, con 1.201 MB de RAM para los tres modelos y 0.11 s por análisis en caliente.",
         ],
         # Era "remote | local" hasta el 2026-09-07. La vía remota no existe: ver
@@ -141,8 +141,13 @@ MODEL_CARDS: list[FichaDeclarada] = [
             "Caja negra.",
             "Solo inglés.",
         ],
-        "operation": [],
-        "backend": "remote | local",
+        "operation": [
+            "SIN VÍA REMOTA GRATUITA desde el 7 oct 2026: Hugging Face retiró el crédito mensual de las cuentas gratuitas (en https://huggingface.co/docs/inference-providers/pricing, la fila «Free Users» pasó a «None»; huggingface/hub-docs#2865), y `hf-inference` responde `402` («You have no remaining credits») con la cuenta del proyecto, que es gratuita. No es una caída: con crédito volvería a responder, y por eso la vía remota se conserva. Con `nlp_backend=remote` esta señal sale en `error`; como el tono no vota, el veredicto no cambia. Se repite con `spikes/hf_credito.py` (#236).",
+            "La vía local DEPENDE DE `torch`, que `requirements.txt` no trae, como la dedicada: una instalación hecha sólo con `requirements.txt` no puede ejecutar esta señal por ninguna de las dos vías, y lo dice al fallar (#158). El despliegue lo instala (#162) y fija `nlp_backend=local` (#164).",
+        ],
+        # Era "remote | local" hasta #236 (2026-10-08). La vía remota exige
+        # crédito: ver la primera nota de operación de arriba.
+        "backend": "local",
     },
     {
         "signal": "detect_clickbait_incoherence",

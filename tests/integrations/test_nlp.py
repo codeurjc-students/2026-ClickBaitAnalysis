@@ -122,6 +122,41 @@ async def test_classify_http_error_propagates():
     assert route.call_count == 1  # Solo se llama una vez (usar count en reintentos)
 
 
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "llamar",
+    [
+        lambda cliente, modelo: cliente.classify("text", modelo),
+        lambda cliente, modelo: cliente.zero_shot(
+            "text", modelo, ["clickbait", "factual news"]
+        ),
+    ],
+    ids=["classify", "zero_shot"],
+)
+async def test_un_402_dice_que_falta_credito_sin_publicar_el_cuerpo(llamar):
+    """Hugging Face retiró el crédito gratuito el 7 oct 2026, y la vía remota
+    responde 402 en el tono (`classify`) y en BART (`zero_shot`). La tarjeta
+    decía «HTTP 402 Payment Required» a secas y la causa sólo quedaba en el log
+    (#236). El cuerpo del proveedor sigue sin publicarse (#89, #185)."""
+    modelo = "some/model"
+    cuerpo = {"error": f"You have no remaining credits. {MARCA_DEL_PROVEEDOR}"}
+    with respx.mock, capture_logs() as registrado:
+        respx.post(f"{MODELS_URL}{modelo}").mock(
+            return_value=Response(402, json=cuerpo)
+        )
+        result = await llamar(HFClient(), modelo)
+
+    assert not result.success
+    assert "HTTP 402" in result.error
+    assert "falta de crédito" in result.error
+    assert MARCA_DEL_PROVEEDOR not in result.error
+    assert "remaining credits" not in result.error
+    error_http = next(
+        linea for linea in registrado if linea["event"] == "api.error_http"
+    )
+    assert MARCA_DEL_PROVEEDOR in error_http["cuerpo"]
+
+
 # zero_shot
 
 
@@ -350,8 +385,21 @@ async def test_make_request_gives_up_after_max_retries():
 
 # No poner valores concretos ahora, ya haremos tests de valores, solo revisar que el fomrado del resultado es correcto
 
+# Los dos llaman a la Inference API de verdad, y desde el 7 oct 2026 necesitan
+# crédito: Hugging Face lo retiró de las cuentas gratuitas, y la del proyecto
+# recibe 402 (#236). Se saltan en vez de borrarse porque la vía remota se
+# conserva: con crédito vuelven a medir lo mismo. El estado de hoy lo da
+# `spikes/hf_credito.py`, que no cuenta como fallo de la suite.
+SIN_CREDITO_EN_HF = pytest.mark.skip(
+    reason=(
+        "Hugging Face retiró el crédito gratuito el 7 oct 2026 "
+        "(huggingface/hub-docs#2865): la cuenta del proyecto recibe 402 (#236)"
+    )
+)
+
 
 @pytest.mark.integration
+@SIN_CREDITO_EN_HF
 @pytest.mark.asyncio
 async def test_classify_real_contract():
     result = await HFClient().classify(
@@ -363,6 +411,7 @@ async def test_classify_real_contract():
 
 
 @pytest.mark.integration
+@SIN_CREDITO_EN_HF
 @pytest.mark.asyncio
 async def test_zero_shot_real_contract():
     result = await HFClient().zero_shot(

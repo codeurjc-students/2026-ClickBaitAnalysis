@@ -74,9 +74,14 @@ class Settings(BaseSettings):
     guardian_api_key: SecretStr  # PS mapea automáticamente
     nyt_api_key: SecretStr
     hf_token: SecretStr
-    nlp_backend: Literal["remote", "local"] = (
-        "remote"  # Añadimos dos opciones de backend NLP, así mantenemos remoto sin cambiar mucho.
-    )
+    # DÓNDE corren los modelos: en el propio proceso o en la Inference API de
+    # Hugging Face. El defecto era `remote` hasta #236: la vía remota no sirve la
+    # dedicada (400 desde septiembre, #127) y, desde que Hugging Face retiró el
+    # crédito de las cuentas gratuitas el 7 oct 2026, da 402 en el tono y en el
+    # zero-shot. `remote` se conserva para quien tenga crédito. En local, una
+    # instalación sin `torch` falla en las mismas señales, pero diciendo qué
+    # paquete falta (#158). El despliegue lo fija igualmente (`compose.yaml`).
+    nlp_backend: Literal["remote", "local"] = "local"
 
     # Qué MODELO ejecuta cada señal, por si se quiere probar otro sin tocar
     # código. Es la segunda mitad de R3.9, que hasta #119 estaba sin cumplir:

@@ -1,10 +1,15 @@
-"""Pruebas de `describir_error`: la regla de #163 y los casos medidos en #164."""
+"""Pruebas de `describir_error`: la regla de #163, los casos medidos en #164 y
+el 402 de Hugging Face sin crédito (#236)."""
 
 import httpx
 from mcp.shared.exceptions import McpError
 from mcp.types import ErrorData
 
-from backend.core.errores import describir_error, mensaje_publico
+from backend.core.errores import (
+    describir_error,
+    describir_respuesta_http,
+    mensaje_publico,
+)
 
 URL_CON_SECRETO = "https://ejemplo.invalido/search?api-key=clave-de-prueba-7f3a9c"
 
@@ -25,6 +30,24 @@ def test_un_error_http_da_codigo_y_nombre_sin_la_url():
 
     assert motivo == "HTTP 421 Misdirected Request"
     assert "clave-de-prueba" not in motivo
+
+
+def test_un_402_dice_ademas_que_falta_credito():
+    """«Payment Required» no le dice a quien lee la tarjeta qué ha pasado. Lo que
+    pasa es que el proveedor no sirve la llamada porque la cuenta no tiene
+    crédito: Hugging Face lo retiró de las cuentas gratuitas el 7 oct 2026, y
+    la vía remota empezó a responder 402 (#236)."""
+    motivo = describir_respuesta_http(_error_http(402))
+
+    assert motivo.startswith("HTTP 402 Payment Required")
+    assert "falta de crédito" in motivo
+    assert "clave-de-prueba" not in motivo
+
+
+def test_un_codigo_que_se_entiende_por_su_nombre_no_cambia():
+    error = _error_http(503)
+
+    assert describir_respuesta_http(error) == describir_error(error)
 
 
 def test_otro_error_da_el_nombre_de_su_tipo_y_no_su_texto():
