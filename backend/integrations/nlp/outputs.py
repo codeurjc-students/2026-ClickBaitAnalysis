@@ -70,10 +70,14 @@ class SalidaLineal(TypedDict):
 
     ``top_cues`` empareja cada cue con su contribución al veredicto (peso ×
     frecuencia); es la explicación intrínseca del modelo.
+
+    Lleva el ``threshold`` desde #231, cuando dejó de ser 0,5: sin él, quien
+    leyera «probabilidad 0,41» junto a «clickbait» pensaría que no cuadra.
     """
 
     is_clickbait: bool
     probability: float
+    threshold: float
     top_cues: list[tuple[str, float]]
     headline: str
     language: Idioma

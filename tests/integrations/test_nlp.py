@@ -1403,6 +1403,7 @@ def detectores(monkeypatch):
             {
                 "is_clickbait": False,
                 "probability": 0.2,
+                "threshold": 0.35,
                 "top_cues": [],
                 "headline": headline,
             }
