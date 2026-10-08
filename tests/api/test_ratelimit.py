@@ -193,6 +193,7 @@ def analisis(monkeypatch):
         return AnalyzeResponse(
             headline=request.headline,
             content=None,
+            language="en",
             signals=[],
             dimensions=[],
             verdict=OverallVerdict.NO_DATA,

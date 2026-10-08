@@ -53,6 +53,7 @@ from backend.analysis.domain import (
     SignalType,
 )
 from backend.core.errores import mensaje_publico
+from backend.core.idioma import detectar
 from backend.core.models import ToolResult
 from backend.integrations.nlp import dedicated, lexical, linear
 from backend.integrations.nlp.factory import (
@@ -63,6 +64,8 @@ from backend.integrations.nlp.factory import (
     get_nlp_backend,
     get_threshold,
     get_top_cues,
+    motivo_si_el_cuerpo_no_se_compara,
+    motivo_si_no_se_analiza,
 )
 
 log = structlog.get_logger()
@@ -301,14 +304,37 @@ async def precalentar() -> dict[str, float]:
 async def analyze(request: AnalyzeRequest) -> AnalyzeResponse:
     """Analiza un titular con todas las señales aplicables.
 
-    Sin lógica propia a propósito: cada invariante vive en su helper y se puede
-    probar por separado.
+    Lo primero es el idioma (#229): un titular en un idioma que las señales no
+    analizan no se ejecuta, y cada señal dice por qué. Hasta #229 se analizaba
+    como si fuera inglés, y en español eso daba «factual» a cuatro de cada cinco
+    teasers de TA1C sin avisar (`evaluation/eval_ta1c.py`).
+
+    Lo segundo, el idioma del cuerpo, que sólo lee la incoherencia: lo compara
+    con el titular usando un modelo inglés, y con un cuerpo en español la
+    similitud se hunde aunque diga lo mismo. Con un cuerpo en otro idioma, la
+    incoherencia no se ejecuta y las demás señales sí.
+
+    Por lo demás, sin lógica propia a propósito: cada invariante vive en su
+    helper y se puede probar por separado.
     """
-    signals = await _run_signals(request.headline, request.content)
+    idioma = detectar(request.headline)
+    motivo = motivo_si_no_se_analiza(idioma)
+    if motivo:
+        signals = _sin_analizar(motivo)
+    else:
+        motivo_del_cuerpo = (
+            motivo_si_el_cuerpo_no_se_compara(detectar(request.content))
+            if request.content
+            else None
+        )
+        signals = await _run_signals(
+            request.headline, request.content, motivo_del_cuerpo
+        )
     dimensions = _aggregate(signals)
     return AnalyzeResponse(
         headline=request.headline,
         content=request.content,
+        language=idioma,
         signals=signals,
         dimensions=dimensions,
         verdict=_overall(dimensions),
@@ -340,8 +366,29 @@ def senal_de(nombre: str, datos: Any) -> SignalResult | None:
     return _build(spec, SignalStatus.OK, is_clickbait=voto, data=datos)
 
 
-async def _run_signals(headline: str, content: str | None) -> list[SignalResult]:
-    """Ejecuta en paralelo las señales aplicables y envuelve cada resultado."""
+def _sin_analizar(motivo: str) -> list[SignalResult]:
+    """Todas las señales en `not_applicable`, con el motivo, sin ejecutar ninguna.
+
+    Va en el orden de `_SIGNALS`, como lo que devuelve `_run_signals`, para que
+    la interfaz pinte las tarjetas siempre igual. Sin ninguna señal que vote,
+    `_overall` da `no_data`.
+    """
+    return [
+        _build(spec, SignalStatus.NOT_APPLICABLE, detail=motivo) for spec in _SIGNALS
+    ]
+
+
+async def _run_signals(
+    headline: str, content: str | None, motivo_del_cuerpo: str | None = None
+) -> list[SignalResult]:
+    """Ejecuta en paralelo las señales aplicables y envuelve cada resultado.
+
+    Con `motivo_del_cuerpo`, las señales que leen el cuerpo no se ejecutan y
+    lo dan como motivo: lo calcula `analyze()` cuando el cuerpo está en un
+    idioma que no se compara (#229). Por defecto no hay ninguno, así que quien
+    llama aquí directamente —los guiones de evaluación, los tests— ejecuta
+    todo lo que se pueda, como antes.
+    """
     by_name: dict[str, SignalResult] = {}
     pending: list[_Signal] = []
 
@@ -351,6 +398,10 @@ async def _run_signals(headline: str, content: str | None) -> list[SignalResult]
                 spec,
                 SignalStatus.NOT_APPLICABLE,
                 detail="Requiere el cuerpo o teaser de la noticia.",
+            )
+        elif spec.needs_content and motivo_del_cuerpo:
+            by_name[spec.name] = _build(
+                spec, SignalStatus.NOT_APPLICABLE, detail=motivo_del_cuerpo
             )
         else:
             pending.append(spec)

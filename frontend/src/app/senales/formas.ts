@@ -20,6 +20,9 @@
  *   inglés, y en la base local hay una entrada con `verdict: "ambiguo"`
  *   (comprobado). Rechazarla escondería el análisis entero por una etiqueta;
  *   el vocabulario cae al valor crudo y se lee lo que hay.
+ * - **`language` puede faltar.** El contrato lo trae desde #229; lo guardado
+ *   antes no, y entonces el contrato decía que el titular era inglés. Lo
+ *   resuelve `idiomaDelTitular`.
  *
  * Aquí vive además `comoAnalisis`, el guardián que lee un análisis de datos sin
  * tipo. Va junto a las formas porque lo necesita quien pinta un análisis que
@@ -51,6 +54,8 @@ export interface DimensionGuardada {
 export interface AnalisisGuardado {
   headline: string;
   content?: string | null;
+  /** El idioma con el que se analizó (#229). Falta en lo guardado antes. */
+  language?: string | null;
   signals: SenalGuardada[];
   dimensions: DimensionGuardada[];
   verdict: string;
@@ -106,4 +111,21 @@ export function comoAnalisis(crudo: unknown): AnalisisGuardado | null {
   }
 
   return analisis;
+}
+
+/**
+ * El idioma del titular, para su atributo `lang` (#229).
+ *
+ * Es el que guardó el análisis —con el que decidió qué señales ejecutar—, no
+ * uno recalculado aquí: detectarlo en el navegador sería una segunda copia del
+ * detector (#116). Lo guardado antes de #229 no lo trae, y entonces el contrato
+ * decía que el titular era inglés. `und` se devuelve tal cual: en BCP 47 es
+ * «indeterminado», que es lo que hay que decirle a un lector de pantalla.
+ *
+ * Mira el tipo aunque el campo se declare cadena: `comoAnalisis` no lo
+ * comprueba, porque un valor raro no debe esconder el análisis entero.
+ */
+export function idiomaDelTitular(analisis: AnalisisGuardado | null): string {
+  const idioma = analisis?.language;
+  return typeof idioma === 'string' ? idioma : 'en';
 }

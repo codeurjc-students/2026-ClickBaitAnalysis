@@ -47,6 +47,7 @@ from typing import Annotated, Any
 
 from pydantic import BaseModel, Field, StringConstraints
 
+from backend.core.idioma import Idioma
 from backend.core.texto import TextoOpcional
 
 # Recorta antes de medir. Con un simple `min_length=1`, un titular de un solo
@@ -173,7 +174,12 @@ class OverallVerdict(str, Enum):
 
 
 class AnalyzeRequest(BaseModel):
-    headline: NonBlankStr = Field(description="Titular a analizar (en inglés).")
+    headline: NonBlankStr = Field(
+        description=(
+            "Titular a analizar, en inglés. En otro idioma no se analiza: cada "
+            "señal queda en 'not_applicable' con el motivo."
+        )
+    )
     # «None» o «null» escritos como texto son la AUSENCIA de cuerpo, no un
     # cuerpo (#197): el modelo del agente mandó «None», y la incoherencia lo
     # comparó con el titular. Por aquí pasan las dos fachadas.
@@ -189,6 +195,15 @@ class AnalyzeRequest(BaseModel):
 class AnalyzeResponse(BaseModel):
     headline: str
     content: str | None = None
+    # El idioma con el que se decidió qué señales se ejecutan (#229): el que usó
+    # ESTE análisis, que es lo que se guarda en el historial y lo que lee la
+    # pantalla para el atributo `lang` del titular.
+    language: Idioma = Field(
+        description=(
+            "Idioma detectado del titular: 'en', 'es' o 'und' (otro). Si las "
+            "señales no analizan ese idioma, ninguna se ejecuta."
+        )
+    )
 
     signals: list[SignalResult]
     dimensions: list[DimensionVerdict]

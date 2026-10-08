@@ -107,11 +107,35 @@ describe('HistorialPage', () => {
     expect(raiz.textContent).toContain('Why skateboarding is more than a sport');
   });
 
-  // Los titulares son ingleses por contrato y la página está en castellano.
+  // La página está en castellano y el titular puede no estarlo (#229). La
+  // primera fila es una ejecución suelta, cuya respuesta no dice en qué idioma
+  // leyó el titular: queda en «en», como antes (que lo diga, en #230).
   it('marca el idioma de los titulares analizados', async () => {
     const raiz = await montar();
 
     expect(raiz.querySelector('.titular')?.getAttribute('lang')).toBe('en');
+  });
+
+  // #229: en un análisis, el idioma es el que guardó su respuesta.
+  it('un análisis en español marca su titular en español', async () => {
+    const titular = 'No vas a creer lo que hizo este perro';
+    const enEspanol = {
+      ...PAGINA.items[1],
+      headline: titular,
+      verdict: 'no_data',
+      payload: {
+        headline: titular,
+        language: 'es',
+        signals: [],
+        dimensions: [],
+        verdict: 'no_data',
+      },
+    };
+    const raiz = await montar({ ...PAGINA, items: [PAGINA.items[0], enEspanol] });
+
+    const titulares = raiz.querySelectorAll('.titular');
+    expect(titulares[1].textContent).toBe(titular);
+    expect(titulares[1].getAttribute('lang')).toBe('es');
   });
 
   // #134 pasó las claves a inglés. Una entrada anterior se pinta con lo que

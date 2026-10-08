@@ -22,8 +22,19 @@ evaluaciones grandes (#92, #121, #124) no entrena ningún modelo. Se guardan los
 `id` además del titular, para poder cruzarlos con los cuerpos de `var/`.
 
 Crear (una vez):  python -m backend.evaluation.splits webis
+
+TA1C, DESDE #229
+
+El corpus en español trae su propio reparto (`train` 2.100, `validation` 700,
+`test` 700), y se respeta en vez de hacer uno nuevo: las cifras publicadas se
+midieron en su `test`, y así se pueden comparar. No se baraja nada; sólo se
+pasa del extracto (`data/external/ta1c.jsonl.gz`) a un fichero por parte, con el
+`id` para cruzarlo con los cuerpos de `var/`.
+
+Crear (una vez):  python -m backend.evaluation.splits ta1c
 """
 
+import gzip
 import json
 from pathlib import Path
 
@@ -43,6 +54,9 @@ NAMES = ("train", "dev", "test")
 WEBIS_ORIGEN = "validation170630"
 WEBIS_DEV_SIZE = 0.2
 WEBIS_NAMES = ("webis_dev", "webis_test")
+
+# TA1C (#229): el reparto del propio corpus, con el nombre de cada parte.
+TA1C_NAMES = ("ta1c_train", "ta1c_validation", "ta1c_test")
 
 
 def _path(name: str) -> Path:
@@ -122,16 +136,54 @@ def create_webis_splits(force: bool = False) -> None:
                 f.write(json.dumps(fila, ensure_ascii=False) + "\n")
 
 
+def create_ta1c_splits(force: bool = False) -> None:
+    """Un fichero por parte del reparto de TA1C (#229), sin barajar.
+
+    Falla si ya existen, como los demás. Aquí regenerarlos daría lo mismo
+    —el reparto viene del corpus—, pero que se puedan pisar sin querer es la
+    costumbre que esa comprobación evita.
+    """
+    from backend.evaluation.ta1c_extract import DESTINO_TEASERS
+
+    existing = [p.name for p in map(_path, TA1C_NAMES) if p.exists()]
+    if existing and not force:
+        raise FileExistsError(
+            f"Ya existen splits de TA1C en {SPLITS_DIR} ({', '.join(existing)})."
+        )
+    if not DESTINO_TEASERS.exists():
+        raise FileNotFoundError(
+            f"No existe {DESTINO_TEASERS}. Sácalo con: "
+            "python -m backend.evaluation.ta1c_extract <tarball>"
+        )
+
+    with gzip.open(DESTINO_TEASERS, "rt", encoding="utf-8") as f:
+        registros = [json.loads(linea) for linea in f]
+
+    SPLITS_DIR.mkdir(parents=True, exist_ok=True)
+    for name in TA1C_NAMES:
+        parte = name.removeprefix("ta1c_")
+        with open(_path(name), "w", encoding="utf-8") as f:
+            for registro in registros:
+                if registro["parte"] != parte:
+                    continue
+                fila = {
+                    "id": registro["id"],
+                    "headline": registro["headline"],
+                    "label": registro["label"],
+                }
+                f.write(json.dumps(fila, ensure_ascii=False) + "\n")
+
+
 def load_split(name: str) -> list[tuple[str, int]]:
     """Carga un split persistido → lista de (headline, label)."""
-    if name not in NAMES + WEBIS_NAMES:
-        raise ValueError(
-            f"Split desconocido: {name!r} (usa uno de {NAMES + WEBIS_NAMES})"
-        )
+    conocidos = NAMES + WEBIS_NAMES + TA1C_NAMES
+    if name not in conocidos:
+        raise ValueError(f"Split desconocido: {name!r} (usa uno de {conocidos})")
     path = _path(name)
     if not path.exists():
         raise FileNotFoundError(
-            f"No existe {path}. Genera los splits con: python -m backend.evaluation.splits"
+            f"No existe {path}. Genera los splits con: "
+            "python -m backend.evaluation.splits [webis | ta1c]"
         )
     with open(path, encoding="utf-8") as f:
         return [(record["headline"], record["label"]) for record in map(json.loads, f)]
@@ -143,6 +195,9 @@ if __name__ == "__main__":
     if "webis" in sys.argv:
         create_webis_splits()
         nombres = WEBIS_NAMES
+    elif "ta1c" in sys.argv:
+        create_ta1c_splits()
+        nombres = TA1C_NAMES
     else:
         create_splits()
         nombres = NAMES

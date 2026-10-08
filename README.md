@@ -2964,6 +2964,9 @@ cuenta es un rediseño, no una comprobación.
   alta porque las toman por siglas.
 - **`lang="en"` en los titulares.** El contrato dice que van en inglés y la
   página está en castellano; sin eso se pronuncian con fonética española.
+  *(Revisado en #229: el `lang` sigue ahora el idioma que detectó el
+  análisis, y la página declaraba `lang="en"` desde el andamiaje de #132,
+  así que hasta entonces esta marca no cambiaba nada.)*
 - **El mensaje de error está atado a su campo** con `aria-describedby` y
   `aria-invalid`, en vez de suelto en la página.
 - **La cabecera de cada tarjeta es un `<button>`** con `aria-expanded`, no un
@@ -7502,7 +7505,7 @@ La issue pedía que cada titular de la lista de noticias del asistente enlazara 
 
 La issue se redujo a lo que de verdad faltaba (decidido por el autor):
 
-- **Avisar al lector de pantalla de que se abre otra pestaña.** Con la vista se nota el salto; de oído sólo empieza una página nueva, y «Atrás» no vuelve a la conversación, que sigue en la otra pestaña. Un texto que sólo lee el lector, «(se abre en una pestaña nueva)», va dentro del enlace y **fuera del `lang="en"`** del titular, para que no lo pronuncie como inglés; antes el `lang="en"` estaba en el enlace entero. Lo recomiendan las pautas WCAG (técnica G201), sin exigirlo en el nivel AA: va por la regla del proyecto de cuidar la accesibilidad aunque R6 no la pida. Abrir en la misma pestaña no era la alternativa, porque la conversación vive en la memoria de la pantalla y se perdería (#209).
+- **Avisar al lector de pantalla de que se abre otra pestaña.** Con la vista se nota el salto; de oído sólo empieza una página nueva, y «Atrás» no vuelve a la conversación, que sigue en la otra pestaña. Un texto que sólo lee el lector, «(se abre en una pestaña nueva)», va dentro del enlace y **fuera del `lang="en"`** del titular, para que no lo pronuncie como inglés; antes el `lang="en"` estaba en el enlace entero. Lo recomiendan las pautas WCAG (técnica G201), sin exigirlo en el nivel AA: va por la regla del proyecto de cuidar la accesibilidad aunque R6 no la pida. Abrir en la misma pestaña no era la alternativa, porque la conversación vive en la memoria de la pantalla y se perdería (#209). *(Revisado en #229: la página entera estaba en `lang="en"` desde el andamiaje de #132, así que el aviso se leía igual en inglés hasta que se corrigió `index.html`.)*
 - **El espacio antes de la fecha**, dentro del propio texto de la fecha, que es donde Angular no lo quita.
 - **Los specs que faltaban**: ninguno miraba la lista de noticias de la pantalla. Uno nuevo comprueba el enlace, su destino, la pestaña nueva, el aviso fuera del inglés, la fecha separada, y que una noticia sin `url` se pinta sin enlace; **falló contra la plantilla de antes**. Otro, en `conversacion.ts`, cubre una noticia sin `url` o con una que no es texto: pasa también con el código de antes, porque eso ya estaba bien, y queda como cobertura.
 
@@ -8360,6 +8363,142 @@ Las cinco terminaron con respuesta. En la larga, la tercera vuelta llegó al **t
 
 - **El análisis en español**, en `v0.8`, con TA1C como corpus.
 - **Fijar la revisión de cada modelo horneado** (#217): la comprobación de arriba se hizo a mano; en `v0.8` entran modelos nuevos, y es el momento de fijarlas.
+
+### Un titular que no está en inglés no recibe veredicto (#229, 8 oct 2026)
+
+Hasta esta issue, un titular en español se analizaba como si fuera inglés, y nada lo decía: en TA1C, el sistema daba «factual» a cuatro de cada cinco teasers y reconocía el 1,9 % del clickbait. Es la primera issue de `v0.8 · Español`, y va primero porque antes de mandar cada titular a las señales de su idioma (#230–#233) hay que saber en qué idioma está. Desde aquí, un titular en español o en otro idioma recibe `no_data` y cada señal dice por qué; la respuesta de `/analyze` lleva el idioma (`language`), y la pantalla lo usa para que cada titular se pronuncie en el suyo.
+
+#### TA1C, el corpus en español
+
+TA1C («Te Ahorré Un Click»; Mordecki, Moncecchi y Couto, 2025) reúne 3.500 tuits de 18 medios en español, cada uno anotado por tres personas (κ de Fleiss 0,825, según el artículo) y con el cuerpo de su artículo. Tiene licencia MIT en su repositorio y CC BY 4.0 en el artículo; la atribución, el origen (`github.com/gmordecki/TA1C`, rama `master`) y el sha256 del fichero descargado están en [`data/external/ATTRIBUTION.md`](data/external/ATTRIBUTION.md). Se versiona un extracto, `data/external/ta1c.jsonl.gz` (el teaser crudo, la etiqueta de la mayoría, las tres anotaciones, el medio, el país y la parte), y los artículos van a `var/ta1c/`, sin versionar, como los cuerpos de Webis-17 (#121). [`ta1c_extract.py`](backend/evaluation/ta1c_extract.py) regenera los dos, y `splits.py ta1c` escribe las tres partes en `data/splits/`.
+
+Medido con [`spikes/ta1c_medios.py`](spikes/ta1c_medios.py):
+
+| Parte | Teasers | Clickbait | Sin cuerpo |
+|---|---|---|---|
+| `train` | 2.100 | 28,1 % | 12 |
+| `validation` | 700 | 29,4 % | 4 |
+| `test` | 700 | 29,1 % | 2 |
+
+- **El reparto es el del propio corpus**, no uno nuevo: así, lo que se mida en su `test` se podrá comparar con las cifras publicadas (TF-IDF + XGBoost 0,61 y BETO afinado 0,84 de F1). `test` queda sin abrir, para elegir los modelos del español (#231–#233).
+- **Los medios son de 12 países, más la BBC**: su servicio en español, 150 tuits, que la columna de país registra como «Inglaterra». Por eso salen 13 valores de país.
+- **La proporción de clickbait cambia mucho de un medio a otro**: del 2,9 % de El Universal (Venezuela) al 68,7 % de la BBC. La etiqueta es humana, no por medio como en Chakraborty, pero un modelo que aprende palabras puede aprender a reconocer al medio en vez del clickbait. Es el vocabulario de fuente que #78 vio con `wikinews`, y el primer riesgo que hereda el lineal en español (#231).
+
+#### El punto de partida: el español, tratado como inglés
+
+[`eval_ta1c.py`](backend/evaluation/eval_ta1c.py) pasa cada teaser de `validation` por las mismas señales y la misma agregación que `/analyze` (`_run_signals`, `_aggregate` y `_overall`), con el cuerpo de su artículo, y compara con la etiqueta humana:
+
+```bash
+NLP_BACKEND=local .venv/bin/python -m backend.evaluation.eval_ta1c
+```
+
+| Señal | P | R | F1 |
+|---|---|---|---|
+| Veredicto «es clickbait» | 1,000 | 0,019 | **0,038** |
+| Dedicada | 0,837 | 0,199 | 0,322 |
+| Léxico | 0,343 | 0,165 | 0,223 |
+| Lineal | 1,000 | 0,010 | 0,019 |
+| Incoherencia (696 con cuerpo) | 0,333 | 0,010 | 0,019 |
+
+El veredicto fue `factual` en el 79,7 % de los teasers, `ambiguous` en el 19,7 % y `deceptive` o `stylistic_clickbait` en el 0,6 %. El léxico no encontró ninguna pista en el 85,9 %: sus listas son inglesas. Sólo la dedicada reconoce algo, un 19,9 % del clickbait, y cuando lo señala casi siempre acierta. El fallo no hacía ruido: era un «factual» tranquilo. Estas cifras son de `validation` y no se comparan tal cual con las publicadas, que son de `test`.
+
+#### El detector: palabras funcionales, con la regla publicada antes de medir
+
+[`core/idioma.py`](backend/core/idioma.py) cuenta las palabras funcionales de cada idioma —artículos, preposiciones, pronombres—, que aparecen hasta en un titular corto y no dependen del tema, y al español le suma lo que el inglés no tiene: la eñe, las tildes y los signos de apertura. Para «otro idioma» tiene listas cortas de francés, portugués, italiano y alemán. Gana el idioma con más pruebas, y **sin ninguna, inglés**: el sistema nació para inglés, y un titular sin palabras funcionales («Obama Wins Election») casi siempre lo es. Vive en `core/` porque lo usan `analysis/` (el orquestador y el contrato) e `integrations/` (las herramientas), y decidir un idioma no sabe nada del clickbait.
+
+Se decidió con la disciplina de #92 y #124. **La regla se publicó antes de medir** ([comentario en la issue](https://github.com/codeurjc-students/2026-ClickBaitAnalysis/issues/229#issuecomment-6039059405)): en inglés, como mucho un 1 % de los titulares de Chakraborty `dev` (6.400) y de `webis_dev` (3.896) detectado como otro idioma; en español, al menos un 95 % de TA1C `validation` (700) detectado como español. Una librería sólo entraba si la heurística no la cumplía. **Las listas se afinaron mirando sólo los conjuntos de entrenamiento** (Chakraborty `train`, `train170331` y TA1C `train`), y la regla se aplicó una vez:
+
+| Variante, en los de entrenamiento | Chakraborty | Webis-17 | TA1C | Otros idiomas |
+|---|---|---|---|---|
+| V0, la primera | 99,80 % | 99,96 % | 99,86 % | 2 de 12 |
+| V1: las tildes, sólo con una palabra española | 99,86 % | 99,96 % | 99,48 % | 3 de 12 |
+| V2: además, dos pruebas si no hay inglés | 99,96 % | 100 % | 99,00 % | 3 de 12 |
+| V3: además, letras de otros idiomas | 99,90 % | 100 % | 99,00 % | 10 de 12 |
+| **V4, la elegida** | **99,80 %** | **99,96 %** | **99,86 %** | **10 de 12** |
+
+Cada porcentaje es la parte detectada en el idioma esperado; «otros idiomas» son doce titulares escritos a mano, una prueba y no una medida.
+
+- **V1 y V2 cambian falsas alarmas en inglés por español perdido, y los dos errores no pesan igual.** Un titular inglés tomado por español se queda sin veredicto, con el motivo a la vista; uno español tomado por inglés recibe un veredicto equivocado en silencio, que es justo lo que esta issue arregla.
+- **V3 tomaba por «otro idioma» nombres propios** como «Räikkönen» o «São Paulo». V4 deja el inglés y el español como V0, y las letras de otros idiomas sólo cuentan si hay alguna palabra de sus listas.
+- Las cifras de V0 a V3 son de versiones intermedias de `idioma.py` que no se conservaron, y están publicadas en la issue ([comentario](https://github.com/codeurjc-students/2026-ClickBaitAnalysis/issues/229#issuecomment-6042275532)). Las de V4 las reproduce `eval_idioma.py --train`.
+
+Con V4, **la regla se cumple a la primera**:
+
+```bash
+.venv/bin/python -m backend.evaluation.eval_idioma
+```
+
+| Conjunto de elección | Esperado | Resultado | Regla |
+|---|---|---|---|
+| Chakraborty `dev` (6.400) | inglés | 0,27 % fuera del inglés (17) | ≤ 1 % → cumple |
+| `webis_dev` (3.896) | inglés | 0,13 % fuera del inglés (5) | ≤ 1 % → cumple |
+| TA1C `validation` (700) | español | 99,86 % en español | ≥ 95 % → cumple |
+
+Los fallos son nombres propios en titulares sin palabras inglesas («Tour de France», «Los Angeles», «al-Zawahiri», «Ángel Cabrera»), dos tuits de Webis que salen «otro idioma» («bring et», «Ellen von Unwerth») y un teaser español con empate («Muere Gerry Mardsen, líder de Gerry and the Pacemakers»), que se va al inglés por defecto. De los doce titulares en otros idiomas, diez salen «otro idioma». Los dos que no, y los demás límites que declara el docstring, los fija [`tests/core/test_idioma.py`](tests/core/test_idioma.py): si un cambio arregla alguno, el test falla para que el docstring se corrija con él. Escribiendo esos tests apareció un límite que el docstring no recogía: «otro idioma» sólo gana si supera a los dos, así que un empate con el español sale español («Non crederai mai a cosa ha fatto questo cane»: «ha» también es español). Y el de «Governo anuncia…», que el docstring achacaba a una tilde, sale español por «para».
+
+#### La puerta del titular
+
+`analyze()` detecta el idioma del titular antes que nada. Si las señales no lo analizan —hoy, todo lo que no es inglés—, no se ejecuta ninguna: cada una queda en `not_applicable` con el motivo, en su orden de siempre, y el veredicto es `no_data`. La frase vive en la factoría (`motivo_si_no_se_analiza`) porque sale por dos puertas y tiene que decir lo mismo en las dos (#116): **las cinco herramientas sueltas** la devuelven como `ToolError` antes de cargar ningún modelo, para el agente y para la pantalla de Sistema. El docstring de las herramientas no cambió («Pensada para inglés» ya era cierto), y el catálogo del agente salió idéntico, con la misma huella sha256 antes y después, así que no hizo falta repetir las 26 consultas.
+
+`AnalyzeResponse` gana `language` (`en`, `es` o `und`, que en BCP 47 es «indeterminado» y vale tal cual para el atributo `lang`): el idioma con el que el análisis decidió, que es el que se guarda en el historial. El contrato se regeneró, y con él los dobles de los tests y tres specs del frontend.
+
+`_run_signals` no lleva la puerta: `eval_ta1c` y los tests que lo llaman directamente siguen ejecutando todas las señales, y así el guion sigue midiendo el español tratado como inglés.
+
+#### La puerta del cuerpo
+
+Escribiendo los tests de la puerta apareció un hueco: la puerta mira el titular, pero la incoherencia compara titular y cuerpo con un modelo inglés. [`spikes/incoherencia_cuerpo_traducido.py`](spikes/incoherencia_cuerpo_traducido.py) pasa tres titulares ingleses por el detector de producción, frente a su cuerpo en inglés, el mismo traducido al español y uno de otro tema:
+
+| Titular | Cuerpo en inglés | El mismo, en español | Otro tema |
+|---|---|---|---|
+| Federal Reserve holds interest rates steady | 0,701 | **0,137** | −0,061 |
+| Spain wins the European Championship after beating England | 0,866 | 0,474 | −0,074 |
+| Wildfire forces thousands to evacuate in California | 0,724 | 0,380 | −0,030 |
+
+Con el cuerpo en español, la similitud se hunde aunque diga lo mismo; sólo la sostienen los nombres propios que comparten las dos versiones. En el primero cruza el umbral (0,3): la incoherencia vota «incoherente» con un cuerpo fiel, y con la forma dividida el veredicto sería `deceptive`, el mismo error silencioso. Son tres ejemplos, no una medida.
+
+**Decidido (autor): la puerta mira también el cuerpo, sólo para la incoherencia**, que es la única señal que lo lee; las otras cuatro se ejecutan. Como el detector se afinó con titulares, antes de usarlo con cuerpos se publicó la misma regla para ellos ([comentario](https://github.com/codeurjc-students/2026-ClickBaitAnalysis/issues/229#issuecomment-6045492294)), y se midió con `eval_idioma.py --cuerpos`:
+
+| Cuerpos | Esperado | Resultado | Regla |
+|---|---|---|---|
+| `webis_dev` (3.896) | inglés | 0,05 % fuera del inglés (2) | ≤ 1 % → cumple |
+| TA1C `validation` (696) | español | 100 % en español | ≥ 95 % → cumple |
+
+Los dos de Webis no son del todo fallos: uno es un tuit en alemán y francés, y el otro, un cuerpo con la codificación rota («ConexiÃ³n»). Con un cuerpo en otro idioma, la incoherencia queda en `not_applicable` con su propia frase (`motivo_si_el_cuerpo_no_se_compara`), y la herramienta suelta lo rechaza igual. `_run_signals` recibe ese motivo como un parámetro que por defecto no está, por lo mismo que arriba.
+
+#### La pantalla: el idioma que detectó el análisis
+
+El titular llevaba `lang="en"` fijo, porque el contrato decía que era inglés. Ahora lo pone `idiomaDelTitular` (`senales/formas.ts`), que lee el `language` de la respuesta sin recalcularlo —detectarlo en el navegador sería una segunda copia del detector— y da «en» a lo guardado antes de #229, que es lo que el contrato afirmaba entonces. Lo usan la barra y el titular resaltado del análisis (también en el asistente, que pinta el mismo bloque) y las filas del historial. Comprobado en el navegador integrado: un titular en español sale «Sin datos», con las cinco tarjetas diciendo por qué y `lang="es"`, también al reabrirlo desde el historial; los anteriores siguen en «en».
+
+Quedan en «en», a propósito y apuntado donde toca:
+
+- **las filas del historial de una herramienta suelta**: su respuesta no dice en qué idioma leyó el titular; que la salida de cada señal lo diga, en #230;
+- **los dos campos del formulario**: antes de analizar no hay idioma que leer, y el contrato aún dice «en inglés»; en #230;
+- **las palabras del lineal en su tarjeta**: hoy no salen en español, porque en español no se ejecuta; en #231.
+
+**Y la página entera estaba declarada en inglés.** `index.html` traía `<html lang="en">` desde el andamiaje de #132, el valor por defecto de Angular: un lector de pantalla leía toda la interfaz, que está en castellano, con voz inglesa, y el `lang="en"` de los titulares no cambiaba nada. Ahora es `lang="es"`, comprobado en el navegador y en la compilación de producción.
+
+#### Lo que se encontró por el camino
+
+- **Hugging Face retiró el crédito gratuito el 7 de octubre.** Probando la pantalla con la API local, que usa la vía remota por defecto, el tono dio un 402. No era un cupo agotado: ese día la tabla de precios de Inference Providers pasó a «Free Users: None» (huggingface/hub-docs#2865). Producción no se ve afectada, porque corre en local (#164). Decidido (autor): no pagar PRO, que no aporta al desarrollo, a la implementación ni a la presentación. Lo que cambia por ello va en #236, con su propia sección.
+- **Un test que habría roto el CI.** `test_idioma.py` importa los ejemplos de `eval_idioma.py`, y éste arrastraba `scikit-learn`, que el CI no instala: en ese entorno la recogida fallaba con `ModuleNotFoundError`, mientras en el de desarrollo todo pasaba. Ahora `eval_idioma.py` importa sus cargadores dentro de quien los usa. Es la regla de #158 por otra puerta: **lo que toca dependencias opcionales se prueba también con el venv de sólo `requirements.txt`**.
+- **La descripción de `HistoryEntry.headline`** decía «Nulo en ejecuciones sueltas», y `app.py` guarda el argumento `headline` de cada una. Se corrigió, y con ella se regeneró el contrato.
+
+#### Lo que deja a las siguientes
+
+- **B (#230)** enruta por idioma, y tiene apuntados los campos del formulario, la descripción de `AnalyzeRequest.headline` y el idioma en la salida de cada señal.
+- **C (#231)**: el riesgo de fuente de TA1C, y el `lang` de las palabras del lineal.
+- **D y E (#232, #233)**: los modelos multilingües, por medir. E decidirá además qué hace la puerta del cuerpo cuando la incoherencia compare en español.
+- **G (#235)**: las noticias en español, con dos APIs, NewsData.io y GNews; el autor exige al menos dos, o el idioma tiene poco sentido. Se descartaron los RSS, que no buscan por tema, y GDELT, que dio un 429 a la primera consulta.
+
+Los tests pasan de 473 a 530 en el backend, en verde también con el venv de sólo `requirements.txt`, y de 187 a 194 specs en el frontend.
+
+| Condiciones | |
+|---|---|
+| Fecha | 2026-10-07 (las reglas, las variantes y la primera pasada) y 2026-10-08 (todo repetido sobre el código final, con las mismas cifras) |
+| Máquina | El portátil del autor: WSL2 (Ubuntu 24.04.4, núcleo 6.6.87.2), Python 3.12.3 y una GeForce GTX 1650 SUPER, que `transformers` usa en WSL aunque nadie le pase `device`. Producción corre en CPU |
+| Código | `4af8cd0`. Las variantes V0 a V4 se midieron sobre `b81966b`, con `idioma.py` y `eval_idioma.py` aún sin commitear |
+| Modelos | Los de las fichas: `Stremie/roberta-base-clickbait`, `cardiffnlp/twitter-roberta-base-sentiment-latest` y `sentence-transformers/all-MiniLM-L6-v2` (revisión `1110a243fdf4`), con transformers 5.12.0, sentence-transformers 5.6.0 y torch 2.12.1 |
+| Guiones | `spikes/ta1c_medios.py`; `backend/evaluation/eval_ta1c.py` (70 s); `backend/evaluation/eval_idioma.py` con `--train`, sin argumentos y con `--cuerpos` (sólo Python, sin modelos); `spikes/incoherencia_cuerpo_traducido.py` |
 
 
 

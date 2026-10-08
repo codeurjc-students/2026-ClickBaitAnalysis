@@ -1,7 +1,7 @@
 import { Component, computed, input } from '@angular/core';
 
 import { comoLexico, type Pista } from './datos';
-import type { AnalisisGuardado } from './formas';
+import { idiomaDelTitular, type AnalisisGuardado } from './formas';
 import { SenalCard } from './senal-card';
 import { TitularResaltado } from './titular-resaltado';
 import {
@@ -33,6 +33,9 @@ export class ResultadoAnalisis {
   readonly analisis = input.required<AnalisisGuardado>();
 
   readonly veredicto = computed(() => nombreDeVeredicto(this.analisis().verdict));
+
+  /** El idioma del titular: el que guardó el análisis (#229). */
+  readonly idioma = computed(() => idiomaDelTitular(this.analisis()));
 
   /**
    * Las pistas léxicas con las que se resalta el titular.

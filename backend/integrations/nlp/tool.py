@@ -11,6 +11,7 @@ indistinguible desde fuera.
 from mcp.server.fastmcp import FastMCP
 from mcp.server.fastmcp.exceptions import ToolError
 
+from backend.core.idioma import detectar
 from backend.core.observability import log_tool_invocation
 from backend.core.texto import es_ausente
 from backend.integrations.metadata import tool_meta
@@ -23,6 +24,8 @@ from backend.integrations.nlp.factory import (
     get_nlp_backend,
     get_threshold,
     get_top_cues,
+    motivo_si_el_cuerpo_no_se_compara,
+    motivo_si_no_se_analiza,
 )
 from backend.integrations.nlp.outputs import (
     Etiqueta,
@@ -31,6 +34,18 @@ from backend.integrations.nlp.outputs import (
     SalidaLexica,
     SalidaLineal,
 )
+
+
+def _rechazar_si_no_se_analiza(texto: str) -> None:
+    """Corta con el motivo si las señales no analizan el idioma del texto (#229).
+
+    La misma puerta que `analyze()`, para quien llama a una señal suelta: el
+    agente por MCP, o Sistema por `/tools/{name}/execute`. La frase sale de la
+    factoría, así que las dos fachadas dicen lo mismo (#116).
+    """
+    motivo = motivo_si_no_se_analiza(detectar(texto))
+    if motivo:
+        raise ToolError(motivo)
 
 
 def register(mcp: FastMCP):
@@ -73,6 +88,7 @@ def register(mcp: FastMCP):
         Raises:
             Si la llamada al modelo falla (timeout o caída del proveedor).
         """
+        _rechazar_si_no_se_analiza(headline)
         # El modelo, el modo y las etiquetas, de la configuración (#159).
         invocacion = get_invocacion("detect_clickbait")
         response = await dedicated.detect(
@@ -104,6 +120,7 @@ def register(mcp: FastMCP):
         Raises:
             Si la llamada al modelo falla (timeout o caída del proveedor).
         """
+        _rechazar_si_no_se_analiza(text)
         response = await get_nlp_backend().classify(
             text, get_model_id("analyze_sentiment")
         )
@@ -139,6 +156,9 @@ def register(mcp: FastMCP):
         Raises:
             Si el cálculo de los embeddings falla.
         """
+        # El idioma antes que el cuerpo, como en `analyze()`: con un titular que
+        # no se analiza, pedir el cuerpo sería una pista falsa (#229).
+        _rechazar_si_no_se_analiza(headline)
         # Un cuerpo que sólo dice «None» no es un cuerpo (#197): medir la
         # similitud contra esa palabra daría un «incoherente» inventado. El
         # error vuelve al modelo del agente para que lo corrija.
@@ -147,6 +167,11 @@ def register(mcp: FastMCP):
                 "Hace falta el cuerpo o el teaser de la noticia para medir la "
                 "incoherencia; sin él, esta señal no se puede aplicar."
             )
+        # Ni un cuerpo en otro idioma: el modelo que los compara es inglés
+        # (`motivo_si_el_cuerpo_no_se_compara` dice por qué, #229).
+        motivo_del_cuerpo = motivo_si_el_cuerpo_no_se_compara(detectar(content))
+        if motivo_del_cuerpo:
+            raise ToolError(motivo_del_cuerpo)
         response = await get_incoherence_detector().detect(headline, content)
         if not response.has_content():
             raise ToolError(
@@ -177,6 +202,7 @@ def register(mcp: FastMCP):
         Raises:
             Si el titular está vacío.
         """
+        _rechazar_si_no_se_analiza(headline)
         response = lexical.detect(headline, get_threshold("detect_clickbait_lexical"))
         if not response.has_content():
             raise ToolError(response.error or "Error al analizar léxico en el titular")
@@ -205,6 +231,7 @@ def register(mcp: FastMCP):
         Raises:
             Si el titular está vacío.
         """
+        _rechazar_si_no_se_analiza(headline)
         response = linear.predict(headline, get_top_cues())
         if not response.has_content():
             raise ToolError(response.error or "Error al predecir clickbait")

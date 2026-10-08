@@ -1,7 +1,7 @@
 <section class="veredicto">
   <h2>{{ veredicto() }}</h2>
 
-  <app-titular-resaltado [titular]="analisis().headline" [pistas]="pistas()" />
+  <app-titular-resaltado [titular]="analisis().headline" [pistas]="pistas()" [idioma]="idioma()" />
 
   <ul class="dimensiones">
     @for (porDimension of analisis().dimensions; track porDimension.dimension) {

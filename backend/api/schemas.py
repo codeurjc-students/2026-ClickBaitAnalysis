@@ -326,7 +326,11 @@ class HistoryEntry(BaseModel):
     origin: Origin
 
     headline: str | None = Field(
-        default=None, description="Titular analizado. Nulo en ejecuciones sueltas."
+        default=None,
+        description=(
+            "Titular analizado, o el argumento `headline` de una ejecución "
+            "suelta. Nulo si la herramienta no lo lleva."
+        ),
     )
     tool: str | None = Field(
         default=None, description="Herramienta invocada. Nulo en análisis completos."

@@ -19,6 +19,12 @@ export class TitularResaltado {
   // `input()` da entradas que SON señales: `segmentos` se recalcula solo.
   readonly titular = input.required<string>();
   readonly pistas = input<Pista[]>([]);
+  /**
+   * El idioma del titular, para su `lang` (#229). Sin valor por defecto: lo
+   * decide quien lo pinta, con `idiomaDelTitular`, y un llamador que lo
+   * olvidara no compilaría.
+   */
+  readonly idioma = input.required<string>();
 
   readonly segmentos = computed(() => segmentar(this.titular(), this.pistas()));
 

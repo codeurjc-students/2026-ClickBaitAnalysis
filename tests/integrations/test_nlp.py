@@ -15,6 +15,7 @@ from pydantic import ValidationError
 from structlog.testing import capture_logs
 
 from backend.config.settings import Settings, settings
+from backend.core.idioma import ESPANOL, INDETERMINADO, INGLES
 from backend.core.models import ToolResult
 from backend.integrations.nlp import dependencias, lexical, linear, model_cards
 from backend.integrations.nlp import tool as nlp_tool
@@ -25,6 +26,8 @@ from backend.integrations.nlp.factory import (
     get_nlp_backend,
     get_threshold,
     get_top_cues,
+    motivo_si_el_cuerpo_no_se_compara,
+    motivo_si_no_se_analiza,
 )
 from backend.integrations.nlp.incoherence import IncoherenceDetector
 from backend.integrations.nlp.local import LocalNLPClient
@@ -1222,3 +1225,188 @@ def test_el_umbral_lexico_cuenta_pistas_enteras(umbral):
 def test_el_tope_del_lineal_no_baja_de_una_pista():
     with pytest.raises(ValidationError):
         Settings(nlp_linear_top_cues=0, **_CLAVES)
+
+
+# --El idioma: una señal suelta no analiza lo que no está en inglés (#229)
+
+TITULAR_EN_ESPANOL = (
+    "No vas a creer lo que hizo este perro cuando su dueño volvió a casa"
+)
+TITULAR_EN_INGLES = "You Won't Believe What This Dog Did When His Owner Came Home"
+SENALES_SUELTAS = [
+    "detect_clickbait",
+    "analyze_sentiment",
+    "detect_clickbait_incoherence",
+    "detect_clickbait_lexical",
+    "detect_clickbait_linear",
+]
+
+
+def _argumentos(senal: str, titular: str) -> dict[str, str]:
+    """Lo que recibe cada señal: la de tono llama `text` a su texto, y la de
+    incoherencia necesita además un cuerpo."""
+    if senal == "analyze_sentiment":
+        return {"text": titular}
+    if senal == "detect_clickbait_incoherence":
+        return {"headline": titular, "content": "The dog was waiting at the door."}
+    return {"headline": titular}
+
+
+@pytest.fixture
+def detectores(monkeypatch):
+    """Sustituye lo que ejecuta cada señal por un doble que apunta a cuál llegó
+    la llamada y devuelve un resultado con la forma del real. La fixture
+    devuelve esa lista de llamadas."""
+    llamadas = []
+
+    async def dedicada(backend, headline, model_id, task, labels):
+        llamadas.append("detect_clickbait")
+        return ToolResult.ok({"label": "clickbait", "score": 0.9})
+
+    class _Backend:
+        async def classify(self, text, model):
+            llamadas.append("analyze_sentiment")
+            return ToolResult.ok({"label": "neutral", "score": 0.6})
+
+    class _Incoherencia:
+        async def detect(self, headline, content):
+            llamadas.append("detect_clickbait_incoherence")
+            return ToolResult.ok(
+                {
+                    "similarity": 0.8,
+                    "incoherent": False,
+                    "threshold": 0.3,
+                    "headline": headline,
+                    "content": content,
+                }
+            )
+
+    def lexica(headline, threshold):
+        llamadas.append("detect_clickbait_lexical")
+        return ToolResult.ok(
+            {
+                "score": 0,
+                "is_clickbait": False,
+                "threshold": threshold,
+                "matches": [],
+                "headline": headline,
+            }
+        )
+
+    def lineal(headline, top_cues):
+        llamadas.append("detect_clickbait_linear")
+        return ToolResult.ok(
+            {
+                "is_clickbait": False,
+                "probability": 0.2,
+                "top_cues": [],
+                "headline": headline,
+            }
+        )
+
+    monkeypatch.setattr(nlp_tool.dedicated, "detect", dedicada)
+    monkeypatch.setattr(nlp_tool, "get_nlp_backend", lambda: _Backend())
+    monkeypatch.setattr(nlp_tool, "get_incoherence_detector", lambda: _Incoherencia())
+    monkeypatch.setattr(lexical, "detect", lexica)
+    monkeypatch.setattr(linear, "predict", lineal)
+    return llamadas
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("senal", SENALES_SUELTAS)
+async def test_una_senal_suelta_no_analiza_un_titular_en_espanol(detectores, senal):
+    """La puerta de `analyze()`, por la otra fachada: el agente y Sistema llaman
+    a cada señal suelta, y hasta #229 un titular en español recibía un veredicto
+    sin aviso. Ahora se niega con la misma frase que la tarjeta del análisis, y
+    el detector no llega a ejecutarse."""
+    mcp = FastMCP("test")
+    nlp_tool.register(mcp)
+
+    # `capture_logs`: el rechazo se registra como cualquier fallo de una
+    # herramienta, con su traza.
+    with capture_logs(), pytest.raises(ToolError) as rechazo:
+        await mcp.call_tool(senal, _argumentos(senal, TITULAR_EN_ESPANOL))
+
+    motivo = motivo_si_no_se_analiza(ESPANOL)
+    assert motivo and motivo in str(rechazo.value)
+    assert detectores == []
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("senal", SENALES_SUELTAS)
+async def test_un_titular_en_ingles_sigue_llegando_al_detector(detectores, senal):
+    """La otra mitad: la puerta no corta lo que sí se analiza. Sin este test, una
+    puerta que lo rechazara todo pasaría el de arriba."""
+    mcp = FastMCP("test")
+    nlp_tool.register(mcp)
+
+    await mcp.call_tool(senal, _argumentos(senal, TITULAR_EN_INGLES))
+
+    assert detectores == [senal]
+
+
+@pytest.mark.asyncio
+async def test_en_espanol_y_sin_cuerpo_el_motivo_es_el_idioma(detectores):
+    """El idioma antes que el cuerpo, como en `analyze()`: pedir el cuerpo de un
+    titular que tampoco se analizaría con él sería una pista falsa."""
+    mcp = FastMCP("test")
+    nlp_tool.register(mcp)
+
+    with capture_logs(), pytest.raises(ToolError) as rechazo:
+        await mcp.call_tool(
+            "detect_clickbait_incoherence",
+            {"headline": TITULAR_EN_ESPANOL, "content": "None"},
+        )
+
+    motivo = motivo_si_no_se_analiza(ESPANOL)
+    assert motivo and motivo in str(rechazo.value)
+    assert "cuerpo" not in str(rechazo.value)
+    assert detectores == []
+
+
+@pytest.mark.asyncio
+async def test_la_incoherencia_no_compara_un_cuerpo_en_espanol(detectores):
+    """El titular pasa la puerta, pero el modelo que compara es inglés: con el
+    cuerpo en español la similitud se hunde aunque diga lo mismo."""
+    mcp = FastMCP("test")
+    nlp_tool.register(mcp)
+
+    with capture_logs(), pytest.raises(ToolError) as rechazo:
+        await mcp.call_tool(
+            "detect_clickbait_incoherence",
+            {
+                "headline": TITULAR_EN_INGLES,
+                "content": "El perro esperaba en la puerta de casa.",
+            },
+        )
+
+    motivo = motivo_si_el_cuerpo_no_se_compara(ESPANOL)
+    assert motivo and motivo in str(rechazo.value)
+    assert detectores == []
+
+
+# Las dos frases viven en la factoría: el análisis completo y las herramientas
+# sueltas dicen exactamente lo mismo (#116).
+FRASES_DE_MOTIVO = [
+    (motivo_si_no_se_analiza, "El titular"),
+    (motivo_si_el_cuerpo_no_se_compara, "El cuerpo"),
+]
+
+
+@pytest.mark.parametrize(("motivo_de", "_sujeto"), FRASES_DE_MOTIVO)
+def test_en_ingles_no_hay_motivo(motivo_de, _sujeto):
+    assert motivo_de(INGLES) is None
+
+
+@pytest.mark.parametrize(("motivo_de", "sujeto"), FRASES_DE_MOTIVO)
+@pytest.mark.parametrize(
+    ("idioma", "nombre"), [(ESPANOL, "español"), (INDETERMINADO, "otro idioma")]
+)
+def test_fuera_del_ingles_el_motivo_dice_que_y_en_que_idioma(
+    motivo_de, sujeto, idioma, nombre
+):
+    motivo = motivo_de(idioma)
+
+    assert motivo is not None
+    assert motivo.startswith(sujeto)
+    assert f"en {nombre}:" in motivo
