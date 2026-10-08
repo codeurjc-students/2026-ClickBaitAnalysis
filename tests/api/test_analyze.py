@@ -929,6 +929,35 @@ async def test_una_señal_que_no_carga_no_impide_arrancar(señales, monkeypatch)
 
 
 @pytest.mark.asyncio
+async def test_el_data_de_cada_senal_dice_en_que_idioma_se_analizo(señales):
+    """#230: el orquestador añade `language` a la salida de cada señal, como
+    cada herramienta suelta. El contrato publica la misma forma para las dos."""
+    señales()
+
+    signals = await _run_signals("Un titular", "Un cuerpo", INGLES, INGLES)
+
+    assert all(
+        senal.data is not None and senal.data["language"] == INGLES for senal in signals
+    )
+
+
+def test_una_senal_suelta_se_rotula_con_la_ficha_de_su_idioma(monkeypatch):
+    """La traza del agente sólo trae el `data`, y desde #230 el `data` dice su
+    idioma: la tarjeta lleva la ficha de ese idioma, no la inglesa. Sin
+    `language` —una salida de antes— se analizó en inglés."""
+    monkeypatch.setattr(
+        settings, "nlp_models_es", {"detect_clickbait": "prueba/multilingue"}
+    )
+    datos = {"label": "clickbait", "score": 0.9}
+
+    en_espanol = orchestrator.senal_de("detect_clickbait", {**datos, "language": "es"})
+    sin_idioma = orchestrator.senal_de("detect_clickbait", datos)
+
+    assert en_espanol is not None and "prueba/multilingue" in en_espanol.label
+    assert sin_idioma is not None and "prueba/multilingue" not in sin_idioma.label
+
+
+@pytest.mark.asyncio
 async def test_la_tarjeta_rotula_el_modelo_que_se_ejecuto(señales, monkeypatch):
     """La tercera puerta de la divergencia de #116, y la peor de las tres.
 

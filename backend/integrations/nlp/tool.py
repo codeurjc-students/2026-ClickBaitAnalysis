@@ -8,6 +8,8 @@ vez de devolver el mensaje por el mismo canal que un resultado válido — que e
 indistinguible desde fuera.
 """
 
+from typing import Any
+
 from mcp.server.fastmcp import FastMCP
 from mcp.server.fastmcp.exceptions import ToolError
 
@@ -45,13 +47,25 @@ def _idioma_si_se_analiza(signal: str, texto: str) -> Idioma:
     factoría, así que las dos fachadas dicen lo mismo (#116).
 
     Desde #230 es por señal y devuelve el idioma: con él pide cada herramienta
-    a la factoría su modelo y su umbral. Hasta entonces era una puerta para
-    todas a la vez (#229).
+    a la factoría su modelo y su umbral, y lo añade a su salida (`language`),
+    que el detector no sabe. Hasta entonces era una puerta para todas a la vez
+    (#229).
     """
     idioma = detectar(texto)
     if motivo := motivo_si_no_se_analiza(signal, idioma):
         raise ToolError(motivo)
     return idioma
+
+
+def _con_idioma(salida: Any, idioma: Idioma) -> Any:
+    """La salida del detector, con el idioma en que se analizó (#230).
+
+    `Any` porque la salida del detector ya lo es (`ToolResult.unwrap`): la forma
+    la declara la firma de cada herramienta y FastMCP la valida al devolverla.
+    El orquestador añade lo mismo a cada `data`, así que el contrato dice la
+    verdad en las dos rutas.
+    """
+    return {**salida, "language": idioma}
 
 
 def register(mcp: FastMCP):
@@ -107,7 +121,7 @@ def register(mcp: FastMCP):
         )
         if not response.has_content():
             raise ToolError(response.error or "Error al analizar el titular")
-        return response.unwrap()
+        return _con_idioma(response.unwrap(), idioma)
 
     @mcp.tool(meta=tool_meta("Señales de análisis", __name__))
     @log_tool_invocation
@@ -133,7 +147,7 @@ def register(mcp: FastMCP):
         )
         if not response.has_content():
             raise ToolError(response.error or "Error al analizar el sentimiento")
-        return response.unwrap()
+        return _con_idioma(response.unwrap(), idioma)
 
     @mcp.tool(meta=tool_meta("Señales de análisis", __name__))
     @log_tool_invocation
@@ -184,7 +198,7 @@ def register(mcp: FastMCP):
             raise ToolError(
                 response.error or "Error al analizar incoherencia en el titular"
             )
-        return response.unwrap()
+        return _con_idioma(response.unwrap(), idioma)
 
     @mcp.tool(meta=tool_meta("Señales de análisis", __name__))
     @log_tool_invocation
@@ -215,7 +229,7 @@ def register(mcp: FastMCP):
         )
         if not response.has_content():
             raise ToolError(response.error or "Error al analizar léxico en el titular")
-        return response.unwrap()
+        return _con_idioma(response.unwrap(), idioma)
 
     @mcp.tool(meta=tool_meta("Señales de análisis", __name__))
     @log_tool_invocation
@@ -241,12 +255,13 @@ def register(mcp: FastMCP):
             Si el titular está vacío.
         """
         # Sin idioma para el detector: hoy sólo hay pesos en inglés, y la puerta
-        # no deja llegar otro. Los del español, en #231.
-        _idioma_si_se_analiza("detect_clickbait_linear", headline)
+        # no deja llegar otro. Los del español, en #231. El idioma sí va en la
+        # salida, como en todas.
+        idioma = _idioma_si_se_analiza("detect_clickbait_linear", headline)
         response = linear.predict(headline, get_top_cues())
         if not response.has_content():
             raise ToolError(response.error or "Error al predecir clickbait")
-        return response.unwrap()
+        return _con_idioma(response.unwrap(), idioma)
 
     # Utilidad, no señal: describe los modelos, no analiza nada. Es el caso que
     # demuestra que la categoría no se puede derivar del paquete.

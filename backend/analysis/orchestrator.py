@@ -487,7 +487,9 @@ async def _run_one(
             idioma=idioma,
             detail=outcome.error or "La señal no devolvió resultado.",
         )
-    datos = outcome.unwrap()
+    # Con el idioma en que se analizó, como cada herramienta suelta (#230): los
+    # detectores no lo saben, y el contrato publica la misma forma en las dos.
+    datos = {**outcome.unwrap(), "language": idioma}
     return _build(
         spec,
         SignalStatus.OK,

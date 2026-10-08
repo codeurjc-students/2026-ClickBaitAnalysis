@@ -563,7 +563,7 @@
             "type": "string",
             "minLength": 1,
             "title": "Headline",
-            "description": "Titular a analizar, en inglés. En otro idioma no se analiza: cada señal queda en 'not_applicable' con el motivo."
+            "description": "Titular a analizar. Cada señal lo analiza si tiene un modelo en su idioma —hoy, sólo en inglés—; si no, queda en 'not_applicable' con el motivo."
           },
           "content": {
             "anyOf": [
@@ -1791,11 +1791,21 @@
           "score": {
             "title": "Score",
             "type": "number"
+          },
+          "language": {
+            "enum": [
+              "en",
+              "es",
+              "und"
+            ],
+            "title": "Language",
+            "type": "string"
           }
         },
         "required": [
           "label",
-          "score"
+          "score",
+          "language"
         ],
         "title": "Etiqueta",
         "type": "object"
@@ -1852,6 +1862,15 @@
           "headline": {
             "title": "Headline",
             "type": "string"
+          },
+          "language": {
+            "enum": [
+              "en",
+              "es",
+              "und"
+            ],
+            "title": "Language",
+            "type": "string"
           }
         },
         "required": [
@@ -1859,7 +1878,8 @@
           "is_clickbait",
           "threshold",
           "matches",
-          "headline"
+          "headline",
+          "language"
         ],
         "title": "SalidaLexica",
         "type": "object"
@@ -1895,13 +1915,23 @@
           "headline": {
             "title": "Headline",
             "type": "string"
+          },
+          "language": {
+            "enum": [
+              "en",
+              "es",
+              "und"
+            ],
+            "title": "Language",
+            "type": "string"
           }
         },
         "required": [
           "is_clickbait",
           "probability",
           "top_cues",
-          "headline"
+          "headline",
+          "language"
         ],
         "title": "SalidaLineal",
         "type": "object"
@@ -1928,6 +1958,15 @@
           "content": {
             "title": "Content",
             "type": "string"
+          },
+          "language": {
+            "enum": [
+              "en",
+              "es",
+              "und"
+            ],
+            "title": "Language",
+            "type": "string"
           }
         },
         "required": [
@@ -1935,7 +1974,8 @@
           "incoherent",
           "threshold",
           "headline",
-          "content"
+          "content",
+          "language"
         ],
         "title": "SalidaIncoherencia",
         "type": "object"

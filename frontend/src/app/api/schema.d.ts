@@ -351,7 +351,7 @@ export interface components {
         AnalyzeRequest: {
             /**
              * Headline
-             * @description Titular a analizar, en inglés. En otro idioma no se analiza: cada señal queda en 'not_applicable' con el motivo.
+             * @description Titular a analizar. Cada señal lo analiza si tiene un modelo en su idioma —hoy, sólo en inglés—; si no, queda en 'not_applicable' con el motivo.
              */
             headline: string;
             /**
@@ -1077,6 +1077,11 @@ export interface components {
             label: string;
             /** Score */
             score: number;
+            /**
+             * Language
+             * @enum {string}
+             */
+            language: "en" | "es" | "und";
         };
         /**
          * Pista
@@ -1109,6 +1114,11 @@ export interface components {
             matches: components["schemas"]["Pista"][];
             /** Headline */
             headline: string;
+            /**
+             * Language
+             * @enum {string}
+             */
+            language: "en" | "es" | "und";
         };
         /**
          * SalidaLineal
@@ -1129,6 +1139,11 @@ export interface components {
             ][];
             /** Headline */
             headline: string;
+            /**
+             * Language
+             * @enum {string}
+             */
+            language: "en" | "es" | "und";
         };
         /**
          * SalidaIncoherencia
@@ -1153,6 +1168,11 @@ export interface components {
             headline: string;
             /** Content */
             content: string;
+            /**
+             * Language
+             * @enum {string}
+             */
+            language: "en" | "es" | "und";
         };
     };
     responses: never;

@@ -71,6 +71,7 @@ async def test_las_tools_de_datos_describen_sus_campos(servidor_mcp):
         "threshold",  # desde #93, como el de la incoherencia
         "matches",
         "headline",
+        "language",  # desde #230, en qué idioma se analizó
     }
 
     # Las de texto sí van envueltas, y es lo esperado.
@@ -152,6 +153,8 @@ async def test_una_ejecucion_correcta_devuelve_datos_estructurados(servidor_mcp)
     # Estructurado, no una cadena que haya que parsear.
     assert resultado.structuredContent["is_clickbait"] is True
     assert resultado.structuredContent["matches"]
+    # Y dice en qué idioma lo analizó (#230): lo lee el historial.
+    assert resultado.structuredContent["language"] == "en"
 
 
 @pytest.mark.asyncio
