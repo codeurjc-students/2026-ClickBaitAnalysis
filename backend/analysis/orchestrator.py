@@ -38,6 +38,7 @@ import time
 import traceback
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
+from functools import partial
 from typing import Any
 
 import structlog
@@ -53,10 +54,11 @@ from backend.analysis.domain import (
     SignalType,
 )
 from backend.core.errores import mensaje_publico
-from backend.core.idioma import detectar
+from backend.core.idioma import INGLES, Idioma, detectar
 from backend.core.models import ToolResult
 from backend.integrations.nlp import dedicated, lexical, linear
 from backend.integrations.nlp.factory import (
+    IDIOMAS_DE_LAS_SENALES,
     ficha_efectiva,
     get_incoherence_detector,
     get_invocacion,
@@ -64,6 +66,7 @@ from backend.integrations.nlp.factory import (
     get_nlp_backend,
     get_threshold,
     get_top_cues,
+    idiomas_de,
     motivo_si_el_cuerpo_no_se_compara,
     motivo_si_no_se_analiza,
 )
@@ -121,14 +124,15 @@ def _con_cuerpo(content: str | None) -> str:
     return content
 
 
-def _detectar_clickbait(titular: str) -> Awaitable[ToolResult]:
-    """La señal de clickbait con el modelo y el modo configurados (#159).
+def _detectar_clickbait(titular: str, idioma: Idioma) -> Awaitable[ToolResult]:
+    """La señal de clickbait con el modelo y el modo configurados (#159), los
+    del idioma del titular (#230).
 
     El modo y las etiquetas se piden a la factoría en cada llamada, como el id:
     la tabla de abajo se lee al importar. Lo usan el análisis y `precalentar`,
     para que caliente el mismo modelo, de la misma forma.
     """
-    invocacion = get_invocacion("detect_clickbait")
+    invocacion = get_invocacion("detect_clickbait", idioma)
     return dedicated.detect(
         get_nlp_backend(), titular, invocacion.id, invocacion.task, invocacion.labels
     )
@@ -161,7 +165,10 @@ class _Signal:
     """
 
     name: str  # nombre EXACTO de la tool MCP; es la clave en _CARDS
-    run: Callable[[str, str | None], Awaitable[ToolResult]]
+    # Recibe el titular, el cuerpo y el idioma del titular (#230): cada señal
+    # pide a la factoría su modelo y su umbral EN ESE IDIOMA. La puerta va antes,
+    # en `_run_signals`, así que sólo llega aquí un idioma que la señal analiza.
+    run: Callable[[str, str | None, Idioma], Awaitable[ToolResult]]
     verdict: Callable[[dict[str, Any]], bool | None]
     needs_content: bool = False
 
@@ -174,7 +181,7 @@ class _Signal:
 _SIGNALS: tuple[_Signal, ...] = (
     _Signal(
         name="detect_clickbait",
-        run=lambda titular, cuerpo: _detectar_clickbait(titular),
+        run=lambda titular, cuerpo, idioma: _detectar_clickbait(titular, idioma),
         # VUELVE A VOTAR (#115), después de que #109 se lo quitara. No es una
         # marcha atrás: aquel silencio se declaró condicional en la ficha —
         # «placeholder pendiente de #115»— y esto es la condición cumpliéndose.
@@ -201,21 +208,23 @@ _SIGNALS: tuple[_Signal, ...] = (
         # todas igual. El coste del hilo es despreciable frente a la uniformidad.
         #
         # El umbral, de la factoría en cada uso (#93), como el modelo.
-        run=lambda titular, cuerpo: asyncio.to_thread(
-            lexical.detect, titular, get_threshold("detect_clickbait_lexical")
+        run=lambda titular, cuerpo, idioma: asyncio.to_thread(
+            lexical.detect, titular, get_threshold("detect_clickbait_lexical", idioma)
         ),
         verdict=lambda datos: datos["is_clickbait"],
     ),
     _Signal(
         name="detect_clickbait_linear",
-        run=lambda titular, cuerpo: asyncio.to_thread(
+        # Sin idioma: hoy sólo hay pesos en inglés, y la puerta no deja llegar
+        # otro. Los del español, con su ficha, en #231.
+        run=lambda titular, cuerpo, idioma: asyncio.to_thread(
             linear.predict, titular, get_top_cues()
         ),
         verdict=lambda datos: datos["is_clickbait"],
     ),
     _Signal(
         name="detect_clickbait_incoherence",
-        run=lambda titular, cuerpo: get_incoherence_detector().detect(
+        run=lambda titular, cuerpo, idioma: get_incoherence_detector(idioma).detect(
             titular, _con_cuerpo(cuerpo)
         ),
         verdict=lambda datos: datos["incoherent"],
@@ -223,8 +232,8 @@ _SIGNALS: tuple[_Signal, ...] = (
     ),
     _Signal(
         name="analyze_sentiment",
-        run=lambda titular, cuerpo: get_nlp_backend().classify(
-            titular, get_model_id("analyze_sentiment")
+        run=lambda titular, cuerpo, idioma: get_nlp_backend().classify(
+            titular, get_model_id("analyze_sentiment", idioma)
         ),
         # El tono se muestra como una señal más pero NO vota: alejarse de la
         # objetividad no es hacer clickbait, y cuánto pesa eso lo juzga quien
@@ -264,6 +273,10 @@ async def precalentar() -> dict[str, float]:
 
     Devuelve los tiempos por señal para poder registrarlos, en vez de imprimir
     desde aquí: quien llama decide si eso se loguea y cómo.
+
+    Desde #230, el modelo de cada idioma que analice cada señal (`idiomas_de`,
+    la misma regla que la puerta). Los del inglés conservan su etiqueta de
+    siempre, para que los registros de antes se sigan leyendo igual.
     """
     from backend.config.settings import settings
 
@@ -283,20 +296,23 @@ async def precalentar() -> dict[str, float]:
             return
         tiempos[etiqueta] = time.perf_counter() - inicio
 
-    if settings.nlp_backend == "local":
-        await cronometrar("detect_clickbait", lambda: _detectar_clickbait(titular))
-        await cronometrar(
-            "analyze_sentiment",
-            lambda: get_nlp_backend().classify(
-                titular, get_model_id("analyze_sentiment")
-            ),
-        )
+    por_nombre = {spec.name: spec for spec in _SIGNALS}
 
-    await cronometrar(
-        "detect_clickbait_incoherence",
-        lambda: get_incoherence_detector().detect(
-            titular, "Un cuerpo cualquiera para calentar."
-        ),
+    async def calentar(nombre: str, cuerpo: str | None = None) -> None:
+        """Cada idioma que analiza la señal, con su `run`: el camino de una
+        petición. Los del inglés conservan la etiqueta de siempre."""
+        for idioma in idiomas_de(nombre):
+            etiqueta = nombre if idioma == INGLES else f"{nombre} ({idioma})"
+            await cronometrar(
+                etiqueta, partial(por_nombre[nombre].run, titular, cuerpo, idioma)
+            )
+
+    if settings.nlp_backend == "local":
+        await calentar("detect_clickbait")
+        await calentar("analyze_sentiment")
+
+    await calentar(
+        "detect_clickbait_incoherence", "Un cuerpo cualquiera para calentar."
     )
     return tiempos
 
@@ -304,32 +320,21 @@ async def precalentar() -> dict[str, float]:
 async def analyze(request: AnalyzeRequest) -> AnalyzeResponse:
     """Analiza un titular con todas las señales aplicables.
 
-    Lo primero es el idioma (#229): un titular en un idioma que las señales no
-    analizan no se ejecuta, y cada señal dice por qué. Hasta #229 se analizaba
-    como si fuera inglés, y en español eso daba «factual» a cuatro de cada cinco
-    teasers de TA1C sin avisar (`evaluation/eval_ta1c.py`).
-
-    Lo segundo, el idioma del cuerpo, que sólo lee la incoherencia: lo compara
-    con el titular usando un modelo inglés, y con un cuerpo en español la
-    similitud se hunde aunque diga lo mismo. Con un cuerpo en otro idioma, la
-    incoherencia no se ejecuta y las demás señales sí.
+    Lo primero es el idioma (#229): el del titular, que decide qué señales se
+    ejecutan y con qué modelo, y el del cuerpo, que sólo lee la incoherencia.
+    Aquí sólo se detectan; la puerta y el enrutado viven en `_run_signals`,
+    señal a señal (#230). Hasta #229 todo se analizaba como si fuera inglés, y
+    en español eso daba «factual» a cuatro de cada cinco teasers de TA1C sin
+    avisar (`evaluation/eval_ta1c.py`).
 
     Por lo demás, sin lógica propia a propósito: cada invariante vive en su
     helper y se puede probar por separado.
     """
     idioma = detectar(request.headline)
-    motivo = motivo_si_no_se_analiza(idioma)
-    if motivo:
-        signals = _sin_analizar(motivo)
-    else:
-        motivo_del_cuerpo = (
-            motivo_si_el_cuerpo_no_se_compara(detectar(request.content))
-            if request.content
-            else None
-        )
-        signals = await _run_signals(
-            request.headline, request.content, motivo_del_cuerpo
-        )
+    idioma_del_cuerpo = detectar(request.content) if request.content else None
+    signals = await _run_signals(
+        request.headline, request.content, idioma, idioma_del_cuerpo
+    )
     dimensions = _aggregate(signals)
     return AnalyzeResponse(
         headline=request.headline,
@@ -354,6 +359,9 @@ def senal_de(nombre: str, datos: Any) -> SignalResult | None:
     `None` si la herramienta no es una señal (noticias, fichas, un análisis
     entero) o si su `data` no tiene la forma que espera la regla: la interfaz
     lo pinta en crudo, que es degradar, no afirmar un voto que nadie calculó.
+
+    Desde #230 se rotula con la ficha del idioma que dice la propia salida
+    (`language`). Una de antes, sin él, se analizó en inglés.
     """
     spec = next((señal for señal in _SIGNALS if señal.name == nombre), None)
     if spec is None or not isinstance(datos, dict):
@@ -363,51 +371,66 @@ def senal_de(nombre: str, datos: Any) -> SignalResult | None:
     except (KeyError, TypeError):
         log.warning("senal_suelta.forma_inesperada", signal=nombre)
         return None
-    return _build(spec, SignalStatus.OK, is_clickbait=voto, data=datos)
-
-
-def _sin_analizar(motivo: str) -> list[SignalResult]:
-    """Todas las señales en `not_applicable`, con el motivo, sin ejecutar ninguna.
-
-    Va en el orden de `_SIGNALS`, como lo que devuelve `_run_signals`, para que
-    la interfaz pinte las tarjetas siempre igual. Sin ninguna señal que vote,
-    `_overall` da `no_data`.
-    """
-    return [
-        _build(spec, SignalStatus.NOT_APPLICABLE, detail=motivo) for spec in _SIGNALS
-    ]
+    declarado = datos.get("language")
+    idioma = declarado if declarado in IDIOMAS_DE_LAS_SENALES else INGLES
+    return _build(spec, SignalStatus.OK, idioma=idioma, is_clickbait=voto, data=datos)
 
 
 async def _run_signals(
-    headline: str, content: str | None, motivo_del_cuerpo: str | None = None
+    headline: str,
+    content: str | None,
+    idioma: Idioma,
+    idioma_del_cuerpo: Idioma | None,
 ) -> list[SignalResult]:
     """Ejecuta en paralelo las señales aplicables y envuelve cada resultado.
 
-    Con `motivo_del_cuerpo`, las señales que leen el cuerpo no se ejecutan y
-    lo dan como motivo: lo calcula `analyze()` cuando el cuerpo está en un
-    idioma que no se compara (#229). Por defecto no hay ninguno, así que quien
-    llama aquí directamente —los guiones de evaluación, los tests— ejecuta
-    todo lo que se pueda, como antes.
+    **Aquí vive la puerta del idioma**, señal a señal (#230): una señal que no
+    analiza el idioma del titular queda en `not_applicable` con el motivo de la
+    factoría, y las que lo analizan se ejecutan con su modelo y su umbral en
+    ese idioma. La incoherencia, además, sólo si analiza el del cuerpo. Hasta
+    #230 la puerta estaba en `analyze()` y era una para el titular entero.
+
+    Los dos idiomas son obligatorios, y eso es lo que permite medir:
+    `analyze()` pasa los que detecta, y `evaluation/eval_ta1c.py` pasa
+    `INGLES` a propósito, para repetir el punto de partida de #229 —el español
+    tratado como inglés—. Con un valor por defecto, quien lo olvidara
+    analizaría en inglés sin saberlo. `idioma_del_cuerpo` es `None` sin cuerpo.
     """
     by_name: dict[str, SignalResult] = {}
     pending: list[_Signal] = []
 
     for spec in _SIGNALS:
-        if spec.needs_content and not (content and content.strip()):
+        if motivo := motivo_si_no_se_analiza(spec.name, idioma):
+            by_name[spec.name] = _build(
+                spec, SignalStatus.NOT_APPLICABLE, idioma=idioma, detail=motivo
+            )
+        elif spec.needs_content and not (content and content.strip()):
             by_name[spec.name] = _build(
                 spec,
                 SignalStatus.NOT_APPLICABLE,
+                idioma=idioma,
                 detail="Requiere el cuerpo o teaser de la noticia.",
             )
-        elif spec.needs_content and motivo_del_cuerpo:
+        elif (
+            spec.needs_content
+            and idioma_del_cuerpo
+            and (
+                motivo_del_cuerpo := motivo_si_el_cuerpo_no_se_compara(
+                    idioma_del_cuerpo
+                )
+            )
+        ):
             by_name[spec.name] = _build(
-                spec, SignalStatus.NOT_APPLICABLE, detail=motivo_del_cuerpo
+                spec,
+                SignalStatus.NOT_APPLICABLE,
+                idioma=idioma,
+                detail=motivo_del_cuerpo,
             )
         else:
             pending.append(spec)
 
     outcomes = await asyncio.gather(
-        *(_run_one(spec, headline, content) for spec in pending),
+        *(_run_one(spec, headline, content, idioma) for spec in pending),
         return_exceptions=True,
     )
 
@@ -434,6 +457,7 @@ async def _run_signals(
             by_name[spec.name] = _build(
                 spec,
                 SignalStatus.ERROR,
+                idioma=idioma,
                 detail=f"La señal {mensaje_publico(outcome)}.",
             )
         else:
@@ -444,7 +468,9 @@ async def _run_signals(
     return [by_name[spec.name] for spec in _SIGNALS]
 
 
-async def _run_one(spec: _Signal, headline: str, content: str | None) -> SignalResult:
+async def _run_one(
+    spec: _Signal, headline: str, content: str | None, idioma: Idioma
+) -> SignalResult:
     """Ejecuta UNA señal.
 
     Sin ``try/except``, y es deliberado: hay dos formas de fallar y cada una se
@@ -453,17 +479,19 @@ async def _run_one(spec: _Signal, headline: str, content: str | None) -> SignalR
     aquí. El IMPREVISTO —la corrutina revienta, o ``spec.verdict`` da KeyError
     porque una tool cambió de formato— sube al ``gather``, que lo aísla.
     """
-    outcome = await spec.run(headline, content)
+    outcome = await spec.run(headline, content, idioma)
     if not outcome.has_content():
         return _build(
             spec,
             SignalStatus.ERROR,
+            idioma=idioma,
             detail=outcome.error or "La señal no devolvió resultado.",
         )
     datos = outcome.unwrap()
     return _build(
         spec,
         SignalStatus.OK,
+        idioma=idioma,
         is_clickbait=spec.verdict(datos),
         data=datos,
     )
@@ -473,6 +501,7 @@ def _build(
     spec: _Signal,
     status: SignalStatus,
     *,
+    idioma: Idioma,
     is_clickbait: bool | None = None,
     data: dict[str, Any] | None = None,
     detail: str | None = None,
@@ -496,8 +525,14 @@ def _build(
     «RoBERTa dedicado (entrenado en Webis-17)». La misma divergencia de #116 por
     una tercera puerta — y la peor de las tres, porque es la que mira quien lee
     el resultado.
+
+    Desde #230, la del idioma del titular. Una señal que no lo analiza se rotula
+    con su ficha inglesa, que dice qué es la señal; su `detail` dice por qué no
+    se ejecutó.
     """
-    card = ficha_efectiva(spec.name)
+    card = ficha_efectiva(
+        spec.name, idioma if idioma in idiomas_de(spec.name) else INGLES
+    )
     return SignalResult(
         name=spec.name,
         label=card["name"],
