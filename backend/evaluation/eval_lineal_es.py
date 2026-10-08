@@ -20,6 +20,7 @@ LAS TRES PARTES
     .venv/bin/python -m backend.evaluation.eval_lineal_es           # los tres dev y la regla
     .venv/bin/python -m backend.evaluation.eval_lineal_es --umbral  # el umbral de la elegida
     .venv/bin/python -m backend.evaluation.eval_lineal_es --test    # una sola vez
+    .venv/bin/python -m backend.evaluation.eval_lineal_es --fuente  # el riesgo de fuente
 
 `--umbral` y `--test` usan `ELEGIDA` y `UMBRAL_DE_LA_ELEGIDA`, que se fijan aquí
 a mano al ver el resultado de la anterior, como el `ELEGIDA` de #78: así lo que
@@ -27,11 +28,18 @@ se prueba queda escrito, y `--test` no corre sin ello. `test` se abre UNA vez.
 Si la elegida es el bilingüe, cambia también el inglés, y se mide además en
 los dos `test` ingleses: para `webis_test` es su segunda apertura (la primera
 fue la de #78), declarada en la regla.
+
+`--fuente` mide el riesgo que #229 dejó para aquí: cuánto del acierto en TA1C
+es reconocer al medio. No forma parte de la regla; se añadió después de elegir,
+sobre `validation`, con el lineal ya integrado.
 """
 
+import gzip
+import json
 import sys
+from collections import defaultdict
 
-from sklearn.metrics import f1_score
+from sklearn.metrics import f1_score, roc_auc_score
 
 from backend.evaluation.eval_reentreno import (
     MEJORA_MINIMA_DEL_UMBRAL,
@@ -48,6 +56,7 @@ from backend.evaluation.eval_reentreno import (
     titulares_y_etiquetas,
 )
 from backend.evaluation.splits import load_split
+from backend.evaluation.ta1c_extract import DESTINO_TEASERS
 from backend.integrations.nlp import lexical, linear
 
 FEATURIZACION = "F3 tf-idf normalizado"  # la de #78: `linear.rasgos`
@@ -308,9 +317,91 @@ def prueba_final() -> None:
     print(f"  => {'SE QUEDA' if queda else 'NO se queda'}")
 
 
+def fuente() -> None:
+    """¿Cuánto del acierto en TA1C es reconocer al medio? (el riesgo que #229
+    dejó para aquí).
+
+    La proporción de clickbait cambia mucho de un medio a otro (del 2,9 % al
+    68,7 %, #229), y un modelo de palabras puede aprender a reconocer al medio en
+    vez del clickbait. Se compara el lineal de producción con una referencia que
+    vota SÓLO por el medio —la proporción de clickbait que tenía en `train`—, y
+    se mira el lineal medio a medio. En `validation`: `test` no se vuelve a
+    abrir.
+    """
+    with gzip.open(DESTINO_TEASERS, "rt", encoding="utf-8") as fichero:
+        filas = [json.loads(linea) for linea in fichero]
+    de_train = [fila for fila in filas if fila["parte"] == "train"]
+    de_validation = [fila for fila in filas if fila["parte"] == "validation"]
+
+    etiquetas_por_medio = defaultdict(list)
+    for fila in de_train:
+        etiquetas_por_medio[fila["medio"]].append(fila["label"])
+    proporcion = {
+        medio: sum(etiquetas) / len(etiquetas)
+        for medio, etiquetas in etiquetas_por_medio.items()
+    }
+    general = sum(fila["label"] for fila in de_train) / len(de_train)
+
+    etiquetas = [fila["label"] for fila in de_validation]
+    del_medio = [proporcion.get(fila["medio"], general) for fila in de_validation]
+    probabilidades = [
+        linear.predict(fila["headline"]).data["probability"] for fila in de_validation
+    ]
+    umbral = linear.pesos()["threshold"]
+    votos = [int(probabilidad >= umbral) for probabilidad in probabilidades]
+
+    cortes = sorted(set(del_medio))
+    mejor_corte, mejor_f1 = max(
+        (
+            (corte, f1_score(etiquetas, [int(valor >= corte) for valor in del_medio]))
+            for corte in cortes
+        ),
+        key=lambda par: par[1],
+    )
+    print(f"== TA1C validation ({len(de_validation)}): sólo el medio frente al lineal")
+    print(
+        f"  AUC: sólo el medio {roc_auc_score(etiquetas, del_medio):.3f} · "
+        f"lineal {roc_auc_score(etiquetas, probabilidades):.3f}"
+    )
+    print(
+        f"  F1 sólo el medio, con el mejor corte elegido mirando validation "
+        f"(una cota optimista): {mejor_f1:.3f} (corte {mejor_corte:.3f})"
+    )
+    print(f"  F1 lineal, umbral {umbral}: {f1_score(etiquetas, votos):.3f}")
+
+    print("\n== el lineal, medio a medio (de más a menos clickbait en train)")
+    print(
+        "  medio                         tuits   cb train   cb validation   "
+        "votados cb   aciertos   F1 lineal"
+    )
+    medios = sorted(
+        {fila["medio"] for fila in de_validation},
+        key=lambda medio: -proporcion.get(medio, general),
+    )
+    for medio in medios:
+        indices = [
+            indice
+            for indice, fila in enumerate(de_validation)
+            if fila["medio"] == medio
+        ]
+        suyas = [etiquetas[indice] for indice in indices]
+        suyos = [votos[indice] for indice in indices]
+        aciertos = sum(
+            1 for etiqueta, voto in zip(suyas, suyos, strict=True) if etiqueta == voto
+        )
+        f1 = f1_score(suyas, suyos, zero_division=0) if sum(suyas) else float("nan")
+        print(
+            f"  {medio[:28]:28s} {len(indices):6d}   {proporcion.get(medio, general):7.1%}   "
+            f"{sum(suyas) / len(suyas):12.1%}   {sum(suyos) / len(suyos):9.1%}   "
+            f"{aciertos / len(indices):7.1%}     {f1:.3f}"
+        )
+
+
 if __name__ == "__main__":
     if "--test" in sys.argv:
         prueba_final()
+    elif "--fuente" in sys.argv:
+        fuente()
     elif "--umbral" in sys.argv:
         elegir_umbral()
     else:
