@@ -6132,7 +6132,7 @@ La máquina 2 no es nuestra: sin `sudo`, con otro usuario que tenía sesiones de
 
 #### Dos formas de medir la máquina equivocada sin enterarse
 
-**WSL tiene su propio Ollama en el 11434**, la 0.32.5 que quedó del spike. El túnel SSH comprobaba «¿hay algo escuchando en el 11434?», la respuesta fue que sí, y la primera fase corrió contra el portátil. Ningún error: sólo cifras de otra máquina. Se arregló con el túnel en el **11500** y preguntando la versión a cada puerto antes de medir —0.32.5 en uno, 0.34.2 en el otro—, y `tool_calling_fase1.py` dejó de cablear `localhost`.
+**WSL tiene su propio Ollama en el 11434**, la 0.32.5 que quedó del spike. El túnel SSH comprobaba «¿hay algo escuchando en el 11434?», la respuesta fue que sí, y la primera fase corrió contra el PC de sobremesa. Ningún error: sólo cifras de otra máquina. Se arregló con el túnel en el **11500** y preguntando la versión a cada puerto antes de medir —0.32.5 en uno, 0.34.2 en el otro—, y `tool_calling_fase1.py` dejó de cablear `localhost`.
 
 **La primera medida de arranque en frío se descartó.** La ruta del binario se escribió con `~`, que se expandió en WSL y no en la máquina remota; los `ollama stop` no llegaron a ejecutarse y los «tiempos en frío» eran con los modelos ya cargados. Se rehízo con el instrumento correcto: el `load_duration` que devuelve el propio Ollama, que separa la carga de la generación.
 
@@ -6213,7 +6213,7 @@ Había tres salidas: construir y publicar en un registro, construir sin publicar
 
 #### Medir donde tendría que ocurrir
 
-En un runner de GitHub, no en la VM ni en el portátil: otra CPU, otra red, el disco contado y la caché vacía. El instrumento es [`.github/workflows/medir-imagenes.yml`](.github/workflows/medir-imagenes.yml), que sólo construye y no publica nada, y que ahora queda para lanzarse a mano.
+En un runner de GitHub, no en la VM ni en el PC de sobremesa: otra CPU, otra red, el disco contado y la caché vacía. El instrumento es [`.github/workflows/medir-imagenes.yml`](.github/workflows/medir-imagenes.yml), que sólo construye y no publica nada, y que ahora queda para lanzarse a mano.
 
 | Condiciones | |
 |---|---|
@@ -6302,7 +6302,7 @@ Había dos formas de tratarlo. Darlo por cumplido —las imágenes sólo se cons
 
 #### Los diagramas que faltaban, y uno que es un plano
 
-[`docs/arquitectura.md`](docs/arquitectura.md) decía reflejar «el estado tras cerrar H2 y la primera pantalla de H3», y sus nueve diagramas describían el sistema corriendo en un portátil: ni contenedores, ni Caddy, ni volúmenes, ni TLS. Todo lo de H4 vivía sólo en la prosa de este README. Entran tres secciones y se amplía una:
+[`docs/arquitectura.md`](docs/arquitectura.md) decía reflejar «el estado tras cerrar H2 y la primera pantalla de H3», y sus nueve diagramas describían el sistema corriendo en el PC de desarrollo: ni contenedores, ni Caddy, ni volúmenes, ni TLS. Todo lo de H4 vivía sólo en la prosa de este README. Entran tres secciones y se amplía una:
 
 - **§10 · Despliegue.** Los tres contenedores, qué publica cada uno y qué se queda en la red interna, el volumen del historial y el certificado fuera de la imagen. Y por qué no hay `depends_on`: ningún servicio necesita a otro para arrancar.
 - **§11 · El camino de una petición en despliegue.** Del navegador al orquestador, pasando por Caddy, uvicorn y el limitador. **Es el diagrama que habría evitado el fallo de #169**: dibuja el prefijo `/api` viajando —Caddy lo quita, uvicorn lo vuelve a poner, Starlette lo quita al enrutar— y un middleware que corre justo en medio.
@@ -6606,7 +6606,7 @@ Para eso está [`spikes/tool_calling_descripciones_contraste.py`](spikes/tool_ca
 | | |
 |---|---|
 | Fecha | 2026-09-24 · «antes», de 18:53 a 19:21 · «después», de 19:25 a 19:42 |
-| Máquina | la A40 de la máquina 2, con Ollama 0.34.2, por un túnel SSH al 11500 de WSL (el 11434 local es el Ollama 0.32.5 del portátil: se comprobó la versión en cada puerto) |
+| Máquina | la A40 de la máquina 2, con Ollama 0.34.2, por un túnel SSH al 11500 de WSL (el 11434 local es el Ollama 0.32.5 del PC de sobremesa: se comprobó la versión en cada puerto) |
 | Modelos | `qwen3.5:27b`, ID `7653528ba5cb` · `qwen3.5:2b`, ID `324d162be6ca` · los dos con `num_ctx` 8192 |
 | Catálogo | «antes», el commit `f52d60e` de `dev` · «después», el `35edde8` de esta rama |
 | Guiones | [`spikes/tool_calling_fase5_descripciones_reales.py`](spikes/tool_calling_fase5_descripciones_reales.py), el de contraste y [`spikes/tool_calling_presupuesto_contexto.py`](spikes/tool_calling_presupuesto_contexto.py) |
@@ -6967,7 +6967,7 @@ Lo destapó la aceptación de #188: `get_guardian_news` respondió «No articles
 | Condiciones | |
 |---|---|
 | Fecha | 2026-09-26: antes del arreglo a las 11:48 UTC, sobre `c6b1b4b`; después a las 12:35 UTC, sobre `2b6bcb1` |
-| Máquina | WSL (Ubuntu) en el portátil, la misma desde la que el agente de #188 llamó a Guardian |
+| Máquina | WSL (Ubuntu) en el PC de sobremesa, la misma desde la que el agente de #188 llamó a Guardian |
 | API | Open Platform de The Guardian, `/tags` y `/search`, con la ventana del defecto: 7 días, desde el 2026-09-19 |
 | Coste | 32 llamadas antes y 37 después |
 
@@ -7476,7 +7476,7 @@ Con un test nuevo marcado `integration` —que el CI no ejecuta—, `test_una_cl
 |---|---|
 | Fecha | 2026-10-02: antes del arreglo a las 15:28:29 UTC y después a las 15:28:57 UTC |
 | Código | `0e9da56`, la base de la rama; la segunda tanda, con el arreglo sin commitear |
-| Máquina | WSL (Ubuntu) en el portátil |
+| Máquina | WSL (Ubuntu) en el PC de sobremesa |
 | API | Article Search de NYT (`articlesearch.json`), con la ventana del defecto: 7 días |
 | Coste | 3 llamadas por tanda |
 
@@ -7573,7 +7573,7 @@ Los resultados de las herramientas van enteros, y `sessionStorage` tiene un lím
 | Condiciones | |
 |---|---|
 | Fecha | 2026-10-03, 09:50 UTC |
-| Máquina | WSL (Ubuntu) en el portátil, sin GPU ni red |
+| Máquina | WSL (Ubuntu) en el PC de sobremesa, sin GPU ni red |
 | Datos | 228 conversaciones de `spikes/fidelidad/`: `corpus.json` y los cinco `comparacion-*.json` de #192 |
 | Código | `d6aac4b`, la base de la rama, con el guion sin commitear |
 
@@ -7643,7 +7643,7 @@ Leídas una a una, y validadas por el autor antes de mover nada, de las cinco fi
 | Condiciones | |
 |---|---|
 | Fecha | 2026-10-03: antes a las 11:35 UTC, sobre `d8f4466`; después a las 11:45 UTC, con los cambios sin commitear |
-| Máquina | WSL (Ubuntu) en el portátil |
+| Máquina | WSL (Ubuntu) en el PC de sobremesa |
 
 ```bash
 NLP_BACKEND=local .venv/bin/python spikes/catalogo_peso.py
@@ -7791,7 +7791,7 @@ Se publicó en la issue antes de ejecutar nada ([comentario](https://github.com/
 |---|---|
 | Primera ejecución | 2026-10-04, desde las 17:35, unos 18 min, sobre `5652e46` (el código de las señales y del orquestador, igual que en `dev`), con el guion aún sin commitear; huella `32ae28233478` |
 | Segunda ejecución | 2026-10-05, 19:06–19:24, sobre `d001304`, con el cambio de esta issue y el guion commiteado; huella `8732c2a4b246` |
-| Máquina | WSL (Ubuntu) en el portátil, con torch 2.12.1 sobre la GTX: producción corre en CPU, y las diferencias de coma flotante sólo moverían un caso en el filo del corte |
+| Máquina | WSL (Ubuntu) en el PC de sobremesa, con torch 2.12.1 sobre la GTX: producción corre en CPU, y las diferencias de coma flotante sólo moverían un caso en el filo del corte |
 | Modelos | `Stremie/roberta-base-clickbait`, `cardiffnlp/twitter-roberta-base-sentiment-latest` y `sentence-transformers/all-MiniLM-L6-v2`; umbral de incoherencia 0,3 |
 | Datos | 19.484 pares; ninguno rechazado por la API |
 
@@ -7903,7 +7903,7 @@ La issue no lo incluía, y el autor preguntó si se podía calibrar como el de l
 | Condiciones | |
 |---|---|
 | Fecha | 2026-10-05, 20:53 |
-| Máquina | WSL (Ubuntu) en el portátil, Python 3.12.3; sólo CPU (el léxico y el lineal son Python puro) |
+| Máquina | WSL (Ubuntu) en el PC de sobremesa, Python 3.12.3; sólo CPU (el léxico y el lineal son Python puro) |
 | Código | `b966174`; los pesos, `linear_clickbait.json` de `5a6d771` (16 jul), sin cambios desde entonces |
 | Datos | Chakraborty `dev` (#72; el `test` sigue congelado) y Webis-17 `validation170630` (19.484) |
 
@@ -7974,7 +7974,7 @@ Desde #119 el modelo de cada señal se cambia por configuración, pero sólo el 
 | Condiciones | |
 |---|---|
 | Fecha | 2026-10-06, 09:53, y repetido a las 12:23 sobre `75cd1dd`, con las mismas cifras; el remoto, a las 12:27 |
-| Máquina | WSL (Ubuntu) en el portátil, Python 3.12.3, `transformers` 5.12.0 y torch 2.12.1+cu130, que pone los modelos en la GTX (producción corre en CPU) |
+| Máquina | WSL (Ubuntu) en el PC de sobremesa, Python 3.12.3, `transformers` 5.12.0 y torch 2.12.1+cu130, que pone los modelos en la GTX (producción corre en CPU) |
 | Modelos (revisión) | `Stremie/roberta-base-clickbait` (`517de05db9ba`), `elozano/bert-base-cased-clickbait-news` (`af3154cf4325`), `facebook/bart-large-mnli` (`d7645e127eaf`) y `MoritzLaurer/DeBERTa-v3-base-mnli-fever-anli` (`6f5cf0a2b59c`) |
 | Titulares | «10 Amazing Things You Won't Believe» y «Federal Reserve raises interest rates by a quarter point» |
 
@@ -8094,7 +8094,7 @@ Así `validation170630`, el corpus de las evaluaciones grandes (#92, #121, #124)
 | Condiciones | |
 |---|---|
 | Fecha | 2026-10-06, publicado en la issue de 14:31 a 14:38; repetido el 7 oct sobre `6d21055`, con las mismas cifras |
-| Máquina | WSL (Ubuntu) en el portátil, Python 3.12.3 y scikit-learn 1.9.0; sólo CPU |
+| Máquina | WSL (Ubuntu) en el PC de sobremesa, Python 3.12.3 y scikit-learn 1.9.0; sólo CPU |
 | Guion | [`backend/evaluation/eval_reentreno.py`](backend/evaluation/eval_reentreno.py), con el umbral en 0,5 |
 
 ```bash
@@ -8253,7 +8253,7 @@ La lección vale para el próximo docstring: **un umbral absoluto sobre una sola
 | Condiciones | |
 |---|---|
 | Fecha | 2026-10-06, 17:15, sobre `cd92aab` (huella `669a9c175fc1`) |
-| Máquina | WSL en el portátil, con torch 2.12.1+cu130 en la GTX, como en #124 (producción corre en CPU) |
+| Máquina | WSL en el PC de sobremesa, con torch 2.12.1+cu130 en la GTX, como en #124 (producción corre en CPU) |
 
 ```bash
 NLP_BACKEND=local .venv/bin/python -m backend.evaluation.eval_veredicto
@@ -8502,7 +8502,7 @@ Los tests pasan de 473 a 530 en el backend, en verde también con el venv de só
 | Condiciones | |
 |---|---|
 | Fecha | 2026-10-07 (las reglas, las variantes y la primera pasada) y 2026-10-08 (todo repetido sobre el código final, con las mismas cifras) |
-| Máquina | El portátil del autor: WSL2 (Ubuntu 24.04.4, núcleo 6.6.87.2), Python 3.12.3 y una GeForce GTX 1650 SUPER, que `transformers` usa en WSL aunque nadie le pase `device`. Producción corre en CPU |
+| Máquina | El PC de sobremesa del autor: WSL2 (Ubuntu 24.04.4, núcleo 6.6.87.2), Python 3.12.3 y una GeForce GTX 1650 SUPER, que `transformers` usa en WSL aunque nadie le pase `device`. Producción corre en CPU |
 | Código | `4af8cd0`. Las variantes V0 a V4 se midieron sobre `b81966b`, con `idioma.py` y `eval_idioma.py` aún sin commitear |
 | Modelos | Los de las fichas: `Stremie/roberta-base-clickbait`, `cardiffnlp/twitter-roberta-base-sentiment-latest` y `sentence-transformers/all-MiniLM-L6-v2` (revisión `1110a243fdf4`), con transformers 5.12.0, sentence-transformers 5.6.0 y torch 2.12.1 |
 | Guiones | `spikes/ta1c_medios.py`; `backend/evaluation/eval_ta1c.py` (70 s); `backend/evaluation/eval_idioma.py` con `--train`, sin argumentos y con `--cuerpos` (sólo Python, sin modelos); `spikes/incoherencia_cuerpo_traducido.py` |
@@ -8552,7 +8552,7 @@ Los tests pasan de 530 a 535, en verde también con el venv de sólo `requiremen
 | Condiciones | |
 |---|---|
 | Fecha | 2026-10-07 (el primer 402, probando #229, y la comprobación con la que se abrió la issue, hecha con un guion de la carpeta temporal) y 2026-10-08, 09:02 UTC (`spikes/hf_credito.py` sobre el código final, con el mismo resultado) |
-| Máquina | El portátil del autor: WSL2 (Ubuntu 24.04.4, núcleo 6.6.87.2), Python 3.12.3 y httpx 0.28.1 |
+| Máquina | El PC de sobremesa del autor: WSL2 (Ubuntu 24.04.4, núcleo 6.6.87.2), Python 3.12.3 y httpx 0.28.1 |
 | Cuenta | La del proyecto en Hugging Face, gratuita, con un token de lectura |
 | Código | `d3db011` |
 | Servicio | `https://router.huggingface.co/hf-inference/models/<modelo>`, y `https://huggingface.co/api/whoami-v2` para la cuenta |
@@ -8638,7 +8638,7 @@ Los tests pasan de 535 a 564 en el backend, en verde también con el venv de só
 | Condiciones | |
 |---|---|
 | Fecha | 2026-10-08, por la tarde (hora de Madrid): `eval_ta1c` hacia las 15:25 y `eval_veredicto` de 15:30 a 15:49; la comparación y la prueba en el navegador, después |
-| Máquina | El portátil del autor: WSL2 (Ubuntu 24.04.4, núcleo 6.6.87.2), Python 3.12.3 y una GeForce GTX 1650 SUPER, que `transformers` usa en WSL aunque nadie le pase `device`. Producción corre en CPU |
+| Máquina | El PC de sobremesa del autor: WSL2 (Ubuntu 24.04.4, núcleo 6.6.87.2), Python 3.12.3 y una GeForce GTX 1650 SUPER, que `transformers` usa en WSL aunque nadie le pase `device`. Producción corre en CPU |
 | Código | `f3d7f12` para las dos evaluaciones. El arreglo de `eval_veredicto` (`160454c`) se ejecutó antes de commitearlo, pero sólo toca el guion, que no está entre lo que decide el resultado: su huella cubre las señales, el orquestador y `domain.py`. La comparación, repetida sobre `0b06d59` |
 | Modelos | Los de las fichas: `Stremie/roberta-base-clickbait`, `cardiffnlp/twitter-roberta-base-sentiment-latest` y `sentence-transformers/all-MiniLM-L6-v2`, con transformers 5.12.0, sentence-transformers 5.6.0 y torch 2.12.1 |
 | Guiones | `backend/evaluation/eval_ta1c.py` (~2 min); `backend/evaluation/eval_veredicto.py` (~19 min, caché nueva con huella `386cefbaea5d`; la de antes, `669a9c175fc1`); `spikes/veredicto_por_idioma.py` |
