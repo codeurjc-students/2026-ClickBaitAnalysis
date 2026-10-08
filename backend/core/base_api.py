@@ -19,7 +19,7 @@ import httpx
 import structlog
 from aiolimiter import AsyncLimiter
 
-from backend.core.errores import describir_error, mensaje_publico
+from backend.core.errores import describir_respuesta_http, mensaje_publico
 from backend.core.models import ToolResult
 
 log = structlog.get_logger()
@@ -147,7 +147,7 @@ class BaseAPI:
                         cuerpo=e.response.text[:1000],
                     )
                     return ToolResult.fail(
-                        f"La API externa respondió {describir_error(e)}."
+                        f"La API externa respondió {describir_respuesta_http(e)}."
                     )
                 except Exception as error:
                     log.warning(
