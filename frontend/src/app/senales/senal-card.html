@@ -64,16 +64,19 @@
           <ul class="cues">
             @for (cue of datos.top_cues; track cue[0]) {
               <!--
-                Desde #78 un rasgo es una palabra del titular, en inglés, o un
-                patrón con nombre de máquina (`<leading_number>`), que se lee
-                en castellano y en cursiva para no confundirlo con una palabra.
+                Desde #78 un rasgo es una palabra del titular o un patrón con
+                nombre de máquina (`<leading_number>`), que se lee en
+                castellano y en cursiva para no confundirlo con una palabra. La
+                palabra va en el idioma del titular, que el lineal analiza en
+                inglés y, desde #231, en español; lo guardado antes de #230 no
+                lo dice, y entonces era inglés.
               -->
               @let legible = rasgo(cue[0]);
               <li>
                 <span
                   class="cue"
                   [class.cue--patron]="legible.patron"
-                  [attr.lang]="legible.patron ? null : 'en'"
+                  [attr.lang]="legible.patron ? null : (datos.language ?? 'en')"
                   >{{ legible.texto }}</span
                 >
                 <span
@@ -85,9 +88,18 @@
               </li>
             }
           </ul>
+          <!--
+            El umbral, del que viaja con el resultado (#231), como el del
+            léxico: lo guardado antes votaba con un 0,5 que no traía, y
+            entonces no se afirma ninguno.
+          -->
           <p class="nota">
             Los pesos SON la explicación: rojo empuja a clickbait, verde en
             contra.
+            @if (datos.threshold !== undefined) {
+              Es clickbait desde una probabilidad de
+              {{ numero(datos.threshold) }}.
+            }
           </p>
         }
       }
