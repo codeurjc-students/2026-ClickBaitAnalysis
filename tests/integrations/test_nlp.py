@@ -15,7 +15,7 @@ from pydantic import ValidationError
 from structlog.testing import capture_logs
 
 from backend.config.settings import Settings, settings
-from backend.core.idioma import ESPANOL
+from backend.core.idioma import ESPANOL, INDETERMINADO, INGLES
 from backend.core.models import ToolResult
 from backend.integrations.nlp import dependencias, lexical, linear, model_cards
 from backend.integrations.nlp import tool as nlp_tool
@@ -26,6 +26,7 @@ from backend.integrations.nlp.factory import (
     get_nlp_backend,
     get_threshold,
     get_top_cues,
+    motivo_si_el_cuerpo_no_se_compara,
     motivo_si_no_se_analiza,
 )
 from backend.integrations.nlp.incoherence import IncoherenceDetector
@@ -1361,3 +1362,51 @@ async def test_en_espanol_y_sin_cuerpo_el_motivo_es_el_idioma(detectores):
     assert motivo and motivo in str(rechazo.value)
     assert "cuerpo" not in str(rechazo.value)
     assert detectores == []
+
+
+@pytest.mark.asyncio
+async def test_la_incoherencia_no_compara_un_cuerpo_en_espanol(detectores):
+    """El titular pasa la puerta, pero el modelo que compara es inglés: con el
+    cuerpo en español la similitud se hunde aunque diga lo mismo."""
+    mcp = FastMCP("test")
+    nlp_tool.register(mcp)
+
+    with capture_logs(), pytest.raises(ToolError) as rechazo:
+        await mcp.call_tool(
+            "detect_clickbait_incoherence",
+            {
+                "headline": TITULAR_EN_INGLES,
+                "content": "El perro esperaba en la puerta de casa.",
+            },
+        )
+
+    motivo = motivo_si_el_cuerpo_no_se_compara(ESPANOL)
+    assert motivo and motivo in str(rechazo.value)
+    assert detectores == []
+
+
+# Las dos frases viven en la factoría: el análisis completo y las herramientas
+# sueltas dicen exactamente lo mismo (#116).
+FRASES_DE_MOTIVO = [
+    (motivo_si_no_se_analiza, "El titular"),
+    (motivo_si_el_cuerpo_no_se_compara, "El cuerpo"),
+]
+
+
+@pytest.mark.parametrize(("motivo_de", "_sujeto"), FRASES_DE_MOTIVO)
+def test_en_ingles_no_hay_motivo(motivo_de, _sujeto):
+    assert motivo_de(INGLES) is None
+
+
+@pytest.mark.parametrize(("motivo_de", "sujeto"), FRASES_DE_MOTIVO)
+@pytest.mark.parametrize(
+    ("idioma", "nombre"), [(ESPANOL, "español"), (INDETERMINADO, "otro idioma")]
+)
+def test_fuera_del_ingles_el_motivo_dice_que_y_en_que_idioma(
+    motivo_de, sujeto, idioma, nombre
+):
+    motivo = motivo_de(idioma)
+
+    assert motivo is not None
+    assert motivo.startswith(sujeto)
+    assert f"en {nombre}:" in motivo

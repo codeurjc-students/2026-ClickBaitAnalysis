@@ -40,7 +40,10 @@ from backend.config.settings import settings
 from backend.core.idioma import ESPANOL, INDETERMINADO, INGLES
 from backend.core.models import ToolResult
 from backend.integrations.nlp import dedicated, lexical, linear
-from backend.integrations.nlp.factory import motivo_si_no_se_analiza
+from backend.integrations.nlp.factory import (
+    motivo_si_el_cuerpo_no_se_compara,
+    motivo_si_no_se_analiza,
+)
 from backend.integrations.nlp.model_cards import cards_by_signal
 
 _SPECS = {spec.name: spec for spec in _SIGNALS}
@@ -709,6 +712,76 @@ async def test_un_titular_en_ingles_se_analiza_y_lleva_su_idioma(señales, monke
     assert response.verdict == OverallVerdict.STYLISTIC_CLICKBAIT
     assert all(senal.status == SignalStatus.OK for senal in response.signals)
     assert set(llamadas) == {"classify", "incoherencia", "lexico", "lineal"}
+
+
+TITULAR_DE_LA_FED = "Federal Reserve Holds Interest Rates Steady"
+
+
+def _incoherencia(response):
+    return next(
+        senal
+        for senal in response.signals
+        if senal.name == "detect_clickbait_incoherence"
+    )
+
+
+@pytest.mark.asyncio
+async def test_un_cuerpo_en_espanol_no_se_compara_y_lo_demas_se_analiza(
+    señales, monkeypatch
+):
+    """La incoherencia compara titular y cuerpo con un modelo inglés, y con el
+    cuerpo en español la similitud se hunde aunque diga lo mismo. Las demás
+    señales no leen el cuerpo: se analizan."""
+    llamadas = _espiar(monkeypatch, señales())
+
+    response = await orchestrator.analyze(
+        AnalyzeRequest(
+            headline=TITULAR_DE_LA_FED,
+            content="La Reserva Federal mantuvo sin cambios su tipo de interés.",
+        )
+    )
+
+    incoherencia = _incoherencia(response)
+    assert response.language == INGLES
+    assert incoherencia.status == SignalStatus.NOT_APPLICABLE
+    assert incoherencia.detail == motivo_si_el_cuerpo_no_se_compara(ESPANOL)
+    assert all(
+        senal.status == SignalStatus.OK
+        for senal in response.signals
+        if senal is not incoherencia
+    )
+    assert "incoherencia" not in llamadas
+
+
+@pytest.mark.asyncio
+async def test_un_cuerpo_en_ingles_se_compara(señales, monkeypatch):
+    llamadas = _espiar(monkeypatch, señales())
+
+    response = await orchestrator.analyze(
+        AnalyzeRequest(
+            headline=TITULAR_DE_LA_FED,
+            content="The Federal Reserve kept its benchmark interest rate unchanged.",
+        )
+    )
+
+    assert _incoherencia(response).status == SignalStatus.OK
+    assert "incoherencia" in llamadas
+
+
+@pytest.mark.asyncio
+async def test_sin_motivo_run_signals_compara_cualquier_cuerpo(señales, monkeypatch):
+    """La puerta del cuerpo la pone `analyze()`. Quien llama a `_run_signals`
+    directamente —`eval_ta1c`, que mide cuánto acierta cada señal con el español
+    tratado como inglés— sigue comparando lo que le den."""
+    llamadas = _espiar(monkeypatch, señales())
+
+    signals = await _run_signals(TITULAR_EN_ESPANOL, "El cuerpo de la noticia.")
+
+    incoherencia = next(
+        senal for senal in signals if senal.name == "detect_clickbait_incoherence"
+    )
+    assert incoherencia.status == SignalStatus.OK
+    assert "incoherencia" in llamadas
 
 
 # ----- precalentado (#125), medido de verdad (#138) -----
