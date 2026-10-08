@@ -22,7 +22,8 @@
  *   el vocabulario cae al valor crudo y se lee lo que hay.
  * - **`language` puede faltar.** El contrato lo trae desde #229; lo guardado
  *   antes no, y entonces el contrato decía que el titular era inglés. Lo
- *   resuelve `idiomaDelTitular`.
+ *   resuelve `idiomaDelTitular`, y en una ejecución suelta, cuya salida lo
+ *   trae desde #230, `idiomaDeLaEjecucion`.
  *
  * Aquí vive además `comoAnalisis`, el guardián que lee un análisis de datos sin
  * tipo. Va junto a las formas porque lo necesita quien pinta un análisis que
@@ -127,5 +128,20 @@ export function comoAnalisis(crudo: unknown): AnalisisGuardado | null {
  */
 export function idiomaDelTitular(analisis: AnalisisGuardado | null): string {
   const idioma = analisis?.language;
+  return typeof idioma === 'string' ? idioma : 'en';
+}
+
+/**
+ * El idioma en que una herramienta suelta analizó su titular (#230), para su
+ * `lang` en el historial.
+ *
+ * Una ejecución guarda su `ExecuteResponse` entera, y desde #230 la salida de
+ * cada señal dice su idioma en `data.language`, como un análisis lo dice en
+ * `language`. Una ejecución anterior, o de una herramienta que no es una señal,
+ * no lo trae: queda en «en», como antes.
+ */
+export function idiomaDeLaEjecucion(crudo: unknown): string {
+  const ejecucion = crudo as { data?: { language?: unknown } | null } | null;
+  const idioma = ejecucion?.data?.language;
   return typeof idioma === 'string' ? idioma : 'en';
 }

@@ -1,5 +1,5 @@
 import type { AnalyzeResponse } from '../api/models';
-import { comoAnalisis, idiomaDelTitular } from './formas';
+import { comoAnalisis, idiomaDeLaEjecucion, idiomaDelTitular } from './formas';
 
 /**
  * Un análisis de HOY, tipado con el contrato a propósito: si algún día
@@ -122,5 +122,25 @@ describe('idiomaDelTitular', () => {
   it('sin análisis, o con un valor que no es una cadena, también', () => {
     expect(idiomaDelTitular(null)).toBe('en');
     expect(idiomaDelTitular(comoAnalisis({ ...DE_HOY, language: 42 }))).toBe('en');
+  });
+});
+
+describe('idiomaDeLaEjecucion', () => {
+  // Desde #230 la salida de cada señal dice su idioma, y una ejecución suelta
+  // la guarda dentro de su `ExecuteResponse`.
+  it('es el idioma que trae la salida de la señal', () => {
+    expect(
+      idiomaDeLaEjecucion({ tool: 'detect_clickbait', status: 'ok', data: { language: 'es' } }),
+    ).toBe('es');
+  });
+
+  // Lo de antes de #230, una herramienta que no es una señal, un fallo sin
+  // datos o algo que ni siquiera es un objeto: lo de siempre, «en».
+  it('sin idioma en la salida, inglés', () => {
+    expect(idiomaDeLaEjecucion({ tool: 'detect_clickbait', data: { score: 4 } })).toBe('en');
+    expect(idiomaDeLaEjecucion({ tool: 'get_nyt_news', data: { result: [] } })).toBe('en');
+    expect(idiomaDeLaEjecucion({ tool: 'detect_clickbait', status: 'error', data: null })).toBe('en');
+    expect(idiomaDeLaEjecucion('texto')).toBe('en');
+    expect(idiomaDeLaEjecucion(null)).toBe('en');
   });
 });

@@ -108,8 +108,8 @@ describe('HistorialPage', () => {
   });
 
   // La página está en castellano y el titular puede no estarlo (#229). La
-  // primera fila es una ejecución suelta, cuya respuesta no dice en qué idioma
-  // leyó el titular: queda en «en», como antes (que lo diga, en #230).
+  // primera fila es una ejecución suelta de antes de #230, cuya salida no dice
+  // en qué idioma leyó el titular: queda en «en», como antes.
   it('marca el idioma de los titulares analizados', async () => {
     const raiz = await montar();
 
@@ -136,6 +136,24 @@ describe('HistorialPage', () => {
     const titulares = raiz.querySelectorAll('.titular');
     expect(titulares[1].textContent).toBe(titular);
     expect(titulares[1].getAttribute('lang')).toBe('es');
+  });
+
+  // #230: una ejecución suelta lo dice en la salida de su señal.
+  it('una ejecución suelta en español marca su titular en español', async () => {
+    const titular = 'No vas a creer lo que hizo este perro';
+    const enEspanol = {
+      ...PAGINA.items[0],
+      tool: 'detect_clickbait',
+      headline: titular,
+      payload: {
+        tool: 'detect_clickbait',
+        status: 'ok',
+        data: { label: 'clickbait', score: 0.9, language: 'es' },
+      },
+    };
+    const raiz = await montar({ ...PAGINA, items: [enEspanol] });
+
+    expect(raiz.querySelector('.titular')?.getAttribute('lang')).toBe('es');
   });
 
   // #134 pasó las claves a inglés. Una entrada anterior se pinta con lo que
