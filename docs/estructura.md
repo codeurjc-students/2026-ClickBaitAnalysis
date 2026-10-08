@@ -261,6 +261,7 @@ Si un endpoint o una tool lo necesita, es que no era evaluación.
 | `ta1c_extract.py` | Saca de TA1C lo que sirve: el extracto con los teasers, versionado en `data/external/`, y los artículos, regenerables, en `var/ta1c/` (#229) |
 | `eval_ta1c.py` | Cuánto acertaba el sistema en español tratándolo como inglés: cada señal y el veredicto en TA1C `validation`, por `_run_signals` con `INGLES` como idioma, a propósito: desde #230 la puerta vive allí (#229). Es el punto de partida de `v0.8` |
 | `eval_idioma.py` | La regla del detector de idioma (#229): los conjuntos de entrenamiento para afinar (`--train`), los de elección para la regla, los cuerpos (`--cuerpos`) y doce titulares en otros idiomas. Sus cargadores se importan dentro de quien los usa, porque `tests/core/test_idioma.py` lo importa por sus ejemplos y el CI no tiene `scikit-learn`: es el primer test que depende de un guion de evaluación, y un import pesado arriba lo rompería |
+| `eval_zero_shot_es.py` | Qué zero-shot sirve a la dedicada en español (#232): 24 combinaciones de modelo, etiquetas y plantilla en TA1C `validation`, con el `pipeline` de `LocalNLPClient` y la paridad frente a `dedicated.detect`; y el tiempo en CPU de la mejor de cada modelo (`tiempo`), que aplica la regla publicada en la issue |
 
 ## `backend/main.py`
 

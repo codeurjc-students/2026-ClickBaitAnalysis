@@ -8629,7 +8629,7 @@ El catálogo del agente no cambió —huella sha256 `25e9c973154f097e`, la misma
 #### Lo que queda
 
 - **C (#231)**: los pesos del lineal en español, con su ficha; hoy su `run` no mira el idioma. Y el `lang` de sus palabras en la tarjeta.
-- **D (#232)**: el zero-shot multilingüe, que ya se puede poner con `NLP_MODELS_ES` y medir.
+- **D (#232)**: el zero-shot multilingüe, que ya se puede poner con `NLP_MODELS_ES` y medir. *(Medido en #232: ninguna de las 24 combinaciones llega al F1 de votar «clickbait» siempre; ver «La dedicada en español: ningún zero-shot sirve».)*
 - **E (#233)**: incoherencia y tono en español, el umbral de la incoherencia calibrado en TA1C —hasta entonces, el inglés— y el titular y el cuerpo en idiomas distintos.
 - **F (#234)**: los docstrings de las herramientas («Pensada para inglés»), que cambian el catálogo del agente; y el ejemplo en español del formulario.
 
@@ -8642,6 +8642,79 @@ Los tests pasan de 535 a 564 en el backend, en verde también con el venv de só
 | Código | `f3d7f12` para las dos evaluaciones. El arreglo de `eval_veredicto` (`160454c`) se ejecutó antes de commitearlo, pero sólo toca el guion, que no está entre lo que decide el resultado: su huella cubre las señales, el orquestador y `domain.py`. La comparación, repetida sobre `0b06d59` |
 | Modelos | Los de las fichas: `Stremie/roberta-base-clickbait`, `cardiffnlp/twitter-roberta-base-sentiment-latest` y `sentence-transformers/all-MiniLM-L6-v2`, con transformers 5.12.0, sentence-transformers 5.6.0 y torch 2.12.1 |
 | Guiones | `backend/evaluation/eval_ta1c.py` (~2 min); `backend/evaluation/eval_veredicto.py` (~19 min, caché nueva con huella `386cefbaea5d`; la de antes, `669a9c175fc1`); `spikes/veredicto_por_idioma.py` |
+
+### La dedicada en español: ningún zero-shot sirve (#232, 8 oct 2026)
+
+La señal dedicada es un clasificador inglés (`Stremie/roberta-base-clickbait`), y en el Hub no hay uno de clickbait en español en el que fiarse: el único, `taniwasl/clickbait_es`, se descartó al definir `v0.8` porque no dice cómo se etiquetó. La salida decidida el 7 oct fue un zero-shot multilingüe, un modelo de inferencia (NLI) que no se entrenó para la tarea y elige entre las etiquetas que se le preguntan. Se llama por el modo de #159, y desde #230 se le puede poner a la señal para el español con `NLP_MODELS_ES`.
+
+Ésta es la primera parte de D: medir en TA1C `validation` qué modelo, con qué etiquetas y con qué plantilla. Si se queda o no depende de C (#231): la regla de la issue pide que su F1 en `test` llegue al menos al del lineal en español, porque una señal opaca que acierta menos que la interpretable no aporta al contraste. Así que `test` se abre después de C, una sola vez (decidido por el autor el 8 oct).
+
+#### Lo que se midió, con la regla publicada antes
+
+La regla y las combinaciones se publicaron en la issue antes de la primera medida ([comentario](https://github.com/codeurjc-students/2026-ClickBaitAnalysis/issues/232#issuecomment-6062460140)). Son 24 combinaciones sobre los 700 titulares de `validation`, con un 29,4 % de clickbait:
+
+- **Cuatro modelos**: los dos multilingües de la issue, `MoritzLaurer/mDeBERTa-v3-base-mnli-xnli` y `joeddav/xlm-roberta-large-xnli`, y dos sólo en español, `Recognai/bert-base-spanish-wwm-cased-xnli` (BETO afinado con XNLI) y `Recognai/zeroshot_selectra_medium`. Los dos últimos se añadieron porque desde #230 el enrutado es por idioma, y un modelo monolingüe sirve igual.
+- **Tres redacciones de las etiquetas**, porque #159 midió que la redacción es parte de la pregunta: «clickbait» / «noticia», «sensacionalista» / «informativo», y «un titular que oculta información para provocar el clic» / «un titular que resume la noticia».
+- **Dos plantillas para la hipótesis**. `transformers` monta la frase que compara con el titular a partir de una plantilla, y la suya es inglesa, «This example is {}.». `local.zero_shot` no pasa ninguna, así que hoy un titular en español se compara con una frase inglesa. La otra plantilla era «Este titular es {}.».
+
+Cada combinación vota como en producción: la etiqueta más probable, sin umbral que elegir. Gana el modelo cuya mejor combinación tiene más F1. Si la mejor de otro modelo queda dentro del ruido —el intervalo del 95 % de la diferencia, por bootstrap emparejado como en #78, incluye el 0—, se elige el más rápido en CPU.
+
+El guion, `backend/evaluation/eval_zero_shot_es.py`, llama al mismo `pipeline` que construye `LocalNLPClient`. Antes de medir cada modelo, comprueba con 30 titulares y las tres redacciones que su voto es el de `dedicated.detect` con la plantilla de producción. Coincidió en los cuatro modelos.
+
+#### El resultado: por debajo de votar siempre «clickbait»
+
+Votar «clickbait» a todo da F1 0,455 en esta partición. **Ninguna de las 24 combinaciones llega a eso.**
+
+| La mejor combinación de cada modelo | P | R | F1 | Vota clickbait | AUC |
+|---|---|---|---|---|---|
+| `xlm-roberta-large-xnli` · adjetivos · plantilla española | 0,307 | 0,757 | **0,437** | 72,6 % | 0,549 |
+| `mDeBERTa-v3-base-mnli-xnli` · adjetivos · inglesa | 0,391 | 0,262 | 0,314 | 19,7 % | 0,475 |
+| `zeroshot_selectra_medium` · palabras · inglesa | 0,387 | 0,257 | 0,309 | 19,6 % | 0,560 |
+| `bert-base-spanish-wwm-cased-xnli` · adjetivos · inglesa | 0,284 | 0,320 | 0,301 | 33,1 % | 0,454 |
+| *Votar «clickbait» siempre* | 0,294 | 1 | 0,455 | 100 % | — |
+
+- **El 0,437 no es acierto: es votar casi siempre «clickbait».** XLM-R lo vota en el 72,6 % de los titulares, y su precisión, 0,307, apenas pasa del 29,4 % de clickbait que hay. Supera el 0,322 que la dedicada inglesa sacaba en esta misma partición tratando el español como inglés (#229), pero por votar más «sí», no por distinguir mejor.
+- **No es cuestión de umbral.** El AUC, que no depende del corte, va de 0,427 a 0,619 en las 24 combinaciones. Es casi azar, y en algunas de mDeBERTa y de BETO queda por debajo de 0,5. Calibrar un umbral no arreglaría nada.
+- **La redacción mueve el voto, no el acierto.** Según la combinación, la proporción de votos «clickbait» va del 0 % al 72,6 %. El mismo mDeBERTa pasa del 0 % al 19,7 % según cómo se le pregunte, y tres de sus seis combinaciones dan F1 0. Es lo que #159 vio con BART, pero aquí no hay ninguna redacción buena que elegir.
+- **La plantilla no sigue un patrón.** La española sólo gana en XLM-R (0,437 frente a 0,375, con los adjetivos); en los otros tres, su mejor combinación usa la inglesa.
+- **La elegida por la regla es XLM-R, con los adjetivos y la plantilla española.** Sólo otra combinación queda dentro del ruido: la de XLM-R con las frases y la plantilla inglesa (0,390; diferencia −0,047, IC [−0,115, +0,020]). Ningún otro modelo empata, así que el tiempo en CPU no podía cambiar la elección.
+
+#### El tiempo en CPU
+
+Se midió para la mejor combinación de cada modelo, con la GPU oculta: 100 titulares uno a uno, como en producción, tras tres de calentamiento.
+
+| Modelo | Pesos | Carga | Por titular (mediana) | p95 |
+|---|---|---|---|---|
+| `xlm-roberta-large-xnli` | 2.244 MB | 90,5 s | 0,858 s | 1,581 s |
+| `mDeBERTa-v3-base-mnli-xnli` | 558 MB | 5,1 s | 1,297 s | 1,952 s |
+| `bert-base-spanish-wwm-cased-xnli` | 439 MB | 2,2 s | 0,160 s | 0,259 s |
+| `zeroshot_selectra_medium` | 163 MB | 2,8 s | 0,075 s | 0,124 s |
+
+El elegido costaría casi un segundo por titular. Para comparar: un análisis entero, con las cinco señales, costaba 0,11 s en caliente cuando se midió en #156. Hay dos cosas observadas y sin explicar:
+
+- **mDeBERTa es más lento que XLM-R**, que tiene cuatro veces sus pesos, en la CPU (1,30 s frente a 0,86 s) y también en la GTX (unos 117 s por combinación frente a 48 s).
+- **XLM-R tarda 90,5 s en cargar en CPU.** Su repositorio no trae `tokenizer.json`, así que `transformers` convierte el tokenizador desde el de SentencePiece en cada carga. Es una hipótesis, no medida.
+
+#### Lo que necesita XLM-R
+
+Al ir a medirlo, XLM-R no cargó. Su repositorio sólo trae el modelo de SentencePiece (`sentencepiece.bpe.model`), y para convertirlo `transformers` 5.12 pide dos paquetes que no están en `requirements.txt` ni en `requirements-dev.txt`: `sentencepiece` y `protobuf`. Sin ellos intenta otra vía, `tiktoken`, y falla. Se instalaron sólo en el entorno de desarrollo, con permiso del autor, para poder medirlo. Si XLM-R se quedara, irían a `requirements.in` y a la imagen. Los otros tres no los necesitan: mDeBERTa trae su `tokenizer.json`, y los de Recognai usan `vocab.txt`.
+
+#### Lo que queda
+
+- **C (#231)**: el lineal en español. Su F1 en `test` es el listón de D.
+- **Después de C**: abrir `test` una vez con la elegida y aplicar la regla. Con lo visto en `validation`, lo esperable es que no pase. Entonces quedan las dos salidas que ya preveía la issue:
+  - afinar un modelo en español con TA1C en la A40, que exige publicar los pesos en el Hub (en el artículo de TA1C, BETO afinado da 0,84 en `test`);
+  - o que la dedicada no aplique en español, y la forma quede sólo con el lineal.
+- **Si algún día hace falta la plantilla española**, la invocación de #159 tendrá que ganar un campo `template`. Hoy no hace falta.
+
+| Condiciones | |
+|---|---|
+| Fecha | 2026-10-08, por la tarde (hora de Madrid). `validation`: mDeBERTa de 16:47 a 17:01; la ejecución se paró al llegar a XLM-R por los paquetes, y los otros tres modelos se midieron de 17:35 a 17:48. `tiempo`: de 18:13 a 18:21 |
+| Máquina | El PC de sobremesa del autor: WSL2 (Ubuntu 24.04.4, núcleo 6.6.87.2), Python 3.12.3. `validation`, en la GeForce GTX 1650 SUPER, que `transformers` usa en WSL aunque nadie le pase `device`. `tiempo`, en la CPU con la GPU oculta: AMD Ryzen 5 5600G, 6 hilos de torch. Producción corre en la CPU de la máquina 1, con 8 núcleos, así que allí los tiempos serán otros |
+| Versiones | transformers 5.12.0, torch 2.12.1+cu130, sentencepiece 0.2.2 y protobuf 7.36.2 |
+| Modelos | Las revisiones descargadas: `MoritzLaurer/mDeBERTa-v3-base-mnli-xnli` `8adb042d524e`, `joeddav/xlm-roberta-large-xnli` `b227ee8435ce`, `Recognai/bert-base-spanish-wwm-cased-xnli` `e44f774ea40e` y `Recognai/zeroshot_selectra_medium` `b98e90644d9d` |
+| Código | `e3e28fc`, con el guion antes de commitearlo; `32a10eb` lo trae sin cambios |
+| Guiones | `backend/evaluation/eval_zero_shot_es.py validation` (unos 25 min en la GTX; guarda cada combinación en `var/zero_shot_es/`, local y sin versionar) y `CUDA_VISIBLE_DEVICES= … eval_zero_shot_es tiempo` (unos 8 min) |
 
 
 
