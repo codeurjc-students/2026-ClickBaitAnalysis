@@ -61,8 +61,8 @@ TOLERANCIA_INGLES_TEST = 0.02
 F1_TEST_DE_78 = {"Chakraborty test": 0.961, "Webis test": 0.534}
 
 # Se fijan a mano al ver la parte anterior (ver el docstring).
-ELEGIDA: str | None = None
-UMBRAL_DE_LA_ELEGIDA = UMBRAL
+ELEGIDA: str | None = BILINGUE  # la que eligió la regla en dev (8 oct)
+UMBRAL_DE_LA_ELEGIDA = 0.35  # el que eligió la regla de #78 con `--umbral` (8 oct)
 
 DEVS = {
     "Chakraborty dev": "chak_dev",
