@@ -254,9 +254,8 @@ def register(mcp: FastMCP):
         Raises:
             Si el titular está vacío.
         """
-        # Sin idioma para el detector: hoy sólo hay pesos en inglés, y la puerta
-        # no deja llegar otro. Los del español, en #231. El idioma sí va en la
-        # salida, como en todas.
+        # Sin idioma para el detector: es bilingüe desde #231, con los mismos
+        # pesos para los dos idiomas. El idioma sí va en la salida, como en todas.
         idioma = _idioma_si_se_analiza("detect_clickbait_linear", headline)
         response = linear.predict(headline, get_top_cues())
         if not response.has_content():

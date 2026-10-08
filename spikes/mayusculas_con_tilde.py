@@ -10,7 +10,9 @@ cosas distintas:
 
 - en inglés (Chakraborty y Webis-17), para saber si las cifras medidas del
   léxico y del lineal siguen valiendo;
-- en TA1C, para saber cuánto aporta el cambio a los tuits en español.
+- en TA1C, para saber cuánto aporta el cambio a los tuits en español, y si lo
+  que gana son palabras del titular o etiquetas de sección del medio
+  (`#ATENCIÓN`, `[OPINIÓN]`), que dicen de dónde viene el tuit.
 
 El patrón de antes va escrito aquí, como la regla de antes de #124 en
 `eval_veredicto`: importar el de `lexical` ya no lo reproduciría.
@@ -19,6 +21,7 @@ El patrón de antes va escrito aquí, como la regla de antes de #124 en
 """
 
 import re
+from collections import Counter
 
 from backend.evaluation.eval_external import load_external
 from backend.evaluation.splits import load_split
@@ -39,6 +42,18 @@ def titulares(parte: str) -> list[str]:
     if parte == "train170331":
         return [titular for titular, _, _ in load_external(parte)]
     return [titular for titular, _ in load_split(parte)]
+
+
+def por_etiqueta_de_seccion(titular: str) -> bool:
+    """¿Gana el patrón por una etiqueta de sección (tras `#` o `[`)?
+
+    Sólo se pregunta por los que lo ganan, que no tenían ninguna palabra en
+    mayúsculas sin tilde: todo lo que ve el patrón de ahora en ellos es nuevo.
+    """
+    return any(
+        titular[encontrada.start() - 1 : encontrada.start()] in ("#", "[")
+        for encontrada in AHORA.finditer(titular)
+    )
 
 
 def main() -> None:
@@ -63,6 +78,19 @@ def main() -> None:
                 f"las ganan {len(ganan):4} ({len(ganan) / len(lista):5.2%}) · "
                 f"las pierden {len(pierden)}"
             )
+            if ganan:
+                de_seccion = sum(
+                    1 for titular in ganan if por_etiqueta_de_seccion(titular)
+                )
+                palabras = Counter(
+                    encontrada.group()
+                    for titular in ganan
+                    for encontrada in AHORA.finditer(titular)
+                )
+                print(
+                    f"      por una etiqueta de sección (tras # o [): {de_seccion} de "
+                    f"{len(ganan)} · palabras: {palabras.most_common(6)}"
+                )
             for titular in ganan[:EJEMPLOS]:
                 print(f"      + {titular[:110]}")
 

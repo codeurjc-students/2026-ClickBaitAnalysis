@@ -215,8 +215,8 @@ _SIGNALS: tuple[_Signal, ...] = (
     ),
     _Signal(
         name="detect_clickbait_linear",
-        # Sin idioma: hoy sólo hay pesos en inglés, y la puerta no deja llegar
-        # otro. Los del español, con su ficha, en #231.
+        # Sin idioma: es bilingüe desde #231, con los mismos pesos para los dos
+        # idiomas. Lo que no analiza lo para antes la puerta, por su ficha.
         run=lambda titular, cuerpo, idioma: asyncio.to_thread(
             linear.predict, titular, get_top_cues()
         ),
