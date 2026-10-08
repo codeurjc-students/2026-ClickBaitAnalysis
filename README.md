@@ -7923,7 +7923,7 @@ La issue no lo incluía, y el autor preguntó si se podía calibrar como el de l
 
 Y no habría criterio con el que elegir. En #92 lo había: un falso positivo de la incoherencia decidía «engañoso» por encima de la forma, y la precisión pesaba más que el recall. El lineal vota en la forma junto a otras dos señales, y en F1 el umbral no mueve nada. Además, #78 reentrena el modelo, y con otros pesos un umbral calibrado hoy dejaría de valer. **Decidido por el autor**: fuera de #93, y a #78 un punto para elegirlo en `dev` tras reentrenar, con el criterio escrito antes de mirar la curva ([comentario](https://github.com/codeurjc-students/2026-ClickBaitAnalysis/issues/78#issuecomment-6000045029)).
 
-*(Revisado en #78: elegido en `dev` tras reentrenar, se queda en 0,5. Con el lineal nuevo la curva ya no es plana por los vectores vacíos, pero el mejor corte, 0,40, sube el F1 medio de los dos dominios sólo 0,001. Ver «El lineal, sobre las palabras del titular y con Webis-17».)*
+*(Revisado en #78: elegido en `dev` tras reentrenar, se queda en 0,5. Con el lineal nuevo la curva ya no es plana por los vectores vacíos, pero el mejor corte, 0,40, sube el F1 medio de los dos dominios sólo 0,001. Ver «El lineal, sobre las palabras del titular y con Webis-17».)* *(Revisado en #231: con el lineal bilingüe, la regla de #78 sobre los tres `dev` lo bajó a 0,35, y el umbral pasó al JSON de los pesos. Ver «El lineal, bilingüe: el primer veredicto en español».)*
 
 #### R3.8, al día
 
@@ -8166,7 +8166,7 @@ El punto que #93 dejó aquí, con la tercera parte de la regla (`eval_reentreno 
 | 0,60 | 0,942 | 0,536 | 0,739 |
 | 0,70 | 0,920 | 0,506 | 0,713 |
 
-El mejor corte, 0,40, sube el F1 medio 0,001, lejos del +0,01 que pedía la regla. La curva ya no es plana por los vectores vacíos, pero tiene la cima ancha. El 0,5 sigue sin ser configurable.
+El mejor corte, 0,40, sube el F1 medio 0,001, lejos del +0,01 que pedía la regla. La curva ya no es plana por los vectores vacíos, pero tiene la cima ancha. El 0,5 sigue sin ser configurable. *(Revisado en #231: con el lineal bilingüe y TA1C en la media, el mejor corte, 0,35, sube el F1 medio 0,069, y el umbral pasa a 0,35. Ver «El lineal, bilingüe: el primer veredicto en español».)*
 
 #### La señal: los mismos rasgos, en Python puro
 
@@ -8407,7 +8407,7 @@ NLP_BACKEND=local .venv/bin/python -m backend.evaluation.eval_ta1c
 | Lineal | 1,000 | 0,010 | 0,019 |
 | Incoherencia (696 con cuerpo) | 0,333 | 0,010 | 0,019 |
 
-El veredicto fue `factual` en el 79,7 % de los teasers, `ambiguous` en el 19,7 % y `deceptive` o `stylistic_clickbait` en el 0,6 %. El léxico no encontró ninguna pista en el 85,9 %: sus listas son inglesas. Sólo la dedicada reconoce algo, un 19,9 % del clickbait, y cuando lo señala casi siempre acierta. El fallo no hacía ruido: era un «factual» tranquilo. Estas cifras son de `validation` y no se comparan tal cual con las publicadas, que son de `test`.
+El veredicto fue `factual` en el 79,7 % de los teasers, `ambiguous` en el 19,7 % y `deceptive` o `stylistic_clickbait` en el 0,6 %. El léxico no encontró ninguna pista en el 85,9 %: sus listas son inglesas. Sólo la dedicada reconoce algo, un 19,9 % del clickbait, y cuando lo señala casi siempre acierta. El fallo no hacía ruido: era un «factual» tranquilo. Estas cifras son de `validation` y no se comparan tal cual con las publicadas, que son de `test`. *(Revisado en #231: con las señales de hoy, `eval_ta1c` ya no da estas cifras —el lineal es bilingüe y las mayúsculas con tilde cuentan—, y el veredicto tratado como inglés queda en 0,065. Con el idioma detectado, como producción, es 0,611. Ver «El lineal, bilingüe: el primer veredicto en español».)*
 
 #### El detector: palabras funcionales, con la regla publicada antes de medir
 
@@ -8493,7 +8493,7 @@ Quedan en «en», a propósito y apuntado donde toca:
 #### Lo que deja a las siguientes
 
 - **B (#230)** enruta por idioma, y tiene apuntados los campos del formulario, la descripción de `AnalyzeRequest.headline` y el idioma en la salida de cada señal. *(Hecho: ver «Cada señal, en su idioma: el enrutado».)*
-- **C (#231)**: el riesgo de fuente de TA1C, y el `lang` de las palabras del lineal.
+- **C (#231)**: el riesgo de fuente de TA1C, y el `lang` de las palabras del lineal. *(Hecho en #231: el riesgo de fuente, medido frente a una referencia que vota sólo por el medio; y el `lang` de las palabras, el del titular. Ver «El lineal, bilingüe: el primer veredicto en español».)*
 - **D y E (#232, #233)**: los modelos multilingües, por medir. E decidirá además qué hace la puerta del cuerpo cuando la incoherencia compare en español.
 - **G (#235)**: las noticias en español, con dos APIs, NewsData.io y GNews; el autor exige al menos dos, o el idioma tiene poco sentido. Se descartaron los RSS, que no buscan por tema, y GDELT, que dio un 429 a la primera consulta.
 
@@ -8628,7 +8628,7 @@ El catálogo del agente no cambió —huella sha256 `25e9c973154f097e`, la misma
 
 #### Lo que queda
 
-- **C (#231)**: los pesos del lineal en español, con su ficha; hoy su `run` no mira el idioma. Y el `lang` de sus palabras en la tarjeta.
+- **C (#231)**: los pesos del lineal en español, con su ficha; hoy su `run` no mira el idioma. Y el `lang` de sus palabras en la tarjeta. *(Hecho en #231: bilingüe, con su ficha en español, y sus palabras con el `lang` del titular. Ver «El lineal, bilingüe: el primer veredicto en español».)*
 - **D (#232)**: el zero-shot multilingüe, que ya se puede poner con `NLP_MODELS_ES` y medir. *(Medido en #232: ninguna de las 24 combinaciones llega al F1 de votar «clickbait» siempre; ver «La dedicada en español: ningún zero-shot sirve».)*
 - **E (#233)**: incoherencia y tono en español, el umbral de la incoherencia calibrado en TA1C —hasta entonces, el inglés— y el titular y el cuerpo en idiomas distintos.
 - **F (#234)**: los docstrings de las herramientas («Pensada para inglés»), que cambian el catálogo del agente; y el ejemplo en español del formulario.
@@ -8701,7 +8701,7 @@ Al ir a medirlo, XLM-R no cargó. Su repositorio sólo trae el modelo de Sentenc
 
 #### Lo que queda
 
-- **C (#231)**: el lineal en español. Su F1 en `test` es el listón de D.
+- **C (#231)**: el lineal en español. Su F1 en `test` es el listón de D. *(Hecho en #231: 0,674 en TA1C `test`. Ver «El lineal, bilingüe: el primer veredicto en español».)*
 - **Después de C**: abrir `test` una vez con la elegida y aplicar la regla. Con lo visto en `validation`, lo esperable es que no pase. Entonces quedan las dos salidas que ya preveía la issue:
   - afinar un modelo en español con TA1C en la A40, que exige publicar los pesos en el Hub (en el artículo de TA1C, BETO afinado da 0,84 en `test`);
   - o que la dedicada no aplique en español, y la forma quede sólo con el lineal.
@@ -8715,6 +8715,121 @@ Al ir a medirlo, XLM-R no cargó. Su repositorio sólo trae el modelo de Sentenc
 | Modelos | Las revisiones descargadas: `MoritzLaurer/mDeBERTa-v3-base-mnli-xnli` `8adb042d524e`, `joeddav/xlm-roberta-large-xnli` `b227ee8435ce`, `Recognai/bert-base-spanish-wwm-cased-xnli` `e44f774ea40e` y `Recognai/zeroshot_selectra_medium` `b98e90644d9d` |
 | Código | `e3e28fc`, con el guion antes de commitearlo; `32a10eb` lo trae sin cambios |
 | Guiones | `backend/evaluation/eval_zero_shot_es.py validation` (unos 25 min en la GTX; guarda cada combinación en `var/zero_shot_es/`, local y sin versionar) y `CUDA_VISIBLE_DEVICES= … eval_zero_shot_es tiempo` (unos 8 min) |
+
+### El lineal, bilingüe: el primer veredicto en español (#231, 8 oct 2026)
+
+Con #230, un titular en español ya llegaba a cada señal, pero ninguna lo analizaba: el sistema respondía `no_data` con un motivo por señal. Ésta es la pieza C de `v0.8 · Español`, la primera que da veredicto. El lineal (#78) se había entrenado con titulares en inglés, y en TA1C `validation`, con el español tratado como inglés, daba F1 0,019 (#229): casi ninguna de sus palabras aparece en un tuit en español. La issue pedía elegir, midiendo, entre dos maneras de darle pesos en español: **uno por idioma**, sólo con el `train` de TA1C, o **uno bilingüe**, con los corpus ingleses y TA1C juntos, y con preferencia por el bilingüe si empataban (decidido el 7 oct).
+
+#### Antes de medir, las mayúsculas con tilde
+
+El patrón de mayúsculas del léxico, que el lineal usa como rasgo, era `\b[A-Z]{4,}\b`, y en español no veía «ÚLTIMA» ni «ESPAÑA»: la letra con tilde corta la secuencia y no deja frontera de palabra. Pasa a `\b[A-ZÁÉÍÓÚÜÑ]{4,}\b` (decidido por el autor, frente a la recomendación de dejarlo como limitación), y [`spikes/mayusculas_con_tilde.py`](spikes/mayusculas_con_tilde.py) cuenta a quién cambia:
+
+- **En inglés, a nadie.** Ningún titular de Chakraborty ni de Webis-17, en ninguna parte, cambia de resultado, así que las cifras medidas del léxico y del lineal siguen valiendo.
+- **En TA1C lo gana un 1,5 % de los tuits** (51 de 3.500), pero **42 de esos 51 lo ganan por una etiqueta de sección del medio** tras `#` o `[`: `ATENCIÓN` 31 veces, `OPINIÓN` 11, `ANÁLISIS` 4. Es una costumbre del medio, no del titular, y el lineal la acaba pesando en contra (−1,60).
+
+#### La elección, con la regla publicada antes
+
+La regla se publicó en la issue antes de la primera medida ([comentario](https://github.com/codeurjc-students/2026-ClickBaitAnalysis/issues/231#issuecomment-6065407636)). Los dos candidatos usan F3 —`linear.rasgos` con TF-IDF y `min_df=2`— y la misma regresión logística de #78: desde #78, el algoritmo no es la palanca. Gana el bilingüe, salvo en dos casos: que el de por idioma le gane en TA1C `validation` por más del ruido (el intervalo del 95 % de la diferencia, por bootstrap emparejado, no incluye el 0), o que el bilingüe baje más de 0,01 el F1 de alguno de los dos `dev` ingleses respecto al lineal de producción. Lo mide [`eval_lineal_es.py`](backend/evaluation/eval_lineal_es.py):
+
+| Con umbral 0,5 | Rasgos | F1 Chakraborty `dev` | F1 `webis_dev` | F1 TA1C `validation` (P / R) |
+|---|---|---|---|---|
+| Por idioma (TA1C, 2.100) | 3.729 | 0,001 | 0,111 | 0,368 (0,873 / 0,233) |
+| **Bilingüe** (Chakraborty + `train170331` + TA1C, 23.758) | 14.330 | 0,958 | 0,551 | **0,390** (0,852 / 0,252) |
+| Lineal de producción (#78) | 10.812 | 0,958 | 0,542 | — |
+
+- **El de por idioma no gana**: −0,022 frente al bilingüe en TA1C, con el intervalo [−0,076, +0,031].
+- **El bilingüe no baja el inglés**: −0,0006 en Chakraborty y +0,009 en Webis.
+- **La regla elige el bilingüe.** No hay ningún tuit repetido entre el `train` y `validation` de TA1C.
+
+#### El umbral: 0,35, el mismo para los dos idiomas
+
+Con 0,5, el bilingüe acierta mucho en TA1C (P 0,85) pero recoge sólo un cuarto del clickbait (R 0,25). La regla del umbral es la de #78: se queda 0,5 salvo que otro corte, de 0,30 a 0,70, suba el F1 al menos 0,01. Para el bilingüe se publicó sobre la media de los tres `dev`:
+
+| Umbral | Chakraborty `dev` | `webis_dev` | TA1C `validation` | Media |
+|---|---|---|---|---|
+| 0,30 | 0,958 | 0,524 | 0,615 | 0,699 |
+| **0,35** | **0,962** | **0,535** | **0,609** | **0,702** |
+| 0,40 | 0,962 | 0,542 | 0,555 | 0,686 |
+| 0,50 | 0,958 | 0,551 | 0,390 | 0,633 |
+
+La media pasa de 0,633 a 0,702, y **el umbral pasa a 0,35**. Es uno para los dos idiomas, porque así se publicó la regla del bilingüe. En TA1C solo, la curva sigue subiendo en 0,30, el extremo de la rejilla: su mejor corte está más abajo, y la regla no mira fuera. Como lo eligió la medida con estos pesos, **el umbral viaja en el JSON de los pesos**, y `linear.predict` dejó de tener un 0,5 escrito.
+
+#### La prueba, una sola vez
+
+| `test`, umbral 0,35 | P | R | F1 | Suelo de la regla |
+|---|---|---|---|---|
+| **TA1C** (700) | 0,756 | 0,608 | **0,674** | 0,61, la base publicada (TF-IDF + XGBoost) |
+| Chakraborty (6.400) | 0,947 | 0,975 | 0,960 | 0,941 (#78: 0,961) |
+| `webis_test` (15.588) | 0,403 | 0,746 | 0,523 | 0,514 (#78: 0,534) |
+
+**Se queda.** En español supera la base publicada con el corpus, y queda lejos del BETO afinado de los autores (0,84), que es otra liga. En inglés baja 0,001 y 0,011, dentro de lo que permitía la regla. Para `webis_test` es **su segunda apertura** (la primera fue la de #78), declarada en la regla antes de medir.
+
+#### Lo que aprendió, y el riesgo de fuente
+
+Las palabras que más empujan a clickbait en español son interrogativas, como en inglés: «qué» (+7,04) y «cómo» (+4,88). Entre las que más restan están, otra vez, nombres de medios y etiquetas de sección: `euvzla` (−2,10), `diariolibre` (−1,28), «opinión» (−1,21) y «columna» (−0,59). Es el vocabulario de fuente que #78 vio con `wikinews`. Los patrones cambiaron de peso con el reentrenamiento: el número inicial +12,49, la interrogación +0,43 (antes −1,59), las mayúsculas −1,60 y la elipsis −0,87.
+
+#229 había dejado ese riesgo para aquí: la proporción de clickbait va del 2,9 % al 68,7 % según el medio, y un modelo de palabras puede aprender a reconocer al medio en vez del clickbait. `eval_lineal_es.py --fuente` lo mide en `validation`, después de elegir y sin volver a abrir `test`. Compara el lineal con una referencia que vota **sólo por el medio**, con la proporción de clickbait que tenía cada uno en `train`:
+
+| TA1C `validation` (700) | AUC | F1 |
+|---|---|---|
+| Votar «clickbait» siempre | — | 0,455 |
+| Sólo el medio | 0,682 | 0,528 (con el mejor corte elegido mirando `validation`: una cota optimista) |
+| El lineal, umbral 0,35 | **0,795** | **0,609** |
+
+El medio solo predice bastante, y eso confirma el riesgo. Pero el lineal le saca +0,11 de AUC y +0,08 de F1 incluso a su mejor versión, así que no se reduce a reconocer el medio. Medio a medio, la proporción que vota clickbait sigue la de cada medio: del 44,8 % en la BBC, con un 67 % de clickbait en `train`, al 0 % en El Universal de Venezuela, con un 1,9 %. Aun así acierta dentro de cada uno entre el 70 y el 97 %. **Cuánto aporta cada parte no se separó**: haría falta reentrenar sin los nombres de los medios.
+
+#### La integración
+
+- **Los pesos**: [`train_linear.py`](backend/evaluation/train_linear.py) entrena el bilingüe con las mismas funciones que lo midieron (`cargar`, `entrenamiento` y `entrenar`), así que lo entrenado es lo medido. El JSON guarda el umbral, y la comprobación de paridad con sklearn suma 10 tuits de TA1C, para vigilar también las tildes y las eñes.
+- **El voto y su umbral, publicados**: `linear.predict` vota con el umbral del JSON, y `SalidaLineal` gana `threshold`, como el léxico desde #93 (decidido por el autor). Sin él, quien leyera «probabilidad 0,41» junto a «clickbait» pensaría que no cuadra. El esquema de salida no entra en el catálogo del agente (#93), que no cambia.
+- **Las fichas**: una ficha del lineal en español, con lo medido en TA1C, es lo que abre la puerta de `_analiza`. La inglesa recoge el entrenamiento bilingüe, sus cifras de `test`, el umbral, el peso nuevo de los patrones y el acuerdo con el léxico rehecho (kappa 0,712 en Chakraborty `dev` y 0,384 en Webis; con el lineal de #78, 0,715 y 0,368).
+- **La tarjeta**: las palabras del lineal llevan el `lang` del titular (en lo guardado antes de #230, «en»), y la nota dice desde qué probabilidad es clickbait cuando el resultado trae el umbral.
+- **Cuatro comentarios** decían que el lineal en español serían otros pesos, o que no recibía el idioma porque sólo los había en inglés. Se corrigieron.
+
+#### El primer veredicto en español
+
+[`eval_ta1c.py`](backend/evaluation/eval_ta1c.py) gana `--como-produccion`: le pasa a `_run_signals` el idioma que detecta `core.idioma`, como `analyze()`, en vez de `INGLES`.
+
+| TA1C `validation` (700) | Tratado como inglés, en #229 | Tratado como inglés, hoy | **Como producción** |
+|---|---|---|---|
+| Dedicada | 0,322 | 0,322 | no aplica (699) |
+| Léxico | 0,223 | 0,230 | no aplica (699) |
+| Lineal | 0,019 | 0,609 | 0,609 |
+| Incoherencia | 0,019 | 0,019 | no aplica |
+| **Veredicto** | 0,038 | 0,065 | **0,611** (P 0,714 · R 0,534) |
+
+- **Un titular en español tiene ya un veredicto que vale algo**: F1 0,611, que sale casi entero del lineal, la única señal que lo analiza. Reparto: `factual` 77,9 % y `stylistic_clickbait` 22,0 %. Un tuit se detectó como inglés, y en él votaron las demás.
+- **La columna del medio es la mejor prueba de por qué hacía falta la puerta del idioma.** Con el mismo lineal, si las señales inglesas votan sobre el español, el veredicto se hunde a 0,065: la dedicada y el léxico dicen «no» y parten la dimensión de forma (34,7 % `ambiguous`). Un modelo inglés sobre español no es neutro: estropea el veredicto.
+- Sin el flag, el guion mide lo mismo que en #229 pero con las señales de hoy, así que ya no da las cifras de entonces. El léxico sube de 0,223 a 0,230 por las mayúsculas con tilde.
+
+#### Y en inglés, mejor
+
+`eval_veredicto` pasa los 19.484 pares de Webis-17 por `analyze()`. La caché de antes se guardó como `var/veredicto_validation170630.antes-231.json`.
+
+| «Es clickbait» frente a la etiqueta | F1, todos (19.484) | F1, unánimes (6.808) |
+|---|---|---|
+| Antes (#230) | 0,641 | 0,802 |
+| **Ahora** | **0,660** | **0,811** |
+
+El lineal bilingüe con 0,35 mejora también el veredicto inglés. La regla de #124 se sigue sosteniendo: el engaño acierta el 63,9 % donde la forma discrepa y el 11,0 % donde la forma dice «no», y el veredicto de `analyze()` coincide con la regla en los 19.484 pares. El lineal se ejecuta en 17 pares más que las demás señales: titulares de Webis detectados como español, que antes no analizaba nadie.
+
+#### Lo que queda
+
+- **D (#232)**: el listón de la dedicada en español es este 0,674. XLM-R dio 0,437 en `validation`, así que lo esperable es que no pase al abrir su `test`.
+- **E (#233)**: incoherencia y tono en español. Hasta entonces, el lineal es la única señal que vota en español.
+- **F (#234)**: los docstrings de las herramientas, que aún dicen «pensada para inglés» del lineal y cambian el catálogo del agente; y el ejemplo en español del formulario, que ya daría veredicto.
+- **Sin hacer**: un umbral por idioma (en TA1C solo, el mejor corte queda por debajo de 0,30), y separar el medio del clickbait reentrenando sin los nombres de los medios.
+- **No está en producción**: la máquina 1 sirve `24e02ca`.
+
+Los tests pasan de 564 a 568 en el backend y de 201 a 204 specs en el frontend.
+
+| Condiciones | |
+|---|---|
+| Fecha | 2026-10-08, por la tarde (hora de Madrid). `eval_lineal_es`: comparación en `dev` a las 19:31, umbral a las 19:32, `test` a las 19:34 y `--fuente` a las 21:51. `eval_ta1c`, en los dos modos, de 21:22 a 21:25. `eval_veredicto`, de 21:26 a 21:43 |
+| Máquina | El PC de sobremesa del autor: WSL2 (Ubuntu 24.04.4), Python 3.12.3 y scikit-learn 1.9.0. `eval_ta1c` y `eval_veredicto` cargan los modelos en la GeForce GTX 1650 SUPER, que `transformers` usa en WSL aunque nadie le pase `device`. Producción corre en CPU |
+| Código | La comparación, el umbral y `test`, sobre `e81f7d3`, con la elegida y su umbral fijados en el guion tal como entraron en `e86c178`. `eval_ta1c` y `eval_veredicto`, sobre `7d7cec2`, con `eval_ta1c.py` tal como entró en `e9e52f7` (su docstring se corrigió después de medir). `--fuente`, sobre `e9e52f7`, con el lineal integrado: los pesos de `cbba56c` y el voto con umbral de `da6a045` |
+| Modelos | El lineal, `linear_clickbait.json` de `cbba56c` (14.330 rasgos, umbral 0,35). Los demás, los de las fichas: `Stremie/roberta-base-clickbait`, `cardiffnlp/twitter-roberta-base-sentiment-latest` y `sentence-transformers/all-MiniLM-L6-v2`, con transformers 5.12.0 y torch 2.12.1 |
+| Guiones | `spikes/mayusculas_con_tilde.py`; `backend/evaluation/eval_lineal_es.py` (sin argumentos, `--umbral`, `--test` y `--fuente`; segundos cada uno); `backend/evaluation/train_linear.py`; `eval_reentreno.py --ficha` (el kappa); `eval_ta1c.py` con y sin `--como-produccion` (~2 min y ~10 s); `eval_veredicto.py` (~17 min, huella nueva `3db32ea91cb2`; la de antes, `386cefbaea5d`) |
 
 
 
