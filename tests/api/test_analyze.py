@@ -679,37 +679,41 @@ def _espiar(monkeypatch, dobles):
 
 
 @pytest.mark.asyncio
-async def test_un_titular_en_espanol_no_se_analiza(señales, monkeypatch):
-    """Mientras ninguna señal tenga modelo en español (llegan con C–E de
-    `v0.8`), ninguna lo analiza. Desde #230 cada una lo dice con su motivo, y el
-    léxico con el suyo: no es que le falte un modelo, es que no lo tiene."""
+async def test_en_espanol_solo_analiza_el_lineal(señales, monkeypatch):
+    """Desde #231 el lineal es bilingüe y analiza el español. Las demás señales
+    no tienen modelo en español (llegan con D y E de `v0.8`) y lo dicen con su
+    motivo, y el léxico con el suyo: no es que le falte un modelo, es que no lo
+    tiene. Con un solo voto de forma, el veredicto es el del lineal."""
     llamadas = _espiar(monkeypatch, señales())
 
     response = await orchestrator.analyze(AnalyzeRequest(headline=TITULAR_EN_ESPANOL))
 
     assert response.language == ESPANOL
-    assert response.verdict == OverallVerdict.NO_DATA
-    assert response.dimensions == []
-    # Todas las tarjetas, en su orden de siempre, y cada una dice por qué.
+    # Todas las tarjetas, en su orden de siempre.
     assert [senal.name for senal in response.signals] == [
         spec.name for spec in _SIGNALS
     ]
-    for senal in response.signals:
+    por_nombre = {senal.name: senal for senal in response.signals}
+    lineal = por_nombre.pop("detect_clickbait_linear")
+    assert lineal.status == SignalStatus.OK
+    for senal in por_nombre.values():
         assert senal.status == SignalStatus.NOT_APPLICABLE
         assert senal.detail == motivo_si_no_se_analiza(senal.name, ESPANOL)
-    lexico = next(
-        senal for senal in response.signals if senal.name == "detect_clickbait_lexical"
+    assert "léxico" in (por_nombre["detect_clickbait_lexical"].detail or "")
+    assert llamadas == ["lineal"]
+    assert response.verdict == (
+        OverallVerdict.STYLISTIC_CLICKBAIT
+        if lineal.is_clickbait
+        else OverallVerdict.FACTUAL
     )
-    assert "léxico" in (lexico.detail or "")
-    assert llamadas == []
 
 
 @pytest.mark.asyncio
 async def test_en_espanol_se_ejecuta_solo_la_senal_con_modelo(señales, monkeypatch):
     """#230: el español se activa señal a señal. Con un modelo en español puesto
     por configuración —el experimento con el que D (#232) medirá un zero-shot
-    multilingüe—, la dedicada se ejecuta con ESE modelo y se rotula con él, y
-    las demás siguen sin analizar el titular."""
+    multilingüe—, la dedicada se ejecuta con ESE modelo y se rotula con él; el
+    lineal, bilingüe desde #231, también analiza el titular, y las demás no."""
     dobles = señales()
     llamadas = _espiar(monkeypatch, dobles)
     modelos = []
@@ -737,12 +741,12 @@ async def test_en_espanol_se_ejecuta_solo_la_senal_con_modelo(señales, monkeypa
     assert dedicada.status == SignalStatus.OK
     assert modelos == ["prueba/multilingue"]
     assert "prueba/multilingue" in dedicada.label
+    assert por_nombre.pop("detect_clickbait_linear").status == SignalStatus.OK
     assert all(
         senal.status == SignalStatus.NOT_APPLICABLE for senal in por_nombre.values()
     )
-    assert llamadas == ["zero_shot"]
-    # Una sola señal de forma votó, y en «sí»: el veredicto sale de ella.
-    assert response.verdict == OverallVerdict.STYLISTIC_CLICKBAIT
+    # Sin orden: las dos señales corren a la vez.
+    assert sorted(llamadas) == ["lineal", "zero_shot"]
 
 
 @pytest.mark.asyncio
