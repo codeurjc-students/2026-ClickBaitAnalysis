@@ -8,12 +8,14 @@ el objeto entero: las tres claves de API, en claro, en la salida. Con
 Con claves de prueba, nunca las del `.env`: este fichero comprueba que no se
 ven, y no puede enseñarlas él si falla.
 
-Y el defecto de `nlp_backend`, que pasó a `local` en #236.
+Y el defecto de `nlp_backend`, que pasó a `local` en #236, y la configuración
+del español (#230).
 """
 
 import pytest
+from pydantic import ValidationError
 
-from backend.config.settings import Settings
+from backend.config.settings import ModeloConInvocacion, Settings
 
 CLAVES_DE_PRUEBA = {
     "guardian_api_key": "clave-guardian-de-prueba",
@@ -52,3 +54,45 @@ def test_por_defecto_los_modelos_corren_en_local(monkeypatch):
     configuracion = Settings(**CLAVES_DE_PRUEBA, _env_file=None)
 
     assert configuracion.nlp_backend == "local"
+
+
+# La configuración del español (#230): la misma forma que la del inglés.
+
+
+def test_los_modelos_del_espanol_se_leen_del_entorno(monkeypatch):
+    monkeypatch.setenv(
+        "NLP_MODELS_ES",
+        '{"detect_clickbait": {"id": "otro/multilingue",'
+        ' "task": "zero-shot-classification"}, "analyze_sentiment": "otro/tono"}',
+    )
+
+    modelos = Settings(**CLAVES_DE_PRUEBA, _env_file=None).nlp_models_es
+
+    assert modelos["detect_clickbait"] == ModeloConInvocacion(
+        id="otro/multilingue", task="zero-shot-classification"
+    )
+    assert modelos["analyze_sentiment"] == "otro/tono"
+
+
+def test_en_espanol_el_modo_tambien_es_solo_de_la_dedicada():
+    with pytest.raises(ValidationError):
+        Settings(
+            nlp_models_es={"analyze_sentiment": {"id": "otro/tono"}},
+            **CLAVES_DE_PRUEBA,
+        )
+
+
+def test_en_espanol_solo_se_configura_el_umbral_de_la_incoherencia():
+    """El léxico no analiza español: un umbral suyo en español sería un ajuste
+    que no hace nada, y así falla al arrancar."""
+    configuracion = Settings(
+        nlp_thresholds_es={"detect_clickbait_incoherence": 0.25},
+        **CLAVES_DE_PRUEBA,
+    )
+    assert configuracion.nlp_thresholds_es == {"detect_clickbait_incoherence": 0.25}
+
+    with pytest.raises(ValidationError):
+        Settings(
+            nlp_thresholds_es={"detect_clickbait_lexical": 2},
+            **CLAVES_DE_PRUEBA,
+        )

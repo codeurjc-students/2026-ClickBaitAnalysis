@@ -22,6 +22,11 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 # propósito: ver `nlp_thresholds`.
 UmbralConfigurable = Literal["detect_clickbait_lexical", "detect_clickbait_incoherence"]
 
+# Las que deciden con un umbral configurable EN ESPAÑOL (#230): sólo la
+# incoherencia. El léxico no analiza español —sus listas son de titulares en
+# inglés—, así que un umbral suyo en español sería un ajuste que no hace nada.
+UmbralConfigurableEnEspanol = Literal["detect_clickbait_incoherence"]
+
 # Las etiquetas del contrato de `detect_clickbait`: las que publica su
 # herramienta, y a las que `dedicated.py` traduce las del modelo. Van también
 # aquí porque este módulo no puede importar la señal; un test vigila que sean
@@ -108,7 +113,19 @@ class Settings(BaseSettings):
     # incoherencia no usa `pipeline`. Así falla al arrancar.
     nlp_models: dict[str, str | ModeloConInvocacion] = {}
 
-    @field_validator("nlp_models")
+    # Lo mismo para los titulares en ESPAÑOL (#230), con la misma forma y las
+    # mismas reglas. Vacío significa «el de la ficha en español», y una señal
+    # sin ficha en español no se ejecuta en español: queda en `not_applicable`
+    # con su motivo. Ponerle un modelo aquí la ejecuta como experimento, sin
+    # medidas publicadas, igual que en inglés:
+    #   NLP_MODELS_ES='{"detect_clickbait": {"id": "MoritzLaurer/mDeBERTa-v3-base-mnli-xnli",
+    #                   "task": "zero-shot-classification"}}'
+    # Sólo cuenta en las señales que son un modelo descargable (la dedicada, el
+    # tono y la incoherencia): el léxico no analiza español, y el lineal en
+    # español son otros pesos, no otro id (#231). Eso lo decide la factoría.
+    nlp_models_es: dict[str, str | ModeloConInvocacion] = {}
+
+    @field_validator("nlp_models", "nlp_models_es")
     @classmethod
     def _el_modo_solo_en_la_dedicada(
         cls, modelos: dict[str, str | ModeloConInvocacion]
@@ -142,6 +159,12 @@ class Settings(BaseSettings):
     # Las cifras de la ficha se midieron con el umbral por defecto: con otro,
     # `ficha_efectiva` lo avisa, sin quitar las medidas (el modelo es el mismo).
     nlp_thresholds: dict[UmbralConfigurable, float] = {}
+
+    # Los umbrales EN ESPAÑOL (#230). Vacío significa «el del detector», que es
+    # el calibrado en inglés: el del español lo calibrará en TA1C la issue que
+    # traiga el modelo (#233), como #92 hizo con el inglés.
+    #   NLP_THRESHOLDS_ES='{"detect_clickbait_incoherence": 0.25}'
+    nlp_thresholds_es: dict[UmbralConfigurableEnEspanol, float] = {}
 
     # Cuántas pistas devuelve el lineal como explicación (#93). Sólo recorta lo
     # que se ENSEÑA: la probabilidad suma todas. `None` es el de la señal.
