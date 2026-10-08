@@ -543,6 +543,17 @@ def test_lexical_acronym_no_false_positive():
     assert result.data["is_clickbait"] is False
 
 
+@pytest.mark.parametrize(
+    "titular",
+    ["ÚLTIMA hora: el Gobierno aprueba el decreto", "ESPAÑA gana el Mundial"],
+)
+def test_las_mayusculas_con_tilde_cuentan_como_mayusculas(titular):
+    # #231: con `[A-Z]` a secas, «ÚLTIMA» y «ESPAÑA» no contaban, porque la
+    # letra con tilde corta la secuencia y no deja frontera de palabra. Lo
+    # usan el léxico y los rasgos del lineal, que en español lo necesita.
+    assert lexical.PATTERNS["all_caps"].search(titular)
+
+
 # --Lineal Determinista!!! (Si cambia seed, cambia test)
 
 
