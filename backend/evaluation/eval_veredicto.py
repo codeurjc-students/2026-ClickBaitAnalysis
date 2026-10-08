@@ -85,6 +85,7 @@ from backend.analysis.domain import (
     OverallVerdict,
 )
 from backend.analysis.orchestrator import _overall, analyze
+from backend.core.idioma import INGLES, Idioma
 from backend.evaluation.eval_ambiguedad import es_unanime
 from backend.evaluation.eval_incoherencia import (
     MITAD_CALIBRACION,
@@ -97,6 +98,7 @@ from backend.integrations.nlp.factory import (
     get_invocacion,
     get_model_id,
     get_threshold,
+    idiomas_de,
 )
 
 _RAIZ = Path(__file__).resolve().parents[2]
@@ -123,13 +125,35 @@ Regla = Callable[[list[DimensionVerdict]], OverallVerdict]
 # ----------------------------------------------------------- las condiciones
 
 
+def _por_idioma(señal: str) -> list[tuple[str, Idioma]]:
+    """Cada idioma que analiza la señal, con la clave con la que va en las
+    condiciones: la de siempre en inglés, y con el idioma detrás en los demás.
+
+    Desde #230 los modelos y los umbrales son por idioma. Webis-17 se analiza en
+    inglés, pero los pocos pares que no se detectan en inglés los decidiría un
+    modelo en su idioma si se configurara uno: si no entrara en la huella, una
+    caché de otro sistema se colaría sin avisar (#119). Sin ninguno, las claves
+    y los valores son los de antes.
+    """
+    return [
+        (señal if idioma == INGLES else f"{señal} ({idioma})", idioma)
+        for idioma in idiomas_de(señal)
+    ]
+
+
 def modelos() -> dict[str, str]:
     """Los modelos EFECTIVOS: los de la ficha, o los de la configuración si hay."""
-    efectivos = {señal: get_model_id(señal) for señal in SEÑALES_CON_MODELO}
+    efectivos = {
+        clave: get_model_id(señal, idioma)
+        for señal in SEÑALES_CON_MODELO
+        for clave, idioma in _por_idioma(señal)
+    }
     # Desde #159, en la dedicada deciden también el modo y las etiquetas: el
     # mismo id como zero-shot es otra señal.
-    efectivos["detect_clickbait"] = get_invocacion("detect_clickbait").model_dump_json()
-    efectivos["detect_clickbait_incoherence"] = get_incoherence_detector().model_id
+    for clave, idioma in _por_idioma("detect_clickbait"):
+        efectivos[clave] = get_invocacion("detect_clickbait", idioma).model_dump_json()
+    for clave, idioma in _por_idioma("detect_clickbait_incoherence"):
+        efectivos[clave] = get_incoherence_detector(idioma).model_id
     return efectivos
 
 
@@ -139,10 +163,13 @@ def umbrales() -> dict[str, float]:
     Van en la huella porque deciden el voto de dos señales: sin ellos, una
     ejecución con otro umbral reutilizaría la caché del anterior sin avisar.
     """
-    return {
-        "detect_clickbait_lexical": get_threshold("detect_clickbait_lexical"),
-        "detect_clickbait_incoherence": get_incoherence_detector().threshold,
+    efectivos = {
+        clave: get_threshold("detect_clickbait_lexical", idioma)
+        for clave, idioma in _por_idioma("detect_clickbait_lexical")
     }
+    for clave, idioma in _por_idioma("detect_clickbait_incoherence"):
+        efectivos[clave] = get_incoherence_detector(idioma).threshold
+    return efectivos
 
 
 def huella() -> str:

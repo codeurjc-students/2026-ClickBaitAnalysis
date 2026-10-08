@@ -23,7 +23,7 @@ from pathlib import Path
 RAIZ = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(RAIZ))
 
-from backend.core.idioma import detectar  # noqa: E402
+from backend.core.idioma import INGLES, detectar  # noqa: E402
 from backend.integrations.nlp.factory import get_incoherence_detector  # noqa: E402
 
 # Cada caso: el titular, su cuerpo en inglés, el mismo en español y otro tema.
@@ -76,7 +76,8 @@ def condiciones(detector) -> None:
 
 
 async def main() -> None:
-    detector = get_incoherence_detector()
+    # El modelo inglés, a propósito: es el que se mide frente al cuerpo traducido.
+    detector = get_incoherence_detector(INGLES)
     condiciones(detector)
     print(f"\n{'titular':52} {'cuerpo':10} {'idioma':6} {'similitud':>9}  voto")
     for titular, *cuerpos in CASOS:
