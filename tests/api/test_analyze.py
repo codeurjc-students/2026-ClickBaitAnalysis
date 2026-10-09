@@ -684,12 +684,14 @@ def _espiar(monkeypatch, dobles):
 
 
 @pytest.mark.asyncio
-async def test_en_espanol_analizan_el_lineal_y_la_dedicada(señales, monkeypatch):
-    """Desde #231 el lineal es bilingüe, y desde #242 la dedicada tiene su
-    modelo en español (BETO afinado con TA1C). Las demás señales no tienen
-    modelo en español (llegan con E de `v0.8`) y lo dicen con su motivo, y el
-    léxico con el suyo: no es que le falte un modelo, es que no lo tiene. Con
-    los dos votos de forma de acuerdo, el veredicto es el suyo."""
+async def test_en_espanol_analizan_el_lineal_la_dedicada_y_el_tono(
+    señales, monkeypatch
+):
+    """Desde #231 el lineal es bilingüe, desde #242 la dedicada tiene su modelo
+    en español (BETO afinado con TA1C), y desde #233 el tono. La incoherencia
+    no: #233 midió que en español no separa, y lo dice con su motivo; y el
+    léxico, con el suyo. Con los dos votos de forma de acuerdo, el veredicto es
+    el suyo: el tono no vota."""
     llamadas = _espiar(monkeypatch, señales())
 
     response = await orchestrator.analyze(AnalyzeRequest(headline=TITULAR_EN_ESPANOL))
@@ -702,13 +704,16 @@ async def test_en_espanol_analizan_el_lineal_y_la_dedicada(señales, monkeypatch
     por_nombre = {senal.name: senal for senal in response.signals}
     lineal = por_nombre.pop("detect_clickbait_linear")
     dedicada = por_nombre.pop("detect_clickbait")
+    tono = por_nombre.pop("analyze_sentiment")
     assert lineal.status == SignalStatus.OK
     assert dedicada.status == SignalStatus.OK
+    assert tono.status == SignalStatus.OK
     for senal in por_nombre.values():
         assert senal.status == SignalStatus.NOT_APPLICABLE
         assert senal.detail == motivo_si_no_se_analiza(senal.name, ESPANOL)
     assert "léxico" in (por_nombre["detect_clickbait_lexical"].detail or "")
-    assert sorted(llamadas) == ["classify", "lineal"]
+    assert "TA1C" in (por_nombre["detect_clickbait_incoherence"].detail or "")
+    assert sorted(llamadas) == ["classify", "classify", "lineal"]
     # Los dobles de las dos dicen «clickbait».
     assert lineal.is_clickbait is True
     assert dedicada.is_clickbait is True
@@ -749,11 +754,13 @@ async def test_en_espanol_se_ejecuta_solo_la_senal_con_modelo(señales, monkeypa
     assert modelos == ["prueba/multilingue"]
     assert "prueba/multilingue" in dedicada.label
     assert por_nombre.pop("detect_clickbait_linear").status == SignalStatus.OK
+    # El tono también analiza el español, por su ficha (#233).
+    assert por_nombre.pop("analyze_sentiment").status == SignalStatus.OK
     assert all(
         senal.status == SignalStatus.NOT_APPLICABLE for senal in por_nombre.values()
     )
-    # Sin orden: las dos señales corren a la vez.
-    assert sorted(llamadas) == ["lineal", "zero_shot"]
+    # Sin orden: las tres señales corren a la vez.
+    assert sorted(llamadas) == ["classify", "lineal", "zero_shot"]
 
 
 @pytest.mark.asyncio
@@ -872,7 +879,8 @@ async def test_con_ingles_run_signals_analiza_el_espanol_como_ingles(
 async def test_con_backend_local_se_calientan_las_que_tienen_modelo(
     señales, monkeypatch
 ):
-    """Las tres señales con modelo, y la dedicada también en español (#242)."""
+    """Las tres señales con modelo, y en español la dedicada (#242) y el tono
+    (#233)."""
     señales()
     monkeypatch.setattr(settings, "nlp_backend", "local")
 
@@ -882,6 +890,7 @@ async def test_con_backend_local_se_calientan_las_que_tienen_modelo(
         "detect_clickbait",
         "detect_clickbait (es)",
         "analyze_sentiment",
+        "analyze_sentiment (es)",
         "detect_clickbait_incoherence",
     }
     assert all(medida >= 0 for medida in tiempos.values())

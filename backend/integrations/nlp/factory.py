@@ -71,6 +71,20 @@ _NO_ANALIZA: dict[tuple[str, Idioma], str] = {
     ),
 }
 
+# Por qué una señal no analiza un idioma cuando se MIDIÓ que su modelo no sirve.
+# Al revés que `_NO_ANALIZA`, que es una decisión, no impide probar otro modelo
+# por configuración (#230): sólo sustituye al «aún no lo analiza» genérico.
+# La incoherencia en español: #233 midió un modelo multilingüe en TA1C, y la
+# similitud entre titular y cuerpo no separa el clickbait (AUC 0,594; ningún
+# umbral llega a precisión 0,50).
+_MOTIVOS_MEDIDOS: dict[tuple[str, Idioma], str] = {
+    (_INCOHERENCIA, ESPANOL): (
+        "El titular parece estar en español: la incoherencia no lo analiza, "
+        "porque en titulares en español la similitud con el artículo apenas "
+        "distingue el clickbait (medido con TA1C)."
+    ),
+}
+
 
 def _modelos_configurados(idioma: Idioma) -> Mapping[str, str | ModeloConInvocacion]:
     """Los modelos puestos por configuración para un idioma (#230), leídos en
@@ -131,7 +145,9 @@ def motivo_si_no_se_analiza(signal: str, idioma: Idioma) -> str | None:
     analiza.
 
     Desde #230 lo decide cada señal: en inglés, todas; en español, las que
-    tengan modelo (C–E de `v0.8`), y el léxico nunca; en otro idioma, ninguna.
+    tengan modelo (en `v0.8`, el lineal, la dedicada y el tono), y el léxico
+    nunca; en otro idioma, ninguna. La incoherencia da el motivo medido de
+    `_MOTIVOS_MEDIDOS` (#233).
     Hasta entonces era una puerta para el titular entero (#229).
 
     La frase vive aquí, y no en cada fachada, para que el análisis completo y las
@@ -146,6 +162,8 @@ def motivo_si_no_se_analiza(signal: str, idioma: Idioma) -> str | None:
         return motivo
     if _analiza(signal, idioma):
         return None
+    if motivo := _MOTIVOS_MEDIDOS.get((signal, idioma)):
+        return motivo
     return (
         f"El titular parece estar en {NOMBRES[idioma]}: esta señal aún no lo analiza."
     )
@@ -160,9 +178,11 @@ def motivo_si_el_cuerpo_no_se_compara(idioma: Idioma) -> str | None:
     aunque diga lo mismo, hasta cruzar el umbral (medido en #229). Las demás
     señales no leen el cuerpo, así que se siguen ejecutando.
 
-    Desde #230 la compara si la incoherencia analiza el idioma del cuerpo. Qué
-    hacer con un titular y un cuerpo en idiomas distintos, los dos analizados,
-    lo decide la issue que traiga su modelo en español (#233).
+    Desde #230 la compara si la incoherencia analiza el idioma del cuerpo.
+    #233 no trajo modelo en español (no separa en TA1C), así que hoy sólo
+    compara inglés con inglés. Con uno puesto por configuración, un titular y un
+    cuerpo en idiomas distintos se compararían con el modelo del titular: está
+    apuntado en #217.
     """
     if _analiza(_INCOHERENCIA, idioma):
         return None
@@ -248,9 +268,10 @@ def get_threshold(signal: UmbralConfigurable, idioma: Idioma) -> float:
     sería un ajuste que no hace nada sin fallar (#87).
 
     Desde #230, el del idioma. Sin uno configurado, el del detector también en
-    español, aunque se calibró en inglés: el del español lo calibrará en TA1C la
-    issue que traiga el modelo (#233), y hasta entonces un modelo en español es
-    un experimento con su ficha «sin evaluar».
+    español, aunque se calibró en inglés: #233 midió en TA1C un modelo
+    multilingüe y no separa (AUC 0,594; ningún umbral llega a precisión 0,50),
+    así que un modelo en español sigue siendo un experimento con su ficha «sin
+    evaluar».
     """
     return _umbrales_configurados(idioma).get(signal, _UMBRALES_DEL_DETECTOR[signal])
 

@@ -67,7 +67,8 @@ UNA FICHA POR SEÑAL E IDIOMA (#230)
 Una señal analiza un idioma si tiene un modelo para él, y cada modelo trae sus
 límites medidos, así que la ficha es por señal e idioma: ``language`` dice de
 cuál. Toda señal tiene la suya en inglés; en español, sólo las que tengan
-modelo propio (C, H y E de ``v0.8``). Lo que describe el HUECO —la dimensión y el
+modelo propio (en ``v0.8``, el lineal, la dedicada y el tono; la incoherencia
+no, porque en español no separa, #233). Lo que describe el HUECO —la dimensión y el
 tipo— es el mismo en todos los idiomas, y un test lo exige: el veredicto
 agrega por dimensión, y una señal no puede medir otra cosa según el idioma.
 """
@@ -169,7 +170,7 @@ MODEL_CARDS: list[FichaDeclarada] = [
         "limitations": [
             "Entrenado en tuits, no en titulares de noticias.",
             "Caja negra.",
-            "Solo inglés.",
+            "Solo inglés: el español lo analiza otro modelo (#233), con su ficha aparte.",
         ],
         "operation": [
             "SIN VÍA REMOTA GRATUITA desde el 7 oct 2026: Hugging Face retiró el crédito mensual de las cuentas gratuitas (en https://huggingface.co/docs/inference-providers/pricing, la fila «Free Users» pasó a «None»; huggingface/hub-docs#2865), y `hf-inference` responde `402` («You have no remaining credits») con la cuenta del proyecto, que es gratuita. No es una caída: con crédito volvería a responder, y por eso la vía remota se conserva. Con `nlp_backend=remote` esta señal sale en `error`; como el tono no vota, el veredicto no cambia. Se repite con `spikes/hf_credito.py` (#236).",
@@ -288,6 +289,28 @@ MODEL_CARDS: list[FichaDeclarada] = [
         "operation": [
             "SIN VÍA REMOTA, como la inglesa: ningún proveedor de Hugging Face lo sirve (`inferenceProviderMapping` vacío, comprobado el 2026-10-09), y desde el 7 oct 2026 la vía remota exige crédito (#236).",
             "La vía local DEPENDE DE `torch`, que `requirements.txt` no trae, como la inglesa; la imagen lo instala (#162). Lo hornea `docker/hornear_modelos.py` desde un repositorio público, sin token: unos 440 MB más. En CPU (Ryzen 5 5600G, 6 hilos), 0.076 s por titular (mediana) y 0.103 s el p95.",
+        ],
+        "backend": "local",
+    },
+    {
+        "signal": "analyze_sentiment",
+        "language": ESPANOL,
+        "model_id": "lxyuan/distilbert-base-multilingual-cased-sentiments-student",
+        "name": "DistilBERT multilingüe de sentimiento (3 clases)",
+        "task": "Análisis de sentimiento en 3 clases (positivo / neutral / negativo).",
+        "type": "opaque",
+        "dimension": "tone",
+        "limitations": [
+            "Caja negra.",
+            "Sin evaluación propia: TA1C no trae etiquetas de tono y el tono no vota, así que no hay con qué medirlo (#233). Se lee como una pista más.",
+            "Destilado de un zero-shot: aprendió lo que decía `MoritzLaurer/mDeBERTa-v3-base-mnli-xnli`, con una plantilla en inglés, sobre un corpus multilingüe de sentimiento cuyas etiquetas humanas se ignoraron a propósito. No aprendió de lo que dicen las personas.",
+            "No está entrenado en tuits ni en titulares, al revés que el modelo inglés.",
+            "Elegido frente a `cardiffnlp/twitter-xlm-roberta-base-sentiment` (tuits, 1,11 GB, sin licencia en el Hub y sin tokenizador rápido, que habría exigido `sentencepiece` y `protobuf` en la imagen) por su licencia Apache-2.0 declarada y por pesar la mitad (#233).",
+            "Solo español: el inglés lo analiza otro modelo, con su ficha aparte.",
+        ],
+        "operation": [
+            "La vía local DEPENDE DE `torch`, que `requirements.txt` no trae, como el tono inglés; la imagen lo instala (#162). Trae tokenizador rápido (`tokenizer.json`), así que no necesita `sentencepiece`. Lo hornea `docker/hornear_modelos.py`: unos 540 MB más.",
+            "`hf-inference` lo sirve en remoto (comprobado el 2026-10-09), pero desde el 7 oct 2026 la vía remota exige crédito (#236).",
         ],
         "backend": "local",
     },

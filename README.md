@@ -8494,7 +8494,7 @@ Quedan en «en», a propósito y apuntado donde toca:
 
 - **B (#230)** enruta por idioma, y tiene apuntados los campos del formulario, la descripción de `AnalyzeRequest.headline` y el idioma en la salida de cada señal. *(Hecho: ver «Cada señal, en su idioma: el enrutado».)*
 - **C (#231)**: el riesgo de fuente de TA1C, y el `lang` de las palabras del lineal. *(Hecho en #231: el riesgo de fuente, medido frente a una referencia que vota sólo por el medio; y el `lang` de las palabras, el del titular. Ver «El lineal, bilingüe: el primer veredicto en español».)*
-- **D y E (#232, #233)**: los modelos multilingües, por medir. E decidirá además qué hace la puerta del cuerpo cuando la incoherencia compare en español.
+- **D y E (#232, #233)**: los modelos multilingües, por medir. E decidirá además qué hace la puerta del cuerpo cuando la incoherencia compare en español. *(Medido en #233: la incoherencia en español no separa en TA1C (AUC 0,594) y no lo analiza; los idiomas distintos, apuntados en #217. Ver «La incoherencia y el tono en español».)*
 - **G (#235)**: las noticias en español, con dos APIs, NewsData.io y GNews; el autor exige al menos dos, o el idioma tiene poco sentido. Se descartaron los RSS, que no buscan por tema, y GDELT, que dio un 429 a la primera consulta.
 
 Los tests pasan de 473 a 530 en el backend, en verde también con el venv de sólo `requirements.txt`, y de 187 a 194 specs en el frontend.
@@ -8576,7 +8576,7 @@ En la factoría, el idioma pasa a ser un parámetro **obligatorio** de `get_mode
 - sí, si es un modelo descargable —la dedicada, el tono, la incoherencia— y hay uno puesto por configuración para ese idioma: un experimento, que se publica con el hueco de su ficha inglesa y «sin evaluar»;
 - nunca el léxico en español, por la decisión del 7 oct (sus listas son de Chakraborty), ni el lineal por configuración, porque no tiene un id que cambiar: en español serán otros pesos (#231).
 
-Esa regla la miran la puerta, las fichas que se publican (`idiomas_de`) y `precalentar`, así que no se puede publicar la ficha de un modelo que no se ejecuta, ni dejar uno sin calentar. Sin umbral configurado, el español usa el del detector, que se calibró en inglés: el suyo lo calibrará en TA1C la issue que traiga el modelo (#233), y hasta entonces un modelo en español es un experimento. La caché del detector de incoherencia sube de 2 a 4 instancias, para que un idioma no eche al otro; la del backend no cambia, porque no depende del idioma.
+Esa regla la miran la puerta, las fichas que se publican (`idiomas_de`) y `precalentar`, así que no se puede publicar la ficha de un modelo que no se ejecuta, ni dejar uno sin calentar. Sin umbral configurado, el español usa el del detector, que se calibró en inglés: el suyo lo calibrará en TA1C la issue que traiga el modelo (#233), y hasta entonces un modelo en español es un experimento. *(Revisado en #233: el modelo multilingüe no separa en TA1C (AUC 0,594), así que la incoherencia no analiza el español y no hubo umbral que calibrar. Ver «La incoherencia y el tono en español».)* La caché del detector de incoherencia sube de 2 a 4 instancias, para que un idioma no eche al otro; la del backend no cambia, porque no depende del idioma.
 
 #### La puerta, señal a señal
 
@@ -8630,7 +8630,7 @@ El catálogo del agente no cambió —huella sha256 `25e9c973154f097e`, la misma
 
 - **C (#231)**: los pesos del lineal en español, con su ficha; hoy su `run` no mira el idioma. Y el `lang` de sus palabras en la tarjeta. *(Hecho en #231: bilingüe, con su ficha en español, y sus palabras con el `lang` del titular. Ver «El lineal, bilingüe: el primer veredicto en español».)*
 - **D (#232)**: el zero-shot multilingüe, que ya se puede poner con `NLP_MODELS_ES` y medir. *(Medido en #232: ninguna de las 24 combinaciones llega al F1 de votar «clickbait» siempre; ver «La dedicada en español: ningún zero-shot sirve».)*
-- **E (#233)**: incoherencia y tono en español, el umbral de la incoherencia calibrado en TA1C —hasta entonces, el inglés— y el titular y el cuerpo en idiomas distintos.
+- **E (#233)**: incoherencia y tono en español, el umbral de la incoherencia calibrado en TA1C —hasta entonces, el inglés— y el titular y el cuerpo en idiomas distintos. *(Hecho en #233: el tono, sí; la incoherencia no separa (AUC 0,594) y no analiza el español; los idiomas distintos, en #217. Ver «La incoherencia y el tono en español».)*
 - **F (#234)**: los docstrings de las herramientas («Pensada para inglés»), que cambian el catálogo del agente; y el ejemplo en español del formulario.
 
 Los tests pasan de 535 a 564 en el backend, en verde también con el venv de sólo `requirements.txt`, y de 194 a 201 specs en el frontend.
@@ -8816,7 +8816,7 @@ El lineal bilingüe con 0,35 mejora también el veredicto inglés. La regla de #
 #### Lo que queda
 
 - **D (#232)**: el listón de la dedicada en español es este 0,674. XLM-R dio 0,437 en `validation`, así que lo esperable es que no pase al abrir su `test`. *(Abierto el 9 oct: 0,450, no pasa; el autor eligió afinar BETO, en #242. Ver «La dedicada en español: el zero-shot no llega al lineal, y se afinará un modelo».)*
-- **E (#233)**: incoherencia y tono en español. Hasta entonces, el lineal es la única señal que vota en español.
+- **E (#233)**: incoherencia y tono en español. Hasta entonces, el lineal es la única señal que vota en español. *(Hecho en #233: el tono, que no vota; la incoherencia, no. Con la dedicada de #242, en español votan el lineal y la dedicada. Ver «La incoherencia y el tono en español».)*
 - **F (#234)**: los docstrings de las herramientas, que aún dicen «pensada para inglés» del lineal y cambian el catálogo del agente; y el ejemplo en español del formulario, que ya daría veredicto.
 - **Sin hacer**: un umbral por idioma (en TA1C solo, el mejor corte queda por debajo de 0,30), y separar el medio del clickbait reentrenando sin los nombres de los medios.
 - **No está en producción**: la máquina 1 sirve `24e02ca`.
@@ -9022,7 +9022,7 @@ Seis pliegues de tres medios sobre `train` y `validation` (2.800 tuits). En cada
 #### En el sistema
 
 - **La ficha en español de `detect_clickbait`**, en `model_cards.py`, con su `model_id`, sus medidas y sus límites, y las notas de operación (`torch`, sin vía remota). **Basta con ella**: la factoría la lee para decidir que la señal analiza el español y con qué modelo, y `hornear_modelos.py` la recorre como a las demás. Ni la factoría ni el `Dockerfile` cambian; la imagen lleva 439 MB más de pesos.
-- **Doce tests fijaban el estado de antes** —la dedicada sin español, o cuántas fichas hay— y se cambiaron con el visto bueno del autor; los que usaban la dedicada como ejemplo de señal sin español pasan al tono, que no lo tendrá hasta E (#233). Uno nuevo: la dedicada analiza el español por su ficha, con este modelo. 608 tests.
+- **Doce tests fijaban el estado de antes** —la dedicada sin español, o cuántas fichas hay— y se cambiaron con el visto bueno del autor; los que usaban la dedicada como ejemplo de señal sin español pasan al tono, que no lo tendrá hasta E (#233). *(Desde #233 lo tiene, y el ejemplo pasa a la incoherencia.)* Uno nuevo: la dedicada analiza el español por su ficha, con este modelo. 608 tests.
 - **Lo publicado es lo medido, también por el camino de producción**: `eval_ta1c --como-produccion`, que descarga el modelo del Hub por su id y pasa por el orquestador, da para la dedicada en `validation` exactamente lo de la carpeta local (0,803, P 0,849, R 0,762).
 
 #### El veredicto en español
@@ -9058,6 +9058,77 @@ Sube, pero menos que la dedicada sola (0,803). En español la forma tiene ahora 
 | Modelos | Base: `dccuchile/bert-base-spanish-wwm-cased` `c4d86612f51b`. Publicado: `ggcastle/beto-clickbait-es` `03c31ac0c288` (pesos, sha256 `5c82e831bcb6`). El lineal, `linear_clickbait.json` de #231 (umbral 0,35) |
 | Código | `f4f9617` para `memoria`, `validation`, `medios-fuera`, `test` y `tiempo`; `27edb4f` para la ficha, `carpeta`, `eval_ta1c` (lanzado con ese código antes de commitearlo) y el desglose |
 | Guiones | `backend/evaluation/eval_dedicada_es.py` (`memoria`, `validation`, `medios-fuera`, `test`, `tiempo` y `carpeta`; sus cachés y los pesos, en `var/dedicada_es/`, locales y sin versionar), `backend/evaluation/eval_ta1c.py --como-produccion` y `spikes/veredicto_es_discrepancias.py` |
+
+### La incoherencia y el tono en español (#233, 9 oct 2026)
+
+La E de `v0.8`: dar español a las dos señales que quedaban, con modelos multilingües sólo para el español y sin tocar el inglés, como se decidió al definir el hito. **El tono, sí; la incoherencia, no**: medida con la regla publicada antes, la similitud entre titular y cuerpo no distingue el clickbait de TA1C.
+
+#### La incoherencia: la regla, antes de medir
+
+Se publicó en la issue con el guion ya commiteado (`334ba98`) y el modelo descargado, sin haber medido nada ([comentario](https://github.com/codeurjc-students/2026-ClickBaitAnalysis/issues/233#issuecomment-6081420747)):
+
+- **El modelo**: `sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2` (Apache-2.0), por el camino de producción: `IncoherenceDetector`, con el cuerpo recortado por `_lead`.
+- **Los datos**: los 2.784 pares titular–cuerpo de TA1C `train` y `validation` (los 16 restantes tienen el cuerpo vacío), con un 28,3 % de clickbait. **`test` no se abrió**: lleva tres aperturas (#231, #232 y #242), y la incoherencia no se entrena, así que no le hacía falta. La issue decía comprobar en `test`; se cambió antes de medir, con el visto bueno del autor.
+- **El método de #92**, con sus mismas funciones (`eval_incoherencia.py`): primero el AUC, sin cortar por ningún sitio; después el umbral, elegido en una mitad (semilla 24) con el criterio de #92 —el mayor recall con precisión ≥ 0,50— e informado en la otra.
+- **Aplica si** (a) el AUC es ≥ 0,60 y (b) algún umbral llega a precisión 0,50 en la mitad de elección. #92 sólo decía que un AUC cerca de 0,5 no vale; la cifra se fijó aquí.
+- La etiqueta es la de clickbait de TA1C, no una de engaño: la misma limitación que en #92.
+
+#### La medida: no se cumple ninguna de las dos
+
+| TA1C `train` + `validation` (2.784 pares) | |
+|---|---|
+| ROC-AUC | **0,594**, frente al 0,60 de la regla: (a) no se cumple |
+| PR-AUC | 0,331, con una base de 0,283 |
+| Algún umbral con precisión ≥ 0,50, en la mitad de elección | **ninguno**: (b) no se cumple. En los umbrales que imprime el guion (de 0,15 a 0,85, cada 0,05), la precisión no pasa de 0,371 |
+| El 0,3 del inglés, en la otra mitad | P 0,233 · R 0,018, marcando el 2,2 % |
+| El mejor F1 posible (u = 0,78), en la otra mitad | 0,454 (P 0,309 · R 0,853), marcando el 76,7 %: casi votar siempre «sí» |
+
+- **El resultado no depende del listón del AUC.** 0,594 queda justo debajo de 0,60, pero (b) falla con holgura: votando, la señal se equivocaría en casi dos de cada tres «sí». En inglés, #92 dio un AUC de 0,720 en Webis-17.
+- **El modelo lee 128 tokens** (el inglés, 256), y el 97,4 % de los cuerpos, aun recortados a 1.000 caracteres, los supera: compara el titular con poco más que el primer párrafo. Si leyendo más separaría mejor no está medido; en inglés, #92 midió que no cambiaba.
+- **Una hipótesis, sin medir**: en TA1C el clickbait es sobre todo de forma —un tuit que oculta el dato—, y el artículo habla de lo mismo, así que la similitud no lo distingue.
+
+**Decidido (autor): la incoherencia no analiza el español**, con un motivo medido en lugar del genérico «aún no lo analiza»: «la similitud con el artículo apenas distingue el clickbait (medido con TA1C)». No es una decisión como la del léxico (`_NO_ANALIZA`): con un modelo puesto por configuración (`NLP_MODELS_ES`) se sigue pudiendo probar como experimento (#230). El motivo vive en la factoría, en `_MOTIVOS_MEDIDOS`.
+
+**Titular y cuerpo en idiomas distintos**, que #230 había dejado para esta issue: se decidió compararlos sólo cuando están en el mismo idioma. Pero sin modelo en español por defecto ya no ocurre en ningún camino normal, sólo con uno puesto a mano, y hacerlo exige que la puerta del cuerpo reciba también el idioma del titular. **Se apuntó en #217** ([comentario](https://github.com/codeurjc-students/2026-ClickBaitAnalysis/issues/217#issuecomment-6087794838)).
+
+#### El tono: con licencia y tokenizador rápido
+
+El candidato de la issue se descartó antes de descargar nada, mirando las fichas del Hub:
+
+| Modelo | Pesos | Tokenizador rápido | Licencia |
+|---|---|---|---|
+| `cardiffnlp/twitter-xlm-roberta-base-sentiment` (el de la issue) | 1,11 GB | no: pide `sentencepiece` y `protobuf` | ninguna en el Hub; Apache-2.0 en su repositorio (XLM-T), con un aviso sobre los datos |
+| `cardiffnlp/twitter-xlm-roberta-base-sentiment-multilingual` | 1,11 GB | sí | ninguna en el Hub |
+| `pysentimiento/robertuito-sentiment-analysis` (sólo español) | 435 MB | sí | ninguna en el Hub |
+| **`lxyuan/distilbert-base-multilingual-cased-sentiments-student`** | **541 MB** | **sí** | **Apache-2.0** |
+
+- **Decidido (autor): el último.** Tiene la licencia declarada, que era un criterio de la issue, pesa la mitad y no trae dependencias nuevas: el primero habría metido `sentencepiece` y `protobuf` en `requirements.in` y en la imagen por una señal que no vota. Sus etiquetas son las del tono inglés (`positive`, `neutral`, `negative`), así que la pantalla no cambia.
+- **Lo que dice su ficha, y va a la nuestra**: es un DistilBERT multilingüe **destilado de un zero-shot** (`MoritzLaurer/mDeBERTa-v3-base-mnli-xnli`, con una plantilla en inglés), entrenado sobre un corpus multilingüe de sentimiento cuyas etiquetas humanas se ignoraron a propósito. Tampoco está entrenado en tuits ni en titulares.
+- **Sin evaluación propia**: TA1C no trae etiquetas de tono, y el tono no vota. Su ficha lo dice como un límite, no como un experimento: es el modelo declarado.
+- `hf-inference` lo sirve en remoto, pero desde el 7 oct la vía remota exige crédito (#236).
+
+#### En el sistema
+
+- **La ficha en español del tono**, en `model_cards.py`, y en la inglesa una línea que remite a ella. Basta con la ficha: la factoría y el horneado hacen el resto, como con la dedicada de #242. La imagen lleva unos 540 MB más.
+- **En la factoría**, `_MOTIVOS_MEDIDOS` con el motivo de la incoherencia, y los tres docstrings que remitían a esta issue: el umbral del español, los idiomas distintos y qué señales tienen modelo en español.
+- **Once tests fijaban el estado de antes** y se cambiaron con el visto bueno del autor: los que usaban el tono como señal sin ficha en español pasan a la incoherencia, y los que cuentan fichas o señales en español suman el tono. Hay dos nuevos: el tono analiza el español por su ficha, y la incoherencia da su motivo medido pero se puede configurar. Un duodécimo fallaba por una palabra: el motivo decía «con el cuerpo», y ese test comprueba que a un titular en español sin cuerpo se le da el motivo del idioma, no el de que falta el cuerpo. El mensaje pasó a «con el artículo», sin tocar el test. 608 tests.
+- **`eval_ta1c --como-produccion`** (TA1C `validation`): el tono responde en los 700 tuits, y **el veredicto no cambia**, porque el tono no vota: 0,665 (P 0,938, R 0,515), con el mismo reparto que en #242.
+
+#### Lo que queda
+
+- **F (#234)**: la RAM de la máquina 1 con un modelo más que precalentar, la revisión de los horneados (éste, `cf991100d706`), los docstrings y las 26 consultas, y el despliegue.
+- **#217**: titular y cuerpo en idiomas distintos.
+- **Sin medir**: si la incoherencia en español separaría con otro modelo o leyendo más del artículo, y si el tono acierta en español.
+- **No está en producción**: la máquina 1 sirve `24e02ca`.
+
+| Condiciones | |
+|---|---|
+| Fecha | 2026-10-09, en hora de Madrid: `eval_incoherencia_es` a las 15:02, y `eval_ta1c` a las 21:26 |
+| Máquina | El PC de sobremesa del autor: WSL2 (Ubuntu 24.04.4), Python 3.12.3, en la GeForce GTX 1650 SUPER |
+| Versiones | sentence-transformers 5.6.0, transformers 5.12.0, torch 2.12.1+cu130 |
+| Modelos | Incoherencia: `sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2` `e8f8c211226b`. Tono: `lxyuan/distilbert-base-multilingual-cased-sentiments-student` `cf991100d706` |
+| Código | `334ba98` para `eval_incoherencia_es`; `eval_ta1c`, con la ficha del tono antes de commitearla (entra en esta PR) |
+| Guiones | `backend/evaluation/eval_incoherencia_es.py` (sus similitudes, en `var/incoherencia_es/`, locales y sin versionar) y `backend/evaluation/eval_ta1c.py --como-produccion` |
 
 
 

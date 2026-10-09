@@ -87,8 +87,8 @@ async def test_una_salida_de_texto_llega_envuelta_en_result(monkeypatch, servido
 
     assert resultado.status == ExecuteStatus.OK
     # Las cinco fichas en inglés, y en español la del lineal (#231) y la de la
-    # dedicada (#242).
-    assert len(resultado.data["result"]) == 7
+    # dedicada (#242) y la del tono (#233).
+    assert len(resultado.data["result"]) == 8
 
 
 # ----- La herramienta se ejecuta y falla: 200 con status error -----
