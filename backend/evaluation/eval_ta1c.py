@@ -23,7 +23,7 @@ entonces: desde #231 el lineal es bilingüe y las mayúsculas con tilde cuentan.
 Con `--como-produccion` (#231) le pasa en cambio el idioma que detecta
 `core.idioma`, como hace `analyze()`: es el sistema de verdad sobre el
 español, con las señales que lo analizan —desde #231, el lineal— y las demás
-en `not_applicable`. Cada señal que gane el español (#232, #233) cambia esta
+en `not_applicable`. Cada señal que gane el español (#242, #233) cambia esta
 cifra, y no la de arriba.
 
 Sobre `validation` (700), no sobre `test`, que queda para elegir los modelos del
