@@ -1,13 +1,15 @@
 """La configuración del sistema, leída del entorno o del `.env`.
 
 Una clase, `Settings`, y una instancia, `settings`, que se valida AL IMPORTAR:
-si falta una clave de API, el proceso no arranca. Que se lea del entorno es lo
-que permite dar los secretos en despliegue sin escribirlos en el código ni en
-la imagen (con compose, por `env_file`).
+si falta una clave obligatoria, el proceso no arranca. Que se lea del entorno
+es lo que permite dar los secretos en despliegue sin escribirlos en el código
+ni en la imagen (con compose, por `env_file`).
 
-Las claves son campos obligatorios, y eso tiene una consecuencia fuera de este
-fichero: los detectores NLP no pueden importarlo, porque dejarían de poder
-importarse sin un `.env`. Lo vigila `tests/test_arquitectura.py`.
+Las claves de Guardian, NYT y Hugging Face son campos obligatorios, y eso tiene
+una consecuencia fuera de este fichero: los detectores NLP no pueden
+importarlo, porque dejarían de poder importarse sin un `.env`. Lo vigila
+`tests/test_arquitectura.py`. Las de las noticias en español (#235) son
+opcionales: sin ellas sólo falla su herramienta, y lo dice.
 
 Cada campo lleva al lado el motivo de su valor por defecto. Desde el entorno,
 las listas y los diccionarios se pasan como JSON.
@@ -79,6 +81,12 @@ class Settings(BaseSettings):
     guardian_api_key: SecretStr  # PS mapea automáticamente
     nyt_api_key: SecretStr
     hf_token: SecretStr
+    # Las de las noticias en español (#235), OPCIONALES a diferencia de las de
+    # arriba: que falte una no debe tumbar el análisis, que es el centro del
+    # sistema. Sin ella, su herramienta responde que no está configurada, y un
+    # despliegue cuyo `.env` no las tenga sigue arrancando.
+    gnews_api_key: SecretStr | None = None
+    newsdata_api_key: SecretStr | None = None
     # DÓNDE corren los modelos: en el propio proceso o en la Inference API de
     # Hugging Face. El defecto era `remote` hasta #236: la vía remota no sirve la
     # dedicada (400 desde septiembre, #127) y, desde que Hugging Face retiró el
