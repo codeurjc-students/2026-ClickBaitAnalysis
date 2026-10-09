@@ -838,26 +838,28 @@ def test_cada_senal_tiene_ficha_en_ingles_y_el_hueco_no_cambia_con_el_idioma():
 
 
 def test_la_ficha_y_el_modelo_se_piden_por_idioma(monkeypatch):
-    """Hoy tienen ficha en español el lineal (#231) y la dedicada (#242); el
-    tono, no. Con una de prueba, cada idioma da la suya y el modelo inglés no se
-    cuela en español."""
-    assert model_cards.ficha_declarada("analyze_sentiment", ESPANOL) is None
+    """Hoy tienen ficha en español el lineal (#231), la dedicada (#242) y el
+    tono (#233); la incoherencia, no. Con una de prueba, cada idioma da la suya
+    y el modelo inglés no se cuela en español."""
+    senal = "detect_clickbait_incoherence"
+    assert model_cards.ficha_declarada(senal, ESPANOL) is None
     with pytest.raises(ValueError, match="no tiene ficha en español"):
-        model_cards.model_id_de("analyze_sentiment", ESPANOL)
+        model_cards.model_id_de(senal, ESPANOL)
 
-    inglesa = model_cards.ficha_declarada("analyze_sentiment", INGLES)
+    inglesa = model_cards.ficha_declarada(senal, INGLES)
     assert inglesa is not None
     espanola = {**inglesa, "language": ESPANOL, "model_id": "prueba/multilingue"}
     monkeypatch.setattr(
         model_cards, "MODEL_CARDS", [*model_cards.MODEL_CARDS, espanola]
     )
 
-    assert model_cards.model_id_de("analyze_sentiment", ESPANOL) == "prueba/multilingue"
-    assert model_cards.model_id_de("analyze_sentiment", INGLES) == inglesa["model_id"]
+    assert model_cards.model_id_de(senal, ESPANOL) == "prueba/multilingue"
+    assert model_cards.model_id_de(senal, INGLES) == inglesa["model_id"]
     assert set(model_cards.fichas_en(ESPANOL)) == {
         "detect_clickbait",
         "detect_clickbait_linear",
         "analyze_sentiment",
+        senal,
     }
 
 
@@ -1349,9 +1351,9 @@ SENALES_SUELTAS = [
     "detect_clickbait_lexical",
     "detect_clickbait_linear",
 ]
-# Las que analizan el español por su ficha: el lineal, bilingüe desde #231, y
-# la dedicada, con su modelo en español desde #242.
-ANALIZAN_ESPANOL = {"detect_clickbait_linear", "detect_clickbait"}
+# Las que analizan el español por su ficha: el lineal, bilingüe desde #231, la
+# dedicada, con su modelo en español desde #242, y el tono, desde #233.
+ANALIZAN_ESPANOL = {"detect_clickbait_linear", "detect_clickbait", "analyze_sentiment"}
 SIN_ESPANOL = [senal for senal in SENALES_SUELTAS if senal not in ANALIZAN_ESPANOL]
 
 
@@ -1540,7 +1542,7 @@ def test_en_ingles_el_cuerpo_se_compara():
         (senal, idioma, nombre)
         for senal in SENALES_SUELTAS
         for idioma, nombre in FUERA_DEL_INGLES
-        # El lineal y la dedicada analizan el español: ese par no tiene motivo.
+        # Las que analizan el español por su ficha: ese par no tiene motivo.
         if not (senal in ANALIZAN_ESPANOL and idioma == ESPANOL)
     ],
 )
@@ -1589,34 +1591,31 @@ def test_el_espanol_se_activa_por_configuracion_solo_en_los_modelos(monkeypatch)
 def test_un_modelo_en_espanol_sin_ficha_se_publica_como_experimento(monkeypatch):
     """Con el hueco de su ficha inglesa y sin medidas: las de la inglesa son de
     otro modelo y de otro idioma. La inglesa no cambia."""
-    monkeypatch.setattr(
-        settings, "nlp_models_es", {"analyze_sentiment": "prueba/tono-multilingue"}
-    )
-    inglesa = model_cards.ficha_declarada("analyze_sentiment", INGLES)
+    senal = "detect_clickbait_incoherence"
+    monkeypatch.setattr(settings, "nlp_models_es", {senal: "prueba/multilingue"})
+    inglesa = model_cards.ficha_declarada(senal, INGLES)
     assert inglesa is not None
 
-    ficha = ficha_efectiva("analyze_sentiment", ESPANOL)
+    ficha = ficha_efectiva(senal, ESPANOL)
 
     assert ficha["language"] == ESPANOL
-    assert ficha["model_id"] == "prueba/tono-multilingue"
-    assert get_model_id("analyze_sentiment", ESPANOL) == "prueba/tono-multilingue"
+    assert ficha["model_id"] == "prueba/multilingue"
+    assert get_model_id(senal, ESPANOL) == "prueba/multilingue"
     assert ficha["limitations"][0].startswith("SIN EVALUAR EN ESTE PROYECTO")
     assert "español" in ficha["limitations"][0]
     assert (ficha["dimension"], ficha["type"]) == (
         inglesa["dimension"],
         inglesa["type"],
     )
-    assert ficha_efectiva("analyze_sentiment", INGLES) == _sin_notas_de_operacion(
-        inglesa
-    )
+    assert ficha_efectiva(senal, INGLES) == _sin_notas_de_operacion(inglesa)
 
 
 def test_en_un_idioma_que_no_analiza_no_hay_ficha_ni_modelo():
     """Un error de quien llama, no un inglés silencioso: la puerta va antes."""
     with pytest.raises(ValueError, match="no analiza titulares en español"):
-        ficha_efectiva("analyze_sentiment", ESPANOL)
+        ficha_efectiva("detect_clickbait_incoherence", ESPANOL)
     with pytest.raises(ValueError, match="no tiene ficha en español"):
-        get_model_id("analyze_sentiment", ESPANOL)
+        get_model_id("detect_clickbait_incoherence", ESPANOL)
 
 
 def test_la_dedicada_analiza_el_espanol_con_su_modelo(monkeypatch):
@@ -1634,6 +1633,49 @@ def test_la_dedicada_analiza_el_espanol_con_su_modelo(monkeypatch):
     ficha = ficha_efectiva("detect_clickbait", ESPANOL)
     assert ficha["model_id"] == "ggcastle/beto-clickbait-es"
     assert not any("SIN EVALUAR" in limite for limite in ficha["limitations"])
+
+
+def test_el_tono_analiza_el_espanol_con_su_modelo(monkeypatch):
+    """#233: un modelo multilingüe con licencia Apache-2.0, por su ficha y sin
+    configurar nada. No se ha evaluado aquí, y su ficha lo dice, pero no es un
+    experimento: es el declarado."""
+    monkeypatch.setattr(settings, "nlp_models_es", {})
+
+    assert idiomas_de("analyze_sentiment") == [INGLES, ESPANOL]
+    assert motivo_si_no_se_analiza("analyze_sentiment", ESPANOL) is None
+    assert (
+        get_model_id("analyze_sentiment", ESPANOL)
+        == "lxyuan/distilbert-base-multilingual-cased-sentiments-student"
+    )
+    ficha = ficha_efectiva("analyze_sentiment", ESPANOL)
+    assert not any(
+        "SIN EVALUAR EN ESTE PROYECTO" in limite for limite in ficha["limitations"]
+    )
+
+
+def test_la_incoherencia_en_espanol_da_su_motivo_medido_y_se_puede_configurar(
+    monkeypatch,
+):
+    """#233 midió un modelo multilingüe en TA1C y no separa: el motivo lo dice,
+    en vez del «aún no lo analiza» genérico. Pero no es una decisión, como la
+    del léxico: con un modelo puesto por configuración, se analiza como
+    experimento (#230)."""
+    monkeypatch.setattr(settings, "nlp_models_es", {})
+
+    motivo = motivo_si_no_se_analiza("detect_clickbait_incoherence", ESPANOL)
+    assert motivo is not None
+    assert "TA1C" in motivo
+    assert "aún no lo analiza" not in motivo
+    assert idiomas_de("detect_clickbait_incoherence") == [INGLES]
+
+    monkeypatch.setattr(
+        settings,
+        "nlp_models_es",
+        {"detect_clickbait_incoherence": "prueba/multilingue"},
+    )
+
+    assert idiomas_de("detect_clickbait_incoherence") == [INGLES, ESPANOL]
+    assert motivo_si_no_se_analiza("detect_clickbait_incoherence", ESPANOL) is None
 
 
 def test_el_umbral_del_espanol_es_el_suyo_o_el_del_detector(monkeypatch):
