@@ -67,7 +67,7 @@ UNA FICHA POR SEÑAL E IDIOMA (#230)
 Una señal analiza un idioma si tiene un modelo para él, y cada modelo trae sus
 límites medidos, así que la ficha es por señal e idioma: ``language`` dice de
 cuál. Toda señal tiene la suya en inglés; en español, sólo las que tengan
-modelo propio (C–E de ``v0.8``). Lo que describe el HUECO —la dimensión y el
+modelo propio (C, H y E de ``v0.8``). Lo que describe el HUECO —la dimensión y el
 tipo— es el mismo en todos los idiomas, y un test lo exige: el veredicto
 agrega por dimensión, y una señal no puede medir otra cosa según el idioma.
 """
@@ -141,7 +141,7 @@ MODEL_CARDS: list[FichaDeclarada] = [
         "dimension": "form",
         "limitations": [
             "Caja negra: sin explicación intrínseca (post-hoc opcional, R3.11).",
-            "Solo inglés. Entrenado sobre `postText` de Webis-17, es decir TUITS de medios, no titulares de portada.",
+            "Solo inglés: el español lo analiza otro modelo, afinado en este proyecto (#242), con su ficha aparte. Entrenado sobre `postText` de Webis-17, es decir TUITS de medios, no titulares de portada.",
             "INDEPENDENCIA DESCONOCIDA, que no es lo mismo que buena: en Chakraborty coincide mucho con el par acoplado (kappa 0.726 con el léxico y 0.772 con el lineal), pero ahí tres clasificadores competentes coinciden por fuerza, así que ese número no informa. Medirla bien exige un corpus con etiqueta humana que el modelo no haya visto — candidato en #121: Webis-Clickbait-16.",
             "SPLIT DE ENTRENAMIENTO DESCONOCIDO: su ficha dice «Webis-Clickbait-17» sin precisar cuál de los dos splits, que son disjuntos. Medido en ambos: F1 0.631 en `train170331` (2459) y 0.758 en `validation170630` (19484). Ninguno de los dos se parece a la puntuación de un modelo evaluado sobre su propio entrenamiento, así que NO se afirma contaminación — pero tampoco se descarta que viera uno de ellos.",
             "Sustituye a `facebook/bart-large-mnli` (#115), elegido en E3-02 por eliminación y medido en #109 al 63.7%. La sustitución sí se decidió por medida: F1 0.946 en Chakraborty — corpus que NO vio — frente al 0.473 del anterior, y con la ambigüedad de `forma` cayendo del 37% al 15%.",
@@ -266,6 +266,29 @@ MODEL_CARDS: list[FichaDeclarada] = [
             "Sin acuerdo con el léxico que medir: el léxico no analiza español.",
         ],
         "operation": [],
+        "backend": "local",
+    },
+    {
+        "signal": "detect_clickbait",
+        "language": ESPANOL,
+        "model_id": "ggcastle/beto-clickbait-es",
+        "name": "BETO afinado en TA1C (entrenado en este proyecto)",
+        "task": "Clasifica el titular como clickbait vs factual con un modelo afinado específicamente para esta tarea.",
+        "type": "opaque",
+        "dimension": "form",
+        "limitations": [
+            "Caja negra: sin explicación intrínseca (post-hoc opcional, R3.11).",
+            "Medido en TA1C test (#242), tuits en español, abierto una vez: F1 0.838 (P 0.899, R 0.784, AUC 0.951), frente a 0.674 del lineal sobre los mismos tuits y 0.84 de BETO afinado según los autores del corpus.",
+            "Afinado por este proyecto (#242) desde BETO cased (`dccuchile/bert-base-spanish-wwm-cased`) con los 2.100 tuits de TA1C train, quitando al entrenar las marcas del medio (enlaces, cuentas, etiquetas, corchetes y barras). La receta y la elección de la semilla se fijaron antes de medir. Publicado con su ficha y licencia CC BY 4.0, la de BETO.",
+            "RIESGO DE FUENTE acotado, no descartado: los 18 medios de TA1C están en las tres partes, así que test pregunta por medios que ya vio. Con medios fuera (seis pliegues de tres medios, entrenando con los otros quince) da F1 0.808 frente a 0.570 del lineal, el mismo nivel que en validation (0.803): reconocer al medio pesa poco. La limpieza al entrenar casi no cambia el F1 (0.796 limpiando y 0.807 sin limpiar, media de tres semillas en validation).",
+            "TA1C son tuits con los que 18 medios de 12 países anuncian una noticia, no titulares de portada: fuera de ese registro, sin medir.",
+            "Aprendió de TA1C, como el lineal: si los dos aciertan por la misma pista, su acuerdo no son dos pruebas. Su independencia, sin medir.",
+            "Solo español: el inglés lo analiza otro modelo, con su ficha aparte.",
+        ],
+        "operation": [
+            "SIN VÍA REMOTA, como la inglesa: ningún proveedor de Hugging Face lo sirve (`inferenceProviderMapping` vacío, comprobado el 2026-10-09), y desde el 7 oct 2026 la vía remota exige crédito (#236).",
+            "La vía local DEPENDE DE `torch`, que `requirements.txt` no trae, como la inglesa; la imagen lo instala (#162). Lo hornea `docker/hornear_modelos.py` desde un repositorio público, sin token: unos 440 MB más. En CPU (Ryzen 5 5600G, 6 hilos), 0.076 s por titular (mediana) y 0.103 s el p95.",
+        ],
         "backend": "local",
     },
 ]

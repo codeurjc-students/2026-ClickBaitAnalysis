@@ -86,8 +86,9 @@ async def test_una_salida_de_texto_llega_envuelta_en_result(monkeypatch, servido
     resultado = await _ejecutar(monkeypatch, servidor_mcp, "describe_models", {})
 
     assert resultado.status == ExecuteStatus.OK
-    # Las cinco fichas en inglés, y la del lineal en español (#231).
-    assert len(resultado.data["result"]) == 6
+    # Las cinco fichas en inglés, y en español la del lineal (#231) y la de la
+    # dedicada (#242).
+    assert len(resultado.data["result"]) == 7
 
 
 # ----- La herramienta se ejecuta y falla: 200 con status error -----

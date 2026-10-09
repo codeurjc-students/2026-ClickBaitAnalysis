@@ -8703,7 +8703,7 @@ Al ir a medirlo, XLM-R no cargó. Su repositorio sólo trae el modelo de Sentenc
 
 - **C (#231)**: el lineal en español. Su F1 en `test` es el listón de D. *(Hecho en #231: 0,674 en TA1C `test`. Ver «El lineal, bilingüe: el primer veredicto en español».)*
 - **Después de C**: abrir `test` una vez con la elegida y aplicar la regla. Con lo visto en `validation`, lo esperable es que no pase. Entonces quedan las dos salidas que ya preveía la issue:
-  - afinar un modelo en español con TA1C en la A40, que exige publicar los pesos en el Hub (en el artículo de TA1C, BETO afinado da 0,84 en `test`);
+  - afinar un modelo en español con TA1C en la A40, que exige publicar los pesos en el Hub (en el artículo de TA1C, BETO afinado da 0,84 en `test`); *(Hecho en #242, en la GTX: 0,838 en `test`, y publicado como `ggcastle/beto-clickbait-es`. Ver «La dedicada en español: BETO afinado con TA1C».)*
   - o que la dedicada no aplique en español, y la forma quede sólo con el lineal. *(Se abrió el 9 oct: 0,450, no se queda, y el autor eligió la primera, en #242. Ver «La dedicada en español: el zero-shot no llega al lineal, y se afinará un modelo».)*
 - **Si algún día hace falta la plantilla española**, la invocación de #159 tendrá que ganar un campo `template`. Hoy no hace falta.
 
@@ -8798,7 +8798,7 @@ El medio solo predice bastante, y eso confirma el riesgo. Pero el lineal le saca
 | Incoherencia | 0,019 | 0,019 | no aplica |
 | **Veredicto** | 0,038 | 0,065 | **0,611** (P 0,714 · R 0,534) |
 
-- **Un titular en español tiene ya un veredicto que vale algo**: F1 0,611, que sale casi entero del lineal, la única señal que lo analiza. Reparto: `factual` 77,9 % y `stylistic_clickbait` 22,0 %. Un tuit se detectó como inglés, y en él votaron las demás.
+- **Un titular en español tiene ya un veredicto que vale algo**: F1 0,611, que sale casi entero del lineal, la única señal que lo analiza. Reparto: `factual` 77,9 % y `stylistic_clickbait` 22,0 %. Un tuit se detectó como inglés, y en él votaron las demás. *(Revisado en #242: con la dedicada en español, 0,665, con P 0,938 y R 0,515. Ver «La dedicada en español: BETO afinado con TA1C».)*
 - **La columna del medio es la mejor prueba de por qué hacía falta la puerta del idioma.** Con el mismo lineal, si las señales inglesas votan sobre el español, el veredicto se hunde a 0,065: la dedicada y el léxico dicen «no» y parten la dimensión de forma (34,7 % `ambiguous`). Un modelo inglés sobre español no es neutro: estropea el veredicto.
 - Sin el flag, el guion mide lo mismo que en #229 pero con las señales de hoy, así que ya no da las cifras de entonces. El léxico sube de 0,223 a 0,230 por las mayúsculas con tilde.
 
@@ -8874,8 +8874,8 @@ La regla de #242 pide las dos cosas: llegar al 0,674 en `test` y, con medios fue
 
 #### Lo que queda
 
-- **H (#242)**: BETO afinado con TA1C, con su regla publicada antes de medir.
-- **Mientras tanto, la dedicada no analiza el español**, con el motivo de #230 («esta señal aún no lo analiza»), que sigue siendo cierto.
+- **H (#242)**: BETO afinado con TA1C, con su regla publicada antes de medir. *(Hecho en #242: se queda, con 0,838 en `test` y 0,808 con medios fuera. Ver «La dedicada en español: BETO afinado con TA1C».)*
+- **Mientras tanto, la dedicada no analiza el español**, con el motivo de #230 («esta señal aún no lo analiza»), que sigue siendo cierto. *(Ya no desde #242: la analiza BETO afinado. Ver «La dedicada en español: BETO afinado con TA1C».)*
 - **La plantilla española, y `sentencepiece` y `protobuf`, no hacen falta**: XLM-R no se queda, y los dos paquetes siguen sólo en el entorno de desarrollo.
 
 | Condiciones | |
@@ -8949,6 +8949,115 @@ El mismo titular llega a veces dos veces: con `qInTitle`, «Medio millón de pin
 | APIs | GNews v4 y NewsData.io (`/api/1/latest`), planes gratuitos, con las claves del autor |
 | Código | Sobre `dev` en `94a65e6`; el spike, los clientes y las herramientas entran en esta PR |
 | Guiones | `spikes/noticias_es.py` (`todo`: unas cuatro peticiones a cada API; `busqueda`: seis créditos de NewsData.io) y `spikes/catalogo_peso.py` |
+
+### La dedicada en español: BETO afinado con TA1C (#242, 9 oct 2026)
+
+En #232 ningún zero-shot multilingüe llegó al lineal en español (XLM-R, 0,450 en TA1C `test` frente a 0,674), y el autor eligió afinar un modelo propio con TA1C: la H de `v0.8`. Los autores del corpus publican BETO afinado con 0,84 en `test`. Antes de elegir se le explicó el riesgo de fuente —los 18 medios están en las tres partes de TA1C, así que un modelo puede acertar reconociendo al medio—, y eligió dos acotaciones: limpiar las marcas del medio al entrenar y validar con medios fuera. **Se queda**: 0,838 en `test` y 0,808 con medios que no ha visto, frente a 0,674 y 0,570 del lineal.
+
+#### La regla, antes de medir
+
+Publicada en la issue antes de entrenar nada ([comentario](https://github.com/codeurjc-students/2026-ClickBaitAnalysis/issues/242#issuecomment-6078300768)), con el guion ya commiteado (`f4f9617`):
+
+- **El modelo**: BETO cased (`dccuchile/bert-base-spanish-wwm-cased`, revisión `c4d86612f51b`), afinado con los 2.100 tuits de TA1C `train` en la GTX, con un bucle propio en PyTorch (el `.venv` no tiene `accelerate`). AdamW con tasa 2e-5 y decaimiento 0,01, lote 16, tres épocas, calentamiento lineal del 10 %, recorte del gradiente a 1 y fp16. Vota la etiqueta más probable, como la dedicada inglesa.
+- **128 tokens, no los 64 que decía la issue**: con 64 se cortaba uno de cada siete tuits de `train`, y producción recibe el tuit entero. Se contó al escribir la regla, con un guion que no se versionó; las cifras están en el comentario.
+- **Cabe en la GTX sin partir el lote**: la parte `memoria`, 20 pasos con los tuits más largos de `train`, dio un pico de 2.204 MiB asignados (2.496 reservados) de 4.096.
+- **La limpieza, sólo al entrenar**: se quitan los enlaces, las cuentas (`@…`), las etiquetas (`#…`), los corchetes y las barras «|», que es donde los tuits llevan las marcas del medio. No usa ninguna lista de medios, así que vale igual para uno que no se ha visto. Producción recibe el titular tal cual, y así se mide todo.
+- **La semilla**: tres, cada una entrenada limpia y tal cual. Se elige la de mejor F1 entrenada limpia y medida con la entrada tal cual, la configuración de producción; en un empate, la menor. La entrenada tal cual sólo mide cuánto pesaba el atajo.
+- **Se queda si se cumplen las dos**: (a) su F1 en TA1C `test`, abierto una sola vez, es al menos 0,674, el del lineal (#231); y (b) con medios fuera supera al lineal medido igual. Sin mirar el ruido: el intervalo de las diferencias, por bootstrap emparejado como en #78, es sólo información.
+
+#### `validation`: la semilla 0
+
+TA1C `validation` (700 tuits, 29,4 % clickbait; votar siempre «clickbait» da 0,455). F1 de cada semilla, según cómo se entrenó y cómo entra el tuit:
+
+| Semilla | Limpia · tal cual (producción) | Limpia · limpia | Tal cual · tal cual | Tal cual · limpia |
+|---|---|---|---|---|
+| 0 | **0,803** (P 0,849 · R 0,762) | 0,806 | 0,802 | 0,794 |
+| 1 | 0,794 | 0,803 | 0,807 | 0,805 |
+| 2 | 0,792 | 0,789 | 0,813 | 0,818 |
+| *El lineal de producción (umbral 0,35)* | *0,609* (P 0,710 · R 0,534) | | | |
+
+- **La regla elige la semilla 0.** Las doce combinaciones van de 0,789 a 0,818, con AUC de 0,938 a 0,949; el lineal, 0,795.
+- **Limpiar casi no cambia nada aquí**: con la entrada tal cual, la media de las tres semillas es 0,796 entrenando limpio y 0,807 sin limpiar, una diferencia menor que la que hay de una semilla a otra. En `validation` están los mismos medios que en `train`, así que esto no mide todavía el riesgo de fuente.
+- Cada entrenamiento, entre 534 y 686 s en la GTX, con un pico de 2.144 a 2.214 MiB.
+- **Los pesos de cada semilla se guardan** (`var/dedicada_es/modelos/`): entrenar en la GPU no repite el modelo bit a bit, así que lo que se mide, y después se publica, es ese fichero, no una receta para rehacerlo.
+
+#### Medios fuera: la parte (b)
+
+Seis pliegues de tres medios sobre `train` y `validation` (2.800 tuits). En cada uno se entrenan BETO (la semilla 0, limpio) y el lineal (como en producción: Chakraborty, `train170331` y la parte de TA1C del pliegue) con los otros quince medios, y se miden en esos tres:
+
+| Pliegue: los medios fuera | Tuits | BETO | Lineal |
+|---|---|---|---|
+| 1: Clarín, El Comercio, El Universal México | 575 | 0,715 | 0,511 |
+| 2: infobae, El Tiempo, El País | 554 | 0,821 | 0,517 |
+| 3: El País Madrid, Diario Libre, La Prensa Gráfica | 445 | 0,750 | 0,537 |
+| 4: El Mundo, La Tercera, La Nación | 418 | 0,788 | 0,574 |
+| 5: Prensa Libre, El Comercio Perú, La Vanguardia | 409 | 0,892 | 0,701 |
+| 6: abc, El Universal Venezuela, BBC | 399 | 0,866 | 0,608 |
+| **Los seis juntos** | 2.800 | **0,808** (P 0,807 · R 0,808 · AUC 0,940) | **0,570** (P 0,643 · R 0,512 · AUC 0,762) |
+
+- **(b) se cumple**, y en los seis pliegues: +0,238, con un intervalo de [+0,207, +0,269].
+- **Con medios que no ha visto, BETO no cae**: 0,808, el mismo nivel que en `validation` (0,803). El lineal sí baja (de 0,609 a 0,570, y su AUC de 0,795 a 0,762). Es una lectura, no una medida del atajo: los dos conjuntos no son los mismos. Pero sugiere que BETO apenas se apoya en reconocer al medio, y el lineal algo más (#231 ya le vio pesos como `euvzla` o `diariolibre`).
+
+#### `test`, una vez: la parte (a), y se queda
+
+| TA1C `test` (700 tuits, 29,1 % clickbait) | P | R | F1 | AUC |
+|---|---|---|---|---|
+| BETO, semilla 0 | 0,899 | 0,784 | **0,838** | 0,951 |
+| El lineal de producción (umbral 0,35) | 0,756 | 0,608 | 0,674 | 0,848 |
+
+- **(a) se cumple**: 0,838 frente a 0,674, +0,164 con un intervalo de [+0,113, +0,217]. Con (b), **se queda**.
+- **Reproduce el 0,84 que publican los autores de TA1C**, aun entrenando sin cuentas, etiquetas ni nombres de medio.
+- Antes de medir, la paridad: en 30 titulares de `test`, el modelo guardado da en `dedicated.detect` la misma etiqueta que en el guion. Lo medido es la señal, y sus etiquetas (`Clickbait`, `Not Clickbait`) son las que `dedicated` ya traduce: no hay que configurarlas.
+- ⚠️ **TA1C `test` lleva ya tres aperturas**: el lineal (#231), el zero-shot (#232) y ésta, cada una con un modelo distinto y su regla publicada antes. Ninguno se ajustó mirándolo. `eval_dedicada_es test` no se puede reabrir: con su `test.json` delante, enseña lo guardado.
+
+**En CPU**, como producción (Ryzen 5 5600G, 6 hilos, 100 titulares de uno en uno): 0,076 s por titular de mediana y 0,103 s el p95, con 0,5 s de carga desde la carpeta local y la caché de disco caliente. Clasifica en una sola pasada; el zero-shot de #232 con un modelo de la misma base tardaba 0,16 s, porque evalúa una hipótesis por cada etiqueta.
+
+#### Publicado en el Hub, a nombre del autor
+
+- **La licencia.** La ficha de BETO en el Hub no declara ninguna, pero su repositorio (`dccuchile/beto`) trae un `LICENSE` CC BY 4.0, con un aviso: sus autores no pueden asegurar que todos los textos con que se entrenó sean compatibles con esa licencia, sobre todo para uso comercial. Un TFG no lo es. TA1C es MIT en su repositorio. El modelo se publica con CC BY 4.0, con la atribución a los dos, lo que se cambió y el aviso de BETO repetido.
+- **La parte `carpeta`** prepara en `var/dedicada_es/publicar/` los cuatro ficheros de la semilla 0, tal cual se midieron, y su ficha (`README.md`, en español). La ficha se escribe con las cifras de lo guardado, recalculadas, y la carpeta sólo se prepara si la regla se cumplió.
+- **Publicado como [`ggcastle/beto-clickbait-es`](https://huggingface.co/ggcastle/beto-clickbait-es)** (revisión `03c31ac0c288`), público, para que la imagen lo hornee sin token, como los demás modelos. Lo subió el autor con un token de escritura propio: el del `.env` es de lectura, y los secretos no pasan por el chat. Comprobado desde la API pública, sin token: los cinco ficheros, y los pesos con el mismo sha256 que la carpeta local (`5c82e831bcb6`). **Ningún proveedor lo sirve en remoto** (`inferenceProviderMapping` vacío), como a la dedicada inglesa: sólo vía local.
+- ⚠️ **El `hf` del `.venv` está roto**: con `huggingface_hub` 1.16.1 y su `typer`, cualquier orden falla al leer sus opciones (`AttributeError: 'Sentinel' object has no attribute 'strip'`), también `hf auth login`. Se subió con la API de Python (`HfApi(token=getpass(…)).upload_folder(…)`), que no guarda el token en disco. No se arregló: no hace falta para nada más.
+
+#### En el sistema
+
+- **La ficha en español de `detect_clickbait`**, en `model_cards.py`, con su `model_id`, sus medidas y sus límites, y las notas de operación (`torch`, sin vía remota). **Basta con ella**: la factoría la lee para decidir que la señal analiza el español y con qué modelo, y `hornear_modelos.py` la recorre como a las demás. Ni la factoría ni el `Dockerfile` cambian; la imagen lleva 439 MB más de pesos.
+- **Doce tests fijaban el estado de antes** —la dedicada sin español, o cuántas fichas hay— y se cambiaron con el visto bueno del autor; los que usaban la dedicada como ejemplo de señal sin español pasan al tono, que no lo tendrá hasta E (#233). Uno nuevo: la dedicada analiza el español por su ficha, con este modelo. 608 tests.
+- **Lo publicado es lo medido, también por el camino de producción**: `eval_ta1c --como-produccion`, que descarga el modelo del Hub por su id y pasa por el orquestador, da para la dedicada en `validation` exactamente lo de la carpeta local (0,803, P 0,849, R 0,762).
+
+#### El veredicto en español
+
+| TA1C `validation`, como producción | P | R | F1 |
+|---|---|---|---|
+| Antes, sólo con el lineal (#231) | 0,714 | 0,534 | 0,611 |
+| **Con la dedicada** | **0,938** | 0,515 | **0,665** |
+
+Sube, pero menos que la dedicada sola (0,803). En español la forma tiene ahora dos votos: cuando coinciden en «sí», el veredicto es `stylistic_clickbait`; cuando discrepan, la forma queda dividida y el veredicto es `ambiguous`, que no cuenta como clickbait. Es la regla de siempre —una dimensión dividida se enseña, no se resuelve a favor de una señal—, y no se ha tocado. `spikes/veredicto_es_discrepancias.py` mira qué hay dentro de cada veredicto:
+
+| Veredicto | Tuits | Clickbait según las personas |
+|---|---|---|
+| `factual` (los dos dicen «no») | 473 | 45 (9,5 %) |
+| `ambiguous` (discrepan) | 114 | 55 (48,2 %) |
+| `stylistic_clickbait` (los dos dicen «sí») | 113 | 106 (93,8 %) |
+
+- **Cuando discrepan, acierta la dedicada en 89 de 114.** Si dice «sí» y el lineal «no» (72 casos), acierta en 51; si es al revés (42), en 38.
+- Los ambiguos son, casi a partes iguales, clickbait y no clickbait (48,2 %): no esconden un sesgo, son la discrepancia entre una señal fuerte y otra débil, y el sistema la enseña. Dar más peso a la dedicada sería cambiar la regla del veredicto, también para el inglés: no se ha decidido.
+- El léxico y el tono votan en un tuit de 700, que el detector toma por inglés, como en #231.
+
+#### Lo que queda
+
+- **F (#234)**: fijar la revisión de los modelos horneados, éste incluido (`03c31ac0c288`); la RAM en la máquina 1 con un modelo más que precalentar; los docstrings que dicen «pensada para inglés», con las 26 consultas; y el despliegue.
+- **Sin medir**: la independencia entre BETO y el lineal. Los dos aprendieron de TA1C, y si coinciden por la misma pista, su acuerdo no son dos pruebas.
+- **No está en producción**: la máquina 1 sirve `24e02ca`.
+
+| Condiciones | |
+|---|---|
+| Fecha | 2026-10-09, en hora de Madrid: `memoria` antes de las 11:34; `validation` de 11:34 a 12:37; `medios-fuera` de 12:38 a 13:38; `test` a las 13:45; `tiempo` a las 13:50; después, `carpeta` y la subida al Hub; `eval_ta1c` a las 14:13 y el desglose a las 14:17 |
+| Máquina | El PC de sobremesa del autor: WSL2 (Ubuntu 24.04.4), Python 3.12.3. Entrenar y medir, en la GeForce GTX 1650 SUPER (4.096 MiB, controlador 616.56, CUDA 13.0); `tiempo`, en la CPU (Ryzen 5 5600G, 6 hilos) |
+| Versiones | torch 2.12.1+cu130, transformers 5.12.0, scikit-learn 1.9.0, huggingface_hub 1.16.1 |
+| Modelos | Base: `dccuchile/bert-base-spanish-wwm-cased` `c4d86612f51b`. Publicado: `ggcastle/beto-clickbait-es` `03c31ac0c288` (pesos, sha256 `5c82e831bcb6`). El lineal, `linear_clickbait.json` de #231 (umbral 0,35) |
+| Código | `f4f9617` para `memoria`, `validation`, `medios-fuera`, `test` y `tiempo`; `27edb4f` para la ficha, `carpeta`, `eval_ta1c` (lanzado con ese código antes de commitearlo) y el desglose |
+| Guiones | `backend/evaluation/eval_dedicada_es.py` (`memoria`, `validation`, `medios-fuera`, `test`, `tiempo` y `carpeta`; sus cachés y los pesos, en `var/dedicada_es/`, locales y sin versionar), `backend/evaluation/eval_ta1c.py --como-produccion` y `spikes/veredicto_es_discrepancias.py` |
 
 
 

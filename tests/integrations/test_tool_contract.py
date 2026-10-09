@@ -119,9 +119,9 @@ async def test_describe_models_no_publica_las_notas_de_operacion(servidor_mcp):
 @pytest.mark.asyncio
 async def test_describe_models_publica_una_ficha_por_idioma(servidor_mcp, monkeypatch):
     """#230: una ficha por cada idioma que analiza cada señal, con la misma
-    regla que la puerta. Hoy, todas en inglés salvo la del lineal, bilingüe
-    desde #231; un modelo puesto por configuración en español añade la suya, y
-    sólo la suya."""
+    regla que la puerta. Hoy, todas en inglés, y en español la del lineal
+    (bilingüe desde #231) y la de la dedicada (#242); un modelo puesto por
+    configuración en español añade la suya, y sólo la suya."""
     from backend.config.settings import settings
 
     # Una sola sesión: la app sólo se puede arrancar una vez, y la
@@ -129,17 +129,18 @@ async def test_describe_models_publica_una_ficha_por_idioma(servidor_mcp, monkey
     async with sesion(servidor_mcp) as s:
         antes = (await s.call_tool("describe_models", {})).structuredContent["result"]
         monkeypatch.setattr(
-            settings, "nlp_models_es", {"detect_clickbait": "prueba/multilingue"}
+            settings, "nlp_models_es", {"analyze_sentiment": "prueba/multilingue"}
         )
         despues = (await s.call_tool("describe_models", {})).structuredContent["result"]
 
-    assert [ficha["signal"] for ficha in antes if ficha["language"] == "es"] == [
-        "detect_clickbait_linear"
-    ]
+    assert {ficha["signal"] for ficha in antes if ficha["language"] == "es"} == {
+        "detect_clickbait",
+        "detect_clickbait_linear",
+    }
     nuevas = [ficha for ficha in despues if ficha not in antes]
     assert [
         (ficha["signal"], ficha["language"], ficha["model_id"]) for ficha in nuevas
-    ] == [("detect_clickbait", "es", "prueba/multilingue")]
+    ] == [("analyze_sentiment", "es", "prueba/multilingue")]
 
 
 # ----- El eje éxito/fallo lo lleva el protocolo -----
