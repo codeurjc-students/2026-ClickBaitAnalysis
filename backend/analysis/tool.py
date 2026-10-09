@@ -54,7 +54,8 @@ def register(mcp: FastMCP):
         discrepan.
 
         Args:
-            headline: El titular a analizar, en inglés.
+            headline: El titular a analizar, en inglés o en español; en
+                español, el léxico y la incoherencia no se aplican.
             content: Cuerpo o teaser de la noticia. Opcional; sin él no se puede
                 evaluar la dimensión de engaño y esa señal queda como
                 `not_applicable`.

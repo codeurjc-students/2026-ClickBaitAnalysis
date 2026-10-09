@@ -14,7 +14,7 @@ from mcp.server.fastmcp.exceptions import ToolError
 from pydantic import ValidationError
 from structlog.testing import capture_logs
 
-from backend.config.settings import Settings, settings
+from backend.config.settings import ModeloConInvocacion, Settings, settings
 from backend.core.idioma import ESPANOL, INDETERMINADO, INGLES
 from backend.core.models import ToolResult
 from backend.integrations.nlp import dependencias, lexical, linear, model_cards
@@ -610,6 +610,7 @@ def test_model_cards_wellformed():
         "signal",
         "language",
         "model_id",
+        "revision",
         "name",
         "task",
         "type",
@@ -675,6 +676,49 @@ def test_model_id_es_id_de_maquina_o_None():
         assert isinstance(model_id, str) and model_id.strip()
         assert "/" in model_id, f"{card['signal']}: «{model_id}» no parece un id"
         assert model_id == model_id.strip()
+
+
+def test_cada_modelo_descargable_fija_su_revision():
+    """#234: la imagen hornea el commit de la ficha, no lo que haya en `main` el
+    día del build, y `hornear_modelos.py` se niega a hornear un modelo sin él.
+    Entero: la caché nombra cada instantánea por el hash completo, y `refs/main`
+    tiene que decir ése. Sin modelo descargable, `None`, como `model_id`."""
+    for ficha in model_cards.MODEL_CARDS:
+        revision = ficha["revision"]
+        if ficha["model_id"] is None:
+            assert revision is None, ficha["signal"]
+            continue
+        assert isinstance(revision, str), ficha["signal"]
+        assert len(revision) == 40, ficha["signal"]
+        assert set(revision) <= set("0123456789abcdef"), ficha["signal"]
+
+
+def test_otro_modelo_por_configuracion_no_publica_la_revision(monkeypatch):
+    """Un modelo puesto por configuración no se fija ni se hornea: publicar la
+    revisión de la ficha sería atarle unos pesos que no son los suyos."""
+    monkeypatch.setattr(settings, "nlp_models", {"detect_clickbait": "otra/cosa"})
+
+    assert ficha_efectiva("detect_clickbait", INGLES)["revision"] is None
+
+
+def test_el_mismo_modelo_llamado_de_otra_forma_conserva_la_revision(monkeypatch):
+    """Como zero-shot (#159) el modelo es otro experimento, pero los pesos son
+    los mismos: las medidas no se publican, y la revisión sí."""
+    declarada = model_cards.fichas_en(INGLES)["detect_clickbait"]
+    monkeypatch.setattr(
+        settings,
+        "nlp_models",
+        {
+            "detect_clickbait": ModeloConInvocacion(
+                id=declarada["model_id"], task="zero-shot-classification"
+            )
+        },
+    )
+
+    ficha = ficha_efectiva("detect_clickbait", INGLES)
+
+    assert "SIN EVALUAR" in ficha["limitations"][0]
+    assert ficha["revision"] == declarada["revision"]
 
 
 @pytest.mark.asyncio

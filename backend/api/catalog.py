@@ -135,6 +135,7 @@ def _fichas_de(nombre: str) -> list[ToolModelCard]:
             name=ficha["name"],
             task=ficha["task"],
             model_id=ficha["model_id"],
+            revision=ficha["revision"],
             type=SignalType(ficha["type"]),
             dimension=Dimension(ficha["dimension"]),
             limitations=ficha["limitations"],

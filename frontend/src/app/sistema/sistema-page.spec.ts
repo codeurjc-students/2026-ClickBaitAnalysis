@@ -81,6 +81,7 @@ const CATALOGO: CatalogResult = {
           name: 'RoBERTa dedicado',
           task: 'Clickbait vs factual, con supervisión humana.',
           model_id: 'Stremie/roberta-base-clickbait',
+          revision: '517de05db9ba2bf977c6c653d2f03265b74317a8',
           type: 'opaque',
           dimension: 'form',
           limitations: [
@@ -294,6 +295,18 @@ describe('SistemaPage', () => {
     expect(ficha?.textContent).toContain('código propio');
     expect(ficha?.textContent).toContain('Titulares en inglés');
     expect(ficha?.querySelectorAll('li').length).toBe(2);
+  });
+
+  // #234: el commit de los pesos, corto, y sólo en la ficha que lo trae. El
+  // léxico no tiene modelo, y el zero-shot puesto por configuración no se fija.
+  it('enseña la revisión del modelo sólo si la ficha la trae', async () => {
+    const raiz = await montar();
+
+    const [lexico, inglesa, espanola] = raiz.querySelectorAll('.ficha');
+    expect(inglesa.textContent).toContain('revisión 517de05db9ba');
+    expect(inglesa.textContent).not.toContain('517de05db9ba2bf9');
+    expect(lexico.textContent).not.toContain('revisión');
+    expect(espanola.textContent).not.toContain('revisión');
   });
 
   // #230: una señal trae una ficha por idioma que analiza, y cada una dice el

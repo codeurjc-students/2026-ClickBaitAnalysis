@@ -177,8 +177,8 @@ class AnalyzeRequest(BaseModel):
     headline: NonBlankStr = Field(
         description=(
             "Titular a analizar. Cada señal lo analiza si tiene un modelo en "
-            "su idioma —hoy, sólo en inglés—; si no, queda en 'not_applicable' "
-            "con el motivo."
+            "su idioma —en inglés, todas; en español, todas menos el léxico y "
+            "la incoherencia—; si no, queda en 'not_applicable' con el motivo."
         )
     )
     # «None» o «null» escritos como texto son la AUSENCIA de cuerpo, no un

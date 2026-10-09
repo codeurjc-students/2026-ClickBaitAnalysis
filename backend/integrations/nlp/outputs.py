@@ -114,6 +114,13 @@ class FichaModelo(TypedDict):
 
     ``model_id`` es ``None`` en las señales que no son un modelo descargable —el
     léxico y el lineal—, y ese ``None`` es información, no un hueco.
+
+    ``revision`` es el commit del Hub de esos pesos (#234), entero: las medidas
+    de la ficha son de ellos, y la imagen hornea justo ése. Sin él, un autor
+    que subiera pesos nuevos cambiaría el modelo servido en la siguiente
+    construcción, con las medidas del anterior publicadas. ``None`` donde no
+    hay modelo descargable, y en un modelo puesto por configuración, que no
+    se fija.
     """
 
     signal: str
@@ -121,6 +128,7 @@ class FichaModelo(TypedDict):
     # y el tipo describen el hueco y no cambian con él; el modelo, sí.
     language: Idioma
     model_id: str | None
+    revision: str | None
     name: str
     task: str
     type: str

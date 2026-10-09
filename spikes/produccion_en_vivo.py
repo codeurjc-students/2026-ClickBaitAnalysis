@@ -1,4 +1,4 @@
-"""Cierre de `v0.7` (2026-10-07) - ¿Responde en vivo lo que se publica?
+"""Cierre de `v0.7` (2026-10-07) y de `v0.8` (#234) - ¿Responde en vivo lo que se publica?
 
 El tercer criterio para etiquetar una versión (README, «Releases») es que las
 herramientas respondan en vivo. Esto lo comprueba en la máquina 1, por la API
@@ -12,6 +12,15 @@ pública y a través de Caddy, como lo vería cualquiera:
    da `ambiguous` desde #124 (antes, `deceptive`). Queda en el historial de
    producción, como cualquier análisis;
 5. el agente: su disponibilidad, que con la sesión de GPU cerrada es «no».
+
+Y desde #234, el español de `v0.8`:
+
+6. en el catálogo, el modelo y la revisión de cada ficha, en cada idioma;
+7. las señales con un titular en español, una a una: la dedicada, el
+   lineal y el tono lo analizan; el léxico y la incoherencia dicen por qué
+   no;
+8. un `/analyze` en español, con su veredicto y el estado de cada señal;
+9. las dos fuentes en español, GNews y NewsData.io, con un tema (#235).
 
 Las rutas caras admiten 10 peticiones por minuto y cliente (#169): ante un 429
 se espera lo que diga `Retry-After` y se repite una vez. El certificado es
@@ -44,6 +53,8 @@ ARGUMENTOS = {
     "describe_models": {},
     "get_nyt_news": {"topic": "climate"},
     "get_guardian_news": {"topic": "climate"},
+    "get_gnews_news": {"topic": "clima"},
+    "get_newsdata_news": {"topic": "clima"},
     "get_alerts": {"state": "CA"},
     "get_forecast": {"latitude": 40.7128, "longitude": -74.006},
     "health_check": {},
@@ -53,6 +64,19 @@ CASO_124 = {
     "headline": "Federal Reserve raises interest rates by a quarter point",
     "content": "The local football team won the championship after a dramatic "
     "penalty shootout on Sunday night.",
+}
+
+# #234: el español. El titular, clickbait; el cuerpo, en español también, para
+# que la incoherencia diga que no analiza el español y no que el cuerpo es de
+# otro idioma.
+TITULAR_ES = "No vas a creer lo que hizo este perro al ver a su dueño"
+CUERPO_ES = "Un pequeño estudio en ratones halló efectos modestos de la dieta tras ocho semanas."
+SENALES_ES = {
+    "detect_clickbait": {"headline": TITULAR_ES},
+    "detect_clickbait_linear": {"headline": TITULAR_ES},
+    "analyze_sentiment": {"text": TITULAR_ES},
+    "detect_clickbait_lexical": {"headline": TITULAR_ES},
+    "detect_clickbait_incoherence": {"headline": TITULAR_ES, "content": CUERPO_ES},
 }
 
 
@@ -96,7 +120,17 @@ def main() -> None:
             herramienta for herramienta in catalogo["tools"]
             if herramienta["name"] == "detect_clickbait_linear"
         )
-        print(f"   ficha del lineal: {(lineal.get('model_card') or {}).get('name')}")
+        # Desde #230, una ficha por idioma: `model_cards`, una lista.
+        print(f"   ficha del lineal: {(lineal.get('model_cards') or [{}])[0].get('name')}")
+
+        print("\n== las fichas: modelo y revisión, por idioma (#234)")
+        for herramienta in catalogo["tools"]:
+            for ficha in herramienta.get("model_cards") or []:
+                revision = (ficha.get("revision") or "-")[:12]
+                print(
+                    f"   {herramienta['name']:30} {ficha['language']} · "
+                    f"{ficha.get('model_id') or 'código propio'} @ {revision}"
+                )
 
         print(f"\n== cada herramienta, con «{TITULAR}»")
         for nombre in nombres:
@@ -127,6 +161,35 @@ def main() -> None:
             for dimension in analisis["dimensions"]
         }
         print(f"   veredicto {analisis['verdict']} · dimensiones {dimensiones}")
+
+        print(f"\n== las señales, con «{TITULAR_ES}» (#234)")
+        for nombre, argumentos in SENALES_ES.items():
+            respuesta = pedir(
+                cliente, "POST", f"/tools/{nombre}/execute", json={"arguments": argumentos}
+            )
+            if respuesta.status_code != 200:
+                print(f"   {nombre:30} HTTP {respuesta.status_code} · {respuesta.text[:120]}")
+                continue
+            cuerpo = respuesta.json()
+            datos = cuerpo.get("data") or {}
+            idioma = f" · {datos['language']}" if datos.get("language") else ""
+            detalle = f" · {cuerpo['detail'][:110]}" if cuerpo.get("detail") else ""
+            print(
+                f"   {nombre:30} {cuerpo['status']:5}{idioma} · "
+                f"{resumen(nombre, cuerpo.get('data'))}{detalle}",
+                flush=True,
+            )
+
+        print("\n== /analyze en español (#234)")
+        analisis = pedir(
+            cliente, "POST", "/analyze", json={"headline": TITULAR_ES, "content": CUERPO_ES}
+        ).json()["analysis"]
+        print(
+            f"   idioma {analisis['language']} · veredicto {analisis['verdict']} · "
+            + ", ".join(
+                f"{senal['name']} {senal['status']}" for senal in analisis["signals"]
+            )
+        )
 
         agente = pedir(cliente, "GET", "/agent").json()["availability"]
         print(f"\n== el agente: {agente['status']} · {agente['detail']}")

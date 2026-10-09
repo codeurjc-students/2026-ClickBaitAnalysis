@@ -40,6 +40,15 @@ lo que permite que el id viva en un solo lugar; ``test_los_ids_de_las_fichas_son
 comprueba que la llamada real usa el de la ficha, que es lo único que impide que
 vuelvan a separarse.
 
+LA REVISIÓN DE LOS PESOS (#234)
+
+``revision`` es el commit del Hub de los pesos que se midieron, entero.
+``docker/hornear_modelos.py`` descarga justo ése, no lo que haya en ``main``
+el día en que se construye la imagen: si el autor de un modelo sube otros
+pesos, la imagen sigue sirviendo los medidos. Cambiarla es cambiar de
+modelo, y las medidas de la ficha se repiten antes (#119). Es ``None`` donde
+``model_id`` lo es.
+
 El campo ``dimension`` indica QUÉ mide cada señal, no cómo de transparente es:
 
 - ``form``      — sensacionalismo en la redacción del titular (estilo).
@@ -136,6 +145,7 @@ MODEL_CARDS: list[FichaDeclarada] = [
         "signal": "detect_clickbait",
         "language": INGLES,
         "model_id": "Stremie/roberta-base-clickbait",
+        "revision": "517de05db9ba2bf977c6c653d2f03265b74317a8",
         "name": "RoBERTa dedicado (entrenado en Webis-17)",
         "task": "Clasifica el titular como clickbait vs factual con un modelo afinado específicamente para esta tarea.",
         "type": "opaque",
@@ -163,6 +173,7 @@ MODEL_CARDS: list[FichaDeclarada] = [
         "signal": "analyze_sentiment",
         "language": INGLES,
         "model_id": "cardiffnlp/twitter-roberta-base-sentiment-latest",
+        "revision": "3216a57f2a0d9c45a2e6c20157c20c49fb4bf9c7",
         "name": "RoBERTa afinado en tuits (3 clases)",
         "task": "Análisis de sentimiento en 3 clases (positivo / neutral / negativo).",
         "type": "opaque",
@@ -185,6 +196,7 @@ MODEL_CARDS: list[FichaDeclarada] = [
         "language": INGLES,
         "dimension": "deception",
         "model_id": "sentence-transformers/all-MiniLM-L6-v2",
+        "revision": "1110a243fdf4706b3f48f1d95db1a4f5529b4d41",
         "name": "MiniLM-L6-v2 (embeddings de frase)",
         "task": "Similitud coseno titular↔contenido; una similitud baja indica posible clickbait por incoherencia.",
         "type": "hybrid",
@@ -208,6 +220,7 @@ MODEL_CARDS: list[FichaDeclarada] = [
         "dimension": "form",
         # Sin `model_id`: no hay nada que descargar. Son regex y listas de cues.
         "model_id": None,
+        "revision": None,
         "name": "Léxico por reglas (listas de cues de Chakraborty et al. 2016)",
         "task": "Detecta pistas léxicas/estructurales de clickbait y devuelve qué cues dispararon y dónde.",
         "type": "interpretable",
@@ -229,6 +242,7 @@ MODEL_CARDS: list[FichaDeclarada] = [
         "dimension": "form",
         # Sin `model_id`: los pesos son un JSON del repo, no un modelo de la Hub.
         "model_id": None,
+        "revision": None,
         "name": "Regresión logística sobre las palabras del titular (entrenada en Chakraborty, Webis-17 y TA1C)",
         "task": "Clickbait ponderado: aprende el peso de cada palabra y patrón del titular, y devuelve los que más contribuyeron al veredicto.",
         "type": "interpretable",
@@ -253,6 +267,7 @@ MODEL_CARDS: list[FichaDeclarada] = [
         "dimension": "form",
         # El mismo modelo que la ficha inglesa: es bilingüe desde #231.
         "model_id": None,
+        "revision": None,
         "name": "Regresión logística sobre las palabras del titular (entrenada en Chakraborty, Webis-17 y TA1C)",
         "task": "Clickbait ponderado: aprende el peso de cada palabra y patrón del titular, y devuelve los que más contribuyeron al veredicto.",
         "type": "interpretable",
@@ -273,6 +288,7 @@ MODEL_CARDS: list[FichaDeclarada] = [
         "signal": "detect_clickbait",
         "language": ESPANOL,
         "model_id": "ggcastle/beto-clickbait-es",
+        "revision": "03c31ac0c288a982fb2aa02755a9bd0abb43078e",
         "name": "BETO afinado en TA1C (entrenado en este proyecto)",
         "task": "Clasifica el titular como clickbait vs factual con un modelo afinado específicamente para esta tarea.",
         "type": "opaque",
@@ -296,6 +312,7 @@ MODEL_CARDS: list[FichaDeclarada] = [
         "signal": "analyze_sentiment",
         "language": ESPANOL,
         "model_id": "lxyuan/distilbert-base-multilingual-cased-sentiments-student",
+        "revision": "cf991100d706c13c0a080c097134c05b7f436c45",
         "name": "DistilBERT multilingüe de sentimiento (3 clases)",
         "task": "Análisis de sentimiento en 3 clases (positivo / neutral / negativo).",
         "type": "opaque",

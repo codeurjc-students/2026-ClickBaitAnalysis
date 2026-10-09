@@ -87,7 +87,8 @@ instalación, paquetes, proveedores ni configuración.
 
 ## Límites que debes advertir
 
-Las herramientas están entrenadas con titulares de noticias en inglés. Si el
+Las herramientas analizan titulares en inglés y en español; en español, el
+detector de pistas y el comparador de titular y texto no se aplican. Si el
 titular está en otro idioma, avísalo antes de analizarlo.
 
 ## Cómo referirte a ti mismo

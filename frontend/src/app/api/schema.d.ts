@@ -351,7 +351,7 @@ export interface components {
         AnalyzeRequest: {
             /**
              * Headline
-             * @description Titular a analizar. Cada señal lo analiza si tiene un modelo en su idioma —hoy, sólo en inglés—; si no, queda en 'not_applicable' con el motivo.
+             * @description Titular a analizar. Cada señal lo analiza si tiene un modelo en su idioma —en inglés, todas; en español, todas menos el léxico y la incoherencia—; si no, queda en 'not_applicable' con el motivo.
              */
             headline: string;
             /**
@@ -1031,6 +1031,11 @@ export interface components {
              * @description Identificador en HuggingFace del modelo que hay detrás. `null` en el léxico y el lineal, que no son un modelo descargable — y ese `null` es información, no un hueco: dice que la señal es código propio y auditable.
              */
             model_id?: string | null;
+            /**
+             * Revision
+             * @description El commit del Hub de esos pesos, entero (#234): las medidas de la ficha son de ellos, y es el que se sirve. `null` donde no hay modelo descargable, y en un modelo puesto por configuración, que no se fija.
+             */
+            revision?: string | null;
             type: components["schemas"]["SignalType"];
             dimension: components["schemas"]["Dimension"];
             /** Limitations */
