@@ -19,6 +19,8 @@
 # de margen; el modelo se carga aquí con `num_ctx` 8192 y `cierre` pide
 # 16384, así que la primera consulta lo recarga:
 #   AGENTE_A40_MAX_MIN=75 AGENTE_A40_JSON=/tmp/agente_a40_cierre.json setsid nohup bash spikes/agente_a40.sh cierre > /tmp/agente_a40_cierre.log 2>&1 < /dev/null & disown
+# y su segunda sesión, con la variante `v2`:
+#   AGENTE_A40_MAX_MIN=75 AGENTE_A40_JSON=/tmp/agente_a40_cierre_v2.json setsid nohup bash spikes/agente_a40.sh cierre > /tmp/agente_a40_cierre_v2.log 2>&1 < /dev/null & disown
 exec 2>&1
 cd "$(dirname "$0")/.." || exit 1
 MAQUINA_2=gongarcia@gserver2.tfg.etsii.urjc.es

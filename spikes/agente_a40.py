@@ -57,6 +57,12 @@ Y una séptima, de #234 (2026-10-09), para cerrar `v0.8`:
    titular llega a la herramienta tal cual o cambiado. Y al final, cuatro
    conversaciones completas en español con `nuevo`, para leerlas.
 
+   La primera sesión (2026-10-09, `spikes/agente_a40/cierre-234.json`)
+   midió los textos de `216c525` y no cumplió la regla de las 26 por una
+   consulta; la segunda (`cierre-234b.json`) mide la variante `v2`, con las
+   dos frases de la frontera de #183 recuperadas y el «Raises» de la
+   dedicada y el tono, que #236 había dejado para F.
+
 El servidor MCP es el `mcp` de `backend.main` —el mismo objeto que arranca en
 producción— servido en proceso, como en la fase 5: las herramientas se ejecutan
 aquí de verdad, con NLP_BACKEND=local, y las de noticias llaman a NYT y a
@@ -692,7 +698,8 @@ def resumen_variantes(medido: dict) -> None:
 CIERRE_ANTES = [
     (
         "detect_clickbait",
-        "titulares anotados por personas, uno por idioma; por",
+        "titulares anotados por personas, uno por idioma (el inglés, fuera de\n"
+        "este proyecto); por",
         "titulares anotados por personas, fuera de este proyecto; por",
     ),
     (
@@ -730,13 +737,6 @@ CIERRE_ANTES = [
     ),
     (
         "detect_clickbait_linear",
-        "Es el modelo de pesos visibles entrenado en este proyecto: una regresión\n"
-        "logística sobre las palabras del titular y su estructura (número inicial,",
-        "Es el modelo entrenado en este proyecto: una regresión logística sobre\n"
-        "las palabras del titular y su estructura (número inicial,",
-    ),
-    (
-        "detect_clickbait_linear",
         "(caja negra). Bilingüe:\nlos mismos pesos para el inglés y el español.",
         "(caja negra). Pensada\npara inglés.",
     ),
@@ -770,6 +770,14 @@ CIERRE_ANTES = [
         "        español, el léxico y la incoherencia no se aplican.",
         "headline: El titular a analizar, en inglés.",
     ),
+]
+CIERRE_ANTES += [
+    (
+        herramienta,
+        "Si el modelo falla: no se puede cargar o, por la vía remota, no\n    responde (timeout, caída del proveedor o falta de crédito).",
+        "Si la llamada al modelo falla (timeout o caída del proveedor).",
+    )
+    for herramienta in ("detect_clickbait", "analyze_sentiment")
 ]
 # Las dos de #235: en `v0.7.0` no estaban.
 NO_ESTABAN_EN_V070 = ("get_gnews_news", "get_newsdata_news")
@@ -828,7 +836,8 @@ CONVERSACIONES_ES = [
     ),
     (
         "es-incoherencia",
-        "¿El titular 'Cura milagrosa descubierta' encaja con el texto 'Un pequeño ensayo "
+        "¿El titular 'Descubren la cura milagrosa que acaba con el envejecimiento' encaja "
+        "con el texto 'Un pequeño ensayo "
         "halló efectos modestos en ratones tras ocho semanas'?",
     ),
     (
@@ -951,7 +960,32 @@ async def cierre(registro: dict) -> None:
         + [("CONTRASTE", consulta, aceptables) for _, consulta, aceptables in CONTRASTE]
         + CONSULTAS_ES
     )
-    registro["cierre"] = {"versiones": versiones, "pasadas": [], "conversaciones": []}
+    # La cabecera del registro lleva las constantes de las partes viejas
+    # (`04-preciso`, 8192): las de ésta son las de producción, y van aquí.
+    defecto = {nombre: campo.default for nombre, campo in Settings.model_fields.items()}
+    condiciones = {
+        "prompt": PROMPT_CIERRE,
+        "think": True,
+        "repeticiones": REPETICIONES_CIERRE,
+        **{
+            nombre: defecto[nombre]
+            for nombre in (
+                "llm_num_ctx",
+                "llm_temperature",
+                "llm_presence_penalty",
+                "llm_num_predict",
+                "llm_keep_alive",
+                "llm_timeout",
+            )
+        },
+    }
+    print(f"\n== cierre, condiciones: {condiciones}")
+    registro["cierre"] = {
+        "condiciones": condiciones,
+        "versiones": versiones,
+        "pasadas": [],
+        "conversaciones": [],
+    }
     try:
         for repeticion in range(1, REPETICIONES_CIERRE + 1):
             orden = list(versiones) if repeticion % 2 else list(reversed(versiones))

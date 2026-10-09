@@ -86,7 +86,8 @@ def register(mcp: FastMCP):
         """Clasifica un titular como clickbait o noticia factual con un modelo de caja negra.
 
         Por defecto es un clasificador neuronal afinado para esta tarea sobre
-        titulares anotados por personas, uno por idioma; por
+        titulares anotados por personas, uno por idioma (el inglés, fuera de
+        este proyecto); por
         configuración puede ser otro, también un zero-shot que elige entre
         etiquetas que se le dan (`describe_models` dice cuál). Devuelve una
         etiqueta y la confianza del modelo en ESA etiqueta, sin explicar por
@@ -106,7 +107,8 @@ def register(mcp: FastMCP):
             detrás.
 
         Raises:
-            Si la llamada al modelo falla (timeout o caída del proveedor).
+            Si el modelo falla: no se puede cargar o, por la vía remota, no
+            responde (timeout, caída del proveedor o falta de crédito).
         """
         idioma = _idioma_si_se_analiza("detect_clickbait", headline)
         # El modelo, el modo y las etiquetas, de la configuración (#159), los
@@ -139,7 +141,8 @@ def register(mcp: FastMCP):
             {"label": "neutral", "score": 0.62}.
 
         Raises:
-            Si la llamada al modelo falla (timeout o caída del proveedor).
+            Si el modelo falla: no se puede cargar o, por la vía remota, no
+            responde (timeout, caída del proveedor o falta de crédito).
         """
         idioma = _idioma_si_se_analiza("analyze_sentiment", text)
         response = await get_nlp_backend().classify(
@@ -238,8 +241,8 @@ def register(mcp: FastMCP):
     async def detect_clickbait_linear(headline: str) -> SalidaLineal:
         """Da la probabilidad de que un titular sea clickbait y las pistas que la explican.
 
-        Es el modelo de pesos visibles entrenado en este proyecto: una regresión
-        logística sobre las palabras del titular y su estructura (número inicial,
+        Es el modelo entrenado en este proyecto: una regresión logística sobre
+        las palabras del titular y su estructura (número inicial,
         interrogación…), en la que cada palabra tiene un peso visible. El
         veredicto se explica con las que más pesaron. Para la opinión de un
         modelo sin pesos visibles, `detect_clickbait` (caja negra). Bilingüe:
