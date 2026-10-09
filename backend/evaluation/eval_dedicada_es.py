@@ -35,6 +35,7 @@ LAS PARTES
     .venv/bin/python -m backend.evaluation.eval_dedicada_es medios-fuera
     .venv/bin/python -m backend.evaluation.eval_dedicada_es test
     CUDA_VISIBLE_DEVICES= .venv/bin/python -m backend.evaluation.eval_dedicada_es tiempo
+    .venv/bin/python -m backend.evaluation.eval_dedicada_es carpeta
 
 - `memoria`: unos pasos de entrenamiento con los tuits más largos de `train`,
   y el pico de memoria de la GPU. No mira ningún resultado: decide el lote.
@@ -45,6 +46,8 @@ LAS PARTES
 - `medios-fuera`: la parte (b) de la regla.
 - `test`: la elegida, UNA vez, con la parte (a) y el veredicto de la regla.
 - `tiempo`: segundos por titular EN CPU, como producción.
+- `carpeta`: si la regla se cumplió, lo que el autor sube al Hub: los ficheros
+  de la elegida y su ficha, escrita con las cifras de lo guardado.
 
 POR QUÉ SE GUARDAN LOS PESOS, Y NO HAY `train_dedicada_es.py`
 
@@ -57,10 +60,12 @@ lo que se publique usan ésos: lo publicado es lo medido.
 import asyncio
 import gc
 import gzip
+import hashlib
 import json
 import math
 import random
 import re
+import shutil
 import statistics
 import sys
 import time
@@ -90,6 +95,20 @@ BASE = "dccuchile/bert-base-spanish-wwm-cased"
 REVISION = "c4d86612f51b"  # la descargada el 9 oct
 CACHE = Path(__file__).resolve().parents[2] / "var" / "dedicada_es"
 MODELOS = CACHE / "modelos"
+
+# Lo que se publica (#242): a nombre del autor, en un repositorio público, para
+# que la imagen lo hornee sin token, como los otros modelos.
+REPOSITORIO = "ggcastle/beto-clickbait-es"
+PUBLICAR = CACHE / "publicar"
+PROYECTO = "https://github.com/codeurjc-students/2026-ClickBaitAnalysis"
+# Lo que guardó `validation`, y nada más. La lista es cerrada a propósito: si
+# la carpeta de la elegida trajera otro fichero, `carpeta` se para.
+FICHEROS_DEL_MODELO = (
+    "config.json",
+    "model.safetensors",
+    "tokenizer.json",
+    "tokenizer_config.json",
+)
 
 # Fijados antes de medir (ver el docstring).
 SEMILLAS = (0, 1, 2)
@@ -648,6 +667,220 @@ def tiempo() -> None:
     )
 
 
+def _coma(numero: float) -> str:
+    """Tres decimales con coma, como el resto del proyecto."""
+    return f"{numero:.3f}".replace(".", ",")
+
+
+def _miles(numero: int) -> str:
+    return f"{numero:,}".replace(",", ".")
+
+
+def _celda(resultado: dict) -> str:
+    return (
+        f"{_coma(resultado['f1'])} (P {_coma(resultado['precision'])}, "
+        f"R {_coma(resultado['recall'])})"
+    )
+
+
+def _frente_al_lineal(
+    filas: list[dict], probabilidades_beto: list[float]
+) -> tuple[dict, dict]:
+    """La elegida y el lineal de producción, medidos sobre las mismas filas."""
+    etiquetas = [fila["label"] for fila in filas]
+    lineal = [
+        linear.predict(fila["headline"]).unwrap()["probability"] for fila in filas
+    ]
+    return medida(etiquetas, probabilidades_beto), medida(
+        etiquetas, lineal, UMBRAL_LINEAL
+    )
+
+
+def _huella(ruta: Path) -> str:
+    resumen = hashlib.sha256()
+    with open(ruta, "rb") as fichero:
+        for bloque in iter(lambda: fichero.read(2**20), b""):
+            resumen.update(bloque)
+    return resumen.hexdigest()
+
+
+def _ficha(
+    semilla: int,
+    medidas: dict[str, tuple[dict, dict]],
+    limpieza: tuple[float, float],
+    tuits: dict[str, int],
+) -> str:
+    """La ficha del modelo en el Hub (`README.md`), con las cifras de lo guardado."""
+    beto_validation, lineal_validation = medidas["validation"]
+    beto_fuera, lineal_fuera = medidas["fuera"]
+    beto_test, lineal_test = medidas["test"]
+    limpio, tal_cual = limpieza
+    return f"""---
+license: cc-by-4.0
+language:
+- es
+base_model: {BASE}
+pipeline_tag: text-classification
+tags:
+- clickbait
+---
+
+# BETO afinado para detectar clickbait en español
+
+Clasifica un titular, o el tuit con el que un medio anuncia una noticia, como `Clickbait` o `Not Clickbait`. Es la señal dedicada en español del TFG *Agente inteligente basado en MCP para la detección y análisis de clickbait en medios digitales* (Universidad Rey Juan Carlos), que contrasta varias señales de distinta naturaleza en vez de emitir un veredicto único: [{PROYECTO.removeprefix("https://")}]({PROYECTO}).
+
+```python
+from transformers import pipeline
+
+clasificador = pipeline("text-classification", model="{REPOSITORIO}")
+clasificador("No vas a creer lo que encontraron en este pueblo")
+```
+
+## Cómo se entrenó
+
+- **Modelo base**: [BETO](https://huggingface.co/{BASE}) cased, revisión `{REVISION}`.
+- **Datos**: los {_miles(tuits["train"])} tuits de la parte `train` de [TA1C](https://github.com/gmordecki/TA1C), de 18 medios en español de 12 países, cada uno anotado por tres personas, con el reparto del propio corpus.
+- **Limpieza al entrenar**: se quitan los enlaces, las cuentas (`@…`), las etiquetas (`#…`), los corchetes y las barras «|», que es donde los tuits llevan las marcas del medio. Al usarlo, el texto entra tal cual.
+- **Receta, fijada antes de medir**: AdamW (tasa {f"{TASA:.0e}".replace("e-0", "e-")}, decaimiento {f"{DECAIMIENTO:g}".replace(".", ",")}), lote {LOTE}, {EPOCAS} épocas, calentamiento lineal del {CALENTAMIENTO * 100:.0f} %, recorte del gradiente a {RECORTE:g}, {MAX_TOKENS} tokens y fp16 en la GPU. Se afinó el modelo entero, con una capa de clasificación nueva. Tres semillas: ésta es la {semilla}, la de mejor F1 en `validation`.
+- Vota la etiqueta más probable, sin umbral.
+
+## Resultados
+
+F1 de la clase clickbait, con su precisión (P) y su recall (R). Al lado, la regresión logística interpretable del mismo sistema, con su umbral de 0,35, sobre los mismos tuits.
+
+| | Este modelo | La regresión logística |
+|---|---|---|
+| TA1C `validation` ({_miles(tuits["validation"])} tuits) | {_celda(beto_validation)} | {_celda(lineal_validation)} |
+| Medios fuera ({_miles(tuits["fuera"])} tuits) | {_celda(beto_fuera)} | {_celda(lineal_fuera)} |
+| TA1C `test` ({_miles(tuits["test"])} tuits), abierto una vez | **{_celda(beto_test)}**, AUC {_coma(beto_test["auc"])} | {_celda(lineal_test)} |
+
+**Medios fuera**: seis pliegues de tres medios sobre `train` y `validation`. En cada uno se entrena con la misma receta y los otros quince medios, y se mide en esos tres. Es lo único que mide medios que el modelo no ha visto: en TA1C, los 18 medios están en las tres partes.
+
+Los autores de TA1C publican un F1 de 0,84 en `test` con BETO afinado.
+
+## Límites
+
+- Se entrenó y se midió con tuits de medios, no con titulares de portada: fuera de ese registro, sin medir.
+- En `test` están los mismos 18 medios que en `train`, así que acertar ahí puede ser, en parte, reconocer al medio. Con medios que no ha visto rinde igual ({_coma(beto_fuera["f1"])}), lo que sugiere que se apoya poco en eso.
+- La limpieza quita las marcas evidentes del medio, no su estilo, y casi no cambia el resultado: en `validation`, la media de las tres semillas es {_coma(limpio)} limpiando y {_coma(tal_cual)} sin limpiar.
+- Es una caja negra: no explica sus decisiones. En el sistema del que forma parte se contrasta con señales interpretables.
+- Sólo español.
+
+## Licencia y atribución
+
+Deriva de BETO y se publica con su misma licencia, [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). Lo que se cambió: se le añadió una capa de clasificación y se afinó entero con TA1C para distinguir el clickbait.
+
+- **BETO**: Cañete, J., Chaperon, G., Fuentes, R., Ho, J.-H., Kang, H. y Pérez, J. (2020). *Spanish Pre-Trained BERT Model and Evaluation Data*. PML4DC at ICLR 2020. [github.com/dccuchile/beto](https://github.com/dccuchile/beto). Sus autores advierten de que no pueden asegurar que todos los textos con que se entrenó BETO tengan licencias compatibles con CC BY 4.0, sobre todo para uso comercial; el aviso vale también para este modelo.
+- **TA1C**: Mordecki, Moncecchi y Couto (2025). *TA1C: A Dataset for Clickbait Detection in News in Spanish*. Los datos, con licencia MIT: [github.com/gmordecki/TA1C](https://github.com/gmordecki/TA1C).
+"""
+
+
+def carpeta() -> None:
+    """Prepara en `PUBLICAR` lo que el autor sube al Hub, si la regla se cumplió.
+
+    Los ficheros son los de la elegida tal cual se midieron, y la ficha se
+    escribe con las cifras de lo guardado por las otras partes, recalculadas
+    aquí: nada copiado a mano. La subida la hace el autor, con un token de
+    escritura propio (el del `.env` es de lectura).
+    """
+    elegida = _leer(CACHE / "validation.json")
+    fuera = _leer(CACHE / "medios_fuera.json")
+    abierto = _leer(CACHE / "test.json")
+    if elegida is None or fuera is None or abierto is None:
+        raise SystemExit("Antes, `validation`, `medios-fuera` y `test`.")
+    semilla = elegida["semilla"]
+    if abierto["semilla"] != semilla or fuera["semilla"] != semilla:
+        raise SystemExit("`test` o `medios-fuera` no son de la semilla elegida.")
+    origen = MODELOS / f"semilla{semilla}"
+    if sorted(ruta.name for ruta in origen.iterdir()) != sorted(FICHEROS_DEL_MODELO):
+        raise SystemExit(
+            f"{origen} no trae exactamente {', '.join(FICHEROS_DEL_MODELO)}."
+        )
+
+    validacion = ta1c("validation")
+    pliegues = [
+        _leer(CACHE / f"medios_fuera_{numero}.json")
+        for numero in range(1, len(PLIEGUES) + 1)
+    ]
+    etiquetas_fuera = [
+        etiqueta for pliegue in pliegues for etiqueta in pliegue["etiquetas"]
+    ]
+    medidas = {
+        "validation": _frente_al_lineal(
+            validacion,
+            _leer(CACHE / f"validation_semilla{semilla}_limpio.json")[
+                "entrada_tal_cual"
+            ],
+        ),
+        "fuera": (
+            medida(
+                etiquetas_fuera,
+                [
+                    probabilidad
+                    for pliegue in pliegues
+                    for probabilidad in pliegue["beto"]
+                ],
+            ),
+            medida(
+                etiquetas_fuera,
+                [
+                    probabilidad
+                    for pliegue in pliegues
+                    for probabilidad in pliegue["lineal"]
+                ],
+                UMBRAL_LINEAL,
+            ),
+        ),
+        "test": _frente_al_lineal(ta1c("test"), abierto["probabilidades"]),
+    }
+    if medidas["test"][0]["f1"] < LISTON_TEST or not fuera["cumple"]:
+        raise SystemExit("La regla de #242 no se cumplió: no hay nada que publicar.")
+
+    # Cuánto pesaba el atajo: la media de las tres semillas, entrenadas
+    # limpias y tal cual, con la entrada tal cual.
+    etiquetas_validacion = [fila["label"] for fila in validacion]
+    limpio, tal_cual = (
+        statistics.mean(
+            medida(
+                etiquetas_validacion,
+                _leer(CACHE / f"validation_semilla{otra}_{entrenado}.json")[
+                    "entrada_tal_cual"
+                ],
+            )["f1"]
+            for otra in SEMILLAS
+        )
+        for entrenado in ("limpio", "tal_cual")
+    )
+
+    PUBLICAR.mkdir(parents=True, exist_ok=True)
+    for nombre in FICHEROS_DEL_MODELO:
+        shutil.copyfile(origen / nombre, PUBLICAR / nombre)
+    tuits = {
+        "train": len(ta1c("train")),
+        "validation": len(validacion),
+        "fuera": len(etiquetas_fuera),
+        "test": len(abierto["probabilidades"]),
+    }
+    (PUBLICAR / "README.md").write_text(
+        _ficha(semilla, medidas, (limpio, tal_cual), tuits), encoding="utf-8"
+    )
+    sobran = {ruta.name for ruta in PUBLICAR.iterdir()} - {
+        *FICHEROS_DEL_MODELO,
+        "README.md",
+    }
+    if sobran:
+        raise SystemExit(f"En {PUBLICAR} sobra {', '.join(sorted(sobran))}: quítalo.")
+
+    print(f"== {PUBLICAR}, para {REPOSITORIO}")
+    for ruta in sorted(PUBLICAR.iterdir()):
+        print(f"  {ruta.name:24} {_miles(ruta.stat().st_size):>13} bytes")
+    print(f"  sha256 de los pesos: {_huella(PUBLICAR / 'model.safetensors')[:12]}")
+    print(
+        f"\nPara subirlo, con un token de escritura propio:\n"
+        f"  .venv/bin/hf upload {REPOSITORIO} {PUBLICAR.relative_to(CACHE.parents[1])} ."
+    )
+
+
 def main() -> None:
     partes = {
         "memoria": memoria,
@@ -655,6 +888,7 @@ def main() -> None:
         "medios-fuera": medios_fuera,
         "test": test,
         "tiempo": tiempo,
+        "carpeta": carpeta,
     }
     parte = sys.argv[1] if len(sys.argv) > 1 else ""
     if parte not in partes:

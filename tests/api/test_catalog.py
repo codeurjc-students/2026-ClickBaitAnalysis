@@ -21,7 +21,7 @@ import pytest
 from backend.api import catalog
 from backend.api.schemas import ServerStatus
 from backend.config.settings import settings
-from backend.core.idioma import INGLES
+from backend.core.idioma import ESPANOL, INGLES
 from backend.core.mcp import session as mcp_session
 from backend.integrations.nlp.model_cards import fichas_en
 
@@ -174,10 +174,18 @@ async def test_un_model_id_nulo_es_informacion_y_viaja(monkeypatch, servidor_mcp
     tools = await _tools(monkeypatch, servidor_mcp)
 
     [lexico] = tools["detect_clickbait_lexical"].model_cards
-    [dedicado] = tools["detect_clickbait"].model_cards
+    # Una ficha por idioma: la dedicada tiene modelo en español desde #242.
+    dedicado = {
+        ficha.language: ficha for ficha in tools["detect_clickbait"].model_cards
+    }
 
     assert lexico.model_id is None
-    assert dedicado.model_id == fichas_en(INGLES)["detect_clickbait"]["model_id"]
+    assert (
+        dedicado[INGLES].model_id == fichas_en(INGLES)["detect_clickbait"]["model_id"]
+    )
+    assert (
+        dedicado[ESPANOL].model_id == fichas_en(ESPANOL)["detect_clickbait"]["model_id"]
+    )
 
 
 @pytest.mark.asyncio
@@ -253,7 +261,10 @@ async def test_la_ficha_del_catalogo_es_la_del_modelo_QUE_SE_EJECUTA(
     monkeypatch.setattr(settings, "nlp_models", {"detect_clickbait": "otra/cosa"})
 
     tools = await _tools(monkeypatch, servidor_mcp)
-    [dedicado] = tools["detect_clickbait"].model_cards
+    # `nlp_models` es la configuración del inglés: la ficha española no cambia.
+    dedicado = {
+        ficha.language: ficha for ficha in tools["detect_clickbait"].model_cards
+    }[INGLES]
 
     assert dedicado.model_id == "otra/cosa"
     assert len(dedicado.limitations) == 1

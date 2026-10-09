@@ -838,25 +838,26 @@ def test_cada_senal_tiene_ficha_en_ingles_y_el_hueco_no_cambia_con_el_idioma():
 
 
 def test_la_ficha_y_el_modelo_se_piden_por_idioma(monkeypatch):
-    """Hoy sólo el lineal tiene ficha en español (#231); la dedicada, no. Con
-    una de prueba, cada idioma da la suya y el modelo inglés no se cuela en
-    español."""
-    assert model_cards.ficha_declarada("detect_clickbait", ESPANOL) is None
+    """Hoy tienen ficha en español el lineal (#231) y la dedicada (#242); el
+    tono, no. Con una de prueba, cada idioma da la suya y el modelo inglés no se
+    cuela en español."""
+    assert model_cards.ficha_declarada("analyze_sentiment", ESPANOL) is None
     with pytest.raises(ValueError, match="no tiene ficha en español"):
-        model_cards.model_id_de("detect_clickbait", ESPANOL)
+        model_cards.model_id_de("analyze_sentiment", ESPANOL)
 
-    inglesa = model_cards.ficha_declarada("detect_clickbait", INGLES)
+    inglesa = model_cards.ficha_declarada("analyze_sentiment", INGLES)
     assert inglesa is not None
     espanola = {**inglesa, "language": ESPANOL, "model_id": "prueba/multilingue"}
     monkeypatch.setattr(
         model_cards, "MODEL_CARDS", [*model_cards.MODEL_CARDS, espanola]
     )
 
-    assert model_cards.model_id_de("detect_clickbait", ESPANOL) == "prueba/multilingue"
-    assert model_cards.model_id_de("detect_clickbait", INGLES) == inglesa["model_id"]
+    assert model_cards.model_id_de("analyze_sentiment", ESPANOL) == "prueba/multilingue"
+    assert model_cards.model_id_de("analyze_sentiment", INGLES) == inglesa["model_id"]
     assert set(model_cards.fichas_en(ESPANOL)) == {
         "detect_clickbait",
         "detect_clickbait_linear",
+        "analyze_sentiment",
     }
 
 
@@ -1348,8 +1349,9 @@ SENALES_SUELTAS = [
     "detect_clickbait_lexical",
     "detect_clickbait_linear",
 ]
-# Las que analizan el español por su ficha: el lineal, bilingüe desde #231.
-ANALIZAN_ESPANOL = {"detect_clickbait_linear"}
+# Las que analizan el español por su ficha: el lineal, bilingüe desde #231, y
+# la dedicada, con su modelo en español desde #242.
+ANALIZAN_ESPANOL = {"detect_clickbait_linear", "detect_clickbait"}
 SIN_ESPANOL = [senal for senal in SENALES_SUELTAS if senal not in ANALIZAN_ESPANOL]
 
 
@@ -1538,7 +1540,7 @@ def test_en_ingles_el_cuerpo_se_compara():
         (senal, idioma, nombre)
         for senal in SENALES_SUELTAS
         for idioma, nombre in FUERA_DEL_INGLES
-        # El lineal analiza el español (#231): ese par no tiene motivo.
+        # El lineal y la dedicada analizan el español: ese par no tiene motivo.
         if not (senal in ANALIZAN_ESPANOL and idioma == ESPANOL)
     ],
 )
@@ -1612,9 +1614,26 @@ def test_un_modelo_en_espanol_sin_ficha_se_publica_como_experimento(monkeypatch)
 def test_en_un_idioma_que_no_analiza_no_hay_ficha_ni_modelo():
     """Un error de quien llama, no un inglés silencioso: la puerta va antes."""
     with pytest.raises(ValueError, match="no analiza titulares en español"):
-        ficha_efectiva("detect_clickbait", ESPANOL)
+        ficha_efectiva("analyze_sentiment", ESPANOL)
     with pytest.raises(ValueError, match="no tiene ficha en español"):
-        get_model_id("detect_clickbait", ESPANOL)
+        get_model_id("analyze_sentiment", ESPANOL)
+
+
+def test_la_dedicada_analiza_el_espanol_con_su_modelo(monkeypatch):
+    """#242: BETO afinado con TA1C y publicado a nombre del autor, por su ficha
+    y sin configurar nada. La ficha publicada lleva sus medidas, no «sin
+    evaluar», y el inglés sigue con el suyo."""
+    monkeypatch.setattr(settings, "nlp_models_es", {})
+
+    assert idiomas_de("detect_clickbait") == [INGLES, ESPANOL]
+    assert motivo_si_no_se_analiza("detect_clickbait", ESPANOL) is None
+    assert get_model_id("detect_clickbait", ESPANOL) == "ggcastle/beto-clickbait-es"
+    assert get_model_id("detect_clickbait", INGLES) == model_cards.model_id_de(
+        "detect_clickbait", INGLES
+    )
+    ficha = ficha_efectiva("detect_clickbait", ESPANOL)
+    assert ficha["model_id"] == "ggcastle/beto-clickbait-es"
+    assert not any("SIN EVALUAR" in limite for limite in ficha["limitations"])
 
 
 def test_el_umbral_del_espanol_es_el_suyo_o_el_del_detector(monkeypatch):
