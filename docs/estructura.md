@@ -182,7 +182,8 @@ no tiene `tool.py` (#187). El patrón de arriba es el de las integraciones que
 |---|---|
 | `discovery.py` | Recorre el paquete y registra lo que encuentra. Un paquete sin módulo `tool` va a `without_tools`, no a `failed`: no publicar herramientas no es estar roto, y lo que cae en `failed` se anuncia al arrancar como integración rota (#187) — ⚠️ [tensión 3](#3--discovery-y-metadata-no-envuelven-nada) |
 | `metadata.py` | La categoría y procedencia que cada tool declara, para el catálogo — ⚠️ [tensión 3](#3--discovery-y-metadata-no-envuelven-nada) |
-| `guardian/`, `nyt/` | Fuentes de noticias |
+| `guardian/`, `nyt/` | Fuentes de noticias en inglés |
+| `gnews/`, `newsdata/` | Fuentes de noticias en español (#235). Sus claves son **opcionales**: sin una, sólo falla su herramienta, y dice qué falta. Devuelven también el medio (`source`), y el cuerpo es la entradilla (`description`), porque el `content` del plan gratuito llega recortado en GNews y es un aviso de pago en NewsData.io. Ninguna tiene sonda en `/health`, por la cuota. La regla que quita las noticias repetidas está escrita en los dos clientes: no cabe en `core/`, que pide que la use más de una capa, y un módulo suelto aquí sería maquinaria |
 | `weather/` | Fuente meteorológica. Sobrevive de la Épica 0 y sirve de contraste: es la única que no tiene nada que ver con el clickbait |
 
 ### `backend/integrations/nlp/`

@@ -21,6 +21,8 @@ CLAVES_DE_PRUEBA = {
     "guardian_api_key": "clave-guardian-de-prueba",
     "nyt_api_key": "clave-nyt-de-prueba",
     "hf_token": "token-hf-de-prueba",
+    "gnews_api_key": "clave-gnews-de-prueba",
+    "newsdata_api_key": "clave-newsdata-de-prueba",
 }
 
 
@@ -54,6 +56,24 @@ def test_por_defecto_los_modelos_corren_en_local(monkeypatch):
     configuracion = Settings(**CLAVES_DE_PRUEBA, _env_file=None)
 
     assert configuracion.nlp_backend == "local"
+
+
+def test_las_claves_de_las_noticias_en_espanol_son_opcionales(monkeypatch):
+    """#235: que falte una clave de noticias no puede tumbar el análisis, y un
+    despliegue cuyo `.env` no las tenga tiene que seguir arrancando. Sin ellas,
+    cada herramienta dice qué falta."""
+    monkeypatch.delenv("GNEWS_API_KEY", raising=False)
+    monkeypatch.delenv("NEWSDATA_API_KEY", raising=False)
+    obligatorias = {
+        campo: clave
+        for campo, clave in CLAVES_DE_PRUEBA.items()
+        if campo not in ("gnews_api_key", "newsdata_api_key")
+    }
+
+    configuracion = Settings(**obligatorias, _env_file=None)
+
+    assert configuracion.gnews_api_key is None
+    assert configuracion.newsdata_api_key is None
 
 
 # La configuración del español (#230): la misma forma que la del inglés.

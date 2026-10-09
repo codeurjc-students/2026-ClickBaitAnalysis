@@ -8887,6 +8887,69 @@ La regla de #242 pide las dos cosas: llegar al 0,674 en `test` y, con medios fue
 | Código | `9dcc22b`, con la parte `test` de `eval_zero_shot_es.py` antes de commitearla; `fdcd6c5` la trae sin cambios |
 | Guiones | `backend/evaluation/eval_zero_shot_es.py test` (unos 2 min en la GTX: 59 s de carga y 50 s para los 700; guarda `var/zero_shot_es/test.json`, local y sin versionar) y `spikes/ta1c_medios.py` (los medios de cada parte) |
 
+### Noticias en español: GNews y NewsData.io (#235, 9 oct 2026)
+
+Analizar titulares en español tiene poco sentido si el sistema no puede traerlos, y las dos herramientas de noticias, NYT y Guardian, sólo dan inglés. El autor puso la condición al definir `v0.8` (7 oct): al menos dos APIs con noticias en español. Son **GNews** y **NewsData.io**, con planes gratuitos que no admiten uso comercial; un TFG no lo es. Se descartaron los RSS de los medios, que no buscan por tema (decisión del autor), y GDELT, que respondió 429 a la primera consulta.
+
+Entran dos herramientas, `get_gnews_news` y `get_newsdata_news`, que devuelven lo mismo que las de NYT y Guardian —titular, enlace, fecha y cuerpo— más el medio (`source`), porque aquí cada noticia puede venir de un medio y de un país distintos.
+
+#### Lo que se midió antes de escribir los clientes
+
+Antes de escribir los clientes, `spikes/noticias_es.py` preguntó a las dos APIs reales lo que la documentación no dejaba claro: qué campos traen, de cuándo, con qué cuota y qué responde una clave que no existe. Ninguna clave se imprime: todo lo que enseña pasa por un filtro que las tapa.
+
+| | GNews | NewsData.io |
+|---|---|---|
+| Con tema | `/search`, que exige `q` | `/latest`, con `q` o `qInTitle` |
+| Sin tema | `/top-headlines` | `/latest` |
+| Ir hacia atrás | `from` y `to`: de hace 30 a 25 días trajo 10 noticias | `timeframe` responde **422** en el plan gratuito: sólo lo último |
+| Lo más reciente | unas 12 horas de retraso | igual |
+| El cuerpo | `content` llega **recortado** (265–267 caracteres, con una marca de lo que falta); `description`, entera, 103–420 | `content` es el texto «ONLY AVAILABLE IN PAID PLANS» en las 10 noticias de cada consulta; `description`, 56–3.271 |
+| La fecha | ISO 8601, en UTC | «2026-10-08 21:51:12», con la zona aparte (`pubDateTZ`, siempre «UTC») |
+| La cuota, en las cabeceras | ninguna | `x-api-limit-remaining`, los créditos del día que quedan; `x-ratelimit-limit`, 60 peticiones cada 15 minutos |
+| Una clave que no existe | **400**, «You did not provide an API key.», como si faltara | **401**, «The provided API key is not valid.» |
+| ¿Repite la clave en el error? | no | no |
+
+- **El cuerpo de las dos es la entradilla** (`description`). Es lo que lee la incoherencia, y una entradilla entera vale más que medio párrafo cortado. El `content` de NewsData.io habría sido peor que nada: la incoherencia habría comparado el titular con un aviso de pago, sin que nada fallara.
+- **Un 422 no gastó crédito**: la cabecera decía 196 antes y después de pedir `timeframe`.
+- ⚠️ **La página de NewsData.io y su cabecera no coinciden**: la página decía 30 peticiones cada 15 minutos (comprobado al definir la issue, el 7 oct), y la cabecera dice 60. El cliente sigue a la cabecera; si el límite real fuera 30, la petición 31 recibiría un 429, que se publica como el error que es.
+
+#### Por qué NewsData.io busca en el titular
+
+Probando el cliente, `q="inteligencia artificial"` trajo noticias que no eran del tema: entre ellas, la de un veterano de Malvinas candidato a dirigir una escuela. La parte `busqueda` del spike pidió dos temas de tres formas, y contó en cuántas de las 10 noticias aparece el tema entero, sin tildes ni mayúsculas, en el título o en la entradilla:
+
+| Tema | `q` | `q` entre comillas | `qInTitle` |
+|---|---|---|---|
+| «inteligencia artificial» | 1 de 10 (4.211 resultados) | 1 de 10 (4.206) | **10 de 10** (226) |
+| «cambio climático» | 4 de 10 (762) | 4 de 10 (725) | **10 de 10** (25) |
+
+`q` busca también en el texto completo de la noticia, que el plan gratuito no devuelve, y las comillas no cambian nada: salieron las mismas 10. Con `qInTitle` hay muchos menos resultados, pero siguen sobrando para llenar 10, y para un sistema que analiza titulares es lo que interesa: un titular que nombre el tema. **Decidido (autor): `qInTitle`.** La cuenta es una cota baja —una noticia de IA que sólo diga «IA» no cuenta—, y por eso el guion imprime los titulares, para leerlos.
+
+#### Las noticias repetidas
+
+El mismo titular llega a veces dos veces: con `qInTitle`, «Medio millón de pingüinos desaparecen por efectos de cambio climático» salió dos veces entre 10. **Decidido (autor): quitar las repetidas**, quedándose con la primera de cada titular, en las dos APIs; a cambio, la lista puede traer menos de 10. La regla está escrita en los dos clientes, cada uno con una nota que remite al otro: no cabe en `core/`, que pide que la use más de una capa, y un módulo suelto en `integrations/` sería maquinaria, no una integración (`docs/estructura.md`).
+
+#### Lo que entró
+
+- **Las claves, opcionales** (`gnews_api_key` y `newsdata_api_key`, `SecretStr | None`), mientras que las otras tres siguen siendo obligatorias y su falta impide arrancar. **Decidido (autor)**, frente a hacerlas obligatorias como las demás: que falte una clave de noticias no puede tumbar el análisis, y un despliegue que llegara a la máquina 1 sin ellas en su `.env` no arrancaría ni la API ni el MCP. Sin la clave, la herramienta no hace ninguna petición y dice qué falta («GNews no está configurado: falta GNEWS_API_KEY en la configuración.»). El CI no necesita ninguna, y el compose ya pasa el `.env` entero (`env_file`).
+- **Los clientes**, como los de NYT y Guardian. Un fallo devuelve el error de `make_request`, nunca «No articles found» (#196, #212), y la fecha sale en ISO 8601. GNews ordena por fecha, que es su defecto, y lleva `days` de 1 a 30; NewsData.io no lleva `days`. Los dos piden español (`lang=es` y `language=es`) y **no filtran por país** (decidido: lo que se pide son noticias en español, no de un país). Los créditos que quedan en NewsData.io salen de su cabecera, como en Guardian; los de GNews los cuenta el proceso, como en NYT.
+- **Las herramientas**, con los nombres decididos por el autor y `topic` como `TextoOpcional` (#197). La primera línea de cada una dice lo que la distingue de la otra (#183): GNews deja elegir hasta 30 días atrás, y NewsData.io sólo da lo último, con las palabras del tema en el titular. Las descubre el servidor solo, y la pantalla de Sistema las pinta desde su esquema.
+- **Sin sonda en `/health`** (decidido: la tercera opción de la issue). `/health` se cachea 30 s **por proceso**, y la API y el MCP tienen cada uno su caché: hasta 240 sondeos por hora, frente a las 100 peticiones diarias de GNews, que se gastarían en menos de media hora de uso continuo. Que falten no tumba nada, y cada herramienta dice si no está configurada o qué respondió su API. Lo explica el docstring de `core/health.py`.
+- **Tests: 609, antes 568.** `test_gnews.py` y `test_newsdata.py`, con `respx`: los campos, el cuerpo de la entradilla y nunca `content`, `qInTitle`, los errores sin la clave ni la URL, que sin clave no se pide nada, los repetidos, la cuota y la fecha. Y dos `integration` por API, que pasan: la clave falsa (400 y 401) y una consulta real. Además, `test_settings.py` fija que las dos claves son opcionales, y dos tests que enumeran lo que existe se actualizaron: las integraciones descubiertas, y las herramientas del servidor de pruebas, que pasan de 11 a 13 (no lleva `analyze_headline`, #188).
+
+#### Lo que queda
+
+- **El catálogo del agente crece**: de 12 a 14 herramientas, y de 10.486 a 12.677 caracteres entre descripciones y esquemas (+21 %, `spikes/catalogo_peso.py`). No se midió con las 26 consultas: lo hará F (#234) una sola vez, con estas dos dentro, como decía la issue.
+- **No está en producción.** Desplegarlas, con las dos claves en el `.env` de la máquina 1, lo decide el autor. Sin ellas, la máquina 1 arranca igual.
+- **Sin medir**: si GNews trae también noticias fuera del tema. Sus resultados no se contaron como los de NewsData.io; la parte `busqueda` se podría ampliar a GNews con dos peticiones.
+
+| Condiciones | |
+|---|---|
+| Fecha | 2026-10-09: la parte `todo` del spike a las 11:58 y la parte `busqueda` a las 12:19 (hora de Madrid) |
+| Máquina | El PC de sobremesa del autor: WSL2 (Ubuntu 24.04.4), Python 3.12.3, httpx 0.28.1 |
+| APIs | GNews v4 y NewsData.io (`/api/1/latest`), planes gratuitos, con las claves del autor |
+| Código | Sobre `dev` en `94a65e6`; el spike, los clientes y las herramientas entran en esta PR |
+| Guiones | `spikes/noticias_es.py` (`todo`: unas cuatro peticiones a cada API; `busqueda`: seis créditos de NewsData.io) y `spikes/catalogo_peso.py` |
+
 
 
 "Aplico Rudin donde puedo —incoherencia(A MEDIAS, YA QUE EL MODELO NO) y léxico son intrínsecamente interpretables— y reservo lo post-hoc (LIME/SHAP), con sus límites de fidelidad, solo para la parte que depende de un transformer preentrenado que no puedo abrir de otro modo." !!!IMPORTANTE (NO MODIFICAR, RECORDAR POSTURA DEFINIDA)
