@@ -19,10 +19,11 @@ LO QUE SE COMBINA, fijado antes de medir (comentario en #232)
 Cada combinación vota como en producción: la etiqueta más probable, que es la
 primera que devuelve el pipeline y la que se queda `dedicated.detect`.
 
-LAS DOS PARTES
+LAS TRES PARTES
 
     .venv/bin/python -m backend.evaluation.eval_zero_shot_es validation
     CUDA_VISIBLE_DEVICES= .venv/bin/python -m backend.evaluation.eval_zero_shot_es tiempo
+    .venv/bin/python -m backend.evaluation.eval_zero_shot_es test
 
 - `validation`: las 24 combinaciones sobre TA1C `validation` (700). P, R y F1
   del voto, y la diferencia de F1 con la mejor, con su intervalo del 95 % por
@@ -34,8 +35,11 @@ LAS DOS PARTES
   regla de la issue: entre los modelos cuya mejor combinación queda dentro del
   ruido de la mejor de todas, el más rápido.
 
-`test` NO se lee aquí. Se abre una sola vez, con la elegida, y si se queda (F1
-al menos igual al del lineal en español) depende de #231.
+- `test`, después de #231, que dio el listón: la elegida, UNA vez, sobre TA1C
+  `test` (700), y el lineal de producción sobre los mismos titulares. Se queda
+  si su F1 es al menos el del lineal en español (0,674). Lo medido se guarda
+  en `var/zero_shot_es/test.json`, y con él delante el modelo no se vuelve a
+  ejecutar: se enseña lo guardado, y se niega si la elegida cambió.
 
 POR QUÉ EL PIPELINE, Y NO `dedicated.detect`
 
@@ -53,16 +57,20 @@ import re
 import statistics
 import sys
 import time
+from datetime import datetime
 from pathlib import Path
 
 from sklearn.metrics import precision_recall_fscore_support, roc_auc_score
 
 from backend.evaluation.eval_reentreno import diferencia_con_intervalo
 from backend.evaluation.splits import load_split
-from backend.integrations.nlp import dedicated
+from backend.integrations.nlp import dedicated, linear
 from backend.integrations.nlp.local import LocalNLPClient
 
 PARTE = "ta1c_validation"
+PARTE_DE_TEST = "ta1c_test"
+# El listón de la regla: el F1 del lineal en español en TA1C `test` (#231).
+F1_DEL_LINEAL_EN_TEST = 0.674
 CACHE = Path(__file__).resolve().parents[2] / "var" / "zero_shot_es"
 
 CANDIDATOS = (
@@ -402,15 +410,137 @@ def tiempo() -> None:
     )
 
 
+def _medida(etiquetas: list[int], votos: list[int], puntuaciones: list[float]) -> dict:
+    precision, recall, f1, _ = precision_recall_fscore_support(
+        etiquetas, votos, average="binary", zero_division=0
+    )
+    return {
+        "precision": precision,
+        "recall": recall,
+        "f1": f1,
+        "votan_clickbait": sum(votos) / len(votos),
+        "auc": roc_auc_score(etiquetas, puntuaciones),
+    }
+
+
+def _linea(nombre: str, medida: dict) -> str:
+    return (
+        f"  {nombre:52} P {medida['precision']:.3f} · R {medida['recall']:.3f} · "
+        f"F1 {medida['f1']:.3f} · vota cb {medida['votan_clickbait']:.1%} · AUC {medida['auc']:.3f}"
+    )
+
+
+def test() -> None:
+    """La elegida, UNA vez, en TA1C `test`, con la regla de cuándo se queda.
+
+    La elegida no se escribe aquí: sale de `tiempo.json` (el modelo) y de
+    `validation.json` (su mejor combinación). Lo medido se guarda en
+    `test.json`; con él delante, el modelo no se vuelve a ejecutar.
+    """
+    elegido = json.loads((CACHE / "tiempo.json").read_text(encoding="utf-8"))["elegido"]
+    mejor = json.loads((CACHE / "validation.json").read_text(encoding="utf-8"))[
+        "mejores"
+    ][elegido]
+    preguntas = REDACCIONES[mejor["redaccion"]]
+    plantilla = PLANTILLAS[mejor["plantilla"]]
+    pares = load_split(PARTE_DE_TEST)
+    titulares = [titular for titular, _ in pares]
+    etiquetas = [etiqueta for _, etiqueta in pares]
+
+    ruta = CACHE / "test.json"
+    if ruta.exists():
+        guardado = json.loads(ruta.read_text(encoding="utf-8"))
+        if (
+            guardado["modelo"] != elegido
+            or guardado["preguntas"] != preguntas
+            or guardado["plantilla"] != plantilla
+            or len(guardado["probabilidades"]) != len(titulares)
+        ):
+            raise SystemExit(
+                f"`test` ya se abrió el {guardado['fecha']} con otra elegida "
+                f"({guardado['modelo']} · {guardado['redaccion']}): no se vuelve a abrir."
+            )
+        print(
+            f"== `test` ya se abrió el {guardado['fecha']}: lo guardado, sin volver a ejecutar el modelo"
+        )
+    else:
+        cliente = LocalNLPClient()
+        pipe = _cargar(cliente, elegido)
+        inicio = time.perf_counter()
+        medidas = probabilidades(pipe, titulares, preguntas, plantilla)
+        guardado = {
+            "fecha": datetime.now().astimezone().isoformat(timespec="seconds"),
+            "modelo": elegido,
+            "revision": getattr(pipe.model.config, "_commit_hash", None),
+            "redaccion": mejor["redaccion"],
+            "preguntas": preguntas,
+            "plantilla": plantilla,
+            "dispositivo": str(pipe.device),
+            "segundos": round(time.perf_counter() - inicio, 1),
+            "probabilidades": medidas,
+        }
+        ruta.write_text(json.dumps(guardado, ensure_ascii=False), encoding="utf-8")
+        del cliente, pipe
+        _liberar()
+
+    clickbait = sum(etiquetas)
+    prevalencia = clickbait / len(etiquetas)
+    print(
+        f"== TA1C test: {len(pares)} titulares, {clickbait} clickbait ({prevalencia:.1%}); "
+        f"votar «clickbait» siempre da F1 {2 * prevalencia / (1 + prevalencia):.3f}"
+    )
+    print(
+        f"  la elegida, abierta el {guardado['fecha']} en {guardado['dispositivo']} "
+        f"({guardado['segundos']} s), revisión {str(guardado['revision'])[:12]}"
+    )
+
+    probabilidades_elegida = guardado["probabilidades"]
+    votos_elegida = [int(probabilidad > 0.5) for probabilidad in probabilidades_elegida]
+    elegida = _medida(etiquetas, votos_elegida, probabilidades_elegida)
+
+    # El listón: el lineal de producción, con los pesos y el umbral del JSON,
+    # sobre los mismos titulares. #231 lo midió reentrenando con sklearn, así
+    # que aquí se comprueba que el JSON da lo mismo.
+    salidas_lineal = [linear.predict(titular).unwrap() for titular in titulares]
+    votos_lineal = [int(salida["is_clickbait"]) for salida in salidas_lineal]
+    lineal = _medida(
+        etiquetas, votos_lineal, [salida["probability"] for salida in salidas_lineal]
+    )
+
+    print(_linea(f"{elegido} · {mejor['redaccion']} · {mejor['plantilla']}", elegida))
+    print(
+        _linea(
+            f"el lineal de producción (umbral {salidas_lineal[0]['threshold']})", lineal
+        )
+    )
+    if round(lineal["f1"], 3) != F1_DEL_LINEAL_EN_TEST:
+        print(
+            f"  ⚠️ el lineal de producción NO reproduce el {F1_DEL_LINEAL_EN_TEST} de #231 "
+            f"({lineal['f1']:.4f}): el listón sigue siendo el publicado"
+        )
+    delta, bajo, alto = diferencia_con_intervalo(etiquetas, votos_elegida, votos_lineal)
+    print(
+        f"  F1 de la elegida menos el del lineal: {delta:+.3f} [{bajo:+.3f}, {alto:+.3f}] "
+        "(información: la regla pide «al menos igual», sin mirar el ruido)"
+    )
+    queda = elegida["f1"] >= F1_DEL_LINEAL_EN_TEST
+    print(
+        f"  => {'SE QUEDA' if queda else 'NO se queda'}: F1 {elegida['f1']:.3f} "
+        f"frente al listón {F1_DEL_LINEAL_EN_TEST} del lineal en español (#231)"
+    )
+
+
 def main() -> None:
     parte = sys.argv[1] if len(sys.argv) > 1 else ""
     if parte == "validation":
         validation()
     elif parte == "tiempo":
         tiempo()
+    elif parte == "test":
+        test()
     else:
         raise SystemExit(
-            "Uso: python -m backend.evaluation.eval_zero_shot_es [validation | tiempo]"
+            "Uso: python -m backend.evaluation.eval_zero_shot_es [validation | tiempo | test]"
         )
 
 

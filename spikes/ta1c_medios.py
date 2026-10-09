@@ -4,6 +4,8 @@ Las cifras de TA1C que citan `data/external/ATTRIBUTION.md` y la sección de #22
 del README: cuántos teasers y cuánto clickbait hay en cada parte del corpus, la
 proporción de clickbait de cada medio —que es el riesgo de vocabulario de fuente
 que hereda el lineal en español (#231)— y cuántos artículos llegan sin cuerpo.
+Desde #232 (2026-10-09), también cuántos medios hay en cada parte: si están
+los mismos en las tres, `test` no mide medios que el modelo no haya visto.
 
 Lee el extracto versionado (`data/external/ta1c.jsonl.gz`) y los cuerpos de
 `var/ta1c/`, que se regeneran con `python -m backend.evaluation.ta1c_extract`.
@@ -43,6 +45,18 @@ def main() -> None:
             f"  {parte:10} {len(etiquetas):5} · clickbait {sum(etiquetas)} "
             f"({sum(etiquetas) / len(etiquetas):.1%})"
         )
+    medios_por_parte = {
+        parte: {teaser["medio"] for teaser in teasers if teaser["parte"] == parte}
+        for parte in ("train", "validation", "test")
+    }
+    en_las_tres = set.intersection(*medios_por_parte.values())
+    print(
+        "  medios: "
+        + ", ".join(
+            f"{parte} {len(medios)}" for parte, medios in medios_por_parte.items()
+        )
+        + f"; en las tres partes, {len(en_las_tres)}"
+    )
 
     por_medio: dict[tuple[str, str], list[int]] = defaultdict(list)
     for teaser in teasers:

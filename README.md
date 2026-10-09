@@ -8704,7 +8704,7 @@ Al ir a medirlo, XLM-R no cargó. Su repositorio sólo trae el modelo de Sentenc
 - **C (#231)**: el lineal en español. Su F1 en `test` es el listón de D. *(Hecho en #231: 0,674 en TA1C `test`. Ver «El lineal, bilingüe: el primer veredicto en español».)*
 - **Después de C**: abrir `test` una vez con la elegida y aplicar la regla. Con lo visto en `validation`, lo esperable es que no pase. Entonces quedan las dos salidas que ya preveía la issue:
   - afinar un modelo en español con TA1C en la A40, que exige publicar los pesos en el Hub (en el artículo de TA1C, BETO afinado da 0,84 en `test`);
-  - o que la dedicada no aplique en español, y la forma quede sólo con el lineal.
+  - o que la dedicada no aplique en español, y la forma quede sólo con el lineal. *(Se abrió el 9 oct: 0,450, no se queda, y el autor eligió la primera, en #242. Ver «La dedicada en español: el zero-shot no llega al lineal, y se afinará un modelo».)*
 - **Si algún día hace falta la plantilla española**, la invocación de #159 tendrá que ganar un campo `template`. Hoy no hace falta.
 
 | Condiciones | |
@@ -8815,7 +8815,7 @@ El lineal bilingüe con 0,35 mejora también el veredicto inglés. La regla de #
 
 #### Lo que queda
 
-- **D (#232)**: el listón de la dedicada en español es este 0,674. XLM-R dio 0,437 en `validation`, así que lo esperable es que no pase al abrir su `test`.
+- **D (#232)**: el listón de la dedicada en español es este 0,674. XLM-R dio 0,437 en `validation`, así que lo esperable es que no pase al abrir su `test`. *(Abierto el 9 oct: 0,450, no pasa; el autor eligió afinar BETO, en #242. Ver «La dedicada en español: el zero-shot no llega al lineal, y se afinará un modelo».)*
 - **E (#233)**: incoherencia y tono en español. Hasta entonces, el lineal es la única señal que vota en español.
 - **F (#234)**: los docstrings de las herramientas, que aún dicen «pensada para inglés» del lineal y cambian el catálogo del agente; y el ejemplo en español del formulario, que ya daría veredicto.
 - **Sin hacer**: un umbral por idioma (en TA1C solo, el mejor corte queda por debajo de 0,30), y separar el medio del clickbait reentrenando sin los nombres de los medios.
@@ -8830,6 +8830,62 @@ Los tests pasan de 564 a 568 en el backend y de 201 a 204 specs en el frontend.
 | Código | La comparación, el umbral y `test`, sobre `e81f7d3`, con la elegida y su umbral fijados en el guion tal como entraron en `e86c178`. `eval_ta1c` y `eval_veredicto`, sobre `7d7cec2`, con `eval_ta1c.py` tal como entró en `e9e52f7` (su docstring se corrigió después de medir). `--fuente`, sobre `e9e52f7`, con el lineal integrado: los pesos de `cbba56c` y el voto con umbral de `da6a045` |
 | Modelos | El lineal, `linear_clickbait.json` de `cbba56c` (14.330 rasgos, umbral 0,35). Los demás, los de las fichas: `Stremie/roberta-base-clickbait`, `cardiffnlp/twitter-roberta-base-sentiment-latest` y `sentence-transformers/all-MiniLM-L6-v2`, con transformers 5.12.0 y torch 2.12.1 |
 | Guiones | `spikes/mayusculas_con_tilde.py`; `backend/evaluation/eval_lineal_es.py` (sin argumentos, `--umbral`, `--test` y `--fuente`; segundos cada uno); `backend/evaluation/train_linear.py`; `eval_reentreno.py --ficha` (el kappa); `eval_ta1c.py` con y sin `--como-produccion` (~2 min y ~10 s); `eval_veredicto.py` (~17 min, huella nueva `3db32ea91cb2`; la de antes, `386cefbaea5d`) |
+
+### La dedicada en español: el zero-shot no llega al lineal, y se afinará un modelo (#232, 9 oct 2026)
+
+La primera parte de D eligió en TA1C `validation` un zero-shot: XLM-R (`joeddav/xlm-roberta-large-xnli`) con «sensacionalista» / «informativo» y la plantilla española. Dejó `test` para después de C, porque la regla de la issue pide que su F1 llegue al menos al del lineal en español. C (#231) dio ese listón: 0,674 en TA1C `test`. Ésta es la segunda parte: abrir `test` una vez con la elegida, aplicar la regla y decidir.
+
+#### La prueba, una sola vez
+
+La parte nueva del guion, `eval_zero_shot_es.py test`, no elige nada a mano. Lee la elegida de lo que guardó la primera parte (`tiempo.json` y `validation.json`), pasa los 700 titulares de TA1C `test` por el mismo `pipeline` y guarda lo medido en `var/zero_shot_es/test.json`. Con ese fichero delante, el modelo no se vuelve a ejecutar: se enseña lo guardado, y se niega si la elegida cambió. Al lado mide el listón con el lineal de producción, con los pesos y el umbral de su JSON, sobre los mismos titulares.
+
+| TA1C `test` (700, 29,1 % clickbait) | P | R | F1 | Vota clickbait | AUC |
+|---|---|---|---|---|---|
+| `xlm-roberta-large-xnli` · adjetivos · plantilla española | 0,314 | 0,789 | **0,450** | 73,1 % | 0,592 |
+| El lineal de producción (umbral 0,35) | 0,756 | 0,608 | **0,674** | 23,4 % | 0,848 |
+| *Votar «clickbait» siempre* | 0,291 | 1 | 0,451 | 100 % | — |
+
+- **No se queda.** 0,450 frente a 0,674. La diferencia es −0,224, con un intervalo del 95 % de [−0,290, −0,154] por bootstrap emparejado, lejos del 0. El intervalo es sólo información: la regla pide «al menos igual», sin mirar el ruido.
+- **Repite lo de `validation`.** Vota «clickbait» en tres de cada cuatro titulares y queda una milésima por debajo de votar siempre «clickbait». Su AUC, 0,592, dice que apenas distingue.
+- **El listón se reproduce.** El lineal de producción da exactamente el 0,674 que #231 midió reentrenando con sklearn, con la misma precisión y el mismo recall. Su AUC en `test`, 0,848, no se había publicado.
+
+#### La decisión: afinar un modelo, en su propia issue
+
+Con la regla sin cumplir quedaban las dos salidas que preveía la issue. El autor eligió **afinar un modelo en español con TA1C** (9 oct), frente a que la dedicada no analizara el español:
+
+- Hoy, en español, la forma sólo tiene una señal, el lineal. Sin una señal opaca a su lado no hay contraste entre señales de distinta naturaleza, que es lo que sostiene el trabajo.
+- Los autores de TA1C publican BETO afinado con 0,84 en `test`, muy por encima del 0,674.
+
+Va en su propia issue, **#242**: la H de `v0.8`, de la que ahora depende también F (#234). #232 se cierra aquí. Los pesos se publicarán en un repositorio público del Hub a nombre del autor, para que la imagen los hornee sin token, como los demás modelos.
+
+#### El riesgo de fuente, que `test` no puede medir
+
+Un modelo afinado con TA1C puede aprender a reconocer al medio en vez del clickbait, como ya hace el lineal (`euvzla` pesa −2,10, #231). La proporción de clickbait va del 2,9 % al 68,7 % según el medio, y una referencia que vota sólo por el medio da AUC 0,682 en `validation`. Aquí hay dos agravantes:
+
+- **Los 18 medios están en las tres partes** (`spikes/ta1c_medios.py`). `test` pregunta por medios que el modelo ya ha visto, así que reconocerlos puntúa como acertar. Le pasa también al 0,84 publicado.
+- **En un modelo opaco no hay pesos que leer.** Lo que en el lineal se ve mirando sus pesos, en BETO sólo se ve provocándolo.
+
+Y si el lineal y BETO coinciden porque los dos reconocen al medio, su acuerdo no son dos pruebas, sino la misma pista dos veces. De las acotaciones posibles, el autor eligió dos para #242:
+
+- **Limpiar** la cuenta, las etiquetas de sección y el nombre del medio antes de entrenar, y medir con y sin limpieza, para saber cuánto pesaba el atajo.
+- **Validar con medios fuera**: entrenar con unos medios y medir con otros, que es justo lo que el `test` oficial no puede.
+
+La regla de #242 pide las dos cosas: llegar al 0,674 en `test` y, con medios fuera, superar al lineal medido igual. Se descartaron comparar con la referencia de sólo el medio, medio a medio, y probar el modelo en otro corpus en español.
+
+#### Lo que queda
+
+- **H (#242)**: BETO afinado con TA1C, con su regla publicada antes de medir.
+- **Mientras tanto, la dedicada no analiza el español**, con el motivo de #230 («esta señal aún no lo analiza»), que sigue siendo cierto.
+- **La plantilla española, y `sentencepiece` y `protobuf`, no hacen falta**: XLM-R no se queda, y los dos paquetes siguen sólo en el entorno de desarrollo.
+
+| Condiciones | |
+|---|---|
+| Fecha | 2026-10-09, a las 10:03 (hora de Madrid) |
+| Máquina | El PC de sobremesa del autor: WSL2 (Ubuntu 24.04.4), Python 3.12.3, en la GeForce GTX 1650 SUPER, como `validation`. El lineal, en la CPU |
+| Versiones | transformers 5.12.0, torch 2.12.1+cu130, sentencepiece 0.2.2 y protobuf 7.36.2 |
+| Modelos | `joeddav/xlm-roberta-large-xnli` `b227ee8435ce`. El lineal, `linear_clickbait.json` de #231 (umbral 0,35) |
+| Código | `9dcc22b`, con la parte `test` de `eval_zero_shot_es.py` antes de commitearla; `fdcd6c5` la trae sin cambios |
+| Guiones | `backend/evaluation/eval_zero_shot_es.py test` (unos 2 min en la GTX: 59 s de carga y 50 s para los 700; guarda `var/zero_shot_es/test.json`, local y sin versionar) y `spikes/ta1c_medios.py` (los medios de cada parte) |
 
 
 
