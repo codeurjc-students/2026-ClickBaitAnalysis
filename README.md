@@ -5159,6 +5159,9 @@ modelo; aquí, con sólo dejar pasar el tiempo—. Fijar la revisión obliga a d
 dónde vive ese identificador sin volver a duplicarlo, y queda anotado en #162
 como decisión aparte.
 
+*(Fijadas en #234, con estas mismas revisiones: cada ficha lleva la suya, y la
+imagen hornea ésa. Ver «El cierre de `v0.8`, primera parte».)*
+
 #### `HF_HUB_OFFLINE=1`: lo que da y lo que cuesta
 
 Se activa **después** de hornear, y hace dos cosas:
@@ -5713,7 +5716,7 @@ estimación de ~2,4 GB para API y MCP que se hizo al decidir H4 se queda holgada
 #### Lo que NO entra
 
 - **HTTPS, el dominio, `cors_origins` y abrir los puertos 80 y 443**: #165.
-- **Fijar la revisión de cada modelo horneado**, pendiente desde #162.
+- **Fijar la revisión de cada modelo horneado**, pendiente desde #162. *(Hecho en #234: ver «El cierre de `v0.8`, primera parte».)*
 
 ### HTTPS, el certificado que no se pudo pedir, y la verificación desde fuera (#165, 20 sep 2026)
 
@@ -5890,7 +5893,7 @@ alternativas se descartaron con su precio delante:
   en FastAPI. Va en **#169**, ahora que la aplicación está expuesta y sin
   autenticación.
 - **La sonda de salud por modelo**, que #147 dejó anotada y #156 no cubrió.
-- **Fijar la revisión de cada modelo horneado**, pendiente desde #162.
+- **Fijar la revisión de cada modelo horneado**, pendiente desde #162. *(Hecho en #234: ver «El cierre de `v0.8`, primera parte».)*
 
 *(Corrección de trazabilidad: la issue citaba **R8.2**, que habla del CI
 ejecutando las pruebas al hacer push y no tiene nada que ver. Lo que aplica es
@@ -8369,7 +8372,7 @@ Las cinco terminaron con respuesta. En la larga, la tercera vuelta llegó al **t
 #### Lo que queda
 
 - **El análisis en español**, en `v0.8`, con TA1C como corpus.
-- **Fijar la revisión de cada modelo horneado** (#217): la comprobación de arriba se hizo a mano; en `v0.8` entran modelos nuevos, y es el momento de fijarlas.
+- **Fijar la revisión de cada modelo horneado** (#217): la comprobación de arriba se hizo a mano; en `v0.8` entran modelos nuevos, y es el momento de fijarlas. *(Hecho en #234: ver «El cierre de `v0.8`, primera parte».)*
 
 ### Un titular que no está en inglés no recibe veredicto (#229, 8 oct 2026)
 
@@ -8541,7 +8544,7 @@ Medido con [`spikes/hf_credito.py`](spikes/hf_credito.py), con el token del proy
 
 - **Pagar PRO o crédito** (decidido arriba).
 - **Una sonda de salud de Hugging Face**: `/health` no lo sondea, así que el indicador seguiría en verde sin crédito. Está en #217, con la sonda por modelo.
-- **Los docstrings de las herramientas**, que hablan de «timeout o caída del proveedor»: tocarlos cambia el catálogo del agente y obliga a repetir las 26 consultas, así que van con F (#234).
+- **Los docstrings de las herramientas**, que hablan de «timeout o caída del proveedor»: tocarlos cambia el catálogo del agente y obliga a repetir las 26 consultas, así que van con F (#234). *(Hecho en #234, con las 26 consultas: ver «El cierre de `v0.8`, primera parte».)*
 - **`HF_TOKEN` sigue siendo obligatorio** aunque el defecto sea `local`: hacerlo opcional cambiaría la configuración del despliegue.
 - **Un patch `v0.7.1`**: lo publicado describe un despliegue en local, que no ha cambiado, así que no induce a error a quien lo despliegue o lo lea.
 
@@ -8631,7 +8634,7 @@ El catálogo del agente no cambió —huella sha256 `25e9c973154f097e`, la misma
 - **C (#231)**: los pesos del lineal en español, con su ficha; hoy su `run` no mira el idioma. Y el `lang` de sus palabras en la tarjeta. *(Hecho en #231: bilingüe, con su ficha en español, y sus palabras con el `lang` del titular. Ver «El lineal, bilingüe: el primer veredicto en español».)*
 - **D (#232)**: el zero-shot multilingüe, que ya se puede poner con `NLP_MODELS_ES` y medir. *(Medido en #232: ninguna de las 24 combinaciones llega al F1 de votar «clickbait» siempre; ver «La dedicada en español: ningún zero-shot sirve».)*
 - **E (#233)**: incoherencia y tono en español, el umbral de la incoherencia calibrado en TA1C —hasta entonces, el inglés— y el titular y el cuerpo en idiomas distintos. *(Hecho en #233: el tono, sí; la incoherencia no separa (AUC 0,594) y no analiza el español; los idiomas distintos, en #217. Ver «La incoherencia y el tono en español».)*
-- **F (#234)**: los docstrings de las herramientas («Pensada para inglés»), que cambian el catálogo del agente; y el ejemplo en español del formulario.
+- **F (#234)**: los docstrings de las herramientas («Pensada para inglés»), que cambian el catálogo del agente; y el ejemplo en español del formulario. *(Hechos en #234, con las 26 consultas: ver «El cierre de `v0.8`, primera parte».)*
 
 Los tests pasan de 535 a 564 en el backend, en verde también con el venv de sólo `requirements.txt`, y de 194 a 201 specs en el frontend.
 
@@ -8817,7 +8820,7 @@ El lineal bilingüe con 0,35 mejora también el veredicto inglés. La regla de #
 
 - **D (#232)**: el listón de la dedicada en español es este 0,674. XLM-R dio 0,437 en `validation`, así que lo esperable es que no pase al abrir su `test`. *(Abierto el 9 oct: 0,450, no pasa; el autor eligió afinar BETO, en #242. Ver «La dedicada en español: el zero-shot no llega al lineal, y se afinará un modelo».)*
 - **E (#233)**: incoherencia y tono en español. Hasta entonces, el lineal es la única señal que vota en español. *(Hecho en #233: el tono, que no vota; la incoherencia, no. Con la dedicada de #242, en español votan el lineal y la dedicada. Ver «La incoherencia y el tono en español».)*
-- **F (#234)**: los docstrings de las herramientas, que aún dicen «pensada para inglés» del lineal y cambian el catálogo del agente; y el ejemplo en español del formulario, que ya daría veredicto.
+- **F (#234)**: los docstrings de las herramientas, que aún dicen «pensada para inglés» del lineal y cambian el catálogo del agente; y el ejemplo en español del formulario, que ya daría veredicto. *(Hechos en #234, con las 26 consultas: ver «El cierre de `v0.8`, primera parte».)*
 - **Sin hacer**: un umbral por idioma (en TA1C solo, el mejor corte queda por debajo de 0,30), y separar el medio del clickbait reentrenando sin los nombres de los medios.
 - **No está en producción**: la máquina 1 sirve `24e02ca`.
 
@@ -8938,7 +8941,7 @@ El mismo titular llega a veces dos veces: con `qInTitle`, «Medio millón de pin
 
 #### Lo que queda
 
-- **El catálogo del agente crece**: de 12 a 14 herramientas, y de 10.486 a 12.677 caracteres entre descripciones y esquemas (+21 %, `spikes/catalogo_peso.py`). No se midió con las 26 consultas: lo hará F (#234) una sola vez, con estas dos dentro, como decía la issue.
+- **El catálogo del agente crece**: de 12 a 14 herramientas, y de 10.486 a 12.677 caracteres entre descripciones y esquemas (+21 %, `spikes/catalogo_peso.py`). No se midió con las 26 consultas: lo hará F (#234) una sola vez, con estas dos dentro, como decía la issue. *(Medido en #234: ver «El cierre de `v0.8`, primera parte».)*
 - **No está en producción.** Desplegarlas, con las dos claves en el `.env` de la máquina 1, lo decide el autor. Sin ellas, la máquina 1 arranca igual.
 - **Sin medir**: si GNews trae también noticias fuera del tema. Sus resultados no se contaron como los de NewsData.io; la parte `busqueda` se podría ampliar a GNews con dos peticiones.
 
@@ -9046,7 +9049,7 @@ Sube, pero menos que la dedicada sola (0,803). En español la forma tiene ahora 
 
 #### Lo que queda
 
-- **F (#234)**: fijar la revisión de los modelos horneados, éste incluido (`03c31ac0c288`); la RAM en la máquina 1 con un modelo más que precalentar; los docstrings que dicen «pensada para inglés», con las 26 consultas; y el despliegue.
+- **F (#234)**: fijar la revisión de los modelos horneados, éste incluido (`03c31ac0c288`); la RAM en la máquina 1 con un modelo más que precalentar; los docstrings que dicen «pensada para inglés», con las 26 consultas; y el despliegue. *(La revisión y los docstrings, hechos en la primera parte de #234: ver «El cierre de `v0.8`, primera parte». La RAM y el despliegue, en la segunda.)*
 - **Sin medir**: la independencia entre BETO y el lineal. Los dos aprendieron de TA1C, y si coinciden por la misma pista, su acuerdo no son dos pruebas.
 - **No está en producción**: la máquina 1 sirve `24e02ca`.
 
@@ -9116,7 +9119,7 @@ El candidato de la issue se descartó antes de descargar nada, mirando las ficha
 
 #### Lo que queda
 
-- **F (#234)**: la RAM de la máquina 1 con un modelo más que precalentar, la revisión de los horneados (éste, `cf991100d706`), los docstrings y las 26 consultas, y el despliegue.
+- **F (#234)**: la RAM de la máquina 1 con un modelo más que precalentar, la revisión de los horneados (éste, `cf991100d706`), los docstrings y las 26 consultas, y el despliegue. *(La revisión y los docstrings, hechos en la primera parte de #234: ver «El cierre de `v0.8`, primera parte». La RAM y el despliegue, en la segunda.)*
 - **#217**: titular y cuerpo en idiomas distintos.
 - **Sin medir**: si la incoherencia en español separaría con otro modelo o leyendo más del artículo, y si el tono acierta en español.
 - **No está en producción**: la máquina 1 sirve `24e02ca`.
@@ -9129,6 +9132,122 @@ El candidato de la issue se descartó antes de descargar nada, mirando las ficha
 | Modelos | Incoherencia: `sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2` `e8f8c211226b`. Tono: `lxyuan/distilbert-base-multilingual-cased-sentiments-student` `cf991100d706` |
 | Código | `334ba98` para `eval_incoherencia_es`; `eval_ta1c`, con la ficha del tono antes de commitearla (entra en esta PR) |
 | Guiones | `backend/evaluation/eval_incoherencia_es.py` (sus similitudes, en `var/incoherencia_es/`, locales y sin versionar) y `backend/evaluation/eval_ta1c.py --como-produccion` |
+
+### El cierre de `v0.8`, primera parte: el agente en inglés y español, y los modelos fijados por su revisión (#234, 10 oct 2026)
+
+La F de `v0.8`, la última. Esta primera parte deja el código listo para publicar: lo que el agente lee dice inglés y español, y cada modelo horneado queda fijado al commit de los pesos que se midieron. El despliegue con las claves de las noticias en español, la comprobación en producción, la memoria de la máquina 1 y la release `v0.8.0` van en una segunda PR, porque se hacen sobre lo ya mergeado.
+
+#### La revisión de cada modelo, fijada
+
+Desde #162 la imagen horneaba lo que hubiera en `main` de cada repositorio del Hub el día del build. Si un autor subía otros pesos, la siguiente construcción servía otro modelo con las medidas del anterior en su ficha. Se anotó entonces sin arreglar, porque fijarlo obligaba a decidir dónde vive el identificador sin duplicarlo.
+
+- **Decidido (autor): un campo `revision` en la ficha, junto a `model_id`, y publicado.** Las medidas de una ficha son de unos pesos concretos, y eso es lo que pide R3.9. Sale por `describe_models`, por el catálogo REST (`ToolModelCard.revision`, opcional en el contrato) y en la pantalla de Sistema, con los 12 primeros caracteres. Es `None` donde no hay modelo descargable (el léxico y el lineal), y en un modelo puesto por configuración, que no se fija; con el mismo id llamado de otra forma (#159) se conserva, porque los pesos son los mismos.
+- **Las revisiones fijadas son las que se midieron**: las tres del 16 de septiembre (#162), la de BETO que se publicó en #242 y la del tono en español de #233. El 9 de octubre, la API del Hub decía que `main` seguía en las cinco, así que fijarlas no cambia nada de lo servido.
+
+| Modelo | Revisión |
+|---|---|
+| `Stremie/roberta-base-clickbait` | `517de05db9ba` |
+| `cardiffnlp/twitter-roberta-base-sentiment-latest` | `3216a57f2a0d` |
+| `sentence-transformers/all-MiniLM-L6-v2` | `1110a243fdf4` |
+| `ggcastle/beto-clickbait-es` | `03c31ac0c288` |
+| `lxyuan/distilbert-base-multilingual-cased-sentiments-student` | `cf991100d706` |
+
+**Descargar un commit no basta, y se midió antes de construir nada encima.** Sin red, `transformers` y `sentence-transformers` piden el modelo por su nombre, y la caché lo resuelve leyendo `refs/main`, un fichero con el commit al que apunta `main`. `snapshot_download` sólo lo escribe cuando se le pide una rama, no un commit (leído en el código de `huggingface_hub` 1.16.1, `_cache_commit_hash_for_specific_revision`): la imagen se habría construido bien y los modelos habrían fallado al arrancar. `spikes/horneado_por_revision.py` lo comprueba sobre una copia de la caché de desarrollo, con enlaces duros y sin bajar pesos:
+
+| Fase | Resultado |
+|---|---|
+| Sin red y sin `refs/main` | fallan los cinco, con «falló por un motivo no previsto»: el fallo que daría la API al arrancar |
+| `hornear` en la copia | los cinco con `refs/main` en el commit fijado; sólo pidió metadatos al Hub |
+| Sin red, después | cargan los cinco y responden (Stremie `Clickbait` 0,950, BETO `Clickbait` 0,989, MiniLM similitud 0,107…) |
+
+Por eso `docker/hornear_modelos.py` descarga el commit de la ficha, escribe `refs/main` apuntando a él y comprueba con `try_to_load_from_cache` que la caché lo resuelve así; si no, el build se para y dice qué modelo. Y se niega a hornear un modelo cuya ficha no fije revisión. Un test exige que toda ficha con modelo la traiga entera (40 caracteres), que es como la caché nombra cada instantánea.
+
+- **Descartado: pasar la revisión a cada carga** (`local.py`, la incoherencia, la factoría). Fijaría también el desarrollo, no sólo la imagen, pero tocaba los detectores y sus cachés por un caso —que un autor cambie los pesos— que la imagen ya cubre.
+- En la caché de WSL, Stremie y cardiff tienen otra instantánea además de la fijada (`8fd96a0c19f2` y `d616e2bdfcdb`): la conversión a `safetensors` que vive en una PR del Hub (#162). Con `refs/main` escrito, la caché resuelve la fijada.
+- **Cambiar una revisión es cambiar de modelo**: sus medidas se repiten antes (#119).
+
+#### El agente: lo que lee, en inglés y español
+
+Lo que el modelo del agente lee de cada herramienta daba por hecho el inglés desde antes de `v0.8`, y desde #231 era falso: «Pensada para inglés» en el lineal, la dedicada y el tono, que ya analizan el español.
+
+- **Los docstrings de `nlp/tool.py`**: la dedicada, el lineal y el tono, «inglés y español», con el titular «(en inglés o en español)»; el léxico, «Sólo inglés: sus listas de pistas son inglesas»; la incoherencia, «Sólo en inglés, titular y cuerpo: en español la similitud apenas distingue el clickbait, y no se aplica». `describe_models` dice que devuelve una ficha por señal **e idioma**, y nombra `language`, `model_id` y `revision` entre sus campos. Y `analyze_headline`, que en español el léxico y la incoherencia no se aplican.
+- **Dos frases tocaban la frontera que #183 separó entre la dedicada y el lineal**, y se quedaron en su segunda variante (abajo). «Afinado… fuera de este proyecto», de la dedicada, ya no era cierto entero, porque BETO se afinó aquí (#242): queda «uno por idioma (el inglés, fuera de este proyecto)», y se conserva «sobre titulares anotados por personas», la frase que #159 midió que hacía falta. El lineal sigue siendo «el modelo entrenado en este proyecto»: lo es en lo que distingue, porque se entrenó aquí desde cero, y BETO se afinó sobre un modelo ya entrenado.
+- **El «Raises» de la dedicada y el tono**, que #236 dejó para F, decía «timeout o caída del proveedor»: sólo describe la vía remota, y desde que el defecto es local el modelo también puede fallar al cargarse.
+- **`05-llano`**, el prompt por defecto, decía «las herramientas están entrenadas con titulares de noticias en inglés». Ahora dice que analizan inglés y español y cuáles no se aplican en español. Se corrigió en su sitio y se midió con el examen de abajo: #78 dejó `03` y `04` como estaban porque cambiarlos exigía medirlos otra vez, y éste es el que usa el agente. El texto de antes queda en el guion que compara los dos.
+- **El catálogo del agente pasa de 12.677 a 13.215 caracteres** (`spikes/catalogo_peso.py`), con las mismas 14 herramientas; la primera variante, 13.043.
+
+#### El examen: las 26 consultas y ocho en español
+
+Cambiar lo que lee el modelo puede hacer que elija mal sin que ningún test lo vea (#159), así que se midió con la regla relativa de #78, publicada en la issue antes de medir ([comentario](https://github.com/codeurjc-students/2026-ClickBaitAnalysis/issues/234#issuecomment-6089425403)). La parte nueva de `spikes/agente_a40.py`, `cierre`:
+
+- **Compara dos catálogos.** `antes` es el de `v0.7.0`, el último examinado (#78): 12 herramientas, sus docstrings y el `05-llano` de entonces. Se reconstruye sobre el de ahora deshaciendo cada frase cambiada y escondiendo las dos herramientas de #235, y antes de gastar la sesión el guion comprueba que coincide, letra a letra, con lo que publicaba el tag. `nuevo` es el de esta rama. Así el examen cubre todo lo que cambió el catálogo desde la última vez, GNews y NewsData incluidas, que #235 dejó sin medir.
+- **En las condiciones de producción**: `05-llano`, `num_ctx` 16384, temperatura 0,6, `presence_penalty` 0, un tope de 1.500 tokens y razonando; hasta ahora el examen usaba `04-preciso`, 8192 y el muestreo del Modelfile, para medir lo mismo que #188. Cuatro pasadas de cada versión, intercaladas y en orden alterno, cortadas en la primera decisión.
+- **Las 26 de siempre y ocho en español, contadas aparte**: tres genéricas (una pide el análisis completo), lineal, caja negra, tono y dos de noticias en español. En español cuenta además si el titular llega a la herramienta tal cual: con «(en inglés)» en el docstring, el modelo podría traducirlo.
+- **Regla 1, la de #78, sobre las 26**: `nuevo` se queda si su total no baja más de 2 del de `antes`, y si ninguna consulta que `antes` acierta 4 de 4 la falla `nuevo` 4 de 4. **Regla 2, en español** sin las dos de noticias, que `antes` no puede acertar: `nuevo` no acierta menos que `antes`, y no traduce ningún titular.
+
+**Primera sesión: la regla 1 no se cumple, por una consulta.**
+
+| | `antes` (`v0.7.0`) | `nuevo` |
+|---|---|---|
+| Las 26, en cuatro pasadas | 100/104 | **97/104**: la regla pedía ≥ 98 |
+| En español, sin las de noticias | 11/24 | **24/24** |
+| Noticias en español | 0/8 | 8/8, todas a GNews |
+| Titulares que llegan cambiados a la herramienta | 0 | 0 |
+
+- **Lo tumba «Usa el modelo entrenado para puntuar 'Doctors Hate This One Trick'»**: de 4/4 a 2/4, y las dos veces a `detect_clickbait`. Es la frontera que #183 separó, y que tocaban las dos frases nuevas: la dedicada había perdido «fuera de este proyecto», y el lineal había pasado a «el modelo de pesos visibles entrenado en este proyecto». Además, «Explícame cómo funciona una regresión logística» bajó de 4/4 a 3/4 (una vez a `describe_models`).
+- ⚠️ **Con los textos de `v0.7.0`, un titular en español hace que el modelo se invente el análisis.** En 13 de las 24 consultas no llamó a ninguna herramienta, y **en 9 de ellas narró cifras y pistas que nada había devuelto** («el modelo de pesos da una probabilidad del 89 % de ser clickbait… el clasificador entrenado lo etiqueta como clickbait con una confianza del 81 %»); en las otras 4 se negó o preguntó si seguir. El prompt le decía que las herramientas estaban entrenadas con titulares en inglés y que avisara: avisaba, y después redactaba él el análisis. Es el modo de fallo de #188 y #192, por otra puerta. Con `nuevo`, 0 de 32 sin herramientas.
+- La cabecera de condiciones del JSON dice `04-preciso` y 8192: son las constantes de las partes viejas del guion, que la registran. `cierre` usó las de producción (`_config_produccion`, en `216c525`), y desde la segunda sesión las guarda en su propio registro.
+
+**Segunda variante, `v2`, elegida al ver los datos y declarada así en la issue** ([comentario](https://github.com/codeurjc-students/2026-ClickBaitAnalysis/issues/234#issuecomment-6090009972)), como en #159, con la misma regla y contra el mismo `antes`: el lineal vuelve a la frase de `v0.7.0`, la dedicada recupera «fuera de este proyecto» para el inglés, y entra el «Raises» (los tres, arriba).
+
+**Segunda sesión, con `v2`: cumple las dos reglas** (`cierre-234b.json`, commit `f758fb2`).
+
+| | `antes` (`v0.7.0`) | `nuevo` (`v2`) |
+|---|---|---|
+| Las 26, en cuatro pasadas | 101/104 | **99/104**: cumple, en el límite (≥ 99) |
+| En español, sin las de noticias | 9/24 | **23/24** |
+| Noticias en español | 0/8 | 8/8, todas a GNews |
+| Titulares que llegan cambiados a la herramienta | 0 | 0 |
+
+- «Usa el modelo entrenado…» vuelve a 4 de 4. De los cinco fallos de `nuevo`, cuatro son «¿Por qué es difícil detectar clickbait en español?», que pide `describe_models` (`antes` la falla tres de cuatro), y uno es «'Cure Found'…», que va a `analyze_headline`. En español falla una vez el lineal, también hacia `analyze_headline`.
+- En `antes`, otra vez: 15 de 24 sin herramientas, y 9 de ellas con el análisis inventado (5 se negaron y una salió vacía). Entre las dos sesiones, **18 de 48**.
+- Sin ser parte de la regla: `nuevo` decide antes, con una mediana de 6,1 s en la primera vuelta frente a 7,0 s, y un máximo de 16,2 s frente a 50,4 s.
+- **Se queda `v2`.** Los textos de las dos variantes van en los JSON (`versiones`), y el resumen de cada sesión se rehace sin GPU con `agente_a40.py --analisis-cierre`.
+
+**Las conversaciones completas en español**, cuatro por sesión con `nuevo`, leídas a mano y cotejadas con su traza (sin regla):
+
+- **Siete de ocho cuentan lo que devolvieron las herramientas**, con las cifras y las palabras de la traza, y cuando el titular se detecta como español dicen que el léxico y la incoherencia no se aplican. Las dos veces que se pidió analizar un titular sin cuerpo, el modelo pasó como cuerpo la cadena «None», y el análisis lo tomó como ausente (#197).
+- ⚠️ **Una se inventó el análisis.** En la segunda sesión, «Busca una noticia en español sobre el clima y dime si su titular es clickbait» trajo la noticia con `get_gnews_news` y narró un «clickbait estilístico» con pistas y una probabilidad sin llamar a ninguna señal, diciendo a la vez que en español el detector de pistas no se aplica. En la primera sesión, la misma consulta llamó a `analyze_headline` y lo contó bien. Es el fallo que #208 vio 1 vez de 40, aquí sin historial. Si la frase nueva del prompt, la que dice qué no se aplica en español, le da pie: sin medir.
+- En la primera sesión, «Cura milagrosa descubierta» se detectó como **inglés**: sin palabras funcionales ni tildes, los dos idiomas empatan, y el empate va al inglés (#229). La consulta era mala, y en la segunda se cambió por un titular con palabras funcionales.
+
+#### En el contrato y en la pantalla
+
+- **La descripción del titular de `AnalyzeRequest`** decía «hoy, sólo en inglés», falso desde #231. Ahora dice cuáles lo analizan en cada idioma, y el contrato se regeneró (junto con la revisión de las fichas).
+- **El aviso del asistente**, bajo el campo de la pregunta, decía que las herramientas están pensadas para titulares en inglés. Ahora, inglés y español.
+- **El formulario de análisis** gana un cuarto ejemplo, «en español», que #230 había dejado para F: desde #231 un titular en español recibe veredicto.
+- **Sistema** enseña la revisión de cada modelo junto a su id.
+
+#### R3.4: inglés y español
+
+`docs/requisitos.md` decía «EL NLP_Analyzer DEBERÁ admitir la entrada de texto en inglés», con el español pospuesto como mejora futura. Pasa a «en inglés y en español», con lo que no cubre dicho en la propia línea: el léxico no analiza el español por decisión (sus listas son de titulares en inglés), y la incoherencia, por medida (#233); un titular en otro idioma no recibe veredicto (#229).
+
+#### Lo que queda
+
+- **La segunda PR de F**, con `GNEWS_API_KEY` y `NEWSDATA_API_KEY` ya en el `.env` de la máquina 1 (las puso el autor el 9 oct): desplegar `dev` y comprobarlo en producción con `spikes/produccion_en_vivo.py`, que ya trae el español (las fichas con su revisión, las señales con un titular en español, un `/analyze` en español y las dos fuentes en español; probado contra la API local). Y medir allí el tamaño de la imagen y la memoria de la API y del MCP con los modelos de los dos idiomas, y el agente con una sesión corta de GPU.
+- **La release `v0.8.0`** y el cierre del hito.
+- **La respuesta inventada con una noticia en español**, una de dos: se mirará en la sesión de GPU de la segunda PR, ya en producción.
+- **No está en producción**: la máquina 1 sirve `24e02ca`.
+
+Los tests pasan de 608 a 612 en el backend (los de la revisión), y los specs de 204 a 206 (Sistema y el ejemplo en español).
+
+| Condiciones | |
+|---|---|
+| Fecha | 9 y 10 oct 2026, en hora de Madrid: `horneado_por_revision.py` el 9 a las 22:38, repetido minutos después con la salida ordenada; la primera sesión del examen, de 23:18 a 23:56, y la segunda, de 00:03 a 00:41 |
+| Máquinas | El PC de sobremesa del autor (WSL2, Ubuntu 24.04.4, Python 3.12.3, GeForce GTX 1650 SUPER), que ejecuta las herramientas del examen; el modelo, en la A40 de la máquina 2, por un túnel SSH, con `gpu-sesion` `6ad6a751d636` |
+| Versiones | huggingface_hub 1.16.1, transformers 5.12.0, Ollama 0.34.2 |
+| Modelos | `qwen3.5:27b` `7653528ba5cb`; los horneados, en las revisiones de la tabla |
+| Código | `216c525` para la primera sesión y `f758fb2` para la segunda; `horneado_por_revision.py`, con el código que entró en `216c525` |
+| Guiones | `spikes/horneado_por_revision.py`; `spikes/agente_a40.py cierre`, lanzado con `spikes/agente_a40.sh` (datos en `spikes/agente_a40/cierre-234.json` y `cierre-234b.json`); `spikes/catalogo_peso.py` |
 
 
 
