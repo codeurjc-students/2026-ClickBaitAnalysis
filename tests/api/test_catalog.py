@@ -189,6 +189,25 @@ async def test_un_model_id_nulo_es_informacion_y_viaja(monkeypatch, servidor_mcp
 
 
 @pytest.mark.asyncio
+async def test_el_catalogo_publica_la_revision_de_la_ficha(monkeypatch, servidor_mcp):
+    """#234: el commit de los pesos sale también por el catálogo REST, que
+    construye su ficha campo a campo: si `catalog.py` no lo copiara, llegaría
+    `null` sin que nada fallara, y la pantalla de Sistema no lo enseñaría."""
+    tools = await _tools(monkeypatch, servidor_mcp)
+
+    publicadas = [
+        (nombre, ficha)
+        for nombre, herramienta in tools.items()
+        for ficha in herramienta.model_cards
+    ]
+    # Si ninguna trae revisión, el test no comprobaría nada.
+    assert any(ficha.revision for _, ficha in publicadas)
+    for nombre, ficha in publicadas:
+        declarada = fichas_en(ficha.language)[nombre]
+        assert ficha.revision == declarada["revision"], (nombre, ficha.language)
+
+
+@pytest.mark.asyncio
 async def test_solo_las_senales_traen_ficha(monkeypatch, servidor_mcp):
     tools = await _tools(monkeypatch, servidor_mcp)
 

@@ -245,6 +245,12 @@ export class SistemaPage {
     return `${herramienta}:${idioma}`;
   }
 
+  /** El commit de los pesos, con los 12 primeros caracteres, como lo cita el
+   *  README (#234). Entero sólo sirve a una máquina. */
+  revisionCorta(revision: string): string {
+    return revision.slice(0, 12);
+  }
+
   alternar(nombre: string): void {
     this.abierta.update((actual) => (actual === nombre ? null : nombre));
   }

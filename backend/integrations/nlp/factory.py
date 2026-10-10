@@ -343,6 +343,11 @@ def ficha_efectiva(signal: str, idioma: Idioma) -> FichaModelo:
     modelo cambiado: el hueco de su ficha inglesa —dimensión y tipo—, sin
     medidas. Pedirla en un idioma que la señal no analiza es un error de quien
     llama: la puerta (`motivo_si_no_se_analiza`) va antes.
+
+    Y desde #234, la revisión de los pesos (``revision``): con un modelo
+    puesto por configuración se publica la de la ficha mientras el id sea el
+    suyo, aunque se le llame de otra forma, porque los pesos son los mismos;
+    con otro id, ``None``, porque ése no se fija ni se hornea.
     """
     if not _analiza(signal, idioma):
         raise ValueError(
@@ -372,6 +377,7 @@ def ficha_efectiva(signal: str, idioma: Idioma) -> FichaModelo:
         **_publicable(ficha),
         "language": idioma,
         "model_id": modelo,
+        "revision": ficha["revision"] if modelo == ficha["model_id"] else None,
         "name": f"{modelo} ({'zero-shot, ' if zero_shot else ''}puesto por configuración)",
         "limitations": [
             f"SIN EVALUAR EN ESTE PROYECTO. {sustitucion} Lo que sigue siendo cierto es lo que describe la señal y no al modelo — mide `{ficha['dimension']}` y es de tipo `{ficha['type']}`.",
@@ -451,6 +457,7 @@ def _publicable(ficha: FichaDeclarada) -> FichaModelo:
         "signal": ficha["signal"],
         "language": ficha["language"],
         "model_id": ficha["model_id"],
+        "revision": ficha["revision"],
         "name": ficha["name"],
         "task": ficha["task"],
         "type": ficha["type"],

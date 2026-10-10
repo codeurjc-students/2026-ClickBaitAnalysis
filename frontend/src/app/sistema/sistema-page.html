@@ -160,6 +160,11 @@
             <span>Titulares en {{ idioma(ficha.language) }}</span>
             @if (ficha.model_id) {
               <code>{{ ficha.model_id }}</code>
+              <!-- El commit de los pesos que se midieron y se sirven (#234).
+                   Un modelo puesto por configuración no lo trae: no se fija. -->
+              @if (ficha.revision; as revision) {
+                <span>revisión <code>{{ revisionCorta(revision) }}</code></span>
+              }
             } @else {
               <!-- El `null` ES información: la señal es código propio y
                    auditable, no un modelo descargable. -->

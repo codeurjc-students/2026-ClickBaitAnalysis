@@ -86,7 +86,8 @@ def register(mcp: FastMCP):
         """Clasifica un titular como clickbait o noticia factual con un modelo de caja negra.
 
         Por defecto es un clasificador neuronal afinado para esta tarea sobre
-        titulares anotados por personas, fuera de este proyecto; por
+        titulares anotados por personas, uno por idioma (el inglés, fuera de
+        este proyecto); por
         configuración puede ser otro, también un zero-shot que elige entre
         etiquetas que se le dan (`describe_models` dice cuál). Devuelve una
         etiqueta y la confianza del modelo en ESA etiqueta, sin explicar por
@@ -94,10 +95,10 @@ def register(mcp: FastMCP):
         clickbait (con "factual news" y 0.9, lo que afirma es que NO lo es).
         Si hace falta una probabilidad de clickbait o saber qué la explica, lo
         da `detect_clickbait_linear`; qué pistas aparecen y dónde,
-        `detect_clickbait_lexical`. Pensada para inglés.
+        `detect_clickbait_lexical`. Analiza titulares en inglés y en español.
 
         Args:
-            headline (str): titular a evaluar (en inglés).
+            headline (str): titular a evaluar (en inglés o en español).
 
         Returns:
             La etiqueta ganadora y su confianza (0-1), p.ej.
@@ -106,7 +107,8 @@ def register(mcp: FastMCP):
             detrás.
 
         Raises:
-            Si la llamada al modelo falla (timeout o caída del proveedor).
+            Si el modelo falla: no se puede cargar o, por la vía remota, no
+            responde (timeout, caída del proveedor o falta de crédito).
         """
         idioma = _idioma_si_se_analiza("detect_clickbait", headline)
         # El modelo, el modo y las etiquetas, de la configuración (#159), los
@@ -128,18 +130,19 @@ def register(mcp: FastMCP):
     async def analyze_sentiment(text: str) -> Etiqueta:
         """Analiza el sentimiento de un texto (p.ej. un titular de noticia).
 
-        Clasifica en tres clases: positive, neutral o negative (modelo en
-        inglés, afinado para texto corto). Útil para medir el tono.
+        Clasifica en tres clases: positive, neutral o negative, con un modelo
+        para el inglés y otro para el español. Útil para medir el tono.
 
         Args:
-            text (str): texto a analizar (en inglés).
+            text (str): texto a analizar (en inglés o en español).
 
         Returns:
             La etiqueta ganadora y su confianza (0-1), p.ej.
             {"label": "neutral", "score": 0.62}.
 
         Raises:
-            Si la llamada al modelo falla (timeout o caída del proveedor).
+            Si el modelo falla: no se puede cargar o, por la vía remota, no
+            responde (timeout, caída del proveedor o falta de crédito).
         """
         idioma = _idioma_si_se_analiza("analyze_sentiment", text)
         response = await get_nlp_backend().classify(
@@ -162,7 +165,8 @@ def register(mcp: FastMCP):
         noticia → señal de clickbait. Es complementaria a las señales que sólo
         miran el titular (`detect_clickbait`, `detect_clickbait_lexical` y
         `detect_clickbait_linear`): esta necesita además el cuerpo o teaser.
-        Pensada para texto en inglés.
+        Sólo en inglés, titular y cuerpo: en español la similitud apenas
+        distingue el clickbait, y no se aplica.
 
         Args:
             headline (str): titular a evaluar (en inglés).
@@ -211,7 +215,8 @@ def register(mcp: FastMCP):
         y devuelve qué pistas dispararon y dónde. Señal white-box (la evidencia ES la
         explicación), complementaria a `detect_clickbait` (caja negra), a
         `detect_clickbait_linear` (que pondera las palabras del titular) y a
-        `detect_clickbait_incoherence`. Pensada para titulares en inglés.
+        `detect_clickbait_incoherence`. Sólo inglés: sus listas de pistas son
+        inglesas.
 
         Args:
             headline (str): titular a evaluar (en inglés).
@@ -240,11 +245,11 @@ def register(mcp: FastMCP):
         las palabras del titular y su estructura (número inicial,
         interrogación…), en la que cada palabra tiene un peso visible. El
         veredicto se explica con las que más pesaron. Para la opinión de un
-        modelo sin pesos visibles, `detect_clickbait` (caja negra). Pensada
-        para inglés.
+        modelo sin pesos visibles, `detect_clickbait` (caja negra). Bilingüe:
+        los mismos pesos para el inglés y el español.
 
         Args:
-            headline (str): titular a evaluar (en inglés).
+            headline (str): titular a evaluar (en inglés o en español).
 
         Returns:
             `is_clickbait`, `probability` (0-1, de que sea clickbait), `top_cues`
@@ -269,14 +274,15 @@ def register(mcp: FastMCP):
     async def describe_models() -> list[FichaModelo]:
         """Divulga los modelos/señales que emplea el sistema (transparencia, R3.9).
 
-        Devuelve, por cada señal, su nombre, tarea, tipo (interpretable /
-        híbrido / opaco), dimensión que mide y limitaciones conocidas. Sin
-        argumentos. Útil para la transparencia de sistema y para decidir qué
-        señal usar según su naturaleza (white-box vs caja negra) y sus límites.
+        Devuelve, por cada señal y cada idioma que analiza, su nombre, tarea,
+        tipo (interpretable / híbrido / opaco), dimensión que mide y
+        limitaciones conocidas. Sin argumentos. Útil para la transparencia de
+        sistema y para decidir qué señal usar según su naturaleza (white-box vs
+        caja negra) y sus límites.
 
         Returns:
-            La lista de fichas de modelo (signal, name, task, type, dimension,
-            limitations, backend).
+            La lista de fichas de modelo (signal, language, model_id, revision,
+            name, task, type, dimension, limitations, backend).
         """
         # La ficha EFECTIVA, no la declarada: si alguien ha puesto otro modelo
         # por configuración, esto publica ese id y deja de publicar unas medidas

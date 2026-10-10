@@ -165,6 +165,15 @@ class ToolModelCard(BaseModel):
             "propio y auditable."
         ),
     )
+    revision: str | None = Field(
+        default=None,
+        description=(
+            "El commit del Hub de esos pesos, entero (#234): las medidas de la "
+            "ficha son de ellos, y es el que se sirve. `null` donde no hay "
+            "modelo descargable, y en un modelo puesto por configuración, que no "
+            "se fija."
+        ),
+    )
 
     type: SignalType
     dimension: Dimension

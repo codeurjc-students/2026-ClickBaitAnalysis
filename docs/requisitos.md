@@ -62,7 +62,7 @@ Este documento define los requisitos para un Trabajo de Fin de Grado (TFG) que i
 1. EL NLP_Analyzer DEBERÁ implementar un análisis de sentimientos que clasifique el texto como positivo, negativo o neutro.
 2. EL NLP_Analyzer DEBERÁ implementar una detección de clickbait que identifique si un titular es clickbait.
 3. AL analizar el texto, EL NLP_Analyzer DEBERÁ devolver puntuaciones de confianza para sus clasificaciones.
-4. EL NLP_Analyzer DEBERÁ admitir la entrada de texto en inglés. _(El soporte de español se pospone como mejora futura — ver memoria de cambios.)_
+4. EL NLP_Analyzer DEBERÁ admitir la entrada de texto en inglés y en español. _(El español se pospuso como mejora futura y entró en `v0.8` (#229–#234). No todas las señales lo analizan: el léxico, por decisión, y la incoherencia, porque en español no separa (#233). Un titular en otro idioma no recibe veredicto. Ver memoria de cambios.)_
 5. CUANDO el texto esté vacío o no sea válido, EL NLP_Analyzer DEBERÁ devolver un mensaje de error adecuado.
 6. EL NLP_Analyzer DEBERÁ procesar las solicitudes de análisis de texto dentro de unos límites de tiempo razonables.
 7. EL NLP_Analyzer DEBERÁ soportar la detección de clickbait por **incoherencia** entre el titular y su contenido (titular vs. teaser/cuerpo, o titular web vs. impreso), además de clasificar el titular de forma aislada. _(Requiere enriquecer la salida de las herramientas de noticias — ver Requisito 2.)_

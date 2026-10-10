@@ -187,6 +187,16 @@ describe('AnalisisPage', () => {
     expect(idiomaDe('#content')).toBe('');
   });
 
+  // #234: desde v0.8 el español recibe veredicto, y hay un ejemplo para verlo.
+  it('el ejemplo en español rellena el titular', () => {
+    const botones = Array.from(html().querySelectorAll<HTMLButtonElement>('.ejemplos button'));
+    botones.find((boton) => boton.textContent?.includes('en español'))?.click();
+
+    expect(pagina.formulario.controls.headline.value).toBe(
+      'No vas a creer lo que hizo este perro al ver a su dueño',
+    );
+  });
+
   // Una señal sin resultado no se esconde: se muestra diciendo por qué.
   it('muestra el estado de las señales que no votaron', async () => {
     pagina.formulario.controls.headline.setValue('Un titular');
