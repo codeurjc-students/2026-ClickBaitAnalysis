@@ -9233,10 +9233,10 @@ Cambiar lo que lee el modelo puede hacer que elija mal sin que ningún test lo v
 
 #### Lo que queda
 
-- **La segunda PR de F**, con `GNEWS_API_KEY` y `NEWSDATA_API_KEY` ya en el `.env` de la máquina 1 (las puso el autor el 9 oct): desplegar `dev` y comprobarlo en producción con `spikes/produccion_en_vivo.py`, que ya trae el español (las fichas con su revisión, las señales con un titular en español, un `/analyze` en español y las dos fuentes en español; probado contra la API local). Y medir allí el tamaño de la imagen y la memoria de la API y del MCP con los modelos de los dos idiomas, y el agente con una sesión corta de GPU.
+- **La segunda PR de F**, con `GNEWS_API_KEY` y `NEWSDATA_API_KEY` ya en el `.env` de la máquina 1 (las puso el autor el 9 oct): desplegar `dev` y comprobarlo en producción con `spikes/produccion_en_vivo.py`, que ya trae el español (las fichas con su revisión, las señales con un titular en español, un `/analyze` en español y las dos fuentes en español; probado contra la API local). Y medir allí el tamaño de la imagen y la memoria de la API y del MCP con los modelos de los dos idiomas, y el agente con una sesión corta de GPU. *(Hecho en la segunda parte, salvo el agente en producción: ver «El cierre de `v0.8`, segunda parte».)*
 - **La release `v0.8.0`** y el cierre del hito.
-- **La respuesta inventada con una noticia en español**, una de dos: se mirará en la sesión de GPU de la segunda PR, ya en producción.
-- **No está en producción**: la máquina 1 sirve `24e02ca`.
+- **La respuesta inventada con una noticia en español**, una de dos: se mirará en la sesión de GPU de la segunda PR, ya en producción. *(No se pudo: la máquina 2 tenía el driver de NVIDIA a medio actualizar; ver la segunda parte.)*
+- **No está en producción**: la máquina 1 sirve `24e02ca`. *(Desplegado el 10 oct, en `d54d2ba`: ver la segunda parte.)*
 
 Los tests pasan de 608 a 612 en el backend (los de la revisión), y los specs de 204 a 206 (Sistema y el ejemplo en español).
 
@@ -9248,6 +9248,60 @@ Los tests pasan de 608 a 612 en el backend (los de la revisión), y los specs de
 | Modelos | `qwen3.5:27b` `7653528ba5cb`; los horneados, en las revisiones de la tabla |
 | Código | `216c525` para la primera sesión y `f758fb2` para la segunda; `horneado_por_revision.py`, con el código que entró en `216c525` |
 | Guiones | `spikes/horneado_por_revision.py`; `spikes/agente_a40.py cierre`, lanzado con `spikes/agente_a40.sh` (datos en `spikes/agente_a40/cierre-234.json` y `cierre-234b.json`); `spikes/catalogo_peso.py` |
+
+### El cierre de `v0.8`, segunda parte: en producción (#234, 10 oct 2026)
+
+La segunda parte de F: desplegar `dev` con todo `v0.8`, comprobarlo en vivo y medir lo que cuesta en la máquina 1. El despliegue lo lanzó Claude a petición del autor, con la sesión fuera del modo automático, que bloquea los despliegues (#189).
+
+#### El despliegue
+
+- **Antes, la máquina 1 servía `24e02ca`, todo `v0.7.0`**, aunque el clon estaba en `541c5ef`: el autor lo había actualizado el 9 oct sin reconstruir. Se comprobó desde fuera: el contrato no tenía `language` y el catálogo daba 12 herramientas. Ese día puso también `GNEWS_API_KEY` y `NEWSDATA_API_KEY` en el `.env`, y se comprobó contándolas, sin leerlas.
+- **`git pull` hasta `d54d2ba` y `sudo docker compose up --build --wait`: 244 s**, con la capa de modelos rehecha (211 s en el despliegue de `v0.7`). El horneado salió por revisión, con los cinco modelos en el commit de su ficha, igual que en el CI de la PR #247. Los tres servicios, `healthy`.
+- **El precalentado de la API, 11,9 s en total**: la dedicada inglesa, 10,3 s —la primera en cargar paga también la de torch—, y las dos de español, 0,3 y 0,4 s. Fue recién construida la imagen, con los pesos seguramente en la caché de disco (sin comprobar). En frío de verdad, tras reiniciar la máquina, no se midió; #165 dio 19,1 s con tres modelos, y 6,6 s con la caché caliente.
+
+#### En vivo (`spikes/produccion_en_vivo.py`)
+
+- **Las 14 herramientas responden**, por la API pública y a través de Caddy. Las dos fuentes en español, GNews y NewsData.io, traen noticias con las claves nuevas, y el caso de #124 sigue en `ambiguous`.
+- **Cada ficha, con su revisión**, por idioma: los cinco modelos en los commits que se fijaron, y el léxico y el lineal como código propio.
+- **Con un titular en español**: la dedicada da `clickbait` (0,994), el lineal una probabilidad de 0,429 y el tono `negative` (0,514). El léxico y la incoherencia dicen por qué no lo analizan. Y un `/analyze` en español da `stylistic_clickbait`, con el idioma `es` y esas dos señales en `not_applicable`.
+- **El agente apagado se detecta** (R6.14): `GET /agent` dice `unreachable`, y `POST /chat` responde 503 con el mismo motivo.
+- La primera pasada dio Guardian en 429, y era el limitador de la propia API (10 peticiones por minuto y cliente en las rutas caras, #169), no Guardian. Con 14 herramientas y las peticiones en español, esperar una vez al `Retry-After` ya no bastaba: el guion reintenta ahora hasta tres veces, y la segunda pasada salió entera.
+
+#### Lo que cuesta en la máquina 1 (`spikes/memoria_maquina1.sh`)
+
+La memoria se lee de `/proc/1/status` dentro de cada contenedor, como en #164, porque `docker stats` no cuenta lo respaldado por ficheros. El MCP no precalienta, así que se midió después de `produccion_en_vivo.py`, que le hizo cargar los modelos de los dos idiomas.
+
+| | `v0.8` | Antes |
+|---|---|---|
+| Imagen del backend, en disco | **6,02 GB** | 4,13 GB (#162) |
+| Imagen web | 89 MB | 88,9 MB (#163) |
+| API, residente (privada + ficheros) | **1.813 MiB** (487 + 1.325) | 1.239 MiB (406 + 833), #164 |
+| MCP, con los modelos de los dos idiomas | **1.796 MiB** (474 + 1.322) | — |
+| La máquina | 2,5 GB en uso de 15,2; 13,1 GB disponibles | — |
+
+- **Cada proceso crece unos 574 MiB, casi todos respaldados por ficheros** (+492 MiB): son los pesos, que se leen del disco y se pueden compartir. La parte privada sube 81 MiB. Los 15 GB de la máquina sobran: entre los dos procesos, unos 3,5 GiB.
+- **La imagen crece 1,89 GB**, unas dos veces los ~980 MB de pesos nuevos, lo que cuadra con que containerd guarde cada capa comprimida y descomprimida (#162). Es una lectura: no se separó qué capa crece cuánto.
+
+#### El agente en producción: no se pudo
+
+La sesión corta de GPU que se decidió para ver el agente de `v0.8` en producción —`spikes/chat_maquina1.sh` con una parte nueva, `espanol`: una consulta genérica, la del léxico y tres veces la de la noticia en español que se inventó en el examen de la primera parte— **no se abrió**. En la máquina 2, `nvidia-smi` respondía «Failed to initialize NVML: Driver/library version mismatch», con la librería de NVIDIA ya en la 580.178: el driver se actualizó después de la segunda sesión del examen (00:41) y la máquina no se reinició. `gpu-sesion` tomó las líneas del error por procesos ajenos y, sin terminal, no abrió nada, como debía; al terminar no quedaba ningún Ollama propio ni ningún túnel. Reiniciarla le toca al administrador. Cuando vuelva:
+
+```bash
+CHAT_PARTE_ABIERTA=espanol bash spikes/chat_maquina1.sh
+```
+
+#### Lo que queda
+
+- **La release `v0.8.0`**: la PR `dev → main`, el tag, la release y el cierre de #234 y del hito. El criterio para etiquetar se cumple: las herramientas responden en vivo, y la disponibilidad del agente se detecta.
+- **El agente en producción**, cuando la máquina 2 se reinicie, con la noticia en español que se inventó una de dos veces en el examen.
+
+| Condiciones | |
+|---|---|
+| Fecha | 10 oct 2026, en hora de Madrid: el despliegue, de 07:26 a 07:30; `memoria_maquina1.sh` a las 07:33; el intento con `chat_maquina1.sh`, a las 07:35; y `produccion_en_vivo.py` a las 07:31 y, con los reintentos, a las 07:39 |
+| Máquina 1 | Ubuntu 24.04.4 LTS, Docker 29.8.1, Compose 5.5.1 |
+| Código servido | `d54d2ba` (`dev`, con la primera parte de #234) |
+| Modelos | Los horneados, en las revisiones de la primera parte |
+| Guiones | `spikes/produccion_en_vivo.py`, `spikes/memoria_maquina1.sh` y `spikes/chat_maquina1.sh` (`CHAT_PARTE_ABIERTA=espanol`) |
 
 
 

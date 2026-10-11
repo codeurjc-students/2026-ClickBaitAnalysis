@@ -10,6 +10,8 @@
 # Pasa de los 10 min de una tarea en segundo plano de Claude Code, así que se
 # lanza desacoplado, desde la raíz del repositorio:
 #   setsid nohup bash spikes/chat_maquina1.sh > /tmp/chat_maquina1.log 2>&1 < /dev/null & disown
+# Con la sesión abierta ejecuta la parte `abierta`, o la que diga
+# `CHAT_PARTE_ABIERTA` (#234: `espanol`).
 exec 2>&1
 cd "$(dirname "$0")/.." || exit 1
 MAQUINA_1=vmuser@193.147.60.40
@@ -63,7 +65,7 @@ done
 cat "$REGISTRO/maquina2.log"
 
 if grep -q "LISTO PARA WSL" "$REGISTRO/maquina2.log"; then
-  .venv/bin/python spikes/chat_maquina1.py abierta < /dev/null
+  .venv/bin/python spikes/chat_maquina1.py "${CHAT_PARTE_ABIERTA:-abierta}" < /dev/null
 else
   echo "LA SESIÓN NO SE ABRIÓ: no se mide nada con ella."
 fi
