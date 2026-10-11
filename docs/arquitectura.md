@@ -1,8 +1,10 @@
 # Arquitectura
 
-> **Documento vivo.** Refleja el estado tras cerrar **H5** (`v0.6.0`): el agente
-> conversacional, construido y contrastado con su plano. Revisado entero en #173,
-> y §7, §10 y §12 otra vez en #193, al cerrar H5. Para los requisitos,
+> **Documento vivo.** Refleja el estado de **`v0.8.0`**, con el análisis en
+> español. Revisado entero en #173; §7, §10 y §12 otra vez en #193, al cerrar
+> H5; y el 11 de octubre de 2026, para `v0.8`: §3, §6, §7, §10 y §12 llevan un
+> diagrama **«Hoy, en `v0.8`»** —delante en las cuatro primeras, y al final en
+> §12, que va en orden cronológico—, y los de antes se conservan. Para los requisitos,
 > ver [`requisitos.md`](requisitos.md); para dónde vive cada cosa y con qué
 > criterio, [`estructura.md`](estructura.md).
 >
@@ -13,6 +15,12 @@
 > continuo, y **en naranja lo que se desvió del plano**. Lo que salió distinto
 > es tan informativo como lo que salió igual. Todo lo demás describe el sistema
 > de hoy.
+>
+> **En verde, lo que el diagrama anterior de la sección no tenía.** Los «Hoy, en
+> `v0.8`» marcan así lo que cambió desde el anterior —el de `v0.6` en §7, §10 y
+> §12, y el del 4 de septiembre de 2026 en §3 y §6—, con la regla de #193: el
+> anterior no se toca si quedó desfasado por un cambio posterior, y se corrige
+> sólo si ya estaba mal al dibujarse.
 >
 > **Formato.** Los diagramas de flujo van en **Mermaid**: GitHub los renderiza,
 > viven junto al texto y se revisan en el diff de una pull request. Los dos SVG
@@ -72,6 +80,11 @@ flowchart LR
     NUC --> EXT
 ```
 
+*(Desde #235 las APIs externas son también GNews y NewsData.io. Y Hugging
+Face sólo se llama por la vía remota, que desde #236 es de pago y ha dejado de
+ser el defecto: producción analiza en local y sin red. El diagrama, del 4 de
+septiembre de 2026, se deja como se dibujó.)*
+
 **`/analyze` y `/health` importan el núcleo.** Dar el rodeo por el protocolo
 significaría serializar a JSON, volver a parsear y acabar **en la misma
 función**. `/health` reutiliza el mismo `check_health` que la tool MCP, así que
@@ -99,6 +112,89 @@ cinco. La traza de invocaciones ya vive en los logs.
 
 ## 3 · Secuencia de `POST /analyze`
 
+### Hoy, en `v0.8`
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant SPA as SPA
+    participant API as FastAPI
+    participant ORQ as orchestrator
+    participant FAC as nlp/factory
+    participant S as Señales
+    participant H as Historial
+
+    SPA->>API: POST /analyze (headline, content?)
+    API->>ORQ: analyze(request)
+    rect rgba(43, 138, 62, 0.15)
+        ORQ->>ORQ: detecta el idioma del titular<br/>y el del cuerpo, si lo hay
+    end
+    loop por cada señal, en _run_signals
+        rect rgba(43, 138, 62, 0.15)
+            ORQ->>FAC: ¿analiza el idioma del titular?
+            FAC-->>ORQ: si no, el motivo · not_applicable
+        end
+        ORQ->>ORQ: si necesita cuerpo y no lo hay<br/>· not_applicable
+        rect rgba(43, 138, 62, 0.15)
+            ORQ->>FAC: si lo lee, ¿compara un cuerpo<br/>en ese idioma?
+            FAC-->>ORQ: si no, el motivo · not_applicable
+        end
+    end
+    ORQ->>S: gather(..., return_exceptions=True)
+    rect rgba(43, 138, 62, 0.15)
+        Note over ORQ,S: cada señal, con el modelo<br/>y el umbral de su idioma
+    end
+    S-->>ORQ: resultados Y excepciones, en orden de entrada
+    ORQ->>ORQ: agrupa por dimensión
+    rect rgba(43, 138, 62, 0.15)
+        ORQ->>ORQ: el engaño desempata una forma dividida<br/>y, contra una forma unánime en no, ambiguous
+        ORQ-->>API: AnalyzeResponse, con language
+    end
+    API->>H: record(payload completo)
+    rect rgba(43, 138, 62, 0.15)
+        H-->>API: el id, o null<br/>si la escritura falla
+        API-->>SPA: AnalyzeResult,<br/>con el id y el análisis
+    end
+    Note over SPA,API: 200 aunque alguna señal falle
+```
+
+**Lo primero es el idioma** (#229, #230). `analyze()` detecta el del titular
+y, si hay cuerpo, el del cuerpo, con `core/idioma.py`, que cuenta palabras
+funcionales; y la puerta está en `_run_signals`, señal a señal: una señal que
+no analiza el idioma del titular queda en `not_applicable` con el motivo que da
+la factoría, y la incoherencia, además, si el cuerpo está en un idioma que no
+compara. Las que pasan se ejecutan con el modelo y el umbral de ese idioma. Un
+titular que no está en inglés ni en español sale como `und`: las cinco señales
+en `not_applicable` y el veredicto, `no_data`.
+
+**Los motivos son de dos clases** (#233): una decisión —el léxico no se aplica
+en español, porque sus listas son inglesas— y una medida —la incoherencia en
+español no cumplió su regla—. La primera cierra también la configuración; la
+segunda sólo pone la frase, y un modelo configurado en `NLP_MODELS_ES` se sigue
+ejecutando, como experimento.
+
+**`return_exceptions=True` es lo que aísla los fallos.** En vez de propagar la
+primera excepción, `gather` la devuelve dentro de la lista, en la posición que le
+toca; ahí se traduce a una señal en estado `error` y la respuesta sigue siendo un
+200 con lo que sí se pudo calcular. Perder tres análisis correctos porque el
+cuarto dio timeout sería el error de verdad.
+
+**El orden se conserva.** `gather` devuelve en orden de entrada, no de
+finalización, así que la interfaz pinta las tarjetas siempre igual.
+
+**El veredicto no sale de contar señales**, sino de agrupar por dimensión y
+aplicar una jerarquía explícita: el engaño desempata una forma dividida, pero no
+contradice a una forma unánime, y entonces el veredicto es `ambiguous`. Hasta
+#124 el engaño mandaba siempre, con este argumento: un titular sobrio cuyo cuerpo
+no cumple lo prometido tiene tres señales diciendo «no» y una diciendo «sí», y la
+correcta es la cuarta. Medido en Webis-17, ése era justo el caso en que la cuarta
+menos acierta (13 %, frente al 68 % con la forma dividida). *(El diagrama del 4
+de septiembre, debajo, de antes de #124, sigue diciendo que «el engaño manda
+sobre la forma»: se deja como se dibujó, por la regla de los diagramas
+desfasados.)*
+
+### Como se dibujó (4 sep 2026)
+
 ```mermaid
 sequenceDiagram
     autonumber
@@ -120,24 +216,9 @@ sequenceDiagram
     API-->>SPA: 200 aunque alguna señal falle
 ```
 
-**`return_exceptions=True` es lo que aísla los fallos.** En vez de propagar la
-primera excepción, `gather` la devuelve dentro de la lista, en la posición que le
-toca; ahí se traduce a una señal en estado `error` y la respuesta sigue siendo un
-200 con lo que sí se pudo calcular. Perder tres análisis correctos porque el
-cuarto dio timeout sería el error de verdad.
-
-**El orden se conserva.** `gather` devuelve en orden de entrada, no de
-finalización, así que la interfaz pinta las tarjetas siempre igual.
-
-**El veredicto no sale de contar señales**, sino de agrupar por dimensión y
-aplicar una jerarquía explícita: el engaño desempata una forma dividida, pero no
-contradice a una forma unánime, y entonces el veredicto es `ambiguous`. Hasta
-#124 el engaño mandaba siempre, con este argumento: un titular sobrio cuyo cuerpo
-no cumple lo prometido tiene tres señales diciendo «no» y una diciendo «sí», y la
-correcta es la cuarta. Medido en Webis-17, ése era justo el caso en que la cuarta
-menos acierta (13 %, frente al 68 % con la forma dividida). *(El diagrama, de
-antes de #124, sigue diciendo que «el engaño manda sobre la forma»: se deja como
-se dibujó, por la regla de los diagramas desfasados.)*
+*Desfasado, y se deja como se dibujó: el engaño ya no manda siempre
+(#124), el id ya no se descarta —se devuelve desde #133, del día siguiente—, y
+le falta el idioma de `v0.8`.*
 
 ## 4 · Secuencia de `POST /tools/.../execute`
 
@@ -226,6 +307,86 @@ renombrar una columna dejaría su campo a `None` sin un solo error.
 
 ## 6 · El dominio del análisis
 
+### Hoy, en `v0.8`
+
+```mermaid
+classDiagram
+    direction TB
+
+    class AnalyzeResponse {
+        +headline: str
+        +content: str
+        +language: en · es · und
+        +signals: SignalResult
+        +dimensions: DimensionVerdict
+        +verdict: OverallVerdict
+    }
+
+    class SignalResult {
+        +name: str
+        +label: str
+        +status: SignalStatus
+        +dimension: Dimension
+        +type: SignalType
+        +is_clickbait: bool
+        +data: dict
+        +detail: str
+    }
+
+    class DimensionVerdict {
+        +dimension: Dimension
+        +is_clickbait: bool
+        +contributing: str
+    }
+
+    class FichaModelo {
+        +signal: str
+        +language: en · es
+        +model_id: str
+        +revision: str
+        +name: str
+        +task: str
+        +type: str
+        +dimension: str
+        +limitations: str
+        +backend: str
+    }
+
+    AnalyzeResponse "1" *-- "5" SignalResult
+    AnalyzeResponse "1" *-- "0..2" DimensionVerdict
+    SignalResult ..> FichaModelo : de la ficha de su idioma
+
+    note for AnalyzeResponse "Otro idioma: und, todas en not_applicable<br/>y verdict no_data."
+    note for FichaModelo "Una por señal e idioma. revision: el commit<br/>de los pesos en el Hub, nulo en el léxico y el lineal."
+    note for DimensionVerdict "is_clickbait nulo es DISCREPANCIA entre señales.<br/>El tono no vota: nunca tiene dimensión."
+```
+
+*Nuevo respecto al del 4 de septiembre, debajo: el idioma del titular en
+`AnalyzeResponse` (#229), el `label` de cada señal (#133), y en la ficha el
+idioma (#230), la revisión de los pesos (#234), la tarea y la vía. Hay una
+ficha por señal e idioma: la tarjeta de una señal se rotula con la del idioma
+del titular, y la de una que no lo analiza, con la inglesa. Un diagrama de
+clases no colorea campos sueltos, así que aquí no hay verde.*
+
+**Las señales son una lista de objetos con la misma forma**, no un objeto con un
+campo por señal. Así la interfaz itera y pinta tarjetas sin conocerlas de
+antemano: añadir una quinta señal no obliga a tocar Angular.
+
+**El estado va por señal, no global.** Un único `status` cubre dos situaciones que
+desde la respuesta son la misma —esa señal no tiene resultado pero las demás sí—:
+que no se pueda aplicar (`not_applicable`: falta el cuerpo o, desde `v0.8`, la
+señal no analiza ese idioma) y que la ejecución falle (`error`).
+
+**`is_clickbait` nulo en una dimensión es el resultado**, no un hueco: significa
+que dos señales fiables no coincidieron. No se promedia ni se resuelve por mayoría.
+
+**`data` no tiene tipo, y es deliberado**: es el JSON crudo de la herramienta, sin
+aplanar, porque es lo que alimenta las tarjetas de explicabilidad. El precio lo
+paga quien lo consume, que tiene que declarar por su cuenta qué espera — y de ahí
+salieron los tres huecos de contrato de la issue 133.
+
+### Como se dibujó (4 sep 2026)
+
 ```mermaid
 classDiagram
     direction LR
@@ -264,32 +425,61 @@ classDiagram
     }
 
     AnalyzeResponse "1" *-- "5" SignalResult
-    AnalyzeResponse "1" *-- "0..3" DimensionVerdict
+    AnalyzeResponse "1" *-- "0..2" DimensionVerdict
     SignalResult ..> FichaModelo : dimension y type se leen de la ficha
 
     note for SignalResult "data es un diccionario LIBRE. Ningun tipo lo vigila, y de ahi salen los tres huecos de la issue 133."
     note for DimensionVerdict "is_clickbait nulo significa DISCREPANCIA entre senales. Es el resultado, no un hueco."
 ```
 
-**Las señales son una lista de objetos con la misma forma**, no un objeto con un
-campo por señal. Así la interfaz itera y pinta tarjetas sin conocerlas de
-antemano: añadir una quinta señal no obliga a tocar Angular.
-
-**El estado va por señal, no global.** Un único `status` cubre dos situaciones que
-desde la respuesta son la misma —esa señal no tiene resultado pero las demás sí—:
-que falten datos de entrada (`no_aplicable`) y que la ejecución falle (`error`).
-
-**`is_clickbait` nulo en una dimensión es el resultado**, no un hueco: significa
-que dos señales fiables no coincidieron. No se promedia ni se resuelve por mayoría.
-
-**`data` no tiene tipo, y es deliberado**: es el JSON crudo de la herramienta, sin
-aplanar, porque es lo que alimenta las tarjetas de explicabilidad. El precio lo
-paga quien lo consume, que tiene que declarar por su cuenta qué espera — y de ahí
-salieron los tres huecos de contrato de la issue 133.
+*Corregido el 11 de octubre de 2026 en lo único que estaba mal al
+dibujarse: decía de 0 a 3 dimensiones con veredicto, y el tono ya no votaba
+entonces (`verdict=lambda d: None` en el orquestador de ese día). Lo demás
+queda desfasado y se deja: le falta `label`, que llegó al día siguiente con
+#133, y el idioma y la revisión de `v0.8`.*
 
 ## 7 · Capas y dirección de dependencias
 
-### Hoy, en `v0.6`
+### Hoy, en `v0.8`
+
+```mermaid
+flowchart TD
+    FACH["Fachadas<br/>api/ · main.py<br/>saben que sirven a alguien"]
+    AGT["agent/<br/>el bucle, la traza y los prompts<br/>conoce el dominio sólo por el prompt"]
+    ANA["analysis/<br/>domain · orchestrator<br/>qué es el clickbait"]
+    INT["integrations/<br/>nlp · nyt · guardian<br/>gnews · newsdata · weather"]
+    LLM["integrations/llm/<br/>interfaz · Ollama · factoría · ficha"]
+    CORE["core/<br/>BaseAPI · ToolResult · mcp<br/>errores · idioma · logging"]
+    CONF["config/<br/>settings"]
+    EVAL["evaluation/<br/>entrenar y medir, no se sirve"]
+
+    FACH --> ANA --> INT --> CORE --> CONF
+    FACH -->|"api/ monta Configuracion y lo lanza"| AGT
+    FACH -->|"api/ pide el backend y la ficha a la factoría"| LLM
+    AGT -->|"cliente MCP y errores"| CORE
+    AGT -->|"sólo la interfaz, base.py"| LLM
+    LLM --> CORE
+    LLM -->|"sólo factory.py"| CONF
+    CORE -->|"sólo health.py, con tool_meta de metadata.py"| INT
+    EVAL -->|"eval_veredicto y eval_ta1c<br/>pasan los corpus por el análisis"| ANA
+
+    classDef nuevo stroke:#2b8a3e,stroke-width:3px
+    class INT,CORE nuevo
+    linkStyle 11 stroke:#2b8a3e,stroke-width:3px
+```
+
+*En verde, lo que el de `v0.6` no tenía: dos integraciones, `gnews/` y
+`newsdata/` (#235), con el patrón de siempre, `tool.py` y `client.py`;
+`core/idioma.py`, el detector de idioma (#229), que importan `analysis/`,
+`integrations/nlp/` y `api/`; y la flecha de `evaluation/`, que ahora va a
+`analysis/`: `eval_veredicto` (#124) y `eval_ta1c` (#229) pasan los corpus por
+el análisis entero. Su camino cubre también lo que `evaluation/` importa de
+`integrations/`, `core/` y `config/`, así que la flecha a `integrations/` del
+de `v0.6` sobra. Con ella, cada import real entre capas sigue cubierto por un
+camino del dibujo (comprobado con `spikes/imports_entre_capas.py` el 11 de
+octubre de 2026).*
+
+### En `v0.6` (30 sep 2026)
 
 ```mermaid
 flowchart TD
@@ -508,7 +698,65 @@ Tres decisiones que el diagrama no puede enseñar solo:
 
 ## 10 · Despliegue
 
-### Hoy, en `v0.6`
+### Hoy, en `v0.8`
+
+```mermaid
+flowchart TB
+    NAV["Navegador"]
+    EXT["APIs de noticias<br/>NYT · Guardian · GNews · NewsData.io · weather.gov"]
+    PER["Una persona<br/>abre la sesión de GPU"]
+
+    subgraph M1["Máquina 1 · la aplicación · 15 GiB, sin GPU"]
+        subgraph PUB["Publicado: 80, 443 y 443/udp"]
+            WEB["web · Caddy 2.11.4<br/>la SPA en /srv · TLS · tope de 1 MB"]
+        end
+        subgraph RED["Red interna de compose · nada publicado"]
+            API["api · uvicorn :8000<br/>--root-path /api · limitador<br/>5 señales y 5 modelos en local · 1,8 GiB"]
+            MCP["mcp · FastMCP :8765<br/>streamable-http · los mismos modelos, al primer uso"]
+            AGT["agente · backend/agent/<br/>dentro del proceso de la API"]
+        end
+        TUN["172.17.0.1:11434<br/>boca del túnel<br/>escucha el usuario tunel"]
+        CERT[("/etc/clickbait/tls<br/>certificado autofirmado")]
+        HIST[("volumen historial<br/>/app/var/history.db")]
+    end
+
+    subgraph M2["Máquina 2 · A40 de 46 GB · compartida · bajo demanda"]
+        GS["gpu-sesion<br/>2 h como mucho<br/>lo suelta todo al salir"]
+        OLL["Ollama 0.34.2<br/>qwen3.5:27b · num_ctx 16.384"]
+    end
+
+    NAV -->|HTTPS| WEB
+    WEB -->|"/api/* sin el prefijo"| API
+    API -->|"/tools y execute"| MCP
+    API -->|"/health: NYT, Guardian y weather.gov"| EXT
+    MCP -->|"herramientas de noticias, también en español"| EXT
+    API --- HIST
+    WEB --- CERT
+    API -->|"POST /chat<br/>1 en marcha, 2 en cola"| AGT
+    AGT -->|"descubrimiento y llamadas"| MCP
+    AGT -->|"el chat, por host.docker.internal:11434"| TUN
+    TUN -->|"túnel SSH inverso"| OLL
+    PER --> GS
+    GS -->|"arranca"| OLL
+    GS -->|"abre el túnel hacia la 1"| TUN
+    API -->|"GET /agent y POST /chat<br/>preguntan si el modelo está"| TUN
+
+    classDef nuevo stroke:#2b8a3e,stroke-width:3px
+    class EXT,API,MCP nuevo
+    linkStyle 3,4 stroke:#2b8a3e,stroke-width:3px
+```
+
+*En verde, lo que el de `v0.6` no tenía. GNews y NewsData.io, que llama el
+MCP con las noticias en español (#235) y que `/health` no sondea: con la caché
+de 30 s y dos procesos, gastaría las 100 peticiones diarias de GNews. Y los
+modelos: cinco en local, dos más que en `v0.6` —la dedicada en español, BETO
+afinado con TA1C (#242), y el tono en español (#233)—, horneados en la imagen
+en la revisión que fija su ficha (#234). Cada proceso del backend ocupa unos
+1,8 GiB residentes, casi todo páginas de los pesos, que se pueden compartir; la
+imagen, 6,02 GB (medido el 10 de octubre de 2026 con
+`spikes/memoria_maquina1.sh`).*
+
+### En `v0.6` (30 sep 2026)
 
 ```mermaid
 flowchart TB
@@ -700,8 +948,8 @@ ficheros de dos lenguajes distintos:
 
 El plano se declaró el 2026-09-23, antes de escribir una línea del agente, y se
 contrastó con lo construido al cerrar H5 (#193). Va primero tal como se dibujó;
-debajo, lo construido, qué se desvió y por qué, y qué fue de lo que el plano
-dejaba sin decidir.
+debajo, lo construido, qué se desvió y por qué, qué fue de lo que el plano
+dejaba sin decidir y, al final, cómo está hoy, en `v0.8`.
 
 ### El plano (23 sep 2026)
 
@@ -935,6 +1183,85 @@ Cambiaron el prompt y el modo guiado, y se añadió lo que está en naranja:
   por tiempo, y 5,2 s cargándolo (del registro de Ollama, con
   `spikes/ollama_registro.sh`).
 
+### Hoy, en `v0.8`
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant SPA as SPA · asistente
+    participant API as FastAPI
+    participant TRA as trabajos en memoria
+    participant AGT as agente
+    participant MCP as servidor MCP
+    participant LLM as Ollama en la A40
+
+    Note over SPA,LLM: HOY, en v0.8. En verde, lo que no tenía el de v0.6.
+    SPA->>API: GET /agent
+    API->>LLM: pregunta si el modelo está
+    LLM-->>API: su versión y sus modelos, o la conexión rechazada al instante
+    API-->>SPA: disponibilidad, ficha, prompt<br/>y tope del historial
+    SPA->>SPA: recorta el historial al tope,<br/>con los nombres de las herramientas
+    SPA->>API: POST /chat con el mensaje y el historial
+    API->>LLM: pregunta si el modelo está
+    LLM-->>API: si está, y si tiene el modelo
+    API->>TRA: crea el trabajo, en cola<br/>si hay otro en marcha
+    TRA-->>API: el trabajo y su id,<br/>o que la cola está llena
+    Note over SPA,API: 503 sin modelo o con la cola llena,<br/>y 422 si el historial pasa del tope
+    API-->>SPA: 202 con el id del trabajo, al instante
+    par el agente trabaja
+        TRA->>TRA: espera su turno en la cola, en queued,<br/>y al tocarle pasa a running
+        TRA->>AGT: lanza el agente
+        AGT->>MCP: list_tools
+        rect rgba(43, 138, 62, 0.15)
+            MCP-->>AGT: el catálogo, 14 herramientas y 13.215 caracteres
+        end
+        AGT->>AGT: monta los turnos anteriores,<br/>con sus llamadas sin resultado, y un aviso
+        loop como mucho 6 vueltas
+            AGT->>LLM: mensajes, catálogo y 05-llano, razonando,<br/>num_ctx 16.384 y perfil preciso
+            rect rgba(43, 138, 62, 0.15)
+                Note over AGT,LLM: con un tope de 1.500 tokens de salida por vuelta
+            end
+            LLM-->>AGT: llamadas a herramientas, o el texto final
+            AGT->>TRA: anota la vuelta, con lo que pidió,<br/>sus tokens y su tiempo
+            alt el modelo pide herramientas
+                AGT->>MCP: call_tool, una por cada llamada
+                MCP-->>AGT: resultado estructurado
+                AGT->>TRA: anota la llamada y su resultado<br/>entero en la traza
+                Note over AGT,LLM: al modelo vuelve con las cifras a tres decimales
+            else responde con texto entero
+                Note over AGT,LLM: sale del bucle, con la respuesta
+            else vacía o cortada por el tope
+                rect rgba(43, 138, 62, 0.15)
+                    AGT->>AGT: si no se la pidió ya y quedan vueltas,<br/>añade un mensaje que le pide la respuesta
+                    Note over AGT,LLM: y vuelve al bucle, o sale como vacía
+                end
+            end
+        end
+        AGT-->>TRA: el resultado, answered, empty_answer,<br/>max_rounds o failed
+        TRA->>TRA: lo guarda y da el trabajo por terminado
+    and la SPA sondea cada 2 s
+        loop hasta que el trabajo termine
+            SPA->>API: GET /chat/id
+            API->>TRA: lee el estado y la traza
+            TRA-->>API: el estado y los pasos hasta ahora
+            API->>API: a cada paso de señal<br/>le añade su SignalResult
+            API-->>SPA: queued, running o done, con la traza
+        end
+    end
+    Note over SPA,TRA: las tarjetas se pintan con el SignalResult de la traza, no con el texto del modelo
+```
+
+*En verde, lo que el de `v0.6` no tenía. El catálogo pasa a 14 herramientas
+con GNews y NewsData.io (#235), y a 13.215 caracteres con los textos en
+inglés y en español (#234, `spikes/catalogo_peso.py`); en tokens no se ha
+medido con las 14, porque hace falta el modelo en la A40. Y la última vuelta
+(#208): cada vuelta lleva un tope de 1.500 tokens de salida
+(`llm_num_predict`), y si la respuesta sale vacía o cortada por ese tope, el
+agente se la pide una vez más, si le quedan vueltas; si no, termina como
+vacía. Medido en la A40, con 40 conversaciones con historial sin el arreglo y
+40 con él: vacías 5 → 2, fallidas 2 → 0, y la espera más larga, de 313 a
+117 s.*
+
 ## Los diagramas de la Fase A
 
 Se conservan como estaban. Describen **el servidor MCP**, que sigue siendo cierto
@@ -963,8 +1290,8 @@ como componente aunque ya no sea el sistema entero.
 | Requisito | Estado |
 | :--- | :--- |
 | **R1** Infraestructura MCP | ✅ transporte configurable y registro automático de integraciones |
-| **R2** Tools de APIs públicas | ✅ con validación, rate-limit, tracking y cuota |
-| **R3** NLP y explicabilidad | ✅ cinco señales contrastadas, incoherencia (R3.7), fichas de modelo y **modelo de cada señal intercambiable por configuración** (R3.9, completo desde #119 y #87). Sólo en inglés, que es lo que pide R3.4: el español quedó como mejora futura |
+| **R2** Tools de APIs públicas | ✅ con validación, rate-limit, tracking y cuota; desde `v0.8`, también noticias en español, con GNews y NewsData.io (#235) |
+| **R3** NLP y explicabilidad | ✅ cinco señales contrastadas, incoherencia (R3.7), fichas de modelo y **modelo de cada señal intercambiable por configuración** (R3.9, completo desde #119 y #87). **En inglés y en español** desde `v0.8` (R3.4): cada señal decide si analiza el idioma del titular, con su modelo, su umbral y su ficha en ese idioma; en español no se aplican el léxico, por decisión, ni la incoherencia, por medida, y otro idioma no recibe veredicto |
 | **R4** API REST | ✅ análisis, catálogo, ejecución, historial, CORS y OpenAPI |
 | **R5** Catálogo y transparencia | ✅ catálogo por handshake MCP, con procedencia y ficha de modelo |
 | **R6** Interfaz web | ✅ las tres pantallas del camino determinista (127–130) —análisis, catálogo e historial— y la del asistente (#191), con errores entendibles (R6.7), escritorio y tabletas (R6.8) y sin controles que no funcionen (R6.14): la pestaña del asistente sólo aparece si está configurado (R6.10, matizado), y con la sesión de GPU cerrada la pantalla explica por qué no hay formulario. El resultado de cada herramienta se pinta con su tarjeta junto a la traza (R6.12), también cuando la respuesta llega vacía (R6.13) |

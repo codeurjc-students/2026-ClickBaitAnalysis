@@ -7398,6 +7398,8 @@ Los diagramas antiguos también tenían huecos, y para ellos el autor fijó una 
 
 Los cinco primeros se quedan como están. El último estaba mal al dibujarse, pero hoy es el diagrama del plano, y el autor prefirió dejarlo intacto: lo dice una nota bajo el de lo construido.
 
+*(Revisado el 11 oct 2026: §6 sí tenía algo mal al dibujarse, «0..3» dimensiones con veredicto cuando el tono ya no votaba, y se corrigió en su sitio. Y §3, §6, §7, §10 y §12 tienen desde entonces al lado un «Hoy, en `v0.8`»: ver «La arquitectura, al día con `v0.8`».)*
+
 #### La prueba en producción que dejó #192
 
 #192 cambió cómo viaja el historial —cada respuesta anterior lleva los nombres de sus herramientas (`Turno.tools`), la API los valida y la pantalla los manda— y lo midió contra el backend, pero no en la pantalla real ([comentario en #193](https://github.com/codeurjc-students/2026-ClickBaitAnalysis/issues/193#issuecomment-5911811305)). Con permiso del autor se redesplegó la máquina 1 con `dev` y se abrió una sesión de GPU, y el autor hizo desde su navegador una conversación de dos turnos.
@@ -9302,6 +9304,61 @@ CHAT_PARTE_ABIERTA=espanol bash spikes/chat_maquina1.sh
 | Código servido | `d54d2ba` (`dev`, con la primera parte de #234) |
 | Modelos | Los horneados, en las revisiones de la primera parte |
 | Guiones | `spikes/produccion_en_vivo.py`, `spikes/memoria_maquina1.sh` y `spikes/chat_maquina1.sh` (`CHAT_PARTE_ABIERTA=espanol`) |
+
+### La arquitectura, al día con `v0.8` (11 oct 2026, PR #250)
+
+Al empezar la memoria (H6), el autor preguntó si la estructura interna había cambiado con `v0.7` y `v0.8`, y si los diagramas de `docs/arquitectura.md` se habían quedado atrás. Nadie había tocado el documento desde #223 y #224, y el capítulo de arquitectura de la memoria va a salir de ahí. Es trabajo suelto, sin issue: sólo cambian `docs/arquitectura.md` y un guion nuevo, `spikes/imports_entre_capas.py`.
+
+#### Lo que cambió por dentro
+
+El guion recorre con `ast` los imports de todo `backend/`, también los que van dentro de funciones, y los agrupa por capa. Sobre la copia de trabajo y sobre `v0.6.0`, sacado con `git archive`:
+
+- **Las mismas capas, las mismas rutas de la API y los mismos tres contenedores.** Los pares de capas con imports entre sí pasan de 19 a 21.
+- **Dos integraciones nuevas**, `gnews/` y `newsdata/` (#235), con el patrón de siempre, `tool.py` y `client.py`; y un módulo nuevo en `core/`, `idioma.py` (#229), que importan `analysis/`, `integrations/nlp/` y `api/`.
+- **Los dos pares nuevos son de `evaluation/`**: a `analysis/`, porque `eval_veredicto` (#124) y `eval_ta1c` (#229) pasan los corpus por el análisis entero; y a `core/`, por el detector de idioma.
+
+Lo que más cambió está dentro de las piezas, no entre ellas: el enrutado por idioma en la factoría y en `_run_signals`, y una ficha por señal e idioma con la revisión de sus pesos.
+
+#### Qué se había quedado atrás
+
+| Sección | Lo que faltaba o decía mal |
+|---|---|
+| §1, las dos fachadas | Las APIs externas eran NYT, Guardian y Hugging Face: faltaban GNews y NewsData.io, y producción ya no llama a Hugging Face |
+| §3, `POST /analyze` | La detección del idioma y la puerta señal a señal; además, decía que el engaño manda y que el id se descarta |
+| §6, el dominio | `language` en `AnalyzeResponse`, `label` en `SignalResult`, y en la ficha el idioma y la revisión |
+| §7, capas | `gnews`, `newsdata` e `idioma`, y la dependencia de `evaluation/` a `analysis/` |
+| §10, despliegue | GNews y NewsData.io, y los cinco modelos en local en vez de tres |
+| §12, el agente | 14 herramientas en vez de 12, y la última vuelta de #208: el tope de salida y la respuesta que se pide otra vez |
+
+Fuera de los diagramas, la cabecera decía que el documento reflejaba `v0.6.0`, y la tabla de requisitos, en R3, que el sistema analiza «sólo en inglés», que es falso desde `v0.8`. Seguían valiendo §2, §4, §5, §8, §9 y §11.
+
+#### Cómo se puso al día
+
+- **Con la regla de #193**: un diagrama que se quedó viejo porque el código cambió después se conserva, y al lado va otro, «Hoy, en `v0.8`»; uno que ya estaba mal al dibujarse se corrige. Fechado con `git log -S`, §3 y §6 son del 4 de septiembre (PR #136), un día antes de #133, así que el id «que se descarta» y la falta de `label` son desfasados, y se quedan.
+- **El único error de dibujo era el «0..3» de §6**: el tono ya no votaba aquel día (`verdict=lambda d: None` en el orquestador de ese commit), así que las dimensiones con veredicto son, como mucho, dos. Se corrigió en su sitio, con una nota. La revisión de #193 no lo había visto.
+- **«Hoy, en `v0.8`» va delante en §3, §6, §7 y §10, y al final en §12**, que va en orden cronológico: el plano, `v0.6` y `v0.8`. Los de `v0.6` pasan a titularse «En `v0.6` (30 sep 2026)». En §3 y §6 el del 4 de septiembre va al final de la sección, con una nota de lo que ha quedado viejo, para que los párrafos que explican las dos versiones no queden bajo el título del viejo.
+- **En verde, lo que no tenía el diagrama anterior de la sección**: el de `v0.6`, o el del 4 de septiembre en §3 y §6. El naranja sigue siendo lo que se desvió del plano de H5. En §6 no hay verde, porque un diagrama de clases no colorea campos sueltos, y lo dice una nota.
+- **§1 sólo lleva una nota**, sobre las APIs nuevas y Hugging Face, de pago desde #236. En la tabla de requisitos, R2 gana las noticias en español y R3 pasa a inglés y español. Y en el texto de §6, el estado seguía llamándose `no_aplicable`, la clave de antes de #134.
+
+#### Dos decisiones de dibujo
+
+- **En §7, la flecha de `evaluation/` va a `analysis/`, y la de `integrations/` desaparece.** Con las dos, `evaluation/` subía a la fila de las fachadas y sus aristas cruzaban el dibujo; lo vio el autor en la primera versión. La de `integrations/` sobra, porque el criterio del diagrama es que cada import real quede cubierto por **un camino** de flechas, y el que sale de `analysis/` llega a `integrations/`, `core/` y `config/`. El guion lo comprueba: ningún par sin camino, ni en la copia de trabajo ni en `v0.6.0`.
+- **§6, en vertical y con las notas partidas.** En horizontal, con los campos nuevos, quedaba demasiado pequeño para leerse a 846 px, el ancho al que GitHub encoge un diagrama.
+
+#### Lo que no se midió
+
+- **El catálogo del agente, en tokens, con 14 herramientas**: hace falta el modelo en la A40, que sigue con el driver de NVIDIA a medio actualizar. El diagrama de §12 lo da en caracteres, 13.215, la cifra de la primera parte de #234.
+
+#### Para la memoria
+
+- **La plantilla de la ETSII pide un diagrama del cliente por capas**, y `arquitectura.md` no lo tiene: §8 cuenta de dónde salen los tipos, no cómo se reparten las pantallas y los servicios. Queda para el material de ese capítulo.
+
+| Condiciones | |
+|---|---|
+| Fecha | 11 oct 2026 |
+| Código | `2a5f5f9` (`dev`, el mismo árbol que el merge de `v0.8.0`) y, para comparar, `v0.6.0` |
+| Dibujo | Mermaid 11.4.1, en una columna de 846 px: los 20 diagramas del documento se dibujan sin errores |
+| Guion | `spikes/imports_entre_capas.py`; sobre `v0.6.0`, con `git archive v0.6.0 backend` y `--raiz` |
 
 
 
