@@ -23,7 +23,9 @@ Y desde #234, el español de `v0.8`:
 9. las dos fuentes en español, GNews y NewsData.io, con un tema (#235).
 
 Las rutas caras admiten 10 peticiones por minuto y cliente (#169): ante un 429
-se espera lo que diga `Retry-After` y se repite una vez. El certificado es
+se espera lo que diga `Retry-After` y se repite, hasta tres veces. Con una sola
+vez no bastaba desde #234: con 14 herramientas y las peticiones en español la
+ventana deslizante seguía llena, y Guardian salió en 429 por el limitador. El certificado es
 autofirmado (#165), así que no se verifica.
 
 Ejecutar desde la raíz:
@@ -82,7 +84,9 @@ SENALES_ES = {
 
 def pedir(cliente: httpx.Client, metodo: str, ruta: str, **opciones) -> httpx.Response:
     respuesta = cliente.request(metodo, f"{BASE}{ruta}", **opciones)
-    if respuesta.status_code == 429:
+    for _ in range(3):
+        if respuesta.status_code != 429:
+            break
         espera = int(respuesta.headers.get("retry-after", "60"))
         print(f"     (429: espero {espera} s)", flush=True)
         time.sleep(espera)

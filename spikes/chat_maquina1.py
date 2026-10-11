@@ -7,6 +7,12 @@ alrededor de una sesión de GPU:
 
 - `cerrada-antes` y `cerrada-despues`: sin sesión, `GET /agent` tiene que decir
   `unreachable` y `POST /chat` responder 503 con el mismo motivo (R6.14).
+- `espanol` (#234, 2026-10-10): con la sesión, el agente de `v0.8` en
+  producción con titulares en español: una consulta genérica, la del léxico
+  y tres veces la de una noticia en español, que en el examen de #234 se
+  inventó el análisis una de dos veces. Guarda la respuesta entera y los
+  argumentos de cada herramienta, para leerla. La lanza
+  `CHAT_PARTE_ABIERTA=espanol bash spikes/chat_maquina1.sh`.
 - `abierta`: con la sesión y su túnel,
   - `GET /agent` dice `available`;
   - una conversación sencilla y la más larga de #188 (una noticia del NYT y su
@@ -171,6 +177,11 @@ async def conversar(
             ],
             "carga_s": [round(paso["metrics"]["load_s"], 1) for paso in vueltas],
             "respuesta": resultado.get("answer", "")[:400],
+            # Añadidos en #234, para leer si lo narrado sale de lo llamado.
+            "respuesta_entera": resultado.get("answer", ""),
+            "argumentos": [
+                [paso["name"], paso["arguments"]] for paso in pasos if paso["kind"] == "tool"
+            ],
         }
     )
     return fila
@@ -212,9 +223,9 @@ async def cerrada(cliente: httpx.AsyncClient) -> dict[str, Any]:
     return fila
 
 
-async def abierta(cliente: httpx.AsyncClient) -> dict[str, Any]:
-    # El túnel lo abre `gpu-sesion` a la vez que Ollama: se espera a que la API
-    # lo vea, como mucho un minuto.
+async def _disponible(cliente: httpx.AsyncClient) -> dict[str, Any]:
+    """`GET /agent`, esperando a que la API vea el túnel (un minuto, como mucho)."""
+    # El túnel lo abre `gpu-sesion` a la vez que Ollama.
     for _ in range(30):
         agente = (await cliente.get("/agent")).json()
         if agente["availability"]["status"] == "available":
@@ -224,6 +235,11 @@ async def abierta(cliente: httpx.AsyncClient) -> dict[str, Any]:
         f"  GET /agent: {agente['availability']} · ficha {agente['model_card']['model_id']}"
         f" · prompt {agente['prompt']['name']}"
     )
+    return agente
+
+
+async def abierta(cliente: httpx.AsyncClient) -> dict[str, Any]:
+    agente = await _disponible(cliente)
     registro: dict[str, Any] = {"agent": agente["availability"]}
     if agente["availability"]["status"] != "available":
         print("  EL ASISTENTE NO ESTÁ DISPONIBLE: no se conversa.")
@@ -249,15 +265,44 @@ async def abierta(cliente: httpx.AsyncClient) -> dict[str, Any]:
     return registro
 
 
+# #234: el agente de `v0.8` en producción, con titulares en español.
+NOTICIA_ES = "Busca una noticia en español sobre el clima y dime si su titular es clickbait."
+CONSULTAS_ES = [
+    ("es-generica", "¿Es clickbait 'No vas a creer lo que hizo este perro al ver a su dueño'?"),
+    (
+        "es-lexico",
+        "¿Qué pistas léxicas tiene el titular 'Increíble: lo que pasó después te sorprenderá'?",
+    ),
+    *[(f"es-noticia-{vez}", NOTICIA_ES) for vez in (1, 2, 3)],
+]
+
+
+async def espanol(cliente: httpx.AsyncClient) -> dict[str, Any]:
+    agente = await _disponible(cliente)
+    registro: dict[str, Any] = {"agent": agente["availability"]}
+    if agente["availability"]["status"] != "available":
+        print("  EL ASISTENTE NO ESTÁ DISPONIBLE: no se conversa.")
+        return registro
+    for nombre, mensaje in CONSULTAS_ES:
+        registro[nombre] = await conversar(cliente, mensaje)
+        _imprimir(nombre, registro[nombre])
+        print(f"     respuesta: {registro[nombre].get('respuesta_entera', '')}")
+    return registro
+
+
 async def main(parte: str) -> dict[str, Any]:
     print(f"== {parte} · {datetime.now(UTC).isoformat(timespec='seconds')} · {BASE}")
     # Autofirmado (#165): se comprueba la aplicación, no el certificado.
     async with httpx.AsyncClient(base_url=BASE, verify=False, timeout=30) as cliente:
-        return await (abierta(cliente) if parte == "abierta" else cerrada(cliente))
+        if parte == "abierta":
+            return await abierta(cliente)
+        if parte == "espanol":
+            return await espanol(cliente)
+        return await cerrada(cliente)
 
 
 if __name__ == "__main__":
-    PARTES = ("cerrada-antes", "abierta", "cerrada-despues")
+    PARTES = ("cerrada-antes", "abierta", "espanol", "cerrada-despues")
     if len(sys.argv) != 2 or sys.argv[1] not in PARTES:
         sys.exit(f"Uso: chat_maquina1.py {'|'.join(PARTES)}")
     parte = sys.argv[1]
