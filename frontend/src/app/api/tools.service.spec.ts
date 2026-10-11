@@ -35,6 +35,7 @@ const CATALOGO: CatalogResult = {
         required: ['headline'],
       },
       server: 'tfg',
+      model_cards: [],
     },
   ],
   degraded: true,

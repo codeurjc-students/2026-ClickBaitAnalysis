@@ -107,11 +107,72 @@ describe('HistorialPage', () => {
     expect(raiz.textContent).toContain('Why skateboarding is more than a sport');
   });
 
-  // Los titulares son ingleses por contrato y la página está en castellano.
+  // La página está en castellano y el titular puede no estarlo (#229). La
+  // primera fila es una ejecución suelta de antes de #230, cuya salida no dice
+  // en qué idioma leyó el titular: queda en «en», como antes.
   it('marca el idioma de los titulares analizados', async () => {
     const raiz = await montar();
 
     expect(raiz.querySelector('.titular')?.getAttribute('lang')).toBe('en');
+  });
+
+  // #229: en un análisis, el idioma es el que guardó su respuesta.
+  it('un análisis en español marca su titular en español', async () => {
+    const titular = 'No vas a creer lo que hizo este perro';
+    const enEspanol = {
+      ...PAGINA.items[1],
+      headline: titular,
+      verdict: 'no_data',
+      payload: {
+        headline: titular,
+        language: 'es',
+        signals: [],
+        dimensions: [],
+        verdict: 'no_data',
+      },
+    };
+    const raiz = await montar({ ...PAGINA, items: [PAGINA.items[0], enEspanol] });
+
+    const titulares = raiz.querySelectorAll('.titular');
+    expect(titulares[1].textContent).toBe(titular);
+    expect(titulares[1].getAttribute('lang')).toBe('es');
+  });
+
+  // #230: una ejecución suelta lo dice en la salida de su señal.
+  it('una ejecución suelta en español marca su titular en español', async () => {
+    const titular = 'No vas a creer lo que hizo este perro';
+    const enEspanol = {
+      ...PAGINA.items[0],
+      tool: 'detect_clickbait',
+      headline: titular,
+      payload: {
+        tool: 'detect_clickbait',
+        status: 'ok',
+        data: { label: 'clickbait', score: 0.9, language: 'es' },
+      },
+    };
+    const raiz = await montar({ ...PAGINA, items: [enEspanol] });
+
+    expect(raiz.querySelector('.titular')?.getAttribute('lang')).toBe('es');
+  });
+
+  // Una señal rechaza un titular que no analiza y no devuelve salida: no se
+  // sabe su idioma, y «en» afirmaría lo contrario de lo que pasó (#230).
+  it('una ejecución rechazada marca su titular como indeterminado', async () => {
+    const rechazada = {
+      ...PAGINA.items[0],
+      headline: 'No vas a creer lo que hizo este perro',
+      status: 'error',
+      payload: {
+        tool: 'detect_clickbait_lexical',
+        status: 'error',
+        data: null,
+        detail: 'El titular parece estar en español: el léxico no lo analiza.',
+      },
+    };
+    const raiz = await montar({ ...PAGINA, items: [rechazada] });
+
+    expect(raiz.querySelector('.titular')?.getAttribute('lang')).toBe('und');
   });
 
   // #134 pasó las claves a inglés. Una entrada anterior se pinta con lo que

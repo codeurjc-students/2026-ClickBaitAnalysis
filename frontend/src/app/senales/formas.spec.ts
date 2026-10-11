@@ -1,5 +1,5 @@
 import type { AnalyzeResponse } from '../api/models';
-import { comoAnalisis } from './formas';
+import { comoAnalisis, idiomaDeLaEjecucion, idiomaDelTitular } from './formas';
 
 /**
  * Un análisis de HOY, tipado con el contrato a propósito: si algún día
@@ -9,6 +9,7 @@ import { comoAnalisis } from './formas';
 const DE_HOY: AnalyzeResponse = {
   headline: '10 Amazing Things You Won\'t Believe',
   content: null,
+  language: 'en',
   signals: [
     {
       name: 'detect_clickbait_lexical',
@@ -88,5 +89,66 @@ describe('comoAnalisis', () => {
     expect(comoAnalisis(null)).toBeNull();
     expect(comoAnalisis('un texto')).toBeNull();
     expect(comoAnalisis({})).toBeNull();
+  });
+});
+
+describe('idiomaDelTitular', () => {
+  // El que guardó el análisis, sin recalcularlo: es el que decidió qué
+  // señales se ejecutaban.
+  it('es el idioma que trae el análisis', () => {
+    expect(idiomaDelTitular({ ...DE_HOY, language: 'es' })).toBe('es');
+  });
+
+  // `und` es «indeterminado» en BCP 47: un `lang` válido, y lo honesto.
+  it('deja «und» tal cual', () => {
+    expect(idiomaDelTitular({ ...DE_HOY, language: 'und' })).toBe('und');
+  });
+
+  // Antes de #229 el contrato decía que el titular era inglés, y así lo trató
+  // el análisis que se guardó. Exigir el campo mandaría a JSON crudo todo lo
+  // guardado antes, como habría pasado con `label`.
+  it('lo guardado antes de #229 se sigue leyendo, y su titular es inglés', () => {
+    const guardado = comoAnalisis({
+      headline: 'Un titular',
+      signals: [],
+      dimensions: [],
+      verdict: 'factual',
+    });
+
+    expect(guardado).not.toBeNull();
+    expect(idiomaDelTitular(guardado)).toBe('en');
+  });
+
+  it('sin análisis, o con un valor que no es una cadena, también', () => {
+    expect(idiomaDelTitular(null)).toBe('en');
+    expect(idiomaDelTitular(comoAnalisis({ ...DE_HOY, language: 42 }))).toBe('en');
+  });
+});
+
+describe('idiomaDeLaEjecucion', () => {
+  // Desde #230 la salida de cada señal dice su idioma, y una ejecución suelta
+  // la guarda dentro de su `ExecuteResponse`.
+  it('es el idioma que trae la salida de la señal', () => {
+    expect(
+      idiomaDeLaEjecucion({ tool: 'detect_clickbait', status: 'ok', data: { language: 'es' } }),
+    ).toBe('es');
+  });
+
+  // Con salida pero sin idioma es de antes de #230, cuando todo se analizaba
+  // en inglés; o de una herramienta que no es una señal.
+  it('con salida sin idioma, inglés', () => {
+    expect(idiomaDeLaEjecucion({ tool: 'detect_clickbait', data: { score: 4 } })).toBe('en');
+    expect(idiomaDeLaEjecucion({ tool: 'get_nyt_news', data: { result: [] } })).toBe('en');
+  });
+
+  // Sin salida no se sabe, y el caso típico es un titular que no está en
+  // inglés y la señal rechazó: «en» afirmaría lo contrario.
+  it('sin salida, indeterminado', () => {
+    expect(idiomaDeLaEjecucion({ tool: 'detect_clickbait', status: 'error', data: null })).toBe(
+      'und',
+    );
+    expect(idiomaDeLaEjecucion({ tool: 'detect_clickbait', status: 'error' })).toBe('und');
+    expect(idiomaDeLaEjecucion('texto')).toBe('und');
+    expect(idiomaDeLaEjecucion(null)).toBe('und');
   });
 });

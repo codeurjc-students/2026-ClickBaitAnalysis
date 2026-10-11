@@ -22,7 +22,11 @@ glosario fijo, para que la traducción sea siempre la misma y se pueda juzgar, y
 conserva las reglas de veracidad. Los decimales no los arregla el prompt: los
 redondea el agente en lo que lee el modelo (`decimales_para_el_modelo`). Es el
 de por defecto desde #192, junto con el muestreo preciso (`llm_temperature`),
-que es con lo que ganó la comparación.
+que es con lo que ganó la comparación. Desde #234 su párrafo de límites dice
+que las herramientas analizan inglés y español, y cuáles no se aplican en
+español: decía «entrenadas con titulares en inglés», falso desde `v0.8`. Se
+corrigió en su sitio, y el texto de antes queda en la parte `cierre` de
+`spikes/agente_a40.py`, que mide los dos.
 """
 
 from pathlib import Path

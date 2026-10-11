@@ -80,3 +80,27 @@ def test_la_explicacion_son_las_contribuciones_ordenadas():
     assert contribuciones == sorted(contribuciones, reverse=True)
     for rasgo, contribucion in resultado["top_cues"]:
         assert contribucion == pytest.approx(pesos[rasgo] * vector[rasgo])
+
+
+@pytest.mark.parametrize(("umbral", "voto"), [(0.0, True), (1.0, False)])
+def test_el_umbral_de_los_pesos_decide_el_voto(monkeypatch, umbral, voto):
+    """#231: el voto lo decide el umbral del JSON, no un 0,5 escrito en el
+    código, y la salida lo publica. Con otro umbral, la misma probabilidad
+    vota otra cosa."""
+    titular = "You Won't Believe What This Dog Did When His Owner Came Home"
+    originales = linear.pesos()
+    antes = linear.predict(titular).unwrap()
+    monkeypatch.setattr(linear, "pesos", lambda: {**originales, "threshold": umbral})
+
+    salida = linear.predict(titular).unwrap()
+
+    assert salida["threshold"] == umbral
+    assert salida["is_clickbait"] is voto
+    assert salida["probability"] == pytest.approx(antes["probability"])
+
+
+def test_el_umbral_publicado_es_el_de_los_pesos():
+    """El 0,35 que eligió la regla de #78 en #231, guardado con los pesos."""
+    salida = linear.predict(DESCONOCIDO).unwrap()
+
+    assert salida["threshold"] == linear.pesos()["threshold"] == 0.35

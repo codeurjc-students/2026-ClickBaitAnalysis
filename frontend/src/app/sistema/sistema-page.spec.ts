@@ -39,14 +39,17 @@ const CATALOGO: CatalogResult = {
       category: 'Señales de análisis',
       integration: 'nlp',
       server: 'tfg',
-      model_card: {
-        name: 'Léxico por reglas',
-        task: 'Marca los cues de clickbait que aparecen en el titular.',
-        model_id: null,
-        type: 'interpretable',
-        dimension: 'form',
-        limitations: ['Sólo inglés.', 'No entiende el contexto.'],
-      },
+      model_cards: [
+        {
+          name: 'Léxico por reglas',
+          task: 'Marca los cues de clickbait que aparecen en el titular.',
+          model_id: null,
+          type: 'interpretable',
+          dimension: 'form',
+          limitations: ['Sólo inglés.', 'No entiende el contexto.'],
+          language: 'en',
+        },
+      ],
     },
     {
       name: 'get_nyt_news',
@@ -60,6 +63,7 @@ const CATALOGO: CatalogResult = {
       category: 'Fuentes de contenido',
       integration: 'nyt',
       server: 'tfg',
+      model_cards: [],
     },
     {
       name: 'detect_clickbait',
@@ -72,19 +76,38 @@ const CATALOGO: CatalogResult = {
       category: 'Señales de análisis',
       integration: 'nlp',
       server: 'tfg',
-      model_card: {
-        name: 'RoBERTa dedicado',
-        task: 'Clickbait vs factual, con supervisión humana.',
-        model_id: 'Stremie/roberta-base-clickbait',
-        type: 'opaque',
-        dimension: 'form',
-        limitations: [
-          'Caja negra: sin explicación intrínseca.',
-          'Sólo inglés, y entrenado sobre tuits.',
-          'Independencia desconocida respecto del léxico.',
-          'Split de entrenamiento desconocido.',
-        ],
-      },
+      model_cards: [
+        {
+          name: 'RoBERTa dedicado',
+          task: 'Clickbait vs factual, con supervisión humana.',
+          model_id: 'Stremie/roberta-base-clickbait',
+          revision: '517de05db9ba2bf977c6c653d2f03265b74317a8',
+          type: 'opaque',
+          dimension: 'form',
+          limitations: [
+            'Caja negra: sin explicación intrínseca.',
+            'Sólo inglés, y entrenado sobre tuits.',
+            'Independencia desconocida respecto del léxico.',
+            'Split de entrenamiento desconocido.',
+          ],
+          language: 'en',
+        },
+        // Un zero-shot puesto por configuración para el español (#230): la
+        // misma señal, otro modelo, con sus propios límites.
+        {
+          name: 'otra/multilingue (zero-shot, puesto por configuración)',
+          task: 'Clasifica el titular con un modelo zero-shot.',
+          model_id: 'otra/multilingue',
+          type: 'opaque',
+          dimension: 'form',
+          limitations: [
+            'SIN EVALUAR EN ESTE PROYECTO.',
+            'Pregunta entre dos etiquetas.',
+            'Sin medidas en español.',
+          ],
+          language: 'es',
+        },
+      ],
     },
     {
       name: 'describe_models',
@@ -93,6 +116,7 @@ const CATALOGO: CatalogResult = {
       category: 'Utilidades',
       integration: 'nlp',
       server: 'tfg',
+      model_cards: [],
     },
   ],
   degraded: true,
@@ -269,7 +293,37 @@ describe('SistemaPage', () => {
     expect(ficha?.textContent).toContain('Forma');
     // El `null` del `model_id` es información, no un hueco.
     expect(ficha?.textContent).toContain('código propio');
+    expect(ficha?.textContent).toContain('Titulares en inglés');
     expect(ficha?.querySelectorAll('li').length).toBe(2);
+  });
+
+  // #234: el commit de los pesos, corto, y sólo en la ficha que lo trae. El
+  // léxico no tiene modelo, y el zero-shot puesto por configuración no se fija.
+  it('enseña la revisión del modelo sólo si la ficha la trae', async () => {
+    const raiz = await montar();
+
+    const [lexico, inglesa, espanola] = raiz.querySelectorAll('.ficha');
+    expect(inglesa.textContent).toContain('revisión 517de05db9ba');
+    expect(inglesa.textContent).not.toContain('517de05db9ba2bf9');
+    expect(lexico.textContent).not.toContain('revisión');
+    expect(espanola.textContent).not.toContain('revisión');
+  });
+
+  // #230: una señal trae una ficha por idioma que analiza, y cada una dice el
+  // suyo y se pliega por su lado.
+  it('una señal con dos idiomas enseña una ficha por idioma', async () => {
+    const raiz = await montar();
+
+    const [, inglesa, espanola] = raiz.querySelectorAll('.ficha');
+    expect(inglesa.textContent).toContain('Titulares en inglés');
+    expect(espanola.textContent).toContain('Titulares en español');
+    expect(espanola.textContent).toContain('otra/multilingue');
+
+    espanola.querySelector<HTMLButtonElement>('button')?.click();
+    await fixture.whenStable();
+
+    expect(raiz.querySelectorAll('.ficha')[2].querySelectorAll('li').length).toBe(3);
+    expect(raiz.querySelectorAll('.ficha')[1].querySelectorAll('li').length).toBe(2);
   });
 
   it('explica el fallo cuando el catálogo no se puede cargar', async () => {

@@ -26,7 +26,7 @@ from typing import Any, Literal
 #
 #
 # Efecto secundario útil: «Señales de análisis» son exactamente las que llevan
-# ficha de modelo, así que la categoría predice si `model_card` viene o no.
+# ficha de modelo, así que la categoría predice si `model_cards` viene vacía o no.
 Categoria = Literal[
     "Fuentes de contenido",
     "Señales de análisis",

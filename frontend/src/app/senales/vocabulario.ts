@@ -27,6 +27,13 @@ const DIMENSIONES: Record<string, string> = {
   tone: 'Tono',
 };
 
+/** Los idiomas que publica el backend, en BCP 47 (#229, #230). */
+const IDIOMAS: Record<string, string> = {
+  en: 'inglés',
+  es: 'español',
+  und: 'otro idioma',
+};
+
 /**
  * La etiqueta legible de una señal, o su id de máquina si no la trae.
  *
@@ -66,6 +73,11 @@ export function nombreDeVeredicto(verdict: string): string {
 
 export function nombreDeDimension(dimension: string): string {
   return DIMENSIONES[dimension] ?? dimension;
+}
+
+/** El nombre de un idioma, o su código si no es uno de los que publica el backend. */
+export function nombreDeIdioma(idioma: string): string {
+  return IDIOMAS[idioma] ?? idioma;
 }
 
 export function nombreDeCategoria(categoria: string): string {

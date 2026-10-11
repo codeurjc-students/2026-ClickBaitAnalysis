@@ -16,6 +16,7 @@ import asyncio
 import structlog
 
 from backend.core.errores import mensaje_publico
+from backend.core.idioma import INGLES
 from backend.core.models import ToolResult
 from backend.integrations.nlp.dependencias import (
     FaltaDependencia,
@@ -34,7 +35,7 @@ class IncoherenceDetector:
     # los nombres desnudos en su propia organización—, así que la divergencia no
     # rompía nada y podía sobrevivir indefinidamente mientras la divulgación
     # decía una cosa y el código cargaba otra. Es el caso exacto que motiva #116.
-    MODEL = model_id_de("detect_clickbait_incoherence")
+    MODEL = model_id_de("detect_clickbait_incoherence", INGLES)
 
     # Similitud POR DEBAJO de esto = incoherente = posible clickbait. Ojo al
     # sentido, que es el contrario del habitual y confunde a quien lo lee rápido.

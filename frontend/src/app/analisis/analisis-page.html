@@ -12,7 +12,7 @@
     } @else {
       <p class="barra__etiqueta">Titular analizado</p>
     }
-    <p class="barra__titular" lang="en">«{{ analisis.headline }}»</p>
+    <p class="barra__titular" [lang]="idioma()">«{{ analisis.headline }}»</p>
     <p class="barra__meta">
       @if (analisis.content) {
         con cuerpo · {{ analisis.content.length }} caracteres
@@ -28,10 +28,14 @@
 } @else {
   <form [formGroup]="formulario" (ngSubmit)="analizar()">
     <label for="headline">Titular <span aria-hidden="true">*</span></label>
+    <!-- `lang=""` es «idioma desconocido» en HTML (#230): antes de analizar no
+         se sabe, y sin el atributo heredaría el castellano de la página, con su
+         pronunciación y su corrector. Lo que se pinta DESPUÉS lleva el idioma
+         que detectó el análisis (`idiomaDelTitular`). -->
     <input
       id="headline"
       type="text"
-      lang="en"
+      lang=""
       required
       formControlName="headline"
       placeholder="10 Amazing Things You Won't Believe"
@@ -55,13 +59,17 @@
       <button type="button" (click)="ejemplo('17 Things Nobody Tells You About Moving Abroad')">
         caso ambiguo
       </button>
+      <!-- Desde v0.8 un titular en español también recibe veredicto (#234). -->
+      <button type="button" (click)="ejemplo('No vas a creer lo que hizo este perro al ver a su dueño')">
+        en español
+      </button>
     </p>
 
     <label for="content">Contenido / cuerpo de la noticia (opcional)</label>
     <textarea
       id="content"
       rows="5"
-      lang="en"
+      lang=""
       formControlName="content"
       placeholder="Pega aquí el cuerpo o el teaser…"
       aria-describedby="ayuda-content"

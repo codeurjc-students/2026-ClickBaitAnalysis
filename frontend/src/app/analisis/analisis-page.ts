@@ -11,7 +11,7 @@ import { Router } from '@angular/router';
 
 import { AnalyzeService } from '../api/analyze.service';
 import { HistoryService } from '../api/history.service';
-import { comoAnalisis, type AnalisisGuardado } from '../senales/formas';
+import { comoAnalisis, idiomaDelTitular, type AnalisisGuardado } from '../senales/formas';
 import { ResultadoAnalisis } from '../senales/resultado-analisis';
 import { mensajeDeError } from './errores';
 
@@ -41,6 +41,9 @@ export class AnalisisPage {
   readonly enviando = signal(false);
   readonly error = signal<string | null>(null);
   readonly resultado = signal<AnalisisGuardado | null>(null);
+
+  /** El idioma del titular analizado, para su `lang` (#229). */
+  readonly idioma = computed(() => idiomaDelTitular(this.resultado()));
 
   /**
    * Id de la entrada del historial en la que quedó este análisis (#133).

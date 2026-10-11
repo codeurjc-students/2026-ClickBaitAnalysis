@@ -18,8 +18,10 @@ RUN pip install --no-cache-dir torch==2.14.0 --index-url https://download.pytorc
  && pip install --no-cache-dir sentence-transformers==5.6.0
 
 # 3 · Modelos. Sólo las fichas: la capa se rehace cuando cambia model_cards.py,
-#     aunque sólo cambie un texto y ningún modelo.
+#     aunque sólo cambie un texto y ningún modelo. Desde #230 las fichas son
+#     por idioma e importan su tipo de core/idioma.py, que sólo usa `re`.
 COPY backend/__init__.py backend/
+COPY backend/core/__init__.py backend/core/idioma.py backend/core/
 COPY backend/integrations/__init__.py backend/integrations/
 COPY backend/integrations/nlp/__init__.py \
      backend/integrations/nlp/model_cards.py \

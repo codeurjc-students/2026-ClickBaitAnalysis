@@ -36,10 +36,15 @@ from backend.analysis.orchestrator import (
     _overall,
     _run_signals,
 )
-from backend.config.settings import settings
+from backend.config.settings import ModeloConInvocacion, settings
+from backend.core.idioma import ESPANOL, INDETERMINADO, INGLES
 from backend.core.models import ToolResult
 from backend.integrations.nlp import dedicated, lexical, linear
-from backend.integrations.nlp.model_cards import cards_by_signal
+from backend.integrations.nlp.factory import (
+    motivo_si_el_cuerpo_no_se_compara,
+    motivo_si_no_se_analiza,
+)
+from backend.integrations.nlp.model_cards import fichas_en
 
 _SPECS = {spec.name: spec for spec in _SIGNALS}
 
@@ -75,7 +80,12 @@ class _FakeAPI:
 
     async def classify(self, text, model):
         await asyncio.sleep(self.delay)
-        if model == dedicated.MODEL:
+        # Desde #242 la dedicada tiene un modelo por idioma, con el mismo
+        # vocabulario.
+        if model in (
+            dedicated.MODEL,
+            fichas_en(ESPANOL)["detect_clickbait"]["model_id"],
+        ):
             return ToolResult.ok({"label": self._AL_MODELO[self.label], "score": 0.91})
         return ToolResult.ok({"label": self.sentiment, "score": 0.84})
 
@@ -116,7 +126,9 @@ def señales(monkeypatch):
         api = _FakeAPI(label, sentiment, delay)
         detector = _FakeDetector(similarity, delay)
         monkeypatch.setattr(orchestrator, "get_nlp_backend", lambda: api)
-        monkeypatch.setattr(orchestrator, "get_incoherence_detector", lambda: detector)
+        monkeypatch.setattr(
+            orchestrator, "get_incoherence_detector", lambda idioma: detector
+        )
 
         # Con la firma de los de verdad: desde #93 reciben el umbral y el tope
         # de pistas de la factoría.
@@ -155,7 +167,7 @@ def señales(monkeypatch):
 
 
 def _signal(name, is_clickbait, status=SignalStatus.OK):
-    return _build(_SPECS[name], status, is_clickbait=is_clickbait)
+    return _build(_SPECS[name], status, idioma=INGLES, is_clickbait=is_clickbait)
 
 
 def _por_dimension(verdicts):
@@ -241,7 +253,7 @@ async def test_la_señal_dedicada_vota_y_su_etiqueta_va_normalizada(señales):
     notaría — porque seguiría habiendo voto, sólo que siempre el mismo.
     """
     señales(label="clickbait")
-    signals = {s.name: s for s in await _run_signals("Un titular", None)}
+    signals = {s.name: s for s in await _run_signals("Un titular", None, INGLES, None)}
 
     dedicada = signals["detect_clickbait"]
     assert dedicada.status == SignalStatus.OK
@@ -272,7 +284,7 @@ async def test_una_etiqueta_desconocida_del_modelo_no_pasa_por_factual(
         return ToolResult.ok({"label": "LABEL_0", "score": 0.9})
 
     monkeypatch.setattr(dobles.api, "classify", responde_raro)
-    signals = {s.name: s for s in await _run_signals("Un titular", None)}
+    signals = {s.name: s for s in await _run_signals("Un titular", None, INGLES, None)}
 
     dedicada = signals["detect_clickbait"]
     assert dedicada.status == SignalStatus.ERROR
@@ -348,7 +360,7 @@ def test_una_deteccion_positiva_pesa_mas_que_una_discrepancia():
 @pytest.mark.asyncio
 async def test_sin_cuerpo_la_incoherencia_queda_no_aplicable(señales):
     señales()
-    signals = {s.name: s for s in await _run_signals("Un titular", None)}
+    signals = {s.name: s for s in await _run_signals("Un titular", None, INGLES, None)}
 
     incoherencia = signals["detect_clickbait_incoherence"]
     assert incoherencia.status == SignalStatus.NOT_APPLICABLE
@@ -362,7 +374,9 @@ async def test_sin_cuerpo_la_incoherencia_queda_no_aplicable(señales):
 @pytest.mark.parametrize("cuerpo", [None, "", "   "])
 async def test_cuerpo_en_blanco_equivale_a_no_tenerlo(señales, cuerpo):
     señales()
-    signals = {s.name: s for s in await _run_signals("Un titular", cuerpo)}
+    signals = {
+        s.name: s for s in await _run_signals("Un titular", cuerpo, INGLES, INGLES)
+    }
     assert signals["detect_clickbait_incoherence"].status == SignalStatus.NOT_APPLICABLE
 
 
@@ -403,7 +417,9 @@ async def test_una_señal_que_revienta_no_tumba_a_las_demas(señales, monkeypatc
 
     monkeypatch.setattr(dobles.api, "classify", revienta_solo_el_dedicado)
 
-    signals = {s.name: s for s in await _run_signals("Un titular", "Un cuerpo")}
+    signals = {
+        s.name: s for s in await _run_signals("Un titular", "Un cuerpo", INGLES, INGLES)
+    }
 
     caida = signals["detect_clickbait"]
     assert caida.status == SignalStatus.ERROR
@@ -426,7 +442,9 @@ async def test_tool_result_fail_se_traduce_a_error_con_su_mensaje(señales, monk
         lambda titular, umbral: ToolResult.fail("El titular está vacío"),
     )
 
-    signals = {s.name: s for s in await _run_signals("Un titular", "Un cuerpo")}
+    signals = {
+        s.name: s for s in await _run_signals("Un titular", "Un cuerpo", INGLES, INGLES)
+    }
     assert signals["detect_clickbait_lexical"].status == SignalStatus.ERROR
     assert signals["detect_clickbait_lexical"].detail == "El titular está vacío"
 
@@ -440,7 +458,9 @@ async def test_un_formato_inesperado_se_aisla_como_error(señales, monkeypatch):
         lexical, "detect", lambda titular, umbral: ToolResult.ok({"otra_clave": 1})
     )
 
-    signals = {s.name: s for s in await _run_signals("Un titular", "Un cuerpo")}
+    signals = {
+        s.name: s for s in await _run_signals("Un titular", "Un cuerpo", INGLES, INGLES)
+    }
     caida = signals["detect_clickbait_lexical"]
     assert caida.status == SignalStatus.ERROR
     # `KeyError: 'is_clickbait'` le contaba a cualquiera cómo está estructurado
@@ -463,7 +483,10 @@ async def test_el_fallo_entero_se_registra_aunque_no_se_publique(señales, monke
     )
 
     with capture_logs() as registrado:
-        signals = {s.name: s for s in await _run_signals("Un titular", "Un cuerpo")}
+        signals = {
+            s.name: s
+            for s in await _run_signals("Un titular", "Un cuerpo", INGLES, INGLES)
+        }
 
     caida = signals["detect_clickbait_lexical"]
     fallo = next(linea for linea in registrado if linea["event"] == "senal.fallo")
@@ -503,8 +526,10 @@ async def test_la_respuesta_no_publica_interioridad(señales, monkeypatch):
 @pytest.mark.asyncio
 async def test_el_orden_de_las_señales_es_estable(señales):
     señales()
-    con_cuerpo = [s.name for s in await _run_signals("Un titular", "Un cuerpo")]
-    sin_cuerpo = [s.name for s in await _run_signals("Un titular", None)]
+    con_cuerpo = [
+        s.name for s in await _run_signals("Un titular", "Un cuerpo", INGLES, INGLES)
+    ]
+    sin_cuerpo = [s.name for s in await _run_signals("Un titular", None, INGLES, None)]
 
     # Aunque una se salte, la interfaz recibe siempre las tarjetas en el mismo
     # orden: el de _SIGNALS, no el de finalización.
@@ -517,7 +542,7 @@ async def test_las_señales_corren_en_paralelo(señales):
     señales(delay=0.1)
 
     inicio = time.perf_counter()
-    await _run_signals("Un titular", "Un cuerpo")
+    await _run_signals("Un titular", "Un cuerpo", INGLES, INGLES)
     transcurrido = time.perf_counter() - inicio
 
     assert transcurrido < 0.3  # secuencial serían ~0.5 s
@@ -526,7 +551,9 @@ async def test_las_señales_corren_en_paralelo(señales):
 @pytest.mark.asyncio
 async def test_la_dimension_y_el_tipo_salen_de_la_ficha(señales):
     señales()
-    signals = {s.name: s for s in await _run_signals("Un titular", "Un cuerpo")}
+    signals = {
+        s.name: s for s in await _run_signals("Un titular", "Un cuerpo", INGLES, INGLES)
+    }
 
     assert signals["detect_clickbait_incoherence"].dimension == Dimension.DECEPTION
     assert signals["analyze_sentiment"].dimension == Dimension.TONE
@@ -544,8 +571,8 @@ async def test_la_etiqueta_legible_sale_de_la_ficha(señales):
     escrita a mano, así que cambiar el nombre en un sitio no puede desalinearlos.
     """
     señales()
-    fichas = cards_by_signal()
-    signals = await _run_signals("Un titular", "Un cuerpo")
+    fichas = fichas_en(INGLES)
+    signals = await _run_signals("Un titular", "Un cuerpo", INGLES, INGLES)
 
     assert signals, "sin señales no se está comprobando nada"
     for signal in signals:
@@ -622,6 +649,224 @@ async def test_si_todas_las_señales_fallan_no_hay_veredicto(señales, monkeypat
     assert all(s.detail for s in response.signals)
 
 
+# ----- La puerta del idioma (#229) -----
+#
+# Un titular que no está en inglés no se analiza: hasta #229 recibía un
+# veredicto sin aviso (en TA1C, «factual» en el 79,7 % de los teasers).
+
+TITULAR_EN_ESPANOL = (
+    "No vas a creer lo que hizo este perro cuando su dueño volvió a casa"
+)
+
+
+def _espiar(monkeypatch, dobles):
+    """Apunta cada llamada a un detector —el backend NLP, el de incoherencia, el
+    léxico y el lineal— sin cambiar lo que devuelven. Devuelve esa lista."""
+    llamadas = []
+
+    def apuntar(nombre, funcion):
+        def envuelta(*args, **kwargs):
+            llamadas.append(nombre)
+            return funcion(*args, **kwargs)
+
+        return envuelta
+
+    for metodo in ("classify", "zero_shot"):
+        monkeypatch.setattr(
+            dobles.api, metodo, apuntar(metodo, getattr(dobles.api, metodo))
+        )
+    monkeypatch.setattr(
+        dobles.detector, "detect", apuntar("incoherencia", dobles.detector.detect)
+    )
+    monkeypatch.setattr(lexical, "detect", apuntar("lexico", lexical.detect))
+    monkeypatch.setattr(linear, "predict", apuntar("lineal", linear.predict))
+    return llamadas
+
+
+@pytest.mark.asyncio
+async def test_en_espanol_analizan_el_lineal_la_dedicada_y_el_tono(
+    señales, monkeypatch
+):
+    """Desde #231 el lineal es bilingüe, desde #242 la dedicada tiene su modelo
+    en español (BETO afinado con TA1C), y desde #233 el tono. La incoherencia
+    no: #233 midió que en español no separa, y lo dice con su motivo; y el
+    léxico, con el suyo. Con los dos votos de forma de acuerdo, el veredicto es
+    el suyo: el tono no vota."""
+    llamadas = _espiar(monkeypatch, señales())
+
+    response = await orchestrator.analyze(AnalyzeRequest(headline=TITULAR_EN_ESPANOL))
+
+    assert response.language == ESPANOL
+    # Todas las tarjetas, en su orden de siempre.
+    assert [senal.name for senal in response.signals] == [
+        spec.name for spec in _SIGNALS
+    ]
+    por_nombre = {senal.name: senal for senal in response.signals}
+    lineal = por_nombre.pop("detect_clickbait_linear")
+    dedicada = por_nombre.pop("detect_clickbait")
+    tono = por_nombre.pop("analyze_sentiment")
+    assert lineal.status == SignalStatus.OK
+    assert dedicada.status == SignalStatus.OK
+    assert tono.status == SignalStatus.OK
+    for senal in por_nombre.values():
+        assert senal.status == SignalStatus.NOT_APPLICABLE
+        assert senal.detail == motivo_si_no_se_analiza(senal.name, ESPANOL)
+    assert "léxico" in (por_nombre["detect_clickbait_lexical"].detail or "")
+    assert "TA1C" in (por_nombre["detect_clickbait_incoherence"].detail or "")
+    assert sorted(llamadas) == ["classify", "classify", "lineal"]
+    # Los dobles de las dos dicen «clickbait».
+    assert lineal.is_clickbait is True
+    assert dedicada.is_clickbait is True
+    assert response.verdict == OverallVerdict.STYLISTIC_CLICKBAIT
+
+
+@pytest.mark.asyncio
+async def test_en_espanol_se_ejecuta_solo_la_senal_con_modelo(señales, monkeypatch):
+    """#230: el español se activa señal a señal. Con un modelo en español puesto
+    por configuración —el experimento con el que D (#232) medirá un zero-shot
+    multilingüe—, la dedicada se ejecuta con ESE modelo y se rotula con él; el
+    lineal, bilingüe desde #231, también analiza el titular, y las demás no."""
+    dobles = señales()
+    llamadas = _espiar(monkeypatch, dobles)
+    modelos = []
+    zero_shot = dobles.api.zero_shot
+
+    async def apuntar_modelo(text, model, labels):
+        modelos.append(model)
+        return await zero_shot(text, model, labels)
+
+    monkeypatch.setattr(dobles.api, "zero_shot", apuntar_modelo)
+    monkeypatch.setattr(
+        settings,
+        "nlp_models_es",
+        {
+            "detect_clickbait": ModeloConInvocacion(
+                id="prueba/multilingue", task="zero-shot-classification"
+            )
+        },
+    )
+
+    response = await orchestrator.analyze(AnalyzeRequest(headline=TITULAR_EN_ESPANOL))
+
+    por_nombre = {senal.name: senal for senal in response.signals}
+    dedicada = por_nombre.pop("detect_clickbait")
+    assert dedicada.status == SignalStatus.OK
+    assert modelos == ["prueba/multilingue"]
+    assert "prueba/multilingue" in dedicada.label
+    assert por_nombre.pop("detect_clickbait_linear").status == SignalStatus.OK
+    # El tono también analiza el español, por su ficha (#233).
+    assert por_nombre.pop("analyze_sentiment").status == SignalStatus.OK
+    assert all(
+        senal.status == SignalStatus.NOT_APPLICABLE for senal in por_nombre.values()
+    )
+    # Sin orden: las tres señales corren a la vez.
+    assert sorted(llamadas) == ["classify", "lineal", "zero_shot"]
+
+
+@pytest.mark.asyncio
+async def test_otro_idioma_se_nombra_como_otro_idioma(señales, monkeypatch):
+    llamadas = _espiar(monkeypatch, señales())
+
+    response = await orchestrator.analyze(
+        AnalyzeRequest(
+            headline="Le gouvernement annonce une nouvelle réforme des retraites"
+        )
+    )
+
+    assert response.language == INDETERMINADO
+    assert response.verdict == OverallVerdict.NO_DATA
+    assert all("otro idioma" in (senal.detail or "") for senal in response.signals)
+    assert llamadas == []
+
+
+@pytest.mark.asyncio
+async def test_un_titular_en_ingles_se_analiza_y_lleva_su_idioma(señales, monkeypatch):
+    """La otra mitad: sin ella, una puerta que lo cerrara todo pasaría las dos
+    de arriba."""
+    llamadas = _espiar(monkeypatch, señales())
+
+    response = await orchestrator.analyze(
+        AnalyzeRequest(headline="You Won't Believe What Happened Next", content="...")
+    )
+
+    assert response.language == INGLES
+    assert response.verdict == OverallVerdict.STYLISTIC_CLICKBAIT
+    assert all(senal.status == SignalStatus.OK for senal in response.signals)
+    assert set(llamadas) == {"classify", "incoherencia", "lexico", "lineal"}
+
+
+TITULAR_DE_LA_FED = "Federal Reserve Holds Interest Rates Steady"
+
+
+def _incoherencia(response):
+    return next(
+        senal
+        for senal in response.signals
+        if senal.name == "detect_clickbait_incoherence"
+    )
+
+
+@pytest.mark.asyncio
+async def test_un_cuerpo_en_espanol_no_se_compara_y_lo_demas_se_analiza(
+    señales, monkeypatch
+):
+    """La incoherencia compara titular y cuerpo con un modelo inglés, y con el
+    cuerpo en español la similitud se hunde aunque diga lo mismo. Las demás
+    señales no leen el cuerpo: se analizan."""
+    llamadas = _espiar(monkeypatch, señales())
+
+    response = await orchestrator.analyze(
+        AnalyzeRequest(
+            headline=TITULAR_DE_LA_FED,
+            content="La Reserva Federal mantuvo sin cambios su tipo de interés.",
+        )
+    )
+
+    incoherencia = _incoherencia(response)
+    assert response.language == INGLES
+    assert incoherencia.status == SignalStatus.NOT_APPLICABLE
+    assert incoherencia.detail == motivo_si_el_cuerpo_no_se_compara(ESPANOL)
+    assert all(
+        senal.status == SignalStatus.OK
+        for senal in response.signals
+        if senal is not incoherencia
+    )
+    assert "incoherencia" not in llamadas
+
+
+@pytest.mark.asyncio
+async def test_un_cuerpo_en_ingles_se_compara(señales, monkeypatch):
+    llamadas = _espiar(monkeypatch, señales())
+
+    response = await orchestrator.analyze(
+        AnalyzeRequest(
+            headline=TITULAR_DE_LA_FED,
+            content="The Federal Reserve kept its benchmark interest rate unchanged.",
+        )
+    )
+
+    assert _incoherencia(response).status == SignalStatus.OK
+    assert "incoherencia" in llamadas
+
+
+@pytest.mark.asyncio
+async def test_con_ingles_run_signals_analiza_el_espanol_como_ingles(
+    señales, monkeypatch
+):
+    """Desde #230 la puerta vive en `_run_signals`, y los idiomas los recibe:
+    con `INGLES` en los dos, analiza un titular y un cuerpo en español como si
+    fueran ingleses. Es lo que hace `eval_ta1c` para repetir el punto de partida
+    de #229, el español tratado como inglés."""
+    llamadas = _espiar(monkeypatch, señales())
+
+    signals = await _run_signals(
+        TITULAR_EN_ESPANOL, "El cuerpo de la noticia.", INGLES, INGLES
+    )
+
+    assert all(senal.status == SignalStatus.OK for senal in signals)
+    assert set(llamadas) == {"classify", "incoherencia", "lexico", "lineal"}
+
+
 # ----- precalentado (#125), medido de verdad (#138) -----
 #
 # Hasta #138 lo único probado era que el `lifespan` LLAMA a `precalentar`. Lo que
@@ -631,7 +876,11 @@ async def test_si_todas_las_señales_fallan_no_hay_veredicto(señales, monkeypat
 
 
 @pytest.mark.asyncio
-async def test_con_backend_local_se_calientan_las_tres(señales, monkeypatch):
+async def test_con_backend_local_se_calientan_las_que_tienen_modelo(
+    señales, monkeypatch
+):
+    """Las tres señales con modelo, y en español la dedicada (#242) y el tono
+    (#233)."""
     señales()
     monkeypatch.setattr(settings, "nlp_backend", "local")
 
@@ -639,10 +888,33 @@ async def test_con_backend_local_se_calientan_las_tres(señales, monkeypatch):
 
     assert set(tiempos) == {
         "detect_clickbait",
+        "detect_clickbait (es)",
         "analyze_sentiment",
+        "analyze_sentiment (es)",
         "detect_clickbait_incoherence",
     }
     assert all(medida >= 0 for medida in tiempos.values())
+
+
+@pytest.mark.asyncio
+async def test_se_calienta_tambien_el_modelo_del_espanol(señales, monkeypatch):
+    """#230: cada idioma que analiza cada señal, con la misma regla que la
+    puerta. El inglés conserva sus etiquetas de siempre."""
+    señales()
+    monkeypatch.setattr(settings, "nlp_backend", "local")
+    monkeypatch.setattr(
+        settings, "nlp_models_es", {"analyze_sentiment": "prueba/tono-multilingue"}
+    )
+
+    tiempos = await orchestrator.precalentar()
+
+    assert set(tiempos) == {
+        "detect_clickbait",
+        "detect_clickbait (es)",
+        "analyze_sentiment",
+        "analyze_sentiment (es)",
+        "detect_clickbait_incoherence",
+    }
 
 
 @pytest.mark.asyncio
@@ -682,6 +954,35 @@ async def test_una_señal_que_no_carga_no_impide_arrancar(señales, monkeypatch)
 
 
 @pytest.mark.asyncio
+async def test_el_data_de_cada_senal_dice_en_que_idioma_se_analizo(señales):
+    """#230: el orquestador añade `language` a la salida de cada señal, como
+    cada herramienta suelta. El contrato publica la misma forma para las dos."""
+    señales()
+
+    signals = await _run_signals("Un titular", "Un cuerpo", INGLES, INGLES)
+
+    assert all(
+        senal.data is not None and senal.data["language"] == INGLES for senal in signals
+    )
+
+
+def test_una_senal_suelta_se_rotula_con_la_ficha_de_su_idioma(monkeypatch):
+    """La traza del agente sólo trae el `data`, y desde #230 el `data` dice su
+    idioma: la tarjeta lleva la ficha de ese idioma, no la inglesa. Sin
+    `language` —una salida de antes— se analizó en inglés."""
+    monkeypatch.setattr(
+        settings, "nlp_models_es", {"detect_clickbait": "prueba/multilingue"}
+    )
+    datos = {"label": "clickbait", "score": 0.9}
+
+    en_espanol = orchestrator.senal_de("detect_clickbait", {**datos, "language": "es"})
+    sin_idioma = orchestrator.senal_de("detect_clickbait", datos)
+
+    assert en_espanol is not None and "prueba/multilingue" in en_espanol.label
+    assert sin_idioma is not None and "prueba/multilingue" not in sin_idioma.label
+
+
+@pytest.mark.asyncio
 async def test_la_tarjeta_rotula_el_modelo_que_se_ejecuto(señales, monkeypatch):
     """La tercera puerta de la divergencia de #116, y la peor de las tres.
 
@@ -693,7 +994,7 @@ async def test_la_tarjeta_rotula_el_modelo_que_se_ejecuto(señales, monkeypatch)
     señales()
     monkeypatch.setattr(settings, "nlp_models", {"detect_clickbait": "otra/cosa"})
 
-    signals = {s.name: s for s in await _run_signals("Un titular", None)}
+    signals = {s.name: s for s in await _run_signals("Un titular", None, INGLES, None)}
     dedicada = signals["detect_clickbait"]
 
     assert "otra/cosa" in dedicada.label
@@ -737,7 +1038,7 @@ def test_una_senal_suelta_se_envuelve_con_la_regla_del_analisis(nombre, datos, v
 
     assert senal is not None
     assert senal == _build(
-        _SPECS[nombre], SignalStatus.OK, is_clickbait=voto, data=datos
+        _SPECS[nombre], SignalStatus.OK, idioma=INGLES, is_clickbait=voto, data=datos
     )
 
 

@@ -1,13 +1,15 @@
 """La configuración del sistema, leída del entorno o del `.env`.
 
 Una clase, `Settings`, y una instancia, `settings`, que se valida AL IMPORTAR:
-si falta una clave de API, el proceso no arranca. Que se lea del entorno es lo
-que permite dar los secretos en despliegue sin escribirlos en el código ni en
-la imagen (con compose, por `env_file`).
+si falta una clave obligatoria, el proceso no arranca. Que se lea del entorno
+es lo que permite dar los secretos en despliegue sin escribirlos en el código
+ni en la imagen (con compose, por `env_file`).
 
-Las claves son campos obligatorios, y eso tiene una consecuencia fuera de este
-fichero: los detectores NLP no pueden importarlo, porque dejarían de poder
-importarse sin un `.env`. Lo vigila `tests/test_arquitectura.py`.
+Las claves de Guardian, NYT y Hugging Face son campos obligatorios, y eso tiene
+una consecuencia fuera de este fichero: los detectores NLP no pueden
+importarlo, porque dejarían de poder importarse sin un `.env`. Lo vigila
+`tests/test_arquitectura.py`. Las de las noticias en español (#235) son
+opcionales: sin ellas sólo falla su herramienta, y lo dice.
 
 Cada campo lleva al lado el motivo de su valor por defecto. Desde el entorno,
 las listas y los diccionarios se pasan como JSON.
@@ -21,6 +23,11 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 # Las señales que deciden con un umbral configurable (#93). Una lista CERRADA a
 # propósito: ver `nlp_thresholds`.
 UmbralConfigurable = Literal["detect_clickbait_lexical", "detect_clickbait_incoherence"]
+
+# Las que deciden con un umbral configurable EN ESPAÑOL (#230): sólo la
+# incoherencia. El léxico no analiza español —sus listas son de titulares en
+# inglés—, así que un umbral suyo en español sería un ajuste que no hace nada.
+UmbralConfigurableEnEspanol = Literal["detect_clickbait_incoherence"]
 
 # Las etiquetas del contrato de `detect_clickbait`: las que publica su
 # herramienta, y a las que `dedicated.py` traduce las del modelo. Van también
@@ -74,9 +81,20 @@ class Settings(BaseSettings):
     guardian_api_key: SecretStr  # PS mapea automáticamente
     nyt_api_key: SecretStr
     hf_token: SecretStr
-    nlp_backend: Literal["remote", "local"] = (
-        "remote"  # Añadimos dos opciones de backend NLP, así mantenemos remoto sin cambiar mucho.
-    )
+    # Las de las noticias en español (#235), OPCIONALES a diferencia de las de
+    # arriba: que falte una no debe tumbar el análisis, que es el centro del
+    # sistema. Sin ella, su herramienta responde que no está configurada, y un
+    # despliegue cuyo `.env` no las tenga sigue arrancando.
+    gnews_api_key: SecretStr | None = None
+    newsdata_api_key: SecretStr | None = None
+    # DÓNDE corren los modelos: en el propio proceso o en la Inference API de
+    # Hugging Face. El defecto era `remote` hasta #236: la vía remota no sirve la
+    # dedicada (400 desde septiembre, #127) y, desde que Hugging Face retiró el
+    # crédito de las cuentas gratuitas el 7 oct 2026, da 402 en el tono y en el
+    # zero-shot. `remote` se conserva para quien tenga crédito. En local, una
+    # instalación sin `torch` falla en las mismas señales, pero diciendo qué
+    # paquete falta (#158). El despliegue lo fija igualmente (`compose.yaml`).
+    nlp_backend: Literal["remote", "local"] = "local"
 
     # Qué MODELO ejecuta cada señal, por si se quiere probar otro sin tocar
     # código. Es la segunda mitad de R3.9, que hasta #119 estaba sin cumplir:
@@ -103,7 +121,20 @@ class Settings(BaseSettings):
     # incoherencia no usa `pipeline`. Así falla al arrancar.
     nlp_models: dict[str, str | ModeloConInvocacion] = {}
 
-    @field_validator("nlp_models")
+    # Lo mismo para los titulares en ESPAÑOL (#230), con la misma forma y las
+    # mismas reglas. Vacío significa «el de la ficha en español», y una señal
+    # sin ficha en español no se ejecuta en español: queda en `not_applicable`
+    # con su motivo. Ponerle un modelo aquí la ejecuta como experimento, sin
+    # medidas publicadas, igual que en inglés:
+    #   NLP_MODELS_ES='{"detect_clickbait": {"id": "MoritzLaurer/mDeBERTa-v3-base-mnli-xnli",
+    #                   "task": "zero-shot-classification"}}'
+    # Sólo cuenta en las señales que son un modelo descargable (la dedicada, el
+    # tono y la incoherencia): el léxico no analiza español, y el lineal no
+    # tiene un id que cambiar: desde #231 es bilingüe, con los mismos pesos para
+    # los dos idiomas. Eso lo decide la factoría.
+    nlp_models_es: dict[str, str | ModeloConInvocacion] = {}
+
+    @field_validator("nlp_models", "nlp_models_es")
     @classmethod
     def _el_modo_solo_en_la_dedicada(
         cls, modelos: dict[str, str | ModeloConInvocacion]
@@ -137,6 +168,12 @@ class Settings(BaseSettings):
     # Las cifras de la ficha se midieron con el umbral por defecto: con otro,
     # `ficha_efectiva` lo avisa, sin quitar las medidas (el modelo es el mismo).
     nlp_thresholds: dict[UmbralConfigurable, float] = {}
+
+    # Los umbrales EN ESPAÑOL (#230). Vacío significa «el del detector», que es
+    # el calibrado en inglés: el del español lo calibrará en TA1C la issue que
+    # traiga el modelo (#233), como #92 hizo con el inglés.
+    #   NLP_THRESHOLDS_ES='{"detect_clickbait_incoherence": 0.25}'
+    nlp_thresholds_es: dict[UmbralConfigurableEnEspanol, float] = {}
 
     # Cuántas pistas devuelve el lineal como explicación (#93). Sólo recorta lo
     # que se ENSEÑA: la probabilidad suma todas. `None` es el de la señal.

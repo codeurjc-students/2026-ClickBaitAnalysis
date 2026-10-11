@@ -44,6 +44,25 @@ suerte de una sesión:
    razonan. Sólo cambia la descripción de esas dos herramientas en el mismo
    objeto `mcp`.
 
+Y una séptima, de #234 (2026-10-09), para cerrar `v0.8`:
+
+7. `cierre`: las 26 consultas y ocho en español, contadas aparte, con el
+   catálogo de `v0.7.0` (`antes`: 12 herramientas y sus textos) y el de ahora
+   (`nuevo`: 14, con los docstrings y el `05-llano` que dicen inglés y español),
+   intercaladas y repetidas (`AGENTE_A40_REPETICIONES`, cuatro por defecto), en
+   las condiciones de producción: `05-llano`, `num_ctx` 16384, el perfil
+   preciso, el tope de salida y razonando. Antes de gastar la sesión comprueba
+   que `antes` es, letra a letra, lo que publicaba el tag `v0.7.0`
+   (`--comprobar-cierre` lo hace sin sesión). En español cuenta además si el
+   titular llega a la herramienta tal cual o cambiado. Y al final, cuatro
+   conversaciones completas en español con `nuevo`, para leerlas.
+
+   La primera sesión (2026-10-09, `spikes/agente_a40/cierre-234.json`)
+   midió los textos de `216c525` y no cumplió la regla de las 26 por una
+   consulta; la segunda (`cierre-234b.json`) mide la variante `v2`, con las
+   dos frases de la frontera de #183 recuperadas y el «Raises» de la
+   dedicada y el tono, que #236 había dejado para F.
+
 El servidor MCP es el `mcp` de `backend.main` —el mismo objeto que arranca en
 producción— servido en proceso, como en la fase 5: las herramientas se ejecutan
 aquí de verdad, con NLP_BACKEND=local, y las de noticias llaman a NYT y a
@@ -63,13 +82,19 @@ El resumen de `variantes` —totales, la regla de #78 y los aciertos de cada
 consulta— se rehace sin sesión desde lo guardado:
 
     .venv/bin/python spikes/agente_a40.py --analisis spikes/agente_a40/variantes-78.json
+
+y el de `cierre`, igual:
+
+    .venv/bin/python spikes/agente_a40.py --analisis-cierre spikes/agente_a40/cierre-234.json
 """
 
+import ast
 import asyncio
 import inspect
 import json
 import logging
 import os
+import re
 import statistics
 import subprocess
 import sys
@@ -89,6 +114,7 @@ sys.path.insert(0, str(RAIZ))
 _ARGUMENTOS, sys.argv = sys.argv, sys.argv[:1]
 from backend.agent import agente, prompts  # noqa: E402
 from backend.agent.agente import Configuracion, responder  # noqa: E402
+from backend.config.settings import Settings  # noqa: E402
 from backend.core.mcp import session as mcp_session  # noqa: E402
 from backend.integrations.llm.ollama import OllamaClient  # noqa: E402
 from backend.main import mcp as SERVIDOR  # noqa: E402
@@ -240,6 +266,47 @@ async def contexto(registro: dict) -> None:
 # ----- 2 · Selección, con `think` en tres condiciones -----
 
 
+async def _elegir(
+    categoria: str, consulta: str, aceptables: set[str], config: Configuracion
+) -> dict:
+    """Una consulta cortada donde diga `config`: qué pide el modelo y si acierta.
+
+    Sin herramientas aceptables, acierta si no pide ninguna."""
+    resultado = await responder(consulta, [], config)
+    vuelta = next((paso for paso in resultado["steps"] if paso["kind"] == "model"), None)
+    pedidas = set(vuelta["tool_calls"]) if vuelta else set()
+    acierto = (not pedidas) if not aceptables else bool(pedidas & aceptables)
+    argumentos_mal = sum(
+        1
+        for paso in resultado["steps"]
+        if paso["kind"] == "tool"
+        and (paso["error"] or "").startswith("Los argumentos no encajan")
+    )
+    fila = {
+        "categoria": categoria,
+        "consulta": consulta,
+        "pedidas": sorted(pedidas),
+        "acierto": acierto,
+        "estado": resultado["status"],
+        "detalle": resultado["detail"],
+        "argumentos_mal": argumentos_mal,
+        "llamadas": sum(paso["kind"] == "tool" for paso in resultado["steps"]),
+        "argumentos": [
+            {"name": paso["name"], "arguments": paso["arguments"]}
+            for paso in resultado["steps"]
+            if paso["kind"] == "tool"
+        ],
+        "metricas": vuelta["metrics"] if vuelta else None,
+        "texto": vuelta["content"] if vuelta else "",
+    }
+    segundos = vuelta["metrics"]["total_s"] if vuelta else float("nan")
+    print(
+        f"  {'OK   ' if acierto else 'FALLO'} {categoria:12} {segundos:5.1f} s  "
+        f"{sorted(pedidas) or '-'}{'' if resultado['status'] != 'failed' else '  ' + str(resultado['detail'])}"
+    )
+    return fila
+
+
 async def seleccion(
     registro: dict, condiciones: dict | None = None, raiz: dict | None = None
 ) -> None:
@@ -256,38 +323,8 @@ async def seleccion(
         print(f"\n== selección, think {etiqueta}: {len(pruebas)} consultas, max_rounds=1")
         filas = []
         for categoria, consulta, aceptables in pruebas:
-            resultado = await responder(consulta, [], _config(think, max_rounds=1))
-            vuelta = next((paso for paso in resultado["steps"] if paso["kind"] == "model"), None)
-            pedidas = set(vuelta["tool_calls"]) if vuelta else set()
-            acierto = (not pedidas) if not aceptables else bool(pedidas & aceptables)
-            argumentos_mal = sum(
-                1
-                for paso in resultado["steps"]
-                if paso["kind"] == "tool"
-                and (paso["error"] or "").startswith("Los argumentos no encajan")
-            )
-            fila = {
-                "categoria": categoria,
-                "consulta": consulta,
-                "pedidas": sorted(pedidas),
-                "acierto": acierto,
-                "estado": resultado["status"],
-                "detalle": resultado["detail"],
-                "argumentos_mal": argumentos_mal,
-                "llamadas": sum(paso["kind"] == "tool" for paso in resultado["steps"]),
-                "argumentos": [
-                    {"name": paso["name"], "arguments": paso["arguments"]}
-                    for paso in resultado["steps"]
-                    if paso["kind"] == "tool"
-                ],
-                "metricas": vuelta["metrics"] if vuelta else None,
-                "texto": vuelta["content"] if vuelta else "",
-            }
-            filas.append(fila)
-            segundos = vuelta["metrics"]["total_s"] if vuelta else float("nan")
-            print(
-                f"  {'OK   ' if acierto else 'FALLO'} {categoria:12} {segundos:5.1f} s  "
-                f"{sorted(pedidas) or '-'}{'' if resultado['status'] != 'failed' else '  ' + str(resultado['detail'])}"
+            filas.append(
+                await _elegir(categoria, consulta, aceptables, _config(think, max_rounds=1))
             )
 
         por_categoria = Counter(fila["categoria"] for fila in filas)
@@ -652,6 +689,439 @@ def resumen_variantes(medido: dict) -> None:
             print("  " + " ".join(f"{cuenta:>5}" for cuenta in cuentas) + f"  {consulta}")
 
 
+# ----- 7 · El cierre de `v0.8`: el catálogo de `v0.7.0` contra el de ahora (#234) -----
+
+# Cada frase de producción (`nuevo`) con la que había en `v0.7.0` (`antes`),
+# herramienta a herramienta, sobre la descripción SIN SANGRÍA. Como en
+# `variantes`, cada frase de `nuevo` tiene que estar una vez; y además
+# `_preparar_cierre` comprueba que `antes` es lo que publicaba el tag.
+CIERRE_ANTES = [
+    (
+        "detect_clickbait",
+        "titulares anotados por personas, uno por idioma (el inglés, fuera de\n"
+        "este proyecto); por",
+        "titulares anotados por personas, fuera de este proyecto; por",
+    ),
+    (
+        "detect_clickbait",
+        "`detect_clickbait_lexical`. Analiza titulares en inglés y en español.",
+        "`detect_clickbait_lexical`. Pensada para inglés.",
+    ),
+    (
+        "detect_clickbait",
+        "headline (str): titular a evaluar (en inglés o en español).",
+        "headline (str): titular a evaluar (en inglés).",
+    ),
+    (
+        "analyze_sentiment",
+        "Clasifica en tres clases: positive, neutral o negative, con un modelo\n"
+        "para el inglés y otro para el español. Útil para medir el tono.",
+        "Clasifica en tres clases: positive, neutral o negative (modelo en\n"
+        "inglés, afinado para texto corto). Útil para medir el tono.",
+    ),
+    (
+        "analyze_sentiment",
+        "text (str): texto a analizar (en inglés o en español).",
+        "text (str): texto a analizar (en inglés).",
+    ),
+    (
+        "detect_clickbait_incoherence",
+        "Sólo en inglés, titular y cuerpo: en español la similitud apenas\n"
+        "distingue el clickbait, y no se aplica.",
+        "Pensada para texto en inglés.",
+    ),
+    (
+        "detect_clickbait_lexical",
+        "`detect_clickbait_incoherence`. Sólo inglés: sus listas de pistas son\ninglesas.",
+        "`detect_clickbait_incoherence`. Pensada para titulares en inglés.",
+    ),
+    (
+        "detect_clickbait_linear",
+        "(caja negra). Bilingüe:\nlos mismos pesos para el inglés y el español.",
+        "(caja negra). Pensada\npara inglés.",
+    ),
+    (
+        "detect_clickbait_linear",
+        "headline (str): titular a evaluar (en inglés o en español).",
+        "headline (str): titular a evaluar (en inglés).",
+    ),
+    (
+        "describe_models",
+        "Devuelve, por cada señal y cada idioma que analiza, su nombre, tarea,\n"
+        "tipo (interpretable / híbrido / opaco), dimensión que mide y\n"
+        "limitaciones conocidas. Sin argumentos. Útil para la transparencia de\n"
+        "sistema y para decidir qué señal usar según su naturaleza (white-box vs\n"
+        "caja negra) y sus límites.",
+        "Devuelve, por cada señal, su nombre, tarea, tipo (interpretable /\n"
+        "híbrido / opaco), dimensión que mide y limitaciones conocidas. Sin\n"
+        "argumentos. Útil para la transparencia de sistema y para decidir qué\n"
+        "señal usar según su naturaleza (white-box vs caja negra) y sus límites.",
+    ),
+    (
+        "describe_models",
+        "La lista de fichas de modelo (signal, language, model_id, revision,\n"
+        "    name, task, type, dimension, limitations, backend).",
+        "La lista de fichas de modelo (signal, name, task, type, dimension,\n"
+        "    limitations, backend).",
+    ),
+    (
+        "analyze_headline",
+        "headline: El titular a analizar, en inglés o en español; en\n"
+        "        español, el léxico y la incoherencia no se aplican.",
+        "headline: El titular a analizar, en inglés.",
+    ),
+]
+CIERRE_ANTES += [
+    (
+        herramienta,
+        "Si el modelo falla: no se puede cargar o, por la vía remota, no\n    responde (timeout, caída del proveedor o falta de crédito).",
+        "Si la llamada al modelo falla (timeout o caída del proveedor).",
+    )
+    for herramienta in ("detect_clickbait", "analyze_sentiment")
+]
+# Las dos de #235: en `v0.7.0` no estaban.
+NO_ESTABAN_EN_V070 = ("get_gnews_news", "get_newsdata_news")
+TAG_ANTES = "v0.7.0"
+PROMPT_CIERRE = "05-llano"
+PROMPT_NUEVO = (
+    "Las herramientas analizan titulares en inglés y en español; en español, el\n"
+    "detector de pistas y el comparador de titular y texto no se aplican. Si el\n"
+    "titular está en otro idioma, avísalo antes de analizarlo."
+)
+PROMPT_ANTES = (
+    "Las herramientas están entrenadas con titulares de noticias en inglés. Si el\n"
+    "titular está en otro idioma, avísalo antes de analizarlo."
+)
+
+NOTICIAS_ES = {"get_gnews_news", "get_newsdata_news"}
+CONSULTAS_ES = [
+    (
+        "ES_GENERICA",
+        "¿Es clickbait este titular? 'No vas a creer lo que hizo este perro al ver a su dueño'",
+        GENERICA_ACEPTABLE,
+    ),
+    (
+        "ES_GENERICA",
+        "Analiza si esto es clickbait: 'El Banco Central Europeo sube los tipos de interés un cuarto de punto'",
+        GENERICA_ACEPTABLE,
+    ),
+    (
+        "ES_GENERICA",
+        "Analiza a fondo el titular 'Lo que descubrieron en este pueblo te dejará sin palabras' con todas las señales del sistema",
+        {"analyze_headline"},
+    ),
+    (
+        "ES_LINEAL",
+        "Dame la probabilidad de clickbait de 'Los 10 trucos que los médicos no quieren que conozcas'",
+        {"detect_clickbait_linear"},
+    ),
+    (
+        "ES_CAJA_NEGRA",
+        "Quiero la opinión del modelo de caja negra sobre 'Así reaccionó la actriz al ver su nueva casa'",
+        {"detect_clickbait"},
+    ),
+    (
+        "ES_TONO",
+        "¿Qué tono tiene el titular 'Una celebración maravillosa llena las calles de la ciudad'?",
+        {"analyze_sentiment"},
+    ),
+    ("ES_NOTICIAS", "Busca noticias en español sobre inteligencia artificial", NOTICIAS_ES),
+    ("ES_NOTICIAS", "¿Qué publican los medios en español sobre las elecciones?", NOTICIAS_ES),
+]
+CONVERSACIONES_ES = [
+    ("es-generica", "¿Es clickbait 'No vas a creer lo que hizo este perro al ver a su dueño'?"),
+    (
+        "es-lexico",
+        "¿Qué pistas léxicas tiene el titular 'Increíble: lo que pasó después te sorprenderá'?",
+    ),
+    (
+        "es-incoherencia",
+        "¿El titular 'Descubren la cura milagrosa que acaba con el envejecimiento' encaja "
+        "con el texto 'Un pequeño ensayo "
+        "halló efectos modestos en ratones tras ocho semanas'?",
+    ),
+    (
+        "es-noticia",
+        "Busca una noticia en español sobre el clima y dime si su titular es clickbait.",
+    ),
+]
+REPETICIONES_CIERRE = int(os.environ.get("AGENTE_A40_REPETICIONES", "4"))
+
+
+def _config_produccion(prompt: str, **cambios) -> Configuracion:
+    """El agente como lo monta la API (`api/chat.py`), con los valores por
+    defecto de `Settings`, que son los de producción: el compose sólo fija el
+    backend y la URL. Cambian el servidor —el túnel propio— y los cortes de
+    MCP, porque aquí las señales se ejecutan en el proceso y cargan en frío."""
+    defecto = {nombre: campo.default for nombre, campo in Settings.model_fields.items()}
+    backend = OllamaClient(
+        URL,
+        MODELO,
+        num_ctx=defecto["llm_num_ctx"],
+        keep_alive=defecto["llm_keep_alive"],
+        timeout=defecto["llm_timeout"],
+        temperature=defecto["llm_temperature"],
+        presence_penalty=defecto["llm_presence_penalty"],
+        num_predict=defecto["llm_num_predict"],
+    )
+    return Configuracion(
+        backend=backend,
+        servers=[_SERVIDOR_URL],
+        prompt=prompt,
+        discovery_timeout=10.0,
+        execute_timeout=120.0,
+        **cambios,
+    )
+
+
+def _en_el_tag(ruta_en_el_repo: str) -> str:
+    return subprocess.run(
+        ["git", "-C", str(RAIZ), "show", f"{TAG_ANTES}:{ruta_en_el_repo}"],
+        capture_output=True, text=True, check=True,
+    ).stdout
+
+
+def _docstrings_en_el_tag(modulo: str) -> dict[str, str]:
+    """Los docstrings de las funciones de un módulo, como estaban en el tag."""
+    arbol = ast.parse(_en_el_tag(modulo.replace(".", "/") + ".py"))
+    return {
+        nodo.name: ast.get_docstring(nodo) or ""
+        for nodo in ast.walk(arbol)
+        if isinstance(nodo, ast.FunctionDef | ast.AsyncFunctionDef)
+    }
+
+
+def _preparar_cierre() -> dict:
+    """Los textos de las dos versiones, comprobados ANTES de gastar la sesión.
+
+    `antes` se reconstruye sobre el catálogo de ahora, deshaciendo las frases
+    de `CIERRE_ANTES` y escondiendo las herramientas nuevas; y se compara,
+    herramienta a herramienta, con los docstrings del tag `v0.7.0`, y el
+    prompt con su fichero allí. Si algo no casa, no se mide nada."""
+    gestor = SERVIDOR._tool_manager
+    nuevas = {
+        nombre: inspect.cleandoc(herramienta.description or "")
+        for nombre, herramienta in gestor._tools.items()
+    }
+    faltan = [nombre for nombre in NO_ESTABAN_EN_V070 if nombre not in nuevas]
+    if faltan:
+        raise SystemExit(f"ABORTADO: no están en el catálogo {faltan}.")
+    viejas = {nombre: texto for nombre, texto in nuevas.items() if nombre not in NO_ESTABAN_EN_V070}
+    for herramienta, frase_nueva, frase_vieja in CIERRE_ANTES:
+        veces = viejas[herramienta].count(frase_nueva)
+        if veces != 1:
+            raise SystemExit(
+                f"ABORTADO: la frase de producción de {herramienta} está {veces} veces; "
+                "el docstring ya no es el que esta parte compara."
+            )
+        viejas[herramienta] = viejas[herramienta].replace(frase_nueva, frase_vieja)
+
+    distintas = []
+    for nombre, texto in viejas.items():
+        modulo = gestor._tools[nombre].fn.__module__
+        if _docstrings_en_el_tag(modulo).get(nombre) != texto:
+            distintas.append(f"{nombre} ({modulo})")
+    if distintas:
+        raise SystemExit(f"ABORTADO: `antes` no es lo de {TAG_ANTES} en {distintas}.")
+
+    prompt_nuevo = prompts.cargar(PROMPT_CIERRE)
+    if prompt_nuevo.count(PROMPT_NUEVO) != 1:
+        raise SystemExit(f"ABORTADO: el párrafo nuevo no está una vez en `{PROMPT_CIERRE}`.")
+    prompt_viejo = prompt_nuevo.replace(PROMPT_NUEVO, PROMPT_ANTES)
+    if prompt_viejo != _en_el_tag(f"backend/agent/prompts/{PROMPT_CIERRE}.md"):
+        raise SystemExit(f"ABORTADO: el `{PROMPT_CIERRE}` de antes no es el de {TAG_ANTES}.")
+
+    return {
+        "antes": {
+            "descripciones": viejas,
+            "prompt": prompt_viejo,
+            "escondidas": list(NO_ESTABAN_EN_V070),
+        },
+        "nuevo": {"descripciones": nuevas, "prompt": prompt_nuevo, "escondidas": []},
+    }
+
+
+async def cierre(registro: dict) -> None:
+    """Las 26 y las de español con `antes` y `nuevo`, intercaladas (#234).
+
+    La regla, publicada en #234 antes de la sesión, es la de #78 para las 26
+    (`resumen_cierre`). En cada repetición van las dos versiones, en orden
+    alterno, y sólo cambian las descripciones, las herramientas escondidas y
+    el prompt; al terminar vuelve todo a producción."""
+    versiones = _preparar_cierre()
+    gestor = SERVIDOR._tool_manager
+    originales = {nombre: herramienta.description for nombre, herramienta in gestor._tools.items()}
+    escondibles = {nombre: gestor._tools[nombre] for nombre in NO_ESTABAN_EN_V070}
+    pruebas = (
+        [
+            (categoria, consulta, GENERICA_ACEPTABLE if categoria == "GENERICA" else aceptables)
+            for categoria, consulta, aceptables in PRUEBAS
+        ]
+        + [("CONTRASTE", consulta, aceptables) for _, consulta, aceptables in CONTRASTE]
+        + CONSULTAS_ES
+    )
+    # La cabecera del registro lleva las constantes de las partes viejas
+    # (`04-preciso`, 8192): las de ésta son las de producción, y van aquí.
+    defecto = {nombre: campo.default for nombre, campo in Settings.model_fields.items()}
+    condiciones = {
+        "prompt": PROMPT_CIERRE,
+        "think": True,
+        "repeticiones": REPETICIONES_CIERRE,
+        **{
+            nombre: defecto[nombre]
+            for nombre in (
+                "llm_num_ctx",
+                "llm_temperature",
+                "llm_presence_penalty",
+                "llm_num_predict",
+                "llm_keep_alive",
+                "llm_timeout",
+            )
+        },
+    }
+    print(f"\n== cierre, condiciones: {condiciones}")
+    registro["cierre"] = {
+        "condiciones": condiciones,
+        "versiones": versiones,
+        "pasadas": [],
+        "conversaciones": [],
+    }
+    try:
+        for repeticion in range(1, REPETICIONES_CIERRE + 1):
+            orden = list(versiones) if repeticion % 2 else list(reversed(versiones))
+            for version in orden:
+                textos = versiones[version]
+                for nombre, herramienta in escondibles.items():
+                    if nombre in textos["escondidas"]:
+                        gestor._tools.pop(nombre, None)
+                    else:
+                        gestor._tools[nombre] = herramienta
+                for nombre, descripcion in textos["descripciones"].items():
+                    gestor._tools[nombre].description = descripcion
+                print(f"\n######## repetición {repeticion} · {version}: {len(gestor._tools)} herramientas")
+                filas = []
+                for categoria, consulta, aceptables in pruebas:
+                    config = _config_produccion(textos["prompt"], max_rounds=1)
+                    filas.append(await _elegir(categoria, consulta, aceptables, config))
+                registro["cierre"]["pasadas"].append(
+                    {"repeticion": repeticion, "version": version, "filas": filas}
+                )
+                _guardar(registro)
+    finally:
+        gestor._tools.update(escondibles)
+        for nombre, descripcion in originales.items():
+            gestor._tools[nombre].description = descripcion
+
+    print("\n== conversaciones completas en español, con `nuevo`")
+    for nombre, consulta in CONVERSACIONES_ES:
+        resultado = await responder(consulta, [], _config_produccion(versiones["nuevo"]["prompt"]))
+        resumen = _resumen_bucle(nombre, resultado)
+        registro["cierre"]["conversaciones"].append(resumen)
+        _imprimir_bucle(resumen, "nuevo")
+        _guardar(registro)
+
+    resumen_cierre(registro["cierre"])
+
+
+def _titulares_cambiados(fila: dict) -> list[tuple[str, str]]:
+    """Las llamadas cuyo titular no es el de la consulta, tal cual."""
+    entre_comillas = re.search(r"'([^']+)'", fila["consulta"])
+    if entre_comillas is None:
+        return []
+
+    def normalizar(texto: str) -> str:
+        return texto.strip().strip("'\"«»“”").strip().casefold()
+
+    original = normalizar(entre_comillas.group(1))
+    cambiados = []
+    for llamada in fila["argumentos"]:
+        argumentos = llamada["arguments"] or {}
+        titular = argumentos.get("headline", argumentos.get("text"))
+        if isinstance(titular, str) and normalizar(titular) != original:
+            cambiados.append((llamada["name"], titular))
+    return cambiados
+
+
+def resumen_cierre(medido: dict) -> None:
+    """Las dos reglas de #234 y los aciertos de cada consulta.
+
+    Sólo lee lo guardado, así que se repite sin sesión con `--analisis-cierre`."""
+    aciertos: dict[str, dict[str, list[bool]]] = {}
+    categorias: dict[str, str] = {}
+    cambiados: dict[str, list] = {}
+    for pasada in medido["pasadas"]:
+        version = pasada["version"]
+        for fila in pasada["filas"]:
+            aciertos.setdefault(version, {}).setdefault(fila["consulta"], []).append(
+                bool(fila["acierto"])
+            )
+            categorias[fila["consulta"]] = fila["categoria"]
+            if fila["categoria"].startswith("ES_"):
+                for nombre, titular in _titulares_cambiados(fila):
+                    cambiados.setdefault(version, []).append((fila["consulta"], nombre, titular))
+
+    def en_espanol(consulta: str) -> bool:
+        return categorias[consulta].startswith("ES_")
+
+    def total(version: str, cuales) -> tuple[int, int]:
+        intentos = [
+            acierto
+            for consulta, suyos in aciertos[version].items()
+            if cuales(consulta)
+            for acierto in suyos
+        ]
+        return sum(intentos), len(intentos)
+
+    def las_26(consulta: str) -> bool:
+        return not en_espanol(consulta)
+
+    def comparables_es(consulta: str) -> bool:
+        return en_espanol(consulta) and categorias[consulta] != "ES_NOTICIAS"
+
+    def noticias_es(consulta: str) -> bool:
+        return categorias[consulta] == "ES_NOTICIAS"
+
+    print("\n== cierre: aciertos, por versión")
+    for version in aciertos:
+        print(
+            f"  {version:6s} las 26: {'/'.join(map(str, total(version, las_26)))} · "
+            f"español sin noticias: {'/'.join(map(str, total(version, comparables_es)))} · "
+            f"noticias en español: {'/'.join(map(str, total(version, noticias_es)))}"
+        )
+    if "antes" not in aciertos or "nuevo" not in aciertos:
+        return
+
+    minimo = total("antes", las_26)[0] - MARGEN_VARIANTES
+    rotas = [
+        consulta
+        for consulta in aciertos["antes"]
+        if las_26(consulta) and all(aciertos["antes"][consulta]) and not any(aciertos["nuevo"][consulta])
+    ]
+    primera = total("nuevo", las_26)[0] >= minimo and not rotas
+    print(
+        f"\n== regla 1, la de #78 (las 26): (a) nuevo {total('nuevo', las_26)[0]} ≥ {minimo}; "
+        f"(b) {rotas or 'ninguna'} → {'cumple' if primera else 'NO cumple'}"
+    )
+    traducidos = cambiados.get("nuevo", [])
+    segunda = total("nuevo", comparables_es)[0] >= total("antes", comparables_es)[0]
+    print(
+        f"== regla 2 (español sin noticias): nuevo {total('nuevo', comparables_es)[0]} ≥ antes "
+        f"{total('antes', comparables_es)[0]}: {'sí' if segunda else 'no'} · titulares cambiados "
+        f"con nuevo: {len(traducidos)} (con antes: {len(cambiados.get('antes', []))}), "
+        "leídos uno a uno abajo"
+    )
+    for version, lista in cambiados.items():
+        for consulta, nombre, titular in lista:
+            print(f"  {version:6s} {nombre}: «{titular}» ← {consulta}")
+
+    print("\n== aciertos de las consultas que alguna versión falla alguna vez")
+    print("  antes nuevo  consulta")
+    for consulta, suyos in aciertos["antes"].items():
+        nuevos = aciertos["nuevo"].get(consulta, [])
+        if min(sum(suyos), sum(nuevos)) < len(suyos):
+            print(f"  {sum(suyos):>5} {sum(nuevos):>5}  [{categorias[consulta]}] {consulta}")
+
+
 PARTES = {
     "contexto": contexto,
     "seleccion": seleccion,
@@ -659,6 +1129,7 @@ PARTES = {
     "definitiva": definitiva,
     "cuerpo": cuerpo,
     "variantes": variantes,
+    "cierre": cierre,
 }
 PRIMERA_SESION = ["contexto", "seleccion", "bucles"]
 
@@ -700,6 +1171,20 @@ async def main(partes: list[str]) -> None:
 
 
 if __name__ == "__main__":
+    if sys.argv[1:2] == ["--analisis-cierre"]:
+        guardado = json.loads(Path(sys.argv[2]).read_text(encoding="utf-8"))
+        resumen_cierre(guardado["cierre"])
+        sys.exit()
+    if sys.argv[1:2] == ["--comprobar-cierre"]:
+        # Sin sesión: que `antes` y `nuevo` se pueden construir y que `antes` es el tag.
+        comprobadas = _preparar_cierre()
+        for version, textos in comprobadas.items():
+            print(
+                f"{version}: {len(textos['descripciones'])} herramientas, "
+                f"escondidas {textos['escondidas'] or '-'}, prompt de {len(textos['prompt'])} caracteres"
+            )
+        print(f"`antes` es, letra a letra, lo que publicaba {TAG_ANTES}.")
+        sys.exit()
     if sys.argv[1:2] == ["--analisis"]:
         # Sin sesión: el resumen de la parte `variantes`, desde su JSON.
         guardado = json.loads(Path(sys.argv[2]).read_text(encoding="utf-8"))

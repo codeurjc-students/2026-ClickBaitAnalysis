@@ -18,7 +18,7 @@ from mcp.server.fastmcp import FastMCP
 from backend import integrations
 from backend.integrations import discovery
 
-INTEGRACIONES_REALES = ("guardian", "nlp", "nyt", "weather")
+INTEGRACIONES_REALES = ("gnews", "guardian", "newsdata", "nlp", "nyt", "weather")
 # Integraciones que el sistema consume por dentro y que no publican herramientas.
 INTEGRACIONES_SIN_HERRAMIENTAS = ("llm",)
 

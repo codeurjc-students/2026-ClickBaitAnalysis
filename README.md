@@ -554,6 +554,8 @@ Primer cliente que rompe el patrón GET + api-key en query: HF exige **POST con 
 
 Lo **único** viable para clickbait en remoto es **zero-shot vía `facebook/bart-large-mnli`** (confirmado servido; discrimina bien, ver ejemplo arriba).
 
+*(Revisado en #236, 8 oct 2026: desde el 7 de octubre, Hugging Face ya no sirve BART a una cuenta gratuita; con la del proyecto responde `402`, sin crédito. Ver «Hugging Face sin crédito gratuito: la vía remota pasa a ser de pago».)*
+
 **Decisión:** zero-shot remoto con `bart-large-mnli` para el MVP. Definimos nosotros las etiquetas (`["clickbait", "factual"]`) y dejamos `elozano` (modelo dedicado, más preciso) como **mejora futura** en backend local, si llega la infra.
 
 **Implicación de código:** la respuesta zero-shot del router es una **lista plana** `[{label, score}, ...]` (ordenada), distinta del text-classification `[[...]]`. Por eso `classify` (que normaliza `data[0][0]`) **no sirve** tal cual: E3-02 añade una **variante `zero_shot(text, labels)`** que envía `parameters.candidate_labels` y normaliza `data[0]`.
@@ -563,6 +565,8 @@ Lo **único** viable para clickbait en remoto es **zero-shot vía `facebook/bart
 Tool `analyze_sentiment(text)` que **reutiliza `classify`** (es *text-classification*, no necesita variante nueva) sobre `cardiffnlp/twitter-roberta-base-sentiment-latest`.
 
 **Por qué `cardiffnlp` (3 vías) y no `distilbert` (binario):** en titulares de noticias el **neutral** es frecuente (enunciados factuales); forzarlos a *positive/negative* distorsiona. cardiffnlp clasifica en `positive` / `neutral` / `negative`. Verificado: *"The committee will meet on Tuesday"* → `neutral` (0.94). Ambos están servidos en remoto; `distilbert` quedaría como opción si se priorizara latencia.
+
+*(Revisado en #236, 8 oct 2026: desde el 7 de octubre, el de sentimiento tampoco responde por la vía remota a una cuenta gratuita (`402`, sin crédito), y su ficha pasó a `local`. Ver «Hugging Face sin crédito gratuito: la vía remota pasa a ser de pago».)*
 
 > **Fiabilidad:** la inferencia remota da *timeouts* puntuales (HF); el cliente ya los reporta como `ToolResult.fail("Request timed out.")`. El reintento queda como mejora futura.
 
@@ -696,7 +700,7 @@ Desacopla el NLP del proveedor concreto para poder ejecutarlo **en local** (con 
 - **Dos implementaciones, un contrato (polimorfismo):**
   - `HFClient(BaseAPI, NLPBackend)` — backend **remoto** (HTTP a HF). Herencia múltiple: es a la vez cliente HTTP y backend NLP; `NLPBackend` actúa de interfaz (sin lógica), `BaseAPI` aporta el transporte.
   - `LocalNLPClient(NLPBackend)` — backend **local** con `transformers.pipeline`. **Carga perezosa + cache** por clave `(task, model)` (cargar un modelo es caro → se crea una vez y se reutiliza), e **inferencia en hilo** (`asyncio.to_thread`) para no bloquear el *event loop*.
-- **Factoría `get_nlp_backend()`** (`nlp/factory.py`): elige `remote`/`local` según el setting `nlp_backend` (`Literal`, default `"remote"`). Las tools llaman a la factoría, no a una clase concreta.
+- **Factoría `get_nlp_backend()`** (`nlp/factory.py`): elige `remote`/`local` según el setting `nlp_backend` (`Literal`, default `"remote"`). Las tools llaman a la factoría, no a una clase concreta. *(Desde #236, 8 oct 2026, el defecto es `"local"`: la vía remota ya no responde sin crédito. Ver «Hugging Face sin crédito gratuito: la vía remota pasa a ser de pago».)*
 - **Las tools no cambian:** `detect_clickbait` / `analyze_sentiment` siguen llamando `api.zero_shot` / `api.classify`; como **ambos** backends cumplen el contrato, cambiar de backend es **una línea**. Ese es el premio del ABC + factoría.
 
 **Motivo:** mitigar el riesgo de fiabilidad/disponibilidad del backend remoto (ver Épicas 3 y 4) y ganar control total del modelo — precondición de **R3.7** (incoherencia) y del **fine-tuning** local. La inferencia local es viable en el hardware de desarrollo (GTX 1650 SUPER 4 GB / CPU Ryzen 5).
@@ -2964,6 +2968,9 @@ cuenta es un rediseño, no una comprobación.
   alta porque las toman por siglas.
 - **`lang="en"` en los titulares.** El contrato dice que van en inglés y la
   página está en castellano; sin eso se pronuncian con fonética española.
+  *(Revisado en #229: el `lang` sigue ahora el idioma que detectó el
+  análisis, y la página declaraba `lang="en"` desde el andamiaje de #132,
+  así que hasta entonces esta marca no cambiaba nada.)*
 - **El mensaje de error está atado a su campo** con `aria-describedby` y
   `aria-invalid`, en vez de suelto en la página.
 - **La cabecera de cada tarjeta es un `<button>`** con `aria-expanded`, no un
@@ -4487,6 +4494,9 @@ Lo que hay, en tres momentos:
   sentimiento sí responde, por la misma vía y con el mismo token: 3.248.238
   descargas/mes frente a 59. **HuggingFace sirve por demanda.** Doce reintentos
   en dos minutos no lo reactivan.
+  *(Revisado en #236, 8 oct 2026: el de sentimiento ya no responde por esa vía
+  a una cuenta gratuita desde que Hugging Face retiró el crédito, el 7 de
+  octubre: `402`. Ver «Hugging Face sin crédito gratuito: la vía remota pasa a ser de pago».)*
 
 Un timeout se reintenta; esto no. La diferencia decide qué se hace en H4 —
 desplegar con `nlp_backend=local`, porque el modelo existe en el Hub aunque su
@@ -5149,6 +5159,9 @@ modelo; aquí, con sólo dejar pasar el tiempo—. Fijar la revisión obliga a d
 dónde vive ese identificador sin volver a duplicarlo, y queda anotado en #162
 como decisión aparte.
 
+*(Fijadas en #234, con estas mismas revisiones: cada ficha lleva la suya, y la
+imagen hornea ésa. Ver «El cierre de `v0.8`, primera parte».)*
+
 #### `HF_HUB_OFFLINE=1`: lo que da y lo que cuesta
 
 Se activa **después** de hornear, y hace dos cosas:
@@ -5703,7 +5716,7 @@ estimación de ~2,4 GB para API y MCP que se hizo al decidir H4 se queda holgada
 #### Lo que NO entra
 
 - **HTTPS, el dominio, `cors_origins` y abrir los puertos 80 y 443**: #165.
-- **Fijar la revisión de cada modelo horneado**, pendiente desde #162.
+- **Fijar la revisión de cada modelo horneado**, pendiente desde #162. *(Hecho en #234: ver «El cierre de `v0.8`, primera parte».)*
 
 ### HTTPS, el certificado que no se pudo pedir, y la verificación desde fuera (#165, 20 sep 2026)
 
@@ -5880,7 +5893,7 @@ alternativas se descartaron con su precio delante:
   en FastAPI. Va en **#169**, ahora que la aplicación está expuesta y sin
   autenticación.
 - **La sonda de salud por modelo**, que #147 dejó anotada y #156 no cubrió.
-- **Fijar la revisión de cada modelo horneado**, pendiente desde #162.
+- **Fijar la revisión de cada modelo horneado**, pendiente desde #162. *(Hecho en #234: ver «El cierre de `v0.8`, primera parte».)*
 
 *(Corrección de trazabilidad: la issue citaba **R8.2**, que habla del CI
 ejecutando las pruebas al hacer push y no tiene nada que ver. Lo que aplica es
@@ -6122,7 +6135,7 @@ La máquina 2 no es nuestra: sin `sudo`, con otro usuario que tenía sesiones de
 
 #### Dos formas de medir la máquina equivocada sin enterarse
 
-**WSL tiene su propio Ollama en el 11434**, la 0.32.5 que quedó del spike. El túnel SSH comprobaba «¿hay algo escuchando en el 11434?», la respuesta fue que sí, y la primera fase corrió contra el portátil. Ningún error: sólo cifras de otra máquina. Se arregló con el túnel en el **11500** y preguntando la versión a cada puerto antes de medir —0.32.5 en uno, 0.34.2 en el otro—, y `tool_calling_fase1.py` dejó de cablear `localhost`.
+**WSL tiene su propio Ollama en el 11434**, la 0.32.5 que quedó del spike. El túnel SSH comprobaba «¿hay algo escuchando en el 11434?», la respuesta fue que sí, y la primera fase corrió contra el PC de sobremesa. Ningún error: sólo cifras de otra máquina. Se arregló con el túnel en el **11500** y preguntando la versión a cada puerto antes de medir —0.32.5 en uno, 0.34.2 en el otro—, y `tool_calling_fase1.py` dejó de cablear `localhost`.
 
 **La primera medida de arranque en frío se descartó.** La ruta del binario se escribió con `~`, que se expandió en WSL y no en la máquina remota; los `ollama stop` no llegaron a ejecutarse y los «tiempos en frío» eran con los modelos ya cargados. Se rehízo con el instrumento correcto: el `load_duration` que devuelve el propio Ollama, que separa la carga de la generación.
 
@@ -6203,7 +6216,7 @@ Había tres salidas: construir y publicar en un registro, construir sin publicar
 
 #### Medir donde tendría que ocurrir
 
-En un runner de GitHub, no en la VM ni en el portátil: otra CPU, otra red, el disco contado y la caché vacía. El instrumento es [`.github/workflows/medir-imagenes.yml`](.github/workflows/medir-imagenes.yml), que sólo construye y no publica nada, y que ahora queda para lanzarse a mano.
+En un runner de GitHub, no en la VM ni en el PC de sobremesa: otra CPU, otra red, el disco contado y la caché vacía. El instrumento es [`.github/workflows/medir-imagenes.yml`](.github/workflows/medir-imagenes.yml), que sólo construye y no publica nada, y que ahora queda para lanzarse a mano.
 
 | Condiciones | |
 |---|---|
@@ -6292,7 +6305,7 @@ Había dos formas de tratarlo. Darlo por cumplido —las imágenes sólo se cons
 
 #### Los diagramas que faltaban, y uno que es un plano
 
-[`docs/arquitectura.md`](docs/arquitectura.md) decía reflejar «el estado tras cerrar H2 y la primera pantalla de H3», y sus nueve diagramas describían el sistema corriendo en un portátil: ni contenedores, ni Caddy, ni volúmenes, ni TLS. Todo lo de H4 vivía sólo en la prosa de este README. Entran tres secciones y se amplía una:
+[`docs/arquitectura.md`](docs/arquitectura.md) decía reflejar «el estado tras cerrar H2 y la primera pantalla de H3», y sus nueve diagramas describían el sistema corriendo en el PC de desarrollo: ni contenedores, ni Caddy, ni volúmenes, ni TLS. Todo lo de H4 vivía sólo en la prosa de este README. Entran tres secciones y se amplía una:
 
 - **§10 · Despliegue.** Los tres contenedores, qué publica cada uno y qué se queda en la red interna, el volumen del historial y el certificado fuera de la imagen. Y por qué no hay `depends_on`: ningún servicio necesita a otro para arrancar.
 - **§11 · El camino de una petición en despliegue.** Del navegador al orquestador, pasando por Caddy, uvicorn y el limitador. **Es el diagrama que habría evitado el fallo de #169**: dibuja el prefijo `/api` viajando —Caddy lo quita, uvicorn lo vuelve a poner, Starlette lo quita al enrutar— y un middleware que corre justo en medio.
@@ -6596,7 +6609,7 @@ Para eso está [`spikes/tool_calling_descripciones_contraste.py`](spikes/tool_ca
 | | |
 |---|---|
 | Fecha | 2026-09-24 · «antes», de 18:53 a 19:21 · «después», de 19:25 a 19:42 |
-| Máquina | la A40 de la máquina 2, con Ollama 0.34.2, por un túnel SSH al 11500 de WSL (el 11434 local es el Ollama 0.32.5 del portátil: se comprobó la versión en cada puerto) |
+| Máquina | la A40 de la máquina 2, con Ollama 0.34.2, por un túnel SSH al 11500 de WSL (el 11434 local es el Ollama 0.32.5 del PC de sobremesa: se comprobó la versión en cada puerto) |
 | Modelos | `qwen3.5:27b`, ID `7653528ba5cb` · `qwen3.5:2b`, ID `324d162be6ca` · los dos con `num_ctx` 8192 |
 | Catálogo | «antes», el commit `f52d60e` de `dev` · «después», el `35edde8` de esta rama |
 | Guiones | [`spikes/tool_calling_fase5_descripciones_reales.py`](spikes/tool_calling_fase5_descripciones_reales.py), el de contraste y [`spikes/tool_calling_presupuesto_contexto.py`](spikes/tool_calling_presupuesto_contexto.py) |
@@ -6957,7 +6970,7 @@ Lo destapó la aceptación de #188: `get_guardian_news` respondió «No articles
 | Condiciones | |
 |---|---|
 | Fecha | 2026-09-26: antes del arreglo a las 11:48 UTC, sobre `c6b1b4b`; después a las 12:35 UTC, sobre `2b6bcb1` |
-| Máquina | WSL (Ubuntu) en el portátil, la misma desde la que el agente de #188 llamó a Guardian |
+| Máquina | WSL (Ubuntu) en el PC de sobremesa, la misma desde la que el agente de #188 llamó a Guardian |
 | API | Open Platform de The Guardian, `/tags` y `/search`, con la ventana del defecto: 7 días, desde el 2026-09-19 |
 | Coste | 32 llamadas antes y 37 después |
 
@@ -7466,7 +7479,7 @@ Con un test nuevo marcado `integration` —que el CI no ejecuta—, `test_una_cl
 |---|---|
 | Fecha | 2026-10-02: antes del arreglo a las 15:28:29 UTC y después a las 15:28:57 UTC |
 | Código | `0e9da56`, la base de la rama; la segunda tanda, con el arreglo sin commitear |
-| Máquina | WSL (Ubuntu) en el portátil |
+| Máquina | WSL (Ubuntu) en el PC de sobremesa |
 | API | Article Search de NYT (`articlesearch.json`), con la ventana del defecto: 7 días |
 | Coste | 3 llamadas por tanda |
 
@@ -7502,7 +7515,7 @@ La issue pedía que cada titular de la lista de noticias del asistente enlazara 
 
 La issue se redujo a lo que de verdad faltaba (decidido por el autor):
 
-- **Avisar al lector de pantalla de que se abre otra pestaña.** Con la vista se nota el salto; de oído sólo empieza una página nueva, y «Atrás» no vuelve a la conversación, que sigue en la otra pestaña. Un texto que sólo lee el lector, «(se abre en una pestaña nueva)», va dentro del enlace y **fuera del `lang="en"`** del titular, para que no lo pronuncie como inglés; antes el `lang="en"` estaba en el enlace entero. Lo recomiendan las pautas WCAG (técnica G201), sin exigirlo en el nivel AA: va por la regla del proyecto de cuidar la accesibilidad aunque R6 no la pida. Abrir en la misma pestaña no era la alternativa, porque la conversación vive en la memoria de la pantalla y se perdería (#209).
+- **Avisar al lector de pantalla de que se abre otra pestaña.** Con la vista se nota el salto; de oído sólo empieza una página nueva, y «Atrás» no vuelve a la conversación, que sigue en la otra pestaña. Un texto que sólo lee el lector, «(se abre en una pestaña nueva)», va dentro del enlace y **fuera del `lang="en"`** del titular, para que no lo pronuncie como inglés; antes el `lang="en"` estaba en el enlace entero. Lo recomiendan las pautas WCAG (técnica G201), sin exigirlo en el nivel AA: va por la regla del proyecto de cuidar la accesibilidad aunque R6 no la pida. Abrir en la misma pestaña no era la alternativa, porque la conversación vive en la memoria de la pantalla y se perdería (#209). *(Revisado en #229: la página entera estaba en `lang="en"` desde el andamiaje de #132, así que el aviso se leía igual en inglés hasta que se corrigió `index.html`.)*
 - **El espacio antes de la fecha**, dentro del propio texto de la fecha, que es donde Angular no lo quita.
 - **Los specs que faltaban**: ninguno miraba la lista de noticias de la pantalla. Uno nuevo comprueba el enlace, su destino, la pestaña nueva, el aviso fuera del inglés, la fecha separada, y que una noticia sin `url` se pinta sin enlace; **falló contra la plantilla de antes**. Otro, en `conversacion.ts`, cubre una noticia sin `url` o con una que no es texto: pasa también con el código de antes, porque eso ya estaba bien, y queda como cobertura.
 
@@ -7563,7 +7576,7 @@ Los resultados de las herramientas van enteros, y `sessionStorage` tiene un lím
 | Condiciones | |
 |---|---|
 | Fecha | 2026-10-03, 09:50 UTC |
-| Máquina | WSL (Ubuntu) en el portátil, sin GPU ni red |
+| Máquina | WSL (Ubuntu) en el PC de sobremesa, sin GPU ni red |
 | Datos | 228 conversaciones de `spikes/fidelidad/`: `corpus.json` y los cinco `comparacion-*.json` de #192 |
 | Código | `d6aac4b`, la base de la rama, con el guion sin commitear |
 
@@ -7633,7 +7646,7 @@ Leídas una a una, y validadas por el autor antes de mover nada, de las cinco fi
 | Condiciones | |
 |---|---|
 | Fecha | 2026-10-03: antes a las 11:35 UTC, sobre `d8f4466`; después a las 11:45 UTC, con los cambios sin commitear |
-| Máquina | WSL (Ubuntu) en el portátil |
+| Máquina | WSL (Ubuntu) en el PC de sobremesa |
 
 ```bash
 NLP_BACKEND=local .venv/bin/python spikes/catalogo_peso.py
@@ -7781,7 +7794,7 @@ Se publicó en la issue antes de ejecutar nada ([comentario](https://github.com/
 |---|---|
 | Primera ejecución | 2026-10-04, desde las 17:35, unos 18 min, sobre `5652e46` (el código de las señales y del orquestador, igual que en `dev`), con el guion aún sin commitear; huella `32ae28233478` |
 | Segunda ejecución | 2026-10-05, 19:06–19:24, sobre `d001304`, con el cambio de esta issue y el guion commiteado; huella `8732c2a4b246` |
-| Máquina | WSL (Ubuntu) en el portátil, con torch 2.12.1 sobre la GTX: producción corre en CPU, y las diferencias de coma flotante sólo moverían un caso en el filo del corte |
+| Máquina | WSL (Ubuntu) en el PC de sobremesa, con torch 2.12.1 sobre la GTX: producción corre en CPU, y las diferencias de coma flotante sólo moverían un caso en el filo del corte |
 | Modelos | `Stremie/roberta-base-clickbait`, `cardiffnlp/twitter-roberta-base-sentiment-latest` y `sentence-transformers/all-MiniLM-L6-v2`; umbral de incoherencia 0,3 |
 | Datos | 19.484 pares; ninguno rechazado por la API |
 
@@ -7893,7 +7906,7 @@ La issue no lo incluía, y el autor preguntó si se podía calibrar como el de l
 | Condiciones | |
 |---|---|
 | Fecha | 2026-10-05, 20:53 |
-| Máquina | WSL (Ubuntu) en el portátil, Python 3.12.3; sólo CPU (el léxico y el lineal son Python puro) |
+| Máquina | WSL (Ubuntu) en el PC de sobremesa, Python 3.12.3; sólo CPU (el léxico y el lineal son Python puro) |
 | Código | `b966174`; los pesos, `linear_clickbait.json` de `5a6d771` (16 jul), sin cambios desde entonces |
 | Datos | Chakraborty `dev` (#72; el `test` sigue congelado) y Webis-17 `validation170630` (19.484) |
 
@@ -7913,7 +7926,7 @@ La issue no lo incluía, y el autor preguntó si se podía calibrar como el de l
 
 Y no habría criterio con el que elegir. En #92 lo había: un falso positivo de la incoherencia decidía «engañoso» por encima de la forma, y la precisión pesaba más que el recall. El lineal vota en la forma junto a otras dos señales, y en F1 el umbral no mueve nada. Además, #78 reentrena el modelo, y con otros pesos un umbral calibrado hoy dejaría de valer. **Decidido por el autor**: fuera de #93, y a #78 un punto para elegirlo en `dev` tras reentrenar, con el criterio escrito antes de mirar la curva ([comentario](https://github.com/codeurjc-students/2026-ClickBaitAnalysis/issues/78#issuecomment-6000045029)).
 
-*(Revisado en #78: elegido en `dev` tras reentrenar, se queda en 0,5. Con el lineal nuevo la curva ya no es plana por los vectores vacíos, pero el mejor corte, 0,40, sube el F1 medio de los dos dominios sólo 0,001. Ver «El lineal, sobre las palabras del titular y con Webis-17».)*
+*(Revisado en #78: elegido en `dev` tras reentrenar, se queda en 0,5. Con el lineal nuevo la curva ya no es plana por los vectores vacíos, pero el mejor corte, 0,40, sube el F1 medio de los dos dominios sólo 0,001. Ver «El lineal, sobre las palabras del titular y con Webis-17».)* *(Revisado en #231: con el lineal bilingüe, la regla de #78 sobre los tres `dev` lo bajó a 0,35, y el umbral pasó al JSON de los pesos. Ver «El lineal, bilingüe: el primer veredicto en español».)*
 
 #### R3.8, al día
 
@@ -7964,7 +7977,7 @@ Desde #119 el modelo de cada señal se cambia por configuración, pero sólo el 
 | Condiciones | |
 |---|---|
 | Fecha | 2026-10-06, 09:53, y repetido a las 12:23 sobre `75cd1dd`, con las mismas cifras; el remoto, a las 12:27 |
-| Máquina | WSL (Ubuntu) en el portátil, Python 3.12.3, `transformers` 5.12.0 y torch 2.12.1+cu130, que pone los modelos en la GTX (producción corre en CPU) |
+| Máquina | WSL (Ubuntu) en el PC de sobremesa, Python 3.12.3, `transformers` 5.12.0 y torch 2.12.1+cu130, que pone los modelos en la GTX (producción corre en CPU) |
 | Modelos (revisión) | `Stremie/roberta-base-clickbait` (`517de05db9ba`), `elozano/bert-base-cased-clickbait-news` (`af3154cf4325`), `facebook/bart-large-mnli` (`d7645e127eaf`) y `MoritzLaurer/DeBERTa-v3-base-mnli-fever-anli` (`6f5cf0a2b59c`) |
 | Titulares | «10 Amazing Things You Won't Believe» y «Federal Reserve raises interest rates by a quarter point» |
 
@@ -7983,7 +7996,7 @@ Desde #119 el modelo de cada señal se cambia por configuración, pero sólo el 
 
 - ⚠️ **Un clasificador pedido como zero-shot NO falla.** El zero-shot lee la respuesta en la etiqueta de «entailment» de un modelo de inferencia (NLI); el dedicado no la tiene, y `transformers` sólo lo avisa en su log («Failed to determine 'entailment' label id…») y sigue con el último logit. Sale una moneda al aire con aspecto de resultado: «factual news» 0,506 para el titular clickbait. Por eso `local.py` lo comprueba al cargar el modelo (`entailment_id`) y falla antes de llamarlo, diciendo que no es de inferencia.
 - **Un modelo de inferencia pedido como clasificador** responde «neutral», y la señal ya fallaba porque esa etiqueta no está en la traducción. El mensaje dice ahora qué revisar: las etiquetas, o si hay que llamarlo como zero-shot.
-- **Por la vía remota, Hugging Face sigue sirviendo BART**, con las mismas puntuaciones que en local (0,7006 y 0,8297), mientras el dedicado da `400 Model not supported` (#127). Con `nlp_backend=remote`, un zero-shot configurado funcionaría donde la señal se cae (medido llamando al cliente remoto, no por `analyze()`).
+- **Por la vía remota, Hugging Face sigue sirviendo BART**, con las mismas puntuaciones que en local (0,7006 y 0,8297), mientras el dedicado da `400 Model not supported` (#127). Con `nlp_backend=remote`, un zero-shot configurado funcionaría donde la señal se cae (medido llamando al cliente remoto, no por `analyze()`). *(Revisado en #236, 8 oct 2026: desde el 7 de octubre, la vía remota responde `402` a BART con la cuenta gratuita del proyecto, así que ese zero-shot tampoco funcionaría sin crédito. Ver «Hugging Face sin crédito gratuito: la vía remota pasa a ser de pago».)*
 
 #### Qué entra
 
@@ -8084,7 +8097,7 @@ Así `validation170630`, el corpus de las evaluaciones grandes (#92, #121, #124)
 | Condiciones | |
 |---|---|
 | Fecha | 2026-10-06, publicado en la issue de 14:31 a 14:38; repetido el 7 oct sobre `6d21055`, con las mismas cifras |
-| Máquina | WSL (Ubuntu) en el portátil, Python 3.12.3 y scikit-learn 1.9.0; sólo CPU |
+| Máquina | WSL (Ubuntu) en el PC de sobremesa, Python 3.12.3 y scikit-learn 1.9.0; sólo CPU |
 | Guion | [`backend/evaluation/eval_reentreno.py`](backend/evaluation/eval_reentreno.py), con el umbral en 0,5 |
 
 ```bash
@@ -8156,7 +8169,7 @@ El punto que #93 dejó aquí, con la tercera parte de la regla (`eval_reentreno 
 | 0,60 | 0,942 | 0,536 | 0,739 |
 | 0,70 | 0,920 | 0,506 | 0,713 |
 
-El mejor corte, 0,40, sube el F1 medio 0,001, lejos del +0,01 que pedía la regla. La curva ya no es plana por los vectores vacíos, pero tiene la cima ancha. El 0,5 sigue sin ser configurable.
+El mejor corte, 0,40, sube el F1 medio 0,001, lejos del +0,01 que pedía la regla. La curva ya no es plana por los vectores vacíos, pero tiene la cima ancha. El 0,5 sigue sin ser configurable. *(Revisado en #231: con el lineal bilingüe y TA1C en la media, el mejor corte, 0,35, sube el F1 medio 0,069, y el umbral pasa a 0,35. Ver «El lineal, bilingüe: el primer veredicto en español».)*
 
 #### La señal: los mismos rasgos, en Python puro
 
@@ -8243,7 +8256,7 @@ La lección vale para el próximo docstring: **un umbral absoluto sobre una sola
 | Condiciones | |
 |---|---|
 | Fecha | 2026-10-06, 17:15, sobre `cd92aab` (huella `669a9c175fc1`) |
-| Máquina | WSL en el portátil, con torch 2.12.1+cu130 en la GTX, como en #124 (producción corre en CPU) |
+| Máquina | WSL en el PC de sobremesa, con torch 2.12.1+cu130 en la GTX, como en #124 (producción corre en CPU) |
 
 ```bash
 NLP_BACKEND=local .venv/bin/python -m backend.evaluation.eval_veredicto
@@ -8359,7 +8372,936 @@ Las cinco terminaron con respuesta. En la larga, la tercera vuelta llegó al **t
 #### Lo que queda
 
 - **El análisis en español**, en `v0.8`, con TA1C como corpus.
-- **Fijar la revisión de cada modelo horneado** (#217): la comprobación de arriba se hizo a mano; en `v0.8` entran modelos nuevos, y es el momento de fijarlas.
+- **Fijar la revisión de cada modelo horneado** (#217): la comprobación de arriba se hizo a mano; en `v0.8` entran modelos nuevos, y es el momento de fijarlas. *(Hecho en #234: ver «El cierre de `v0.8`, primera parte».)*
+
+### Un titular que no está en inglés no recibe veredicto (#229, 8 oct 2026)
+
+Hasta esta issue, un titular en español se analizaba como si fuera inglés, y nada lo decía: en TA1C, el sistema daba «factual» a cuatro de cada cinco teasers y reconocía el 1,9 % del clickbait. Es la primera issue de `v0.8 · Español`, y va primero porque antes de mandar cada titular a las señales de su idioma (#230–#233) hay que saber en qué idioma está. Desde aquí, un titular en español o en otro idioma recibe `no_data` y cada señal dice por qué; la respuesta de `/analyze` lleva el idioma (`language`), y la pantalla lo usa para que cada titular se pronuncie en el suyo.
+
+#### TA1C, el corpus en español
+
+TA1C («Te Ahorré Un Click»; Mordecki, Moncecchi y Couto, 2025) reúne 3.500 tuits de 18 medios en español, cada uno anotado por tres personas (κ de Fleiss 0,825, según el artículo) y con el cuerpo de su artículo. Tiene licencia MIT en su repositorio y CC BY 4.0 en el artículo; la atribución, el origen (`github.com/gmordecki/TA1C`, rama `master`) y el sha256 del fichero descargado están en [`data/external/ATTRIBUTION.md`](data/external/ATTRIBUTION.md). Se versiona un extracto, `data/external/ta1c.jsonl.gz` (el teaser crudo, la etiqueta de la mayoría, las tres anotaciones, el medio, el país y la parte), y los artículos van a `var/ta1c/`, sin versionar, como los cuerpos de Webis-17 (#121). [`ta1c_extract.py`](backend/evaluation/ta1c_extract.py) regenera los dos, y `splits.py ta1c` escribe las tres partes en `data/splits/`.
+
+Medido con [`spikes/ta1c_medios.py`](spikes/ta1c_medios.py):
+
+| Parte | Teasers | Clickbait | Sin cuerpo |
+|---|---|---|---|
+| `train` | 2.100 | 28,1 % | 12 |
+| `validation` | 700 | 29,4 % | 4 |
+| `test` | 700 | 29,1 % | 2 |
+
+- **El reparto es el del propio corpus**, no uno nuevo: así, lo que se mida en su `test` se podrá comparar con las cifras publicadas (TF-IDF + XGBoost 0,61 y BETO afinado 0,84 de F1). `test` queda sin abrir, para elegir los modelos del español (#231–#233).
+- **Los medios son de 12 países, más la BBC**: su servicio en español, 150 tuits, que la columna de país registra como «Inglaterra». Por eso salen 13 valores de país.
+- **La proporción de clickbait cambia mucho de un medio a otro**: del 2,9 % de El Universal (Venezuela) al 68,7 % de la BBC. La etiqueta es humana, no por medio como en Chakraborty, pero un modelo que aprende palabras puede aprender a reconocer al medio en vez del clickbait. Es el vocabulario de fuente que #78 vio con `wikinews`, y el primer riesgo que hereda el lineal en español (#231).
+
+#### El punto de partida: el español, tratado como inglés
+
+[`eval_ta1c.py`](backend/evaluation/eval_ta1c.py) pasa cada teaser de `validation` por las mismas señales y la misma agregación que `/analyze` (`_run_signals`, `_aggregate` y `_overall`), con el cuerpo de su artículo, y compara con la etiqueta humana:
+
+```bash
+NLP_BACKEND=local .venv/bin/python -m backend.evaluation.eval_ta1c
+```
+
+| Señal | P | R | F1 |
+|---|---|---|---|
+| Veredicto «es clickbait» | 1,000 | 0,019 | **0,038** |
+| Dedicada | 0,837 | 0,199 | 0,322 |
+| Léxico | 0,343 | 0,165 | 0,223 |
+| Lineal | 1,000 | 0,010 | 0,019 |
+| Incoherencia (696 con cuerpo) | 0,333 | 0,010 | 0,019 |
+
+El veredicto fue `factual` en el 79,7 % de los teasers, `ambiguous` en el 19,7 % y `deceptive` o `stylistic_clickbait` en el 0,6 %. El léxico no encontró ninguna pista en el 85,9 %: sus listas son inglesas. Sólo la dedicada reconoce algo, un 19,9 % del clickbait, y cuando lo señala casi siempre acierta. El fallo no hacía ruido: era un «factual» tranquilo. Estas cifras son de `validation` y no se comparan tal cual con las publicadas, que son de `test`. *(Revisado en #231: con las señales de hoy, `eval_ta1c` ya no da estas cifras —el lineal es bilingüe y las mayúsculas con tilde cuentan—, y el veredicto tratado como inglés queda en 0,065. Con el idioma detectado, como producción, es 0,611. Ver «El lineal, bilingüe: el primer veredicto en español».)*
+
+#### El detector: palabras funcionales, con la regla publicada antes de medir
+
+[`core/idioma.py`](backend/core/idioma.py) cuenta las palabras funcionales de cada idioma —artículos, preposiciones, pronombres—, que aparecen hasta en un titular corto y no dependen del tema, y al español le suma lo que el inglés no tiene: la eñe, las tildes y los signos de apertura. Para «otro idioma» tiene listas cortas de francés, portugués, italiano y alemán. Gana el idioma con más pruebas, y **sin ninguna, inglés**: el sistema nació para inglés, y un titular sin palabras funcionales («Obama Wins Election») casi siempre lo es. Vive en `core/` porque lo usan `analysis/` (el orquestador y el contrato) e `integrations/` (las herramientas), y decidir un idioma no sabe nada del clickbait.
+
+Se decidió con la disciplina de #92 y #124. **La regla se publicó antes de medir** ([comentario en la issue](https://github.com/codeurjc-students/2026-ClickBaitAnalysis/issues/229#issuecomment-6039059405)): en inglés, como mucho un 1 % de los titulares de Chakraborty `dev` (6.400) y de `webis_dev` (3.896) detectado como otro idioma; en español, al menos un 95 % de TA1C `validation` (700) detectado como español. Una librería sólo entraba si la heurística no la cumplía. **Las listas se afinaron mirando sólo los conjuntos de entrenamiento** (Chakraborty `train`, `train170331` y TA1C `train`), y la regla se aplicó una vez:
+
+| Variante, en los de entrenamiento | Chakraborty | Webis-17 | TA1C | Otros idiomas |
+|---|---|---|---|---|
+| V0, la primera | 99,80 % | 99,96 % | 99,86 % | 2 de 12 |
+| V1: las tildes, sólo con una palabra española | 99,86 % | 99,96 % | 99,48 % | 3 de 12 |
+| V2: además, dos pruebas si no hay inglés | 99,96 % | 100 % | 99,00 % | 3 de 12 |
+| V3: además, letras de otros idiomas | 99,90 % | 100 % | 99,00 % | 10 de 12 |
+| **V4, la elegida** | **99,80 %** | **99,96 %** | **99,86 %** | **10 de 12** |
+
+Cada porcentaje es la parte detectada en el idioma esperado; «otros idiomas» son doce titulares escritos a mano, una prueba y no una medida.
+
+- **V1 y V2 cambian falsas alarmas en inglés por español perdido, y los dos errores no pesan igual.** Un titular inglés tomado por español se queda sin veredicto, con el motivo a la vista; uno español tomado por inglés recibe un veredicto equivocado en silencio, que es justo lo que esta issue arregla.
+- **V3 tomaba por «otro idioma» nombres propios** como «Räikkönen» o «São Paulo». V4 deja el inglés y el español como V0, y las letras de otros idiomas sólo cuentan si hay alguna palabra de sus listas.
+- Las cifras de V0 a V3 son de versiones intermedias de `idioma.py` que no se conservaron, y están publicadas en la issue ([comentario](https://github.com/codeurjc-students/2026-ClickBaitAnalysis/issues/229#issuecomment-6042275532)). Las de V4 las reproduce `eval_idioma.py --train`.
+
+Con V4, **la regla se cumple a la primera**:
+
+```bash
+.venv/bin/python -m backend.evaluation.eval_idioma
+```
+
+| Conjunto de elección | Esperado | Resultado | Regla |
+|---|---|---|---|
+| Chakraborty `dev` (6.400) | inglés | 0,27 % fuera del inglés (17) | ≤ 1 % → cumple |
+| `webis_dev` (3.896) | inglés | 0,13 % fuera del inglés (5) | ≤ 1 % → cumple |
+| TA1C `validation` (700) | español | 99,86 % en español | ≥ 95 % → cumple |
+
+Los fallos son nombres propios en titulares sin palabras inglesas («Tour de France», «Los Angeles», «al-Zawahiri», «Ángel Cabrera»), dos tuits de Webis que salen «otro idioma» («bring et», «Ellen von Unwerth») y un teaser español con empate («Muere Gerry Mardsen, líder de Gerry and the Pacemakers»), que se va al inglés por defecto. De los doce titulares en otros idiomas, diez salen «otro idioma». Los dos que no, y los demás límites que declara el docstring, los fija [`tests/core/test_idioma.py`](tests/core/test_idioma.py): si un cambio arregla alguno, el test falla para que el docstring se corrija con él. Escribiendo esos tests apareció un límite que el docstring no recogía: «otro idioma» sólo gana si supera a los dos, así que un empate con el español sale español («Non crederai mai a cosa ha fatto questo cane»: «ha» también es español). Y el de «Governo anuncia…», que el docstring achacaba a una tilde, sale español por «para».
+
+#### La puerta del titular
+
+`analyze()` detecta el idioma del titular antes que nada. Si las señales no lo analizan —hoy, todo lo que no es inglés—, no se ejecuta ninguna: cada una queda en `not_applicable` con el motivo, en su orden de siempre, y el veredicto es `no_data`. La frase vive en la factoría (`motivo_si_no_se_analiza`) porque sale por dos puertas y tiene que decir lo mismo en las dos (#116): **las cinco herramientas sueltas** la devuelven como `ToolError` antes de cargar ningún modelo, para el agente y para la pantalla de Sistema. El docstring de las herramientas no cambió («Pensada para inglés» ya era cierto), y el catálogo del agente salió idéntico, con la misma huella sha256 antes y después, así que no hizo falta repetir las 26 consultas.
+
+`AnalyzeResponse` gana `language` (`en`, `es` o `und`, que en BCP 47 es «indeterminado» y vale tal cual para el atributo `lang`): el idioma con el que el análisis decidió, que es el que se guarda en el historial. El contrato se regeneró, y con él los dobles de los tests y tres specs del frontend.
+
+`_run_signals` no lleva la puerta: `eval_ta1c` y los tests que lo llaman directamente siguen ejecutando todas las señales, y así el guion sigue midiendo el español tratado como inglés. *(Revisado en #230: la puerta pasó a `_run_signals`, señal a señal, y `eval_ta1c` le pasa `INGLES` a propósito, con las mismas cifras. Ver «Cada señal, en su idioma: el enrutado».)*
+
+#### La puerta del cuerpo
+
+Escribiendo los tests de la puerta apareció un hueco: la puerta mira el titular, pero la incoherencia compara titular y cuerpo con un modelo inglés. [`spikes/incoherencia_cuerpo_traducido.py`](spikes/incoherencia_cuerpo_traducido.py) pasa tres titulares ingleses por el detector de producción, frente a su cuerpo en inglés, el mismo traducido al español y uno de otro tema:
+
+| Titular | Cuerpo en inglés | El mismo, en español | Otro tema |
+|---|---|---|---|
+| Federal Reserve holds interest rates steady | 0,701 | **0,137** | −0,061 |
+| Spain wins the European Championship after beating England | 0,866 | 0,474 | −0,074 |
+| Wildfire forces thousands to evacuate in California | 0,724 | 0,380 | −0,030 |
+
+Con el cuerpo en español, la similitud se hunde aunque diga lo mismo; sólo la sostienen los nombres propios que comparten las dos versiones. En el primero cruza el umbral (0,3): la incoherencia vota «incoherente» con un cuerpo fiel, y con la forma dividida el veredicto sería `deceptive`, el mismo error silencioso. Son tres ejemplos, no una medida.
+
+**Decidido (autor): la puerta mira también el cuerpo, sólo para la incoherencia**, que es la única señal que lo lee; las otras cuatro se ejecutan. Como el detector se afinó con titulares, antes de usarlo con cuerpos se publicó la misma regla para ellos ([comentario](https://github.com/codeurjc-students/2026-ClickBaitAnalysis/issues/229#issuecomment-6045492294)), y se midió con `eval_idioma.py --cuerpos`:
+
+| Cuerpos | Esperado | Resultado | Regla |
+|---|---|---|---|
+| `webis_dev` (3.896) | inglés | 0,05 % fuera del inglés (2) | ≤ 1 % → cumple |
+| TA1C `validation` (696) | español | 100 % en español | ≥ 95 % → cumple |
+
+Los dos de Webis no son del todo fallos: uno es un tuit en alemán y francés, y el otro, un cuerpo con la codificación rota («ConexiÃ³n»). Con un cuerpo en otro idioma, la incoherencia queda en `not_applicable` con su propia frase (`motivo_si_el_cuerpo_no_se_compara`), y la herramienta suelta lo rechaza igual. `_run_signals` recibe ese motivo como un parámetro que por defecto no está, por lo mismo que arriba.
+
+#### La pantalla: el idioma que detectó el análisis
+
+El titular llevaba `lang="en"` fijo, porque el contrato decía que era inglés. Ahora lo pone `idiomaDelTitular` (`senales/formas.ts`), que lee el `language` de la respuesta sin recalcularlo —detectarlo en el navegador sería una segunda copia del detector— y da «en» a lo guardado antes de #229, que es lo que el contrato afirmaba entonces. Lo usan la barra y el titular resaltado del análisis (también en el asistente, que pinta el mismo bloque) y las filas del historial. Comprobado en el navegador integrado: un titular en español sale «Sin datos», con las cinco tarjetas diciendo por qué y `lang="es"`, también al reabrirlo desde el historial; los anteriores siguen en «en».
+
+Quedan en «en», a propósito y apuntado donde toca:
+
+- **las filas del historial de una herramienta suelta**: su respuesta no dice en qué idioma leyó el titular; que la salida de cada señal lo diga, en #230; *(hecho en #230: la salida lleva `language`, y una ejecución sin salida va en `und`)*
+- **los dos campos del formulario**: antes de analizar no hay idioma que leer, y el contrato aún dice «en inglés»; en #230; *(hecho en #230: `lang=""`, idioma desconocido)*
+- **las palabras del lineal en su tarjeta**: hoy no salen en español, porque en español no se ejecuta; en #231.
+
+**Y la página entera estaba declarada en inglés.** `index.html` traía `<html lang="en">` desde el andamiaje de #132, el valor por defecto de Angular: un lector de pantalla leía toda la interfaz, que está en castellano, con voz inglesa, y el `lang="en"` de los titulares no cambiaba nada. Ahora es `lang="es"`, comprobado en el navegador y en la compilación de producción.
+
+#### Lo que se encontró por el camino
+
+- **Hugging Face retiró el crédito gratuito el 7 de octubre.** Probando la pantalla con la API local, que usa la vía remota por defecto, el tono dio un 402. No era un cupo agotado: ese día la tabla de precios de Inference Providers pasó a «Free Users: None» (huggingface/hub-docs#2865). Producción no se ve afectada, porque corre en local (#164). Decidido (autor): no pagar PRO, que no aporta al desarrollo, a la implementación ni a la presentación. Lo que cambia por ello va en #236, con su propia sección.
+- **Un test que habría roto el CI.** `test_idioma.py` importa los ejemplos de `eval_idioma.py`, y éste arrastraba `scikit-learn`, que el CI no instala: en ese entorno la recogida fallaba con `ModuleNotFoundError`, mientras en el de desarrollo todo pasaba. Ahora `eval_idioma.py` importa sus cargadores dentro de quien los usa. Es la regla de #158 por otra puerta: **lo que toca dependencias opcionales se prueba también con el venv de sólo `requirements.txt`**.
+- **La descripción de `HistoryEntry.headline`** decía «Nulo en ejecuciones sueltas», y `app.py` guarda el argumento `headline` de cada una. Se corrigió, y con ella se regeneró el contrato.
+
+#### Lo que deja a las siguientes
+
+- **B (#230)** enruta por idioma, y tiene apuntados los campos del formulario, la descripción de `AnalyzeRequest.headline` y el idioma en la salida de cada señal. *(Hecho: ver «Cada señal, en su idioma: el enrutado».)*
+- **C (#231)**: el riesgo de fuente de TA1C, y el `lang` de las palabras del lineal. *(Hecho en #231: el riesgo de fuente, medido frente a una referencia que vota sólo por el medio; y el `lang` de las palabras, el del titular. Ver «El lineal, bilingüe: el primer veredicto en español».)*
+- **D y E (#232, #233)**: los modelos multilingües, por medir. E decidirá además qué hace la puerta del cuerpo cuando la incoherencia compare en español. *(Medido en #233: la incoherencia en español no separa en TA1C (AUC 0,594) y no lo analiza; los idiomas distintos, apuntados en #217. Ver «La incoherencia y el tono en español».)*
+- **G (#235)**: las noticias en español, con dos APIs, NewsData.io y GNews; el autor exige al menos dos, o el idioma tiene poco sentido. Se descartaron los RSS, que no buscan por tema, y GDELT, que dio un 429 a la primera consulta.
+
+Los tests pasan de 473 a 530 en el backend, en verde también con el venv de sólo `requirements.txt`, y de 187 a 194 specs en el frontend.
+
+| Condiciones | |
+|---|---|
+| Fecha | 2026-10-07 (las reglas, las variantes y la primera pasada) y 2026-10-08 (todo repetido sobre el código final, con las mismas cifras) |
+| Máquina | El PC de sobremesa del autor: WSL2 (Ubuntu 24.04.4, núcleo 6.6.87.2), Python 3.12.3 y una GeForce GTX 1650 SUPER, que `transformers` usa en WSL aunque nadie le pase `device`. Producción corre en CPU |
+| Código | `4af8cd0`. Las variantes V0 a V4 se midieron sobre `b81966b`, con `idioma.py` y `eval_idioma.py` aún sin commitear |
+| Modelos | Los de las fichas: `Stremie/roberta-base-clickbait`, `cardiffnlp/twitter-roberta-base-sentiment-latest` y `sentence-transformers/all-MiniLM-L6-v2` (revisión `1110a243fdf4`), con transformers 5.12.0, sentence-transformers 5.6.0 y torch 2.12.1 |
+| Guiones | `spikes/ta1c_medios.py`; `backend/evaluation/eval_ta1c.py` (70 s); `backend/evaluation/eval_idioma.py` con `--train`, sin argumentos y con `--cuerpos` (sólo Python, sin modelos); `spikes/incoherencia_cuerpo_traducido.py` |
+
+### Hugging Face sin crédito gratuito: la vía remota pasa a ser de pago (#236, 8 oct 2026)
+
+El 7 de octubre, probando #229 con la API local, que arrancaba con el defecto `nlp_backend=remote`, la señal de tono salió en `error`, y el registro guardaba un 402 de Hugging Face: «You have no remaining credits». No era un cupo agotado: ese mismo día Hugging Face retiró el crédito mensual que incluía en las cuentas gratuitas. Esta issue pone el sistema de acuerdo con eso: el defecto pasa a `local`, la tarjeta explica un 402, la ficha del tono deja de prometer la vía remota y los tests que llamaban a Hugging Face se saltan con su motivo. Producción no cambia, porque ya corría en local.
+
+#### Lo que cambió en Hugging Face
+
+La tabla de precios de Inference Providers (`huggingface.co/docs/inference-providers/pricing`) daba a «Free Users» un crédito mensual de «$0.10, subject to change»; desde huggingface/hub-docs#2865, mergeada el 7 de octubre a las 12:31 UTC, dice «None». La misma PR quita el «free tier» del resto de la documentación y deja el crédito mensual sólo para PRO (2 $) y para las organizaciones Team y Enterprise. `hf-inference` cobra por tiempo de cómputo, así que sin crédito no queda ninguna llamada gratuita. Hugging Face no dice desde cuándo se aplica; el 402 es de esa misma tarde.
+
+Medido con [`spikes/hf_credito.py`](spikes/hf_credito.py), con el token del proyecto:
+
+| | Respuesta |
+|---|---|
+| La cuenta (`whoami-v2`) | gratuita: `isPro` y `canPay` a `false`, con un token de lectura |
+| Tono (`cardiffnlp/twitter-roberta-base-sentiment-latest`) | `402`: «You have no remaining credits. Purchase pre-paid credits…» |
+| Zero-shot de #159 (`facebook/bart-large-mnli`) | `402`, el mismo |
+| Dedicada (`Stremie/roberta-base-clickbait`) | `400 Model not supported by provider`, como desde septiembre (#127) |
+
+**Decidido (autor): no se paga PRO ni crédito.** PRO cuesta 9 $ al mes con 2 $ de crédito, y no aporta al desarrollo, a la implementación de `v0.8` ni a la presentación. Si hiciera falta un respaldo para la defensa, un Space se decidiría con #214.
+
+#### Qué cambia
+
+- **El defecto de `nlp_backend` pasa de `remote` a `local`.** Con una instalación hecha sólo con `requirements.txt`, que no trae `torch` ni `sentence-transformers`, en remoto fallaban la dedicada (400) y la incoherencia (que no tiene vía remota), y ahora también el tono (402). En local fallan las mismas tres, pero diciendo qué paquete falta y cómo instalarlo (#158), que es lo que puede arreglar quien lo lee. El despliegue no cambia: `compose.yaml` fija `local` en la API y en el MCP desde #164. Sí cambia el desarrollo: el `.env` de WSL no fija `NLP_BACKEND`, ni las configuraciones de `.claude/launch.json` ni, según se comprobó al abrir la issue, el servidor MCP de Claude Desktop, así que todos heredaban `remote`; con el defecto nuevo no hay que tocarlos. Un test fija el defecto, sin `.env` ni variable de entorno.
+- **`remote.py` se conserva.** Elegir dónde corre el modelo es una opción de la arquitectura (#87), y con crédito la vía remota vuelve a responder; su docstring dice ahora que es de pago. Quitarlo, con la opción `nlp_backend`, era la alternativa, y se descartó porque lo que cambió fue el precio, no la arquitectura.
+- **Un 402 que se entiende.** La tarjeta decía «La API externa respondió HTTP 402 Payment Required.», que suena a que el sistema le pide pagar a quien lo usa, y la causa sólo quedaba en el registro. Ahora dice «La API externa respondió HTTP 402 Payment Required: rechaza la llamada por falta de crédito o de pago en la cuenta.». Lo añade `describir_respuesta_http`, en `core/errores.py`, que es el único sitio donde se describe un error para una salida pública (#164), y sólo para el 402: un código se añade cuando se ve llegar. `describir_error` no cambia, así que `/health` y el catálogo dicen lo mismo que antes. El cuerpo del proveedor sigue yendo sólo al registro (#89, #185), y un test lo vigila junto al mensaje nuevo, por `classify` y por `zero_shot`.
+- **La ficha del tono**: `backend` pasa de `"remote | local"` a `"local"`, como la de la dedicada el 7 de septiembre, con dos notas de operación nuevas: la del 402, con la fuente, y que la vía local depende de `torch`, que antes no hacía falta decir porque quedaba la remota. En la de la dedicada se corrigen dos cosas que ya no eran ciertas: que el de sentimiento «sí responde» por la vía remota, y que en remoto el veredicto «se emite con las otras cuatro» (son tres: el léxico, el lineal y la incoherencia). Las notas de operación no se publican (#211); `describe_models` publica `backend`.
+- **Los dos tests `integration` contra Hugging Face** (`test_classify_real_contract` y `test_zero_shot_real_contract`) se saltan con el motivo y la fuente en la marca. No se borran: la vía remota se conserva, y con crédito volverían a medir lo mismo. El estado de hoy lo da `spikes/hf_credito.py`. El CI no los ejecuta (`-m "not integration"`), así que sólo fallaban a quien los lanzara a mano.
+- **`eval_acoplamiento.py`**: con `--con-zero-shot` pide BART a la factoría, y su docstring no decía que hiciera falta `NLP_BACKEND=local`, como sí dicen los demás guiones de evaluación.
+
+**El catálogo del agente no cambia**: la huella de nombres, descripciones y esquemas de entrada sigue siendo `25e9c973154f097e`, y `spikes/catalogo_peso.py` da 10.486 caracteres, lo mismo que en #229, así que no se repitieron las 26 consultas. Tocar la ficha sí rehará la capa de modelos de la imagen (#162) en el próximo despliegue.
+
+#### Lo que no entra
+
+- **Pagar PRO o crédito** (decidido arriba).
+- **Una sonda de salud de Hugging Face**: `/health` no lo sondea, así que el indicador seguiría en verde sin crédito. Está en #217, con la sonda por modelo.
+- **Los docstrings de las herramientas**, que hablan de «timeout o caída del proveedor»: tocarlos cambia el catálogo del agente y obliga a repetir las 26 consultas, así que van con F (#234). *(Hecho en #234, con las 26 consultas: ver «El cierre de `v0.8`, primera parte».)*
+- **`HF_TOKEN` sigue siendo obligatorio** aunque el defecto sea `local`: hacerlo opcional cambiaría la configuración del despliegue.
+- **Un patch `v0.7.1`**: lo publicado describe un despliegue en local, que no ha cambiado, así que no induce a error a quien lo despliegue o lo lea.
+
+Las secciones que daban la vía remota por buena —E3-02, E3-03, E5-01 (donde se eligió el defecto `remote`), «Corrección: la señal caída no era una caída del proveedor» y la de #159— llevan una nota que remite aquí; lo medido entonces no se toca.
+
+Los tests pasan de 530 a 535, en verde también con el venv de sólo `requirements.txt`.
+
+| Condiciones | |
+|---|---|
+| Fecha | 2026-10-07 (el primer 402, probando #229, y la comprobación con la que se abrió la issue, hecha con un guion de la carpeta temporal) y 2026-10-08, 09:02 UTC (`spikes/hf_credito.py` sobre el código final, con el mismo resultado) |
+| Máquina | El PC de sobremesa del autor: WSL2 (Ubuntu 24.04.4, núcleo 6.6.87.2), Python 3.12.3 y httpx 0.28.1 |
+| Cuenta | La del proyecto en Hugging Face, gratuita, con un token de lectura |
+| Código | `d3db011` |
+| Servicio | `https://router.huggingface.co/hf-inference/models/<modelo>`, y `https://huggingface.co/api/whoami-v2` para la cuenta |
+| Guiones | `spikes/hf_credito.py`: una petición directa por modelo y otra por `HFClient`, el cliente de producción; no imprime el token |
+
+### Cada señal, en su idioma: el enrutado (#230, 8 oct 2026)
+
+#229 cerró la puerta a lo que no está en inglés con una sola decisión para todo el titular. Para analizar español hace falta lo contrario: que cada señal pueda tener su modelo, su umbral y su ficha en cada idioma, y decida por sí misma si analiza el titular que le llega. Ésta es la pieza B de `v0.8 · Español`, y sólo construye el enrutado: los modelos del español llegan con C, D y E (#231–#233). Así que, al terminar, un titular en español sigue dando `no_data`, pero ahora lo dice cada señal con su motivo, y un modelo en español se puede poner por configuración y se ejecuta como experimento, que es justo lo que D necesitará para medir sus candidatos.
+
+#### Una ficha por señal e idioma
+
+Cada ficha de `model_cards.py` lleva ahora su `language`, y una señal tendrá una por cada idioma en que la analice un modelo declarado. El índice es por idioma (`fichas_en`, que sustituye a `cards_by_signal`, y `ficha_declarada`), y `model_id_de` pide el idioma. Un test exige dos cosas: que toda señal tenga su ficha en inglés, y que la dimensión y el tipo —el hueco— sean los mismos en todos los idiomas, porque el veredicto agrega por dimensión y una señal no puede medir otra cosa según el idioma. La capa de modelos del `Dockerfile` copia además `core/idioma.py`, que las fichas importan; el horneado no cambia, porque ya recorre todas las fichas.
+
+#### La configuración y la factoría
+
+`NLP_MODELS_ES` y `NLP_THRESHOLDS_ES` tienen la forma y las reglas de sus equivalentes en inglés. En español sólo se configura el umbral de la incoherencia: el léxico no analiza español, y su umbral sería un ajuste que no hace nada, así que falla al arrancar, como las claves cerradas de #93.
+
+En la factoría, el idioma pasa a ser un parámetro **obligatorio** de `get_model_id`, `get_invocacion`, `get_threshold`, `get_incoherence_detector` y `ficha_efectiva`. Con un valor por defecto, quien lo olvidara recibiría el modelo inglés para un titular en español sin que nada fallara, que es justo lo que #229 vino a cortar. Y una sola regla, `_analiza`, dice qué señal analiza qué idioma:
+
+- sí, si tiene ficha en él;
+- sí, si es un modelo descargable —la dedicada, el tono, la incoherencia— y hay uno puesto por configuración para ese idioma: un experimento, que se publica con el hueco de su ficha inglesa y «sin evaluar»;
+- nunca el léxico en español, por la decisión del 7 oct (sus listas son de Chakraborty), ni el lineal por configuración, porque no tiene un id que cambiar: en español serán otros pesos (#231).
+
+Esa regla la miran la puerta, las fichas que se publican (`idiomas_de`) y `precalentar`, así que no se puede publicar la ficha de un modelo que no se ejecuta, ni dejar uno sin calentar. Sin umbral configurado, el español usa el del detector, que se calibró en inglés: el suyo lo calibrará en TA1C la issue que traiga el modelo (#233), y hasta entonces un modelo en español es un experimento. *(Revisado en #233: el modelo multilingüe no separa en TA1C (AUC 0,594), así que la incoherencia no analiza el español y no hubo umbral que calibrar. Ver «La incoherencia y el tono en español».)* La caché del detector de incoherencia sube de 2 a 4 instancias, para que un idioma no eche al otro; la del backend no cambia, porque no depende del idioma.
+
+#### La puerta, señal a señal
+
+**La puerta del idioma vive ahora en `_run_signals`**, que era lo que #229 dejó por decidir: el enrutado ya es por señal ahí, y dejar la puerta en `analyze()` y el modelo en `_run_signals` habría duplicado la decisión. `_run_signals(titular, cuerpo, idioma, idioma_del_cuerpo)` recibe los dos idiomas, también obligatorios, y `analyze()` sólo los detecta. Eso es lo que permite medir: `eval_ta1c` le pasa `INGLES` a propósito para repetir el punto de partida de #229, el español tratado como inglés.
+
+Los motivos viven en la factoría (#116) y empiezan igual, para que la tarjeta se lea sola: «El titular parece estar en español: esta señal aún no lo analiza.»; en otro idioma, «ninguna señal lo analiza»; y el léxico da el suyo, porque no es que le falte un modelo, es que no lo tiene. La puerta del cuerpo sigue como en #229, pero mirando la regla: la incoherencia compara un cuerpo si analiza su idioma. Qué hacer con un titular y un cuerpo en idiomas distintos, los dos analizados, lo decidirá #233. Cada herramienta suelta pasa por la puerta de su señal (`_idioma_si_se_analiza`) y pide a la factoría lo del idioma que le devuelve.
+
+#### Cada salida dice su idioma
+
+Las cuatro salidas de señal —`Etiqueta`, `SalidaLexica`, `SalidaLineal` y `SalidaIncoherencia`— llevan `language`, **obligatorio**, y lo añaden quienes las ejecutan, cada herramienta y el orquestador, porque los detectores no saben de idiomas. Se planteó opcional, rellenado sólo por las herramientas, y no se pudo, por dos cosas medidas al escribirlo. Una: FastMCP escribe como `null` un campo opcional que falta, y después lo rechaza contra su propio esquema («None is not one of ['en', 'es', 'und']»). Otra: el contrato publica estas formas también para el `data` de `/analyze` (#133), así que lo que digan tiene que ser cierto en las dos rutas. Se acepta el dato repetido en `/analyze`, que ya lleva `AnalyzeResponse.language` (decidido por el autor). Con él, `senal_de` rotula una señal suelta del agente con la ficha del idioma en que se ejecutó.
+
+#### El catálogo, Sistema, el historial y el formulario
+
+- **El catálogo** pasa de `model_card` a `model_cards`: una ficha por cada idioma que analiza la señal, y vacía para lo que no es una señal. Es un cambio del contrato, y la pantalla de Sistema pinta una ficha por señal e idioma, con «Titulares en inglés» a la vista; cada una se pliega por su lado.
+- **El historial** toma el `lang` de una ejecución suelta de su salida (`data.language`), como el de un análisis. Probándolo en el navegador apareció un caso que seguía mal: un titular en español que una señal rechaza no devuelve salida, y la fila caía en «en», afirmando lo contrario de lo que pasó. Una ejecución sin salida va ahora en `und`, «indeterminado» (decidido por el autor); las de antes de #230, con salida y sin idioma, siguen en «en».
+- **Los dos campos del formulario** pasan de `lang="en"` a `lang=""`, que en HTML es «idioma desconocido»: antes de analizar no se sabe, y sin el atributo heredarían el castellano de la página, con su pronunciación y su corrector. Un ejemplo en español, junto a los tres en inglés, queda para F (#234), cuando dé un veredicto: hoy daría «Sin datos».
+- **La descripción de `AnalyzeRequest.headline`** dice ya que cada señal analiza su idioma.
+
+#### Medido: en inglés, todo igual
+
+El criterio de la issue era que en inglés no cambiara nada, y se comprobó par a par, no sólo en el agregado.
+
+`eval_ta1c`, con `INGLES` en los dos idiomas, da exactamente las cifras de #229: veredicto F1 0,038 con `factual` en el 79,7 %, dedicada 0,322, léxico 0,223 (sin pistas en el 85,9 %), lineal e incoherencia 0,019.
+
+`eval_veredicto` pasa los 19.484 pares de Webis-17 por `analyze()` y guarda el resultado de cada uno. Su caché era del 6 oct, de #78, **anterior a #229**: la puerta del idioma nunca se había medido con él. Se guardó como `var/veredicto_validation170630.antes-229.json` antes de rehacerla, y [`spikes/veredicto_por_idioma.py`](spikes/veredicto_por_idioma.py) compara las dos par a par y explica cada diferencia por el idioma que detecta en el titular y en el cuerpo:
+
+| | Pares |
+|---|---|
+| Iguales: el estado y el voto de cada señal, y el veredicto (la similitud de la incoherencia, idéntica) | 19.439 |
+| Cambian porque el titular no se detecta en inglés —17 en español, 9 en otro idioma—, y pasan a `no_data` | 26 |
+| Cambian porque el cuerpo no se detecta en inglés —18 en otro idioma, 1 en español—, y sólo cambia la incoherencia | 19 |
+| Cambian por otro motivo | **0** |
+
+Los 45 que cambian son de la puerta de #229, no del enrutado. Los 26 titulares fuera del inglés son el 0,13 %, la misma tasa que #229 midió en `webis_dev`, y como Webis-17 es de medios en inglés serán en su mayoría fallos del detector; no se miraron uno a uno.
+
+| «Es clickbait» frente a la etiqueta | F1, todos (19.484) | F1, unánimes (6.808) |
+|---|---|---|
+| Antes, la caché de #78 | 0,641 | 0,804 |
+| Ahora | 0,641 | 0,802 |
+
+Las de antes son las que publicó #78. La pequeña bajada en los unánimes es de esos 45 pares.
+
+El catálogo del agente no cambió —huella sha256 `25e9c973154f097e`, la misma que en #229 y #236—, así que no se repitieron las 26 consultas: el esquema de salida no entra en él (#93). En el navegador integrado, con la API, el MCP y el frontend de la rama: un titular en español da «Sin datos», con cada tarjeta diciendo su motivo y `lang="es"` en el titular; Sistema enseña las cinco fichas en inglés; y el historial marca en `es` el análisis en español, en `en` la ejecución inglesa del léxico y en `und` la española que el léxico rechazó.
+
+#### Lo que se encontró por el camino
+
+- ⚠️ **`eval_veredicto` no arrancaba.** Seguía llamando a la factoría con la firma de antes, y nada lo avisó: pyright excluye `backend/evaluation/` (#139) y ningún test ejecuta los guiones. Se vio al lanzarlo; se arregló, y con él el spike de #229, y una búsqueda por `evaluation/` y `spikes/` de cada función que cambió de firma no encontró más. **Al cambiar una firma de la factoría o del orquestador, buscar también en `evaluation/` y `spikes/`**, que pyright no mira.
+- **La huella de `eval_veredicto` recorre ahora los idiomas** de cada señal: los pocos pares de Webis que no se detectan en inglés los decidiría un modelo en español si se configurara, y sin eso en la huella una caché de otro sistema se colaría sin avisar (#119). Sin ninguno, las claves y los valores son los de antes.
+
+#### Lo que queda
+
+- **C (#231)**: los pesos del lineal en español, con su ficha; hoy su `run` no mira el idioma. Y el `lang` de sus palabras en la tarjeta. *(Hecho en #231: bilingüe, con su ficha en español, y sus palabras con el `lang` del titular. Ver «El lineal, bilingüe: el primer veredicto en español».)*
+- **D (#232)**: el zero-shot multilingüe, que ya se puede poner con `NLP_MODELS_ES` y medir. *(Medido en #232: ninguna de las 24 combinaciones llega al F1 de votar «clickbait» siempre; ver «La dedicada en español: ningún zero-shot sirve».)*
+- **E (#233)**: incoherencia y tono en español, el umbral de la incoherencia calibrado en TA1C —hasta entonces, el inglés— y el titular y el cuerpo en idiomas distintos. *(Hecho en #233: el tono, sí; la incoherencia no separa (AUC 0,594) y no analiza el español; los idiomas distintos, en #217. Ver «La incoherencia y el tono en español».)*
+- **F (#234)**: los docstrings de las herramientas («Pensada para inglés»), que cambian el catálogo del agente; y el ejemplo en español del formulario. *(Hechos en #234, con las 26 consultas: ver «El cierre de `v0.8`, primera parte».)*
+
+Los tests pasan de 535 a 564 en el backend, en verde también con el venv de sólo `requirements.txt`, y de 194 a 201 specs en el frontend.
+
+| Condiciones | |
+|---|---|
+| Fecha | 2026-10-08, por la tarde (hora de Madrid): `eval_ta1c` hacia las 15:25 y `eval_veredicto` de 15:30 a 15:49; la comparación y la prueba en el navegador, después |
+| Máquina | El PC de sobremesa del autor: WSL2 (Ubuntu 24.04.4, núcleo 6.6.87.2), Python 3.12.3 y una GeForce GTX 1650 SUPER, que `transformers` usa en WSL aunque nadie le pase `device`. Producción corre en CPU |
+| Código | `f3d7f12` para las dos evaluaciones. El arreglo de `eval_veredicto` (`160454c`) se ejecutó antes de commitearlo, pero sólo toca el guion, que no está entre lo que decide el resultado: su huella cubre las señales, el orquestador y `domain.py`. La comparación, repetida sobre `0b06d59` |
+| Modelos | Los de las fichas: `Stremie/roberta-base-clickbait`, `cardiffnlp/twitter-roberta-base-sentiment-latest` y `sentence-transformers/all-MiniLM-L6-v2`, con transformers 5.12.0, sentence-transformers 5.6.0 y torch 2.12.1 |
+| Guiones | `backend/evaluation/eval_ta1c.py` (~2 min); `backend/evaluation/eval_veredicto.py` (~19 min, caché nueva con huella `386cefbaea5d`; la de antes, `669a9c175fc1`); `spikes/veredicto_por_idioma.py` |
+
+### La dedicada en español: ningún zero-shot sirve (#232, 8 oct 2026)
+
+La señal dedicada es un clasificador inglés (`Stremie/roberta-base-clickbait`), y en el Hub no hay uno de clickbait en español en el que fiarse: el único, `taniwasl/clickbait_es`, se descartó al definir `v0.8` porque no dice cómo se etiquetó. La salida decidida el 7 oct fue un zero-shot multilingüe, un modelo de inferencia (NLI) que no se entrenó para la tarea y elige entre las etiquetas que se le preguntan. Se llama por el modo de #159, y desde #230 se le puede poner a la señal para el español con `NLP_MODELS_ES`.
+
+Ésta es la primera parte de D: medir en TA1C `validation` qué modelo, con qué etiquetas y con qué plantilla. Si se queda o no depende de C (#231): la regla de la issue pide que su F1 en `test` llegue al menos al del lineal en español, porque una señal opaca que acierta menos que la interpretable no aporta al contraste. Así que `test` se abre después de C, una sola vez (decidido por el autor el 8 oct).
+
+#### Lo que se midió, con la regla publicada antes
+
+La regla y las combinaciones se publicaron en la issue antes de la primera medida ([comentario](https://github.com/codeurjc-students/2026-ClickBaitAnalysis/issues/232#issuecomment-6062460140)). Son 24 combinaciones sobre los 700 titulares de `validation`, con un 29,4 % de clickbait:
+
+- **Cuatro modelos**: los dos multilingües de la issue, `MoritzLaurer/mDeBERTa-v3-base-mnli-xnli` y `joeddav/xlm-roberta-large-xnli`, y dos sólo en español, `Recognai/bert-base-spanish-wwm-cased-xnli` (BETO afinado con XNLI) y `Recognai/zeroshot_selectra_medium`. Los dos últimos se añadieron porque desde #230 el enrutado es por idioma, y un modelo monolingüe sirve igual.
+- **Tres redacciones de las etiquetas**, porque #159 midió que la redacción es parte de la pregunta: «clickbait» / «noticia», «sensacionalista» / «informativo», y «un titular que oculta información para provocar el clic» / «un titular que resume la noticia».
+- **Dos plantillas para la hipótesis**. `transformers` monta la frase que compara con el titular a partir de una plantilla, y la suya es inglesa, «This example is {}.». `local.zero_shot` no pasa ninguna, así que hoy un titular en español se compara con una frase inglesa. La otra plantilla era «Este titular es {}.».
+
+Cada combinación vota como en producción: la etiqueta más probable, sin umbral que elegir. Gana el modelo cuya mejor combinación tiene más F1. Si la mejor de otro modelo queda dentro del ruido —el intervalo del 95 % de la diferencia, por bootstrap emparejado como en #78, incluye el 0—, se elige el más rápido en CPU.
+
+El guion, `backend/evaluation/eval_zero_shot_es.py`, llama al mismo `pipeline` que construye `LocalNLPClient`. Antes de medir cada modelo, comprueba con 30 titulares y las tres redacciones que su voto es el de `dedicated.detect` con la plantilla de producción. Coincidió en los cuatro modelos.
+
+#### El resultado: por debajo de votar siempre «clickbait»
+
+Votar «clickbait» a todo da F1 0,455 en esta partición. **Ninguna de las 24 combinaciones llega a eso.**
+
+| La mejor combinación de cada modelo | P | R | F1 | Vota clickbait | AUC |
+|---|---|---|---|---|---|
+| `xlm-roberta-large-xnli` · adjetivos · plantilla española | 0,307 | 0,757 | **0,437** | 72,6 % | 0,549 |
+| `mDeBERTa-v3-base-mnli-xnli` · adjetivos · inglesa | 0,391 | 0,262 | 0,314 | 19,7 % | 0,475 |
+| `zeroshot_selectra_medium` · palabras · inglesa | 0,387 | 0,257 | 0,309 | 19,6 % | 0,560 |
+| `bert-base-spanish-wwm-cased-xnli` · adjetivos · inglesa | 0,284 | 0,320 | 0,301 | 33,1 % | 0,454 |
+| *Votar «clickbait» siempre* | 0,294 | 1 | 0,455 | 100 % | — |
+
+- **El 0,437 no es acierto: es votar casi siempre «clickbait».** XLM-R lo vota en el 72,6 % de los titulares, y su precisión, 0,307, apenas pasa del 29,4 % de clickbait que hay. Supera el 0,322 que la dedicada inglesa sacaba en esta misma partición tratando el español como inglés (#229), pero por votar más «sí», no por distinguir mejor.
+- **No es cuestión de umbral.** El AUC, que no depende del corte, va de 0,427 a 0,619 en las 24 combinaciones. Es casi azar, y en algunas de mDeBERTa y de BETO queda por debajo de 0,5. Calibrar un umbral no arreglaría nada.
+- **La redacción mueve el voto, no el acierto.** Según la combinación, la proporción de votos «clickbait» va del 0 % al 72,6 %. El mismo mDeBERTa pasa del 0 % al 19,7 % según cómo se le pregunte, y tres de sus seis combinaciones dan F1 0. Es lo que #159 vio con BART, pero aquí no hay ninguna redacción buena que elegir.
+- **La plantilla no sigue un patrón.** La española sólo gana en XLM-R (0,437 frente a 0,375, con los adjetivos); en los otros tres, su mejor combinación usa la inglesa.
+- **La elegida por la regla es XLM-R, con los adjetivos y la plantilla española.** Sólo otra combinación queda dentro del ruido: la de XLM-R con las frases y la plantilla inglesa (0,390; diferencia −0,047, IC [−0,115, +0,020]). Ningún otro modelo empata, así que el tiempo en CPU no podía cambiar la elección.
+
+#### El tiempo en CPU
+
+Se midió para la mejor combinación de cada modelo, con la GPU oculta: 100 titulares uno a uno, como en producción, tras tres de calentamiento.
+
+| Modelo | Pesos | Carga | Por titular (mediana) | p95 |
+|---|---|---|---|---|
+| `xlm-roberta-large-xnli` | 2.244 MB | 90,5 s | 0,858 s | 1,581 s |
+| `mDeBERTa-v3-base-mnli-xnli` | 558 MB | 5,1 s | 1,297 s | 1,952 s |
+| `bert-base-spanish-wwm-cased-xnli` | 439 MB | 2,2 s | 0,160 s | 0,259 s |
+| `zeroshot_selectra_medium` | 163 MB | 2,8 s | 0,075 s | 0,124 s |
+
+El elegido costaría casi un segundo por titular. Para comparar: un análisis entero, con las cinco señales, costaba 0,11 s en caliente cuando se midió en #156. Hay dos cosas observadas y sin explicar:
+
+- **mDeBERTa es más lento que XLM-R**, que tiene cuatro veces sus pesos, en la CPU (1,30 s frente a 0,86 s) y también en la GTX (unos 117 s por combinación frente a 48 s).
+- **XLM-R tarda 90,5 s en cargar en CPU.** Su repositorio no trae `tokenizer.json`, así que `transformers` convierte el tokenizador desde el de SentencePiece en cada carga. Es una hipótesis, no medida.
+
+#### Lo que necesita XLM-R
+
+Al ir a medirlo, XLM-R no cargó. Su repositorio sólo trae el modelo de SentencePiece (`sentencepiece.bpe.model`), y para convertirlo `transformers` 5.12 pide dos paquetes que no están en `requirements.txt` ni en `requirements-dev.txt`: `sentencepiece` y `protobuf`. Sin ellos intenta otra vía, `tiktoken`, y falla. Se instalaron sólo en el entorno de desarrollo, con permiso del autor, para poder medirlo. Si XLM-R se quedara, irían a `requirements.in` y a la imagen. Los otros tres no los necesitan: mDeBERTa trae su `tokenizer.json`, y los de Recognai usan `vocab.txt`.
+
+#### Lo que queda
+
+- **C (#231)**: el lineal en español. Su F1 en `test` es el listón de D. *(Hecho en #231: 0,674 en TA1C `test`. Ver «El lineal, bilingüe: el primer veredicto en español».)*
+- **Después de C**: abrir `test` una vez con la elegida y aplicar la regla. Con lo visto en `validation`, lo esperable es que no pase. Entonces quedan las dos salidas que ya preveía la issue:
+  - afinar un modelo en español con TA1C en la A40, que exige publicar los pesos en el Hub (en el artículo de TA1C, BETO afinado da 0,84 en `test`); *(Hecho en #242, en la GTX: 0,838 en `test`, y publicado como `ggcastle/beto-clickbait-es`. Ver «La dedicada en español: BETO afinado con TA1C».)*
+  - o que la dedicada no aplique en español, y la forma quede sólo con el lineal. *(Se abrió el 9 oct: 0,450, no se queda, y el autor eligió la primera, en #242. Ver «La dedicada en español: el zero-shot no llega al lineal, y se afinará un modelo».)*
+- **Si algún día hace falta la plantilla española**, la invocación de #159 tendrá que ganar un campo `template`. Hoy no hace falta.
+
+| Condiciones | |
+|---|---|
+| Fecha | 2026-10-08, por la tarde (hora de Madrid). `validation`: mDeBERTa de 16:47 a 17:01; la ejecución se paró al llegar a XLM-R por los paquetes, y los otros tres modelos se midieron de 17:35 a 17:48. `tiempo`: de 18:13 a 18:21 |
+| Máquina | El PC de sobremesa del autor: WSL2 (Ubuntu 24.04.4, núcleo 6.6.87.2), Python 3.12.3. `validation`, en la GeForce GTX 1650 SUPER, que `transformers` usa en WSL aunque nadie le pase `device`. `tiempo`, en la CPU con la GPU oculta: AMD Ryzen 5 5600G, 6 hilos de torch. Producción corre en la CPU de la máquina 1, con 8 núcleos, así que allí los tiempos serán otros |
+| Versiones | transformers 5.12.0, torch 2.12.1+cu130, sentencepiece 0.2.2 y protobuf 7.36.2 |
+| Modelos | Las revisiones descargadas: `MoritzLaurer/mDeBERTa-v3-base-mnli-xnli` `8adb042d524e`, `joeddav/xlm-roberta-large-xnli` `b227ee8435ce`, `Recognai/bert-base-spanish-wwm-cased-xnli` `e44f774ea40e` y `Recognai/zeroshot_selectra_medium` `b98e90644d9d` |
+| Código | `e3e28fc`, con el guion antes de commitearlo; `32a10eb` lo trae sin cambios |
+| Guiones | `backend/evaluation/eval_zero_shot_es.py validation` (unos 25 min en la GTX; guarda cada combinación en `var/zero_shot_es/`, local y sin versionar) y `CUDA_VISIBLE_DEVICES= … eval_zero_shot_es tiempo` (unos 8 min) |
+
+### El lineal, bilingüe: el primer veredicto en español (#231, 8 oct 2026)
+
+Con #230, un titular en español ya llegaba a cada señal, pero ninguna lo analizaba: el sistema respondía `no_data` con un motivo por señal. Ésta es la pieza C de `v0.8 · Español`, la primera que da veredicto. El lineal (#78) se había entrenado con titulares en inglés, y en TA1C `validation`, con el español tratado como inglés, daba F1 0,019 (#229): casi ninguna de sus palabras aparece en un tuit en español. La issue pedía elegir, midiendo, entre dos maneras de darle pesos en español: **uno por idioma**, sólo con el `train` de TA1C, o **uno bilingüe**, con los corpus ingleses y TA1C juntos, y con preferencia por el bilingüe si empataban (decidido el 7 oct).
+
+#### Antes de medir, las mayúsculas con tilde
+
+El patrón de mayúsculas del léxico, que el lineal usa como rasgo, era `\b[A-Z]{4,}\b`, y en español no veía «ÚLTIMA» ni «ESPAÑA»: la letra con tilde corta la secuencia y no deja frontera de palabra. Pasa a `\b[A-ZÁÉÍÓÚÜÑ]{4,}\b` (decidido por el autor, frente a la recomendación de dejarlo como limitación), y [`spikes/mayusculas_con_tilde.py`](spikes/mayusculas_con_tilde.py) cuenta a quién cambia:
+
+- **En inglés, a nadie.** Ningún titular de Chakraborty ni de Webis-17, en ninguna parte, cambia de resultado, así que las cifras medidas del léxico y del lineal siguen valiendo.
+- **En TA1C lo gana un 1,5 % de los tuits** (51 de 3.500), pero **42 de esos 51 lo ganan por una etiqueta de sección del medio** tras `#` o `[`: `ATENCIÓN` 31 veces, `OPINIÓN` 11, `ANÁLISIS` 4. Es una costumbre del medio, no del titular, y el lineal la acaba pesando en contra (−1,60).
+
+#### La elección, con la regla publicada antes
+
+La regla se publicó en la issue antes de la primera medida ([comentario](https://github.com/codeurjc-students/2026-ClickBaitAnalysis/issues/231#issuecomment-6065407636)). Los dos candidatos usan F3 —`linear.rasgos` con TF-IDF y `min_df=2`— y la misma regresión logística de #78: desde #78, el algoritmo no es la palanca. Gana el bilingüe, salvo en dos casos: que el de por idioma le gane en TA1C `validation` por más del ruido (el intervalo del 95 % de la diferencia, por bootstrap emparejado, no incluye el 0), o que el bilingüe baje más de 0,01 el F1 de alguno de los dos `dev` ingleses respecto al lineal de producción. Lo mide [`eval_lineal_es.py`](backend/evaluation/eval_lineal_es.py):
+
+| Con umbral 0,5 | Rasgos | F1 Chakraborty `dev` | F1 `webis_dev` | F1 TA1C `validation` (P / R) |
+|---|---|---|---|---|
+| Por idioma (TA1C, 2.100) | 3.729 | 0,001 | 0,111 | 0,368 (0,873 / 0,233) |
+| **Bilingüe** (Chakraborty + `train170331` + TA1C, 23.758) | 14.330 | 0,958 | 0,551 | **0,390** (0,852 / 0,252) |
+| Lineal de producción (#78) | 10.812 | 0,958 | 0,542 | — |
+
+- **El de por idioma no gana**: −0,022 frente al bilingüe en TA1C, con el intervalo [−0,076, +0,031].
+- **El bilingüe no baja el inglés**: −0,0006 en Chakraborty y +0,009 en Webis.
+- **La regla elige el bilingüe.** No hay ningún tuit repetido entre el `train` y `validation` de TA1C.
+
+#### El umbral: 0,35, el mismo para los dos idiomas
+
+Con 0,5, el bilingüe acierta mucho en TA1C (P 0,85) pero recoge sólo un cuarto del clickbait (R 0,25). La regla del umbral es la de #78: se queda 0,5 salvo que otro corte, de 0,30 a 0,70, suba el F1 al menos 0,01. Para el bilingüe se publicó sobre la media de los tres `dev`:
+
+| Umbral | Chakraborty `dev` | `webis_dev` | TA1C `validation` | Media |
+|---|---|---|---|---|
+| 0,30 | 0,958 | 0,524 | 0,615 | 0,699 |
+| **0,35** | **0,962** | **0,535** | **0,609** | **0,702** |
+| 0,40 | 0,962 | 0,542 | 0,555 | 0,686 |
+| 0,50 | 0,958 | 0,551 | 0,390 | 0,633 |
+
+La media pasa de 0,633 a 0,702, y **el umbral pasa a 0,35**. Es uno para los dos idiomas, porque así se publicó la regla del bilingüe. En TA1C solo, la curva sigue subiendo en 0,30, el extremo de la rejilla: su mejor corte está más abajo, y la regla no mira fuera. Como lo eligió la medida con estos pesos, **el umbral viaja en el JSON de los pesos**, y `linear.predict` dejó de tener un 0,5 escrito.
+
+#### La prueba, una sola vez
+
+| `test`, umbral 0,35 | P | R | F1 | Suelo de la regla |
+|---|---|---|---|---|
+| **TA1C** (700) | 0,756 | 0,608 | **0,674** | 0,61, la base publicada (TF-IDF + XGBoost) |
+| Chakraborty (6.400) | 0,947 | 0,975 | 0,960 | 0,941 (#78: 0,961) |
+| `webis_test` (15.588) | 0,403 | 0,746 | 0,523 | 0,514 (#78: 0,534) |
+
+**Se queda.** En español supera la base publicada con el corpus, y queda lejos del BETO afinado de los autores (0,84), que es otra liga. En inglés baja 0,001 y 0,011, dentro de lo que permitía la regla. Para `webis_test` es **su segunda apertura** (la primera fue la de #78), declarada en la regla antes de medir.
+
+#### Lo que aprendió, y el riesgo de fuente
+
+Las palabras que más empujan a clickbait en español son interrogativas, como en inglés: «qué» (+7,04) y «cómo» (+4,88). Entre las que más restan están, otra vez, nombres de medios y etiquetas de sección: `euvzla` (−2,10), `diariolibre` (−1,28), «opinión» (−1,21) y «columna» (−0,59). Es el vocabulario de fuente que #78 vio con `wikinews`. Los patrones cambiaron de peso con el reentrenamiento: el número inicial +12,49, la interrogación +0,43 (antes −1,59), las mayúsculas −1,60 y la elipsis −0,87.
+
+#229 había dejado ese riesgo para aquí: la proporción de clickbait va del 2,9 % al 68,7 % según el medio, y un modelo de palabras puede aprender a reconocer al medio en vez del clickbait. `eval_lineal_es.py --fuente` lo mide en `validation`, después de elegir y sin volver a abrir `test`. Compara el lineal con una referencia que vota **sólo por el medio**, con la proporción de clickbait que tenía cada uno en `train`:
+
+| TA1C `validation` (700) | AUC | F1 |
+|---|---|---|
+| Votar «clickbait» siempre | — | 0,455 |
+| Sólo el medio | 0,682 | 0,528 (con el mejor corte elegido mirando `validation`: una cota optimista) |
+| El lineal, umbral 0,35 | **0,795** | **0,609** |
+
+El medio solo predice bastante, y eso confirma el riesgo. Pero el lineal le saca +0,11 de AUC y +0,08 de F1 incluso a su mejor versión, así que no se reduce a reconocer el medio. Medio a medio, la proporción que vota clickbait sigue la de cada medio: del 44,8 % en la BBC, con un 67 % de clickbait en `train`, al 0 % en El Universal de Venezuela, con un 1,9 %. Aun así acierta dentro de cada uno entre el 70 y el 97 %. **Cuánto aporta cada parte no se separó**: haría falta reentrenar sin los nombres de los medios.
+
+#### La integración
+
+- **Los pesos**: [`train_linear.py`](backend/evaluation/train_linear.py) entrena el bilingüe con las mismas funciones que lo midieron (`cargar`, `entrenamiento` y `entrenar`), así que lo entrenado es lo medido. El JSON guarda el umbral, y la comprobación de paridad con sklearn suma 10 tuits de TA1C, para vigilar también las tildes y las eñes.
+- **El voto y su umbral, publicados**: `linear.predict` vota con el umbral del JSON, y `SalidaLineal` gana `threshold`, como el léxico desde #93 (decidido por el autor). Sin él, quien leyera «probabilidad 0,41» junto a «clickbait» pensaría que no cuadra. El esquema de salida no entra en el catálogo del agente (#93), que no cambia.
+- **Las fichas**: una ficha del lineal en español, con lo medido en TA1C, es lo que abre la puerta de `_analiza`. La inglesa recoge el entrenamiento bilingüe, sus cifras de `test`, el umbral, el peso nuevo de los patrones y el acuerdo con el léxico rehecho (kappa 0,712 en Chakraborty `dev` y 0,384 en Webis; con el lineal de #78, 0,715 y 0,368).
+- **La tarjeta**: las palabras del lineal llevan el `lang` del titular (en lo guardado antes de #230, «en»), y la nota dice desde qué probabilidad es clickbait cuando el resultado trae el umbral.
+- **Cuatro comentarios** decían que el lineal en español serían otros pesos, o que no recibía el idioma porque sólo los había en inglés. Se corrigieron.
+
+#### El primer veredicto en español
+
+[`eval_ta1c.py`](backend/evaluation/eval_ta1c.py) gana `--como-produccion`: le pasa a `_run_signals` el idioma que detecta `core.idioma`, como `analyze()`, en vez de `INGLES`.
+
+| TA1C `validation` (700) | Tratado como inglés, en #229 | Tratado como inglés, hoy | **Como producción** |
+|---|---|---|---|
+| Dedicada | 0,322 | 0,322 | no aplica (699) |
+| Léxico | 0,223 | 0,230 | no aplica (699) |
+| Lineal | 0,019 | 0,609 | 0,609 |
+| Incoherencia | 0,019 | 0,019 | no aplica |
+| **Veredicto** | 0,038 | 0,065 | **0,611** (P 0,714 · R 0,534) |
+
+- **Un titular en español tiene ya un veredicto que vale algo**: F1 0,611, que sale casi entero del lineal, la única señal que lo analiza. Reparto: `factual` 77,9 % y `stylistic_clickbait` 22,0 %. Un tuit se detectó como inglés, y en él votaron las demás. *(Revisado en #242: con la dedicada en español, 0,665, con P 0,938 y R 0,515. Ver «La dedicada en español: BETO afinado con TA1C».)*
+- **La columna del medio es la mejor prueba de por qué hacía falta la puerta del idioma.** Con el mismo lineal, si las señales inglesas votan sobre el español, el veredicto se hunde a 0,065: la dedicada y el léxico dicen «no» y parten la dimensión de forma (34,7 % `ambiguous`). Un modelo inglés sobre español no es neutro: estropea el veredicto.
+- Sin el flag, el guion mide lo mismo que en #229 pero con las señales de hoy, así que ya no da las cifras de entonces. El léxico sube de 0,223 a 0,230 por las mayúsculas con tilde.
+
+#### Y en inglés, mejor
+
+`eval_veredicto` pasa los 19.484 pares de Webis-17 por `analyze()`. La caché de antes se guardó como `var/veredicto_validation170630.antes-231.json`.
+
+| «Es clickbait» frente a la etiqueta | F1, todos (19.484) | F1, unánimes (6.808) |
+|---|---|---|
+| Antes (#230) | 0,641 | 0,802 |
+| **Ahora** | **0,660** | **0,811** |
+
+El lineal bilingüe con 0,35 mejora también el veredicto inglés. La regla de #124 se sigue sosteniendo: el engaño acierta el 63,9 % donde la forma discrepa y el 11,0 % donde la forma dice «no», y el veredicto de `analyze()` coincide con la regla en los 19.484 pares. El lineal se ejecuta en 17 pares más que las demás señales: titulares de Webis detectados como español, que antes no analizaba nadie.
+
+#### Lo que queda
+
+- **D (#232)**: el listón de la dedicada en español es este 0,674. XLM-R dio 0,437 en `validation`, así que lo esperable es que no pase al abrir su `test`. *(Abierto el 9 oct: 0,450, no pasa; el autor eligió afinar BETO, en #242. Ver «La dedicada en español: el zero-shot no llega al lineal, y se afinará un modelo».)*
+- **E (#233)**: incoherencia y tono en español. Hasta entonces, el lineal es la única señal que vota en español. *(Hecho en #233: el tono, que no vota; la incoherencia, no. Con la dedicada de #242, en español votan el lineal y la dedicada. Ver «La incoherencia y el tono en español».)*
+- **F (#234)**: los docstrings de las herramientas, que aún dicen «pensada para inglés» del lineal y cambian el catálogo del agente; y el ejemplo en español del formulario, que ya daría veredicto. *(Hechos en #234, con las 26 consultas: ver «El cierre de `v0.8`, primera parte».)*
+- **Sin hacer**: un umbral por idioma (en TA1C solo, el mejor corte queda por debajo de 0,30), y separar el medio del clickbait reentrenando sin los nombres de los medios.
+- **No está en producción**: la máquina 1 sirve `24e02ca`.
+
+Los tests pasan de 564 a 568 en el backend y de 201 a 204 specs en el frontend.
+
+| Condiciones | |
+|---|---|
+| Fecha | 2026-10-08, por la tarde (hora de Madrid). `eval_lineal_es`: comparación en `dev` a las 19:31, umbral a las 19:32, `test` a las 19:34 y `--fuente` a las 21:51. `eval_ta1c`, en los dos modos, de 21:22 a 21:25. `eval_veredicto`, de 21:26 a 21:43 |
+| Máquina | El PC de sobremesa del autor: WSL2 (Ubuntu 24.04.4), Python 3.12.3 y scikit-learn 1.9.0. `eval_ta1c` y `eval_veredicto` cargan los modelos en la GeForce GTX 1650 SUPER, que `transformers` usa en WSL aunque nadie le pase `device`. Producción corre en CPU |
+| Código | La comparación, el umbral y `test`, sobre `e81f7d3`, con la elegida y su umbral fijados en el guion tal como entraron en `e86c178`. `eval_ta1c` y `eval_veredicto`, sobre `7d7cec2`, con `eval_ta1c.py` tal como entró en `e9e52f7` (su docstring se corrigió después de medir). `--fuente`, sobre `e9e52f7`, con el lineal integrado: los pesos de `cbba56c` y el voto con umbral de `da6a045` |
+| Modelos | El lineal, `linear_clickbait.json` de `cbba56c` (14.330 rasgos, umbral 0,35). Los demás, los de las fichas: `Stremie/roberta-base-clickbait`, `cardiffnlp/twitter-roberta-base-sentiment-latest` y `sentence-transformers/all-MiniLM-L6-v2`, con transformers 5.12.0 y torch 2.12.1 |
+| Guiones | `spikes/mayusculas_con_tilde.py`; `backend/evaluation/eval_lineal_es.py` (sin argumentos, `--umbral`, `--test` y `--fuente`; segundos cada uno); `backend/evaluation/train_linear.py`; `eval_reentreno.py --ficha` (el kappa); `eval_ta1c.py` con y sin `--como-produccion` (~2 min y ~10 s); `eval_veredicto.py` (~17 min, huella nueva `3db32ea91cb2`; la de antes, `386cefbaea5d`) |
+
+### La dedicada en español: el zero-shot no llega al lineal, y se afinará un modelo (#232, 9 oct 2026)
+
+La primera parte de D eligió en TA1C `validation` un zero-shot: XLM-R (`joeddav/xlm-roberta-large-xnli`) con «sensacionalista» / «informativo» y la plantilla española. Dejó `test` para después de C, porque la regla de la issue pide que su F1 llegue al menos al del lineal en español. C (#231) dio ese listón: 0,674 en TA1C `test`. Ésta es la segunda parte: abrir `test` una vez con la elegida, aplicar la regla y decidir.
+
+#### La prueba, una sola vez
+
+La parte nueva del guion, `eval_zero_shot_es.py test`, no elige nada a mano. Lee la elegida de lo que guardó la primera parte (`tiempo.json` y `validation.json`), pasa los 700 titulares de TA1C `test` por el mismo `pipeline` y guarda lo medido en `var/zero_shot_es/test.json`. Con ese fichero delante, el modelo no se vuelve a ejecutar: se enseña lo guardado, y se niega si la elegida cambió. Al lado mide el listón con el lineal de producción, con los pesos y el umbral de su JSON, sobre los mismos titulares.
+
+| TA1C `test` (700, 29,1 % clickbait) | P | R | F1 | Vota clickbait | AUC |
+|---|---|---|---|---|---|
+| `xlm-roberta-large-xnli` · adjetivos · plantilla española | 0,314 | 0,789 | **0,450** | 73,1 % | 0,592 |
+| El lineal de producción (umbral 0,35) | 0,756 | 0,608 | **0,674** | 23,4 % | 0,848 |
+| *Votar «clickbait» siempre* | 0,291 | 1 | 0,451 | 100 % | — |
+
+- **No se queda.** 0,450 frente a 0,674. La diferencia es −0,224, con un intervalo del 95 % de [−0,290, −0,154] por bootstrap emparejado, lejos del 0. El intervalo es sólo información: la regla pide «al menos igual», sin mirar el ruido.
+- **Repite lo de `validation`.** Vota «clickbait» en tres de cada cuatro titulares y queda una milésima por debajo de votar siempre «clickbait». Su AUC, 0,592, dice que apenas distingue.
+- **El listón se reproduce.** El lineal de producción da exactamente el 0,674 que #231 midió reentrenando con sklearn, con la misma precisión y el mismo recall. Su AUC en `test`, 0,848, no se había publicado.
+
+#### La decisión: afinar un modelo, en su propia issue
+
+Con la regla sin cumplir quedaban las dos salidas que preveía la issue. El autor eligió **afinar un modelo en español con TA1C** (9 oct), frente a que la dedicada no analizara el español:
+
+- Hoy, en español, la forma sólo tiene una señal, el lineal. Sin una señal opaca a su lado no hay contraste entre señales de distinta naturaleza, que es lo que sostiene el trabajo.
+- Los autores de TA1C publican BETO afinado con 0,84 en `test`, muy por encima del 0,674.
+
+Va en su propia issue, **#242**: la H de `v0.8`, de la que ahora depende también F (#234). #232 se cierra aquí. Los pesos se publicarán en un repositorio público del Hub a nombre del autor, para que la imagen los hornee sin token, como los demás modelos.
+
+#### El riesgo de fuente, que `test` no puede medir
+
+Un modelo afinado con TA1C puede aprender a reconocer al medio en vez del clickbait, como ya hace el lineal (`euvzla` pesa −2,10, #231). La proporción de clickbait va del 2,9 % al 68,7 % según el medio, y una referencia que vota sólo por el medio da AUC 0,682 en `validation`. Aquí hay dos agravantes:
+
+- **Los 18 medios están en las tres partes** (`spikes/ta1c_medios.py`). `test` pregunta por medios que el modelo ya ha visto, así que reconocerlos puntúa como acertar. Le pasa también al 0,84 publicado.
+- **En un modelo opaco no hay pesos que leer.** Lo que en el lineal se ve mirando sus pesos, en BETO sólo se ve provocándolo.
+
+Y si el lineal y BETO coinciden porque los dos reconocen al medio, su acuerdo no son dos pruebas, sino la misma pista dos veces. De las acotaciones posibles, el autor eligió dos para #242:
+
+- **Limpiar** la cuenta, las etiquetas de sección y el nombre del medio antes de entrenar, y medir con y sin limpieza, para saber cuánto pesaba el atajo.
+- **Validar con medios fuera**: entrenar con unos medios y medir con otros, que es justo lo que el `test` oficial no puede.
+
+La regla de #242 pide las dos cosas: llegar al 0,674 en `test` y, con medios fuera, superar al lineal medido igual. Se descartaron comparar con la referencia de sólo el medio, medio a medio, y probar el modelo en otro corpus en español.
+
+#### Lo que queda
+
+- **H (#242)**: BETO afinado con TA1C, con su regla publicada antes de medir. *(Hecho en #242: se queda, con 0,838 en `test` y 0,808 con medios fuera. Ver «La dedicada en español: BETO afinado con TA1C».)*
+- **Mientras tanto, la dedicada no analiza el español**, con el motivo de #230 («esta señal aún no lo analiza»), que sigue siendo cierto. *(Ya no desde #242: la analiza BETO afinado. Ver «La dedicada en español: BETO afinado con TA1C».)*
+- **La plantilla española, y `sentencepiece` y `protobuf`, no hacen falta**: XLM-R no se queda, y los dos paquetes siguen sólo en el entorno de desarrollo.
+
+| Condiciones | |
+|---|---|
+| Fecha | 2026-10-09, a las 10:03 (hora de Madrid) |
+| Máquina | El PC de sobremesa del autor: WSL2 (Ubuntu 24.04.4), Python 3.12.3, en la GeForce GTX 1650 SUPER, como `validation`. El lineal, en la CPU |
+| Versiones | transformers 5.12.0, torch 2.12.1+cu130, sentencepiece 0.2.2 y protobuf 7.36.2 |
+| Modelos | `joeddav/xlm-roberta-large-xnli` `b227ee8435ce`. El lineal, `linear_clickbait.json` de #231 (umbral 0,35) |
+| Código | `9dcc22b`, con la parte `test` de `eval_zero_shot_es.py` antes de commitearla; `fdcd6c5` la trae sin cambios |
+| Guiones | `backend/evaluation/eval_zero_shot_es.py test` (unos 2 min en la GTX: 59 s de carga y 50 s para los 700; guarda `var/zero_shot_es/test.json`, local y sin versionar) y `spikes/ta1c_medios.py` (los medios de cada parte) |
+
+### Noticias en español: GNews y NewsData.io (#235, 9 oct 2026)
+
+Analizar titulares en español tiene poco sentido si el sistema no puede traerlos, y las dos herramientas de noticias, NYT y Guardian, sólo dan inglés. El autor puso la condición al definir `v0.8` (7 oct): al menos dos APIs con noticias en español. Son **GNews** y **NewsData.io**, con planes gratuitos que no admiten uso comercial; un TFG no lo es. Se descartaron los RSS de los medios, que no buscan por tema (decisión del autor), y GDELT, que respondió 429 a la primera consulta.
+
+Entran dos herramientas, `get_gnews_news` y `get_newsdata_news`, que devuelven lo mismo que las de NYT y Guardian —titular, enlace, fecha y cuerpo— más el medio (`source`), porque aquí cada noticia puede venir de un medio y de un país distintos.
+
+#### Lo que se midió antes de escribir los clientes
+
+Antes de escribir los clientes, `spikes/noticias_es.py` preguntó a las dos APIs reales lo que la documentación no dejaba claro: qué campos traen, de cuándo, con qué cuota y qué responde una clave que no existe. Ninguna clave se imprime: todo lo que enseña pasa por un filtro que las tapa.
+
+| | GNews | NewsData.io |
+|---|---|---|
+| Con tema | `/search`, que exige `q` | `/latest`, con `q` o `qInTitle` |
+| Sin tema | `/top-headlines` | `/latest` |
+| Ir hacia atrás | `from` y `to`: de hace 30 a 25 días trajo 10 noticias | `timeframe` responde **422** en el plan gratuito: sólo lo último |
+| Lo más reciente | unas 12 horas de retraso | igual |
+| El cuerpo | `content` llega **recortado** (265–267 caracteres, con una marca de lo que falta); `description`, entera, 103–420 | `content` es el texto «ONLY AVAILABLE IN PAID PLANS» en las 10 noticias de cada consulta; `description`, 56–3.271 |
+| La fecha | ISO 8601, en UTC | «2026-10-08 21:51:12», con la zona aparte (`pubDateTZ`, siempre «UTC») |
+| La cuota, en las cabeceras | ninguna | `x-api-limit-remaining`, los créditos del día que quedan; `x-ratelimit-limit`, 60 peticiones cada 15 minutos |
+| Una clave que no existe | **400**, «You did not provide an API key.», como si faltara | **401**, «The provided API key is not valid.» |
+| ¿Repite la clave en el error? | no | no |
+
+- **El cuerpo de las dos es la entradilla** (`description`). Es lo que lee la incoherencia, y una entradilla entera vale más que medio párrafo cortado. El `content` de NewsData.io habría sido peor que nada: la incoherencia habría comparado el titular con un aviso de pago, sin que nada fallara.
+- **Un 422 no gastó crédito**: la cabecera decía 196 antes y después de pedir `timeframe`.
+- ⚠️ **La página de NewsData.io y su cabecera no coinciden**: la página decía 30 peticiones cada 15 minutos (comprobado al definir la issue, el 7 oct), y la cabecera dice 60. El cliente sigue a la cabecera; si el límite real fuera 30, la petición 31 recibiría un 429, que se publica como el error que es.
+
+#### Por qué NewsData.io busca en el titular
+
+Probando el cliente, `q="inteligencia artificial"` trajo noticias que no eran del tema: entre ellas, la de un veterano de Malvinas candidato a dirigir una escuela. La parte `busqueda` del spike pidió dos temas de tres formas, y contó en cuántas de las 10 noticias aparece el tema entero, sin tildes ni mayúsculas, en el título o en la entradilla:
+
+| Tema | `q` | `q` entre comillas | `qInTitle` |
+|---|---|---|---|
+| «inteligencia artificial» | 1 de 10 (4.211 resultados) | 1 de 10 (4.206) | **10 de 10** (226) |
+| «cambio climático» | 4 de 10 (762) | 4 de 10 (725) | **10 de 10** (25) |
+
+`q` busca también en el texto completo de la noticia, que el plan gratuito no devuelve, y las comillas no cambian nada: salieron las mismas 10. Con `qInTitle` hay muchos menos resultados, pero siguen sobrando para llenar 10, y para un sistema que analiza titulares es lo que interesa: un titular que nombre el tema. **Decidido (autor): `qInTitle`.** La cuenta es una cota baja —una noticia de IA que sólo diga «IA» no cuenta—, y por eso el guion imprime los titulares, para leerlos.
+
+#### Las noticias repetidas
+
+El mismo titular llega a veces dos veces: con `qInTitle`, «Medio millón de pingüinos desaparecen por efectos de cambio climático» salió dos veces entre 10. **Decidido (autor): quitar las repetidas**, quedándose con la primera de cada titular, en las dos APIs; a cambio, la lista puede traer menos de 10. La regla está escrita en los dos clientes, cada uno con una nota que remite al otro: no cabe en `core/`, que pide que la use más de una capa, y un módulo suelto en `integrations/` sería maquinaria, no una integración (`docs/estructura.md`).
+
+#### Lo que entró
+
+- **Las claves, opcionales** (`gnews_api_key` y `newsdata_api_key`, `SecretStr | None`), mientras que las otras tres siguen siendo obligatorias y su falta impide arrancar. **Decidido (autor)**, frente a hacerlas obligatorias como las demás: que falte una clave de noticias no puede tumbar el análisis, y un despliegue que llegara a la máquina 1 sin ellas en su `.env` no arrancaría ni la API ni el MCP. Sin la clave, la herramienta no hace ninguna petición y dice qué falta («GNews no está configurado: falta GNEWS_API_KEY en la configuración.»). El CI no necesita ninguna, y el compose ya pasa el `.env` entero (`env_file`).
+- **Los clientes**, como los de NYT y Guardian. Un fallo devuelve el error de `make_request`, nunca «No articles found» (#196, #212), y la fecha sale en ISO 8601. GNews ordena por fecha, que es su defecto, y lleva `days` de 1 a 30; NewsData.io no lleva `days`. Los dos piden español (`lang=es` y `language=es`) y **no filtran por país** (decidido: lo que se pide son noticias en español, no de un país). Los créditos que quedan en NewsData.io salen de su cabecera, como en Guardian; los de GNews los cuenta el proceso, como en NYT.
+- **Las herramientas**, con los nombres decididos por el autor y `topic` como `TextoOpcional` (#197). La primera línea de cada una dice lo que la distingue de la otra (#183): GNews deja elegir hasta 30 días atrás, y NewsData.io sólo da lo último, con las palabras del tema en el titular. Las descubre el servidor solo, y la pantalla de Sistema las pinta desde su esquema.
+- **Sin sonda en `/health`** (decidido: la tercera opción de la issue). `/health` se cachea 30 s **por proceso**, y la API y el MCP tienen cada uno su caché: hasta 240 sondeos por hora, frente a las 100 peticiones diarias de GNews, que se gastarían en menos de media hora de uso continuo. Que falten no tumba nada, y cada herramienta dice si no está configurada o qué respondió su API. Lo explica el docstring de `core/health.py`.
+- **Tests: 609, antes 568.** `test_gnews.py` y `test_newsdata.py`, con `respx`: los campos, el cuerpo de la entradilla y nunca `content`, `qInTitle`, los errores sin la clave ni la URL, que sin clave no se pide nada, los repetidos, la cuota y la fecha. Y dos `integration` por API, que pasan: la clave falsa (400 y 401) y una consulta real. Además, `test_settings.py` fija que las dos claves son opcionales, y dos tests que enumeran lo que existe se actualizaron: las integraciones descubiertas, y las herramientas del servidor de pruebas, que pasan de 11 a 13 (no lleva `analyze_headline`, #188).
+
+#### Lo que queda
+
+- **El catálogo del agente crece**: de 12 a 14 herramientas, y de 10.486 a 12.677 caracteres entre descripciones y esquemas (+21 %, `spikes/catalogo_peso.py`). No se midió con las 26 consultas: lo hará F (#234) una sola vez, con estas dos dentro, como decía la issue. *(Medido en #234: ver «El cierre de `v0.8`, primera parte».)*
+- **No está en producción.** Desplegarlas, con las dos claves en el `.env` de la máquina 1, lo decide el autor. Sin ellas, la máquina 1 arranca igual.
+- **Sin medir**: si GNews trae también noticias fuera del tema. Sus resultados no se contaron como los de NewsData.io; la parte `busqueda` se podría ampliar a GNews con dos peticiones.
+
+| Condiciones | |
+|---|---|
+| Fecha | 2026-10-09: la parte `todo` del spike a las 11:58 y la parte `busqueda` a las 12:19 (hora de Madrid) |
+| Máquina | El PC de sobremesa del autor: WSL2 (Ubuntu 24.04.4), Python 3.12.3, httpx 0.28.1 |
+| APIs | GNews v4 y NewsData.io (`/api/1/latest`), planes gratuitos, con las claves del autor |
+| Código | Sobre `dev` en `94a65e6`; el spike, los clientes y las herramientas entran en esta PR |
+| Guiones | `spikes/noticias_es.py` (`todo`: unas cuatro peticiones a cada API; `busqueda`: seis créditos de NewsData.io) y `spikes/catalogo_peso.py` |
+
+### La dedicada en español: BETO afinado con TA1C (#242, 9 oct 2026)
+
+En #232 ningún zero-shot multilingüe llegó al lineal en español (XLM-R, 0,450 en TA1C `test` frente a 0,674), y el autor eligió afinar un modelo propio con TA1C: la H de `v0.8`. Los autores del corpus publican BETO afinado con 0,84 en `test`. Antes de elegir se le explicó el riesgo de fuente —los 18 medios están en las tres partes de TA1C, así que un modelo puede acertar reconociendo al medio—, y eligió dos acotaciones: limpiar las marcas del medio al entrenar y validar con medios fuera. **Se queda**: 0,838 en `test` y 0,808 con medios que no ha visto, frente a 0,674 y 0,570 del lineal.
+
+#### La regla, antes de medir
+
+Publicada en la issue antes de entrenar nada ([comentario](https://github.com/codeurjc-students/2026-ClickBaitAnalysis/issues/242#issuecomment-6078300768)), con el guion ya commiteado (`f4f9617`):
+
+- **El modelo**: BETO cased (`dccuchile/bert-base-spanish-wwm-cased`, revisión `c4d86612f51b`), afinado con los 2.100 tuits de TA1C `train` en la GTX, con un bucle propio en PyTorch (el `.venv` no tiene `accelerate`). AdamW con tasa 2e-5 y decaimiento 0,01, lote 16, tres épocas, calentamiento lineal del 10 %, recorte del gradiente a 1 y fp16. Vota la etiqueta más probable, como la dedicada inglesa.
+- **128 tokens, no los 64 que decía la issue**: con 64 se cortaba uno de cada siete tuits de `train`, y producción recibe el tuit entero. Se contó al escribir la regla, con un guion que no se versionó; las cifras están en el comentario.
+- **Cabe en la GTX sin partir el lote**: la parte `memoria`, 20 pasos con los tuits más largos de `train`, dio un pico de 2.204 MiB asignados (2.496 reservados) de 4.096.
+- **La limpieza, sólo al entrenar**: se quitan los enlaces, las cuentas (`@…`), las etiquetas (`#…`), los corchetes y las barras «|», que es donde los tuits llevan las marcas del medio. No usa ninguna lista de medios, así que vale igual para uno que no se ha visto. Producción recibe el titular tal cual, y así se mide todo.
+- **La semilla**: tres, cada una entrenada limpia y tal cual. Se elige la de mejor F1 entrenada limpia y medida con la entrada tal cual, la configuración de producción; en un empate, la menor. La entrenada tal cual sólo mide cuánto pesaba el atajo.
+- **Se queda si se cumplen las dos**: (a) su F1 en TA1C `test`, abierto una sola vez, es al menos 0,674, el del lineal (#231); y (b) con medios fuera supera al lineal medido igual. Sin mirar el ruido: el intervalo de las diferencias, por bootstrap emparejado como en #78, es sólo información.
+
+#### `validation`: la semilla 0
+
+TA1C `validation` (700 tuits, 29,4 % clickbait; votar siempre «clickbait» da 0,455). F1 de cada semilla, según cómo se entrenó y cómo entra el tuit:
+
+| Semilla | Limpia · tal cual (producción) | Limpia · limpia | Tal cual · tal cual | Tal cual · limpia |
+|---|---|---|---|---|
+| 0 | **0,803** (P 0,849 · R 0,762) | 0,806 | 0,802 | 0,794 |
+| 1 | 0,794 | 0,803 | 0,807 | 0,805 |
+| 2 | 0,792 | 0,789 | 0,813 | 0,818 |
+| *El lineal de producción (umbral 0,35)* | *0,609* (P 0,710 · R 0,534) | | | |
+
+- **La regla elige la semilla 0.** Las doce combinaciones van de 0,789 a 0,818, con AUC de 0,938 a 0,949; el lineal, 0,795.
+- **Limpiar casi no cambia nada aquí**: con la entrada tal cual, la media de las tres semillas es 0,796 entrenando limpio y 0,807 sin limpiar, una diferencia menor que la que hay de una semilla a otra. En `validation` están los mismos medios que en `train`, así que esto no mide todavía el riesgo de fuente.
+- Cada entrenamiento, entre 534 y 686 s en la GTX, con un pico de 2.144 a 2.214 MiB.
+- **Los pesos de cada semilla se guardan** (`var/dedicada_es/modelos/`): entrenar en la GPU no repite el modelo bit a bit, así que lo que se mide, y después se publica, es ese fichero, no una receta para rehacerlo.
+
+#### Medios fuera: la parte (b)
+
+Seis pliegues de tres medios sobre `train` y `validation` (2.800 tuits). En cada uno se entrenan BETO (la semilla 0, limpio) y el lineal (como en producción: Chakraborty, `train170331` y la parte de TA1C del pliegue) con los otros quince medios, y se miden en esos tres:
+
+| Pliegue: los medios fuera | Tuits | BETO | Lineal |
+|---|---|---|---|
+| 1: Clarín, El Comercio, El Universal México | 575 | 0,715 | 0,511 |
+| 2: infobae, El Tiempo, El País | 554 | 0,821 | 0,517 |
+| 3: El País Madrid, Diario Libre, La Prensa Gráfica | 445 | 0,750 | 0,537 |
+| 4: El Mundo, La Tercera, La Nación | 418 | 0,788 | 0,574 |
+| 5: Prensa Libre, El Comercio Perú, La Vanguardia | 409 | 0,892 | 0,701 |
+| 6: abc, El Universal Venezuela, BBC | 399 | 0,866 | 0,608 |
+| **Los seis juntos** | 2.800 | **0,808** (P 0,807 · R 0,808 · AUC 0,940) | **0,570** (P 0,643 · R 0,512 · AUC 0,762) |
+
+- **(b) se cumple**, y en los seis pliegues: +0,238, con un intervalo de [+0,207, +0,269].
+- **Con medios que no ha visto, BETO no cae**: 0,808, el mismo nivel que en `validation` (0,803). El lineal sí baja (de 0,609 a 0,570, y su AUC de 0,795 a 0,762). Es una lectura, no una medida del atajo: los dos conjuntos no son los mismos. Pero sugiere que BETO apenas se apoya en reconocer al medio, y el lineal algo más (#231 ya le vio pesos como `euvzla` o `diariolibre`).
+
+#### `test`, una vez: la parte (a), y se queda
+
+| TA1C `test` (700 tuits, 29,1 % clickbait) | P | R | F1 | AUC |
+|---|---|---|---|---|
+| BETO, semilla 0 | 0,899 | 0,784 | **0,838** | 0,951 |
+| El lineal de producción (umbral 0,35) | 0,756 | 0,608 | 0,674 | 0,848 |
+
+- **(a) se cumple**: 0,838 frente a 0,674, +0,164 con un intervalo de [+0,113, +0,217]. Con (b), **se queda**.
+- **Reproduce el 0,84 que publican los autores de TA1C**, aun entrenando sin cuentas, etiquetas ni nombres de medio.
+- Antes de medir, la paridad: en 30 titulares de `test`, el modelo guardado da en `dedicated.detect` la misma etiqueta que en el guion. Lo medido es la señal, y sus etiquetas (`Clickbait`, `Not Clickbait`) son las que `dedicated` ya traduce: no hay que configurarlas.
+- ⚠️ **TA1C `test` lleva ya tres aperturas**: el lineal (#231), el zero-shot (#232) y ésta, cada una con un modelo distinto y su regla publicada antes. Ninguno se ajustó mirándolo. `eval_dedicada_es test` no se puede reabrir: con su `test.json` delante, enseña lo guardado.
+
+**En CPU**, como producción (Ryzen 5 5600G, 6 hilos, 100 titulares de uno en uno): 0,076 s por titular de mediana y 0,103 s el p95, con 0,5 s de carga desde la carpeta local y la caché de disco caliente. Clasifica en una sola pasada; el zero-shot de #232 con un modelo de la misma base tardaba 0,16 s, porque evalúa una hipótesis por cada etiqueta.
+
+#### Publicado en el Hub, a nombre del autor
+
+- **La licencia.** La ficha de BETO en el Hub no declara ninguna, pero su repositorio (`dccuchile/beto`) trae un `LICENSE` CC BY 4.0, con un aviso: sus autores no pueden asegurar que todos los textos con que se entrenó sean compatibles con esa licencia, sobre todo para uso comercial. Un TFG no lo es. TA1C es MIT en su repositorio. El modelo se publica con CC BY 4.0, con la atribución a los dos, lo que se cambió y el aviso de BETO repetido.
+- **La parte `carpeta`** prepara en `var/dedicada_es/publicar/` los cuatro ficheros de la semilla 0, tal cual se midieron, y su ficha (`README.md`, en español). La ficha se escribe con las cifras de lo guardado, recalculadas, y la carpeta sólo se prepara si la regla se cumplió.
+- **Publicado como [`ggcastle/beto-clickbait-es`](https://huggingface.co/ggcastle/beto-clickbait-es)** (revisión `03c31ac0c288`), público, para que la imagen lo hornee sin token, como los demás modelos. Lo subió el autor con un token de escritura propio: el del `.env` es de lectura, y los secretos no pasan por el chat. Comprobado desde la API pública, sin token: los cinco ficheros, y los pesos con el mismo sha256 que la carpeta local (`5c82e831bcb6`). **Ningún proveedor lo sirve en remoto** (`inferenceProviderMapping` vacío), como a la dedicada inglesa: sólo vía local.
+- ⚠️ **El `hf` del `.venv` está roto**: con `huggingface_hub` 1.16.1 y su `typer`, cualquier orden falla al leer sus opciones (`AttributeError: 'Sentinel' object has no attribute 'strip'`), también `hf auth login`. Se subió con la API de Python (`HfApi(token=getpass(…)).upload_folder(…)`), que no guarda el token en disco. No se arregló: no hace falta para nada más.
+
+#### En el sistema
+
+- **La ficha en español de `detect_clickbait`**, en `model_cards.py`, con su `model_id`, sus medidas y sus límites, y las notas de operación (`torch`, sin vía remota). **Basta con ella**: la factoría la lee para decidir que la señal analiza el español y con qué modelo, y `hornear_modelos.py` la recorre como a las demás. Ni la factoría ni el `Dockerfile` cambian; la imagen lleva 439 MB más de pesos.
+- **Doce tests fijaban el estado de antes** —la dedicada sin español, o cuántas fichas hay— y se cambiaron con el visto bueno del autor; los que usaban la dedicada como ejemplo de señal sin español pasan al tono, que no lo tendrá hasta E (#233). *(Desde #233 lo tiene, y el ejemplo pasa a la incoherencia.)* Uno nuevo: la dedicada analiza el español por su ficha, con este modelo. 608 tests.
+- **Lo publicado es lo medido, también por el camino de producción**: `eval_ta1c --como-produccion`, que descarga el modelo del Hub por su id y pasa por el orquestador, da para la dedicada en `validation` exactamente lo de la carpeta local (0,803, P 0,849, R 0,762).
+
+#### El veredicto en español
+
+| TA1C `validation`, como producción | P | R | F1 |
+|---|---|---|---|
+| Antes, sólo con el lineal (#231) | 0,714 | 0,534 | 0,611 |
+| **Con la dedicada** | **0,938** | 0,515 | **0,665** |
+
+Sube, pero menos que la dedicada sola (0,803). En español la forma tiene ahora dos votos: cuando coinciden en «sí», el veredicto es `stylistic_clickbait`; cuando discrepan, la forma queda dividida y el veredicto es `ambiguous`, que no cuenta como clickbait. Es la regla de siempre —una dimensión dividida se enseña, no se resuelve a favor de una señal—, y no se ha tocado. `spikes/veredicto_es_discrepancias.py` mira qué hay dentro de cada veredicto:
+
+| Veredicto | Tuits | Clickbait según las personas |
+|---|---|---|
+| `factual` (los dos dicen «no») | 473 | 45 (9,5 %) |
+| `ambiguous` (discrepan) | 114 | 55 (48,2 %) |
+| `stylistic_clickbait` (los dos dicen «sí») | 113 | 106 (93,8 %) |
+
+- **Cuando discrepan, acierta la dedicada en 89 de 114.** Si dice «sí» y el lineal «no» (72 casos), acierta en 51; si es al revés (42), en 38.
+- Los ambiguos son, casi a partes iguales, clickbait y no clickbait (48,2 %): no esconden un sesgo, son la discrepancia entre una señal fuerte y otra débil, y el sistema la enseña. Dar más peso a la dedicada sería cambiar la regla del veredicto, también para el inglés: no se ha decidido.
+- El léxico y el tono votan en un tuit de 700, que el detector toma por inglés, como en #231.
+
+#### Lo que queda
+
+- **F (#234)**: fijar la revisión de los modelos horneados, éste incluido (`03c31ac0c288`); la RAM en la máquina 1 con un modelo más que precalentar; los docstrings que dicen «pensada para inglés», con las 26 consultas; y el despliegue. *(La revisión y los docstrings, hechos en la primera parte de #234: ver «El cierre de `v0.8`, primera parte». La RAM y el despliegue, en la segunda.)*
+- **Sin medir**: la independencia entre BETO y el lineal. Los dos aprendieron de TA1C, y si coinciden por la misma pista, su acuerdo no son dos pruebas.
+- **No está en producción**: la máquina 1 sirve `24e02ca`.
+
+| Condiciones | |
+|---|---|
+| Fecha | 2026-10-09, en hora de Madrid: `memoria` antes de las 11:34; `validation` de 11:34 a 12:37; `medios-fuera` de 12:38 a 13:38; `test` a las 13:45; `tiempo` a las 13:50; después, `carpeta` y la subida al Hub; `eval_ta1c` a las 14:13 y el desglose a las 14:17 |
+| Máquina | El PC de sobremesa del autor: WSL2 (Ubuntu 24.04.4), Python 3.12.3. Entrenar y medir, en la GeForce GTX 1650 SUPER (4.096 MiB, controlador 616.56, CUDA 13.0); `tiempo`, en la CPU (Ryzen 5 5600G, 6 hilos) |
+| Versiones | torch 2.12.1+cu130, transformers 5.12.0, scikit-learn 1.9.0, huggingface_hub 1.16.1 |
+| Modelos | Base: `dccuchile/bert-base-spanish-wwm-cased` `c4d86612f51b`. Publicado: `ggcastle/beto-clickbait-es` `03c31ac0c288` (pesos, sha256 `5c82e831bcb6`). El lineal, `linear_clickbait.json` de #231 (umbral 0,35) |
+| Código | `f4f9617` para `memoria`, `validation`, `medios-fuera`, `test` y `tiempo`; `27edb4f` para la ficha, `carpeta`, `eval_ta1c` (lanzado con ese código antes de commitearlo) y el desglose |
+| Guiones | `backend/evaluation/eval_dedicada_es.py` (`memoria`, `validation`, `medios-fuera`, `test`, `tiempo` y `carpeta`; sus cachés y los pesos, en `var/dedicada_es/`, locales y sin versionar), `backend/evaluation/eval_ta1c.py --como-produccion` y `spikes/veredicto_es_discrepancias.py` |
+
+### La incoherencia y el tono en español (#233, 9 oct 2026)
+
+La E de `v0.8`: dar español a las dos señales que quedaban, con modelos multilingües sólo para el español y sin tocar el inglés, como se decidió al definir el hito. **El tono, sí; la incoherencia, no**: medida con la regla publicada antes, la similitud entre titular y cuerpo no distingue el clickbait de TA1C.
+
+#### La incoherencia: la regla, antes de medir
+
+Se publicó en la issue con el guion ya commiteado (`334ba98`) y el modelo descargado, sin haber medido nada ([comentario](https://github.com/codeurjc-students/2026-ClickBaitAnalysis/issues/233#issuecomment-6081420747)):
+
+- **El modelo**: `sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2` (Apache-2.0), por el camino de producción: `IncoherenceDetector`, con el cuerpo recortado por `_lead`.
+- **Los datos**: los 2.784 pares titular–cuerpo de TA1C `train` y `validation` (los 16 restantes tienen el cuerpo vacío), con un 28,3 % de clickbait. **`test` no se abrió**: lleva tres aperturas (#231, #232 y #242), y la incoherencia no se entrena, así que no le hacía falta. La issue decía comprobar en `test`; se cambió antes de medir, con el visto bueno del autor.
+- **El método de #92**, con sus mismas funciones (`eval_incoherencia.py`): primero el AUC, sin cortar por ningún sitio; después el umbral, elegido en una mitad (semilla 24) con el criterio de #92 —el mayor recall con precisión ≥ 0,50— e informado en la otra.
+- **Aplica si** (a) el AUC es ≥ 0,60 y (b) algún umbral llega a precisión 0,50 en la mitad de elección. #92 sólo decía que un AUC cerca de 0,5 no vale; la cifra se fijó aquí.
+- La etiqueta es la de clickbait de TA1C, no una de engaño: la misma limitación que en #92.
+
+#### La medida: no se cumple ninguna de las dos
+
+| TA1C `train` + `validation` (2.784 pares) | |
+|---|---|
+| ROC-AUC | **0,594**, frente al 0,60 de la regla: (a) no se cumple |
+| PR-AUC | 0,331, con una base de 0,283 |
+| Algún umbral con precisión ≥ 0,50, en la mitad de elección | **ninguno**: (b) no se cumple. En los umbrales que imprime el guion (de 0,15 a 0,85, cada 0,05), la precisión no pasa de 0,371 |
+| El 0,3 del inglés, en la otra mitad | P 0,233 · R 0,018, marcando el 2,2 % |
+| El mejor F1 posible (u = 0,78), en la otra mitad | 0,454 (P 0,309 · R 0,853), marcando el 76,7 %: casi votar siempre «sí» |
+
+- **El resultado no depende del listón del AUC.** 0,594 queda justo debajo de 0,60, pero (b) falla con holgura: votando, la señal se equivocaría en casi dos de cada tres «sí». En inglés, #92 dio un AUC de 0,720 en Webis-17.
+- **El modelo lee 128 tokens** (el inglés, 256), y el 97,4 % de los cuerpos, aun recortados a 1.000 caracteres, los supera: compara el titular con poco más que el primer párrafo. Si leyendo más separaría mejor no está medido; en inglés, #92 midió que no cambiaba.
+- **Una hipótesis, sin medir**: en TA1C el clickbait es sobre todo de forma —un tuit que oculta el dato—, y el artículo habla de lo mismo, así que la similitud no lo distingue.
+
+**Decidido (autor): la incoherencia no analiza el español**, con un motivo medido en lugar del genérico «aún no lo analiza»: «la similitud con el artículo apenas distingue el clickbait (medido con TA1C)». No es una decisión como la del léxico (`_NO_ANALIZA`): con un modelo puesto por configuración (`NLP_MODELS_ES`) se sigue pudiendo probar como experimento (#230). El motivo vive en la factoría, en `_MOTIVOS_MEDIDOS`.
+
+**Titular y cuerpo en idiomas distintos**, que #230 había dejado para esta issue: se decidió compararlos sólo cuando están en el mismo idioma. Pero sin modelo en español por defecto ya no ocurre en ningún camino normal, sólo con uno puesto a mano, y hacerlo exige que la puerta del cuerpo reciba también el idioma del titular. **Se apuntó en #217** ([comentario](https://github.com/codeurjc-students/2026-ClickBaitAnalysis/issues/217#issuecomment-6087794838)).
+
+#### El tono: con licencia y tokenizador rápido
+
+El candidato de la issue se descartó antes de descargar nada, mirando las fichas del Hub:
+
+| Modelo | Pesos | Tokenizador rápido | Licencia |
+|---|---|---|---|
+| `cardiffnlp/twitter-xlm-roberta-base-sentiment` (el de la issue) | 1,11 GB | no: pide `sentencepiece` y `protobuf` | ninguna en el Hub; Apache-2.0 en su repositorio (XLM-T), con un aviso sobre los datos |
+| `cardiffnlp/twitter-xlm-roberta-base-sentiment-multilingual` | 1,11 GB | sí | ninguna en el Hub |
+| `pysentimiento/robertuito-sentiment-analysis` (sólo español) | 435 MB | sí | ninguna en el Hub |
+| **`lxyuan/distilbert-base-multilingual-cased-sentiments-student`** | **541 MB** | **sí** | **Apache-2.0** |
+
+- **Decidido (autor): el último.** Tiene la licencia declarada, que era un criterio de la issue, pesa la mitad y no trae dependencias nuevas: el primero habría metido `sentencepiece` y `protobuf` en `requirements.in` y en la imagen por una señal que no vota. Sus etiquetas son las del tono inglés (`positive`, `neutral`, `negative`), así que la pantalla no cambia.
+- **Lo que dice su ficha, y va a la nuestra**: es un DistilBERT multilingüe **destilado de un zero-shot** (`MoritzLaurer/mDeBERTa-v3-base-mnli-xnli`, con una plantilla en inglés), entrenado sobre un corpus multilingüe de sentimiento cuyas etiquetas humanas se ignoraron a propósito. Tampoco está entrenado en tuits ni en titulares.
+- **Sin evaluación propia**: TA1C no trae etiquetas de tono, y el tono no vota. Su ficha lo dice como un límite, no como un experimento: es el modelo declarado.
+- `hf-inference` lo sirve en remoto, pero desde el 7 oct la vía remota exige crédito (#236).
+
+#### En el sistema
+
+- **La ficha en español del tono**, en `model_cards.py`, y en la inglesa una línea que remite a ella. Basta con la ficha: la factoría y el horneado hacen el resto, como con la dedicada de #242. La imagen lleva unos 540 MB más.
+- **En la factoría**, `_MOTIVOS_MEDIDOS` con el motivo de la incoherencia, y los tres docstrings que remitían a esta issue: el umbral del español, los idiomas distintos y qué señales tienen modelo en español.
+- **Once tests fijaban el estado de antes** y se cambiaron con el visto bueno del autor: los que usaban el tono como señal sin ficha en español pasan a la incoherencia, y los que cuentan fichas o señales en español suman el tono. Hay dos nuevos: el tono analiza el español por su ficha, y la incoherencia da su motivo medido pero se puede configurar. Un duodécimo fallaba por una palabra: el motivo decía «con el cuerpo», y ese test comprueba que a un titular en español sin cuerpo se le da el motivo del idioma, no el de que falta el cuerpo. El mensaje pasó a «con el artículo», sin tocar el test. 608 tests.
+- **`eval_ta1c --como-produccion`** (TA1C `validation`): el tono responde en los 700 tuits, y **el veredicto no cambia**, porque el tono no vota: 0,665 (P 0,938, R 0,515), con el mismo reparto que en #242.
+
+#### Lo que queda
+
+- **F (#234)**: la RAM de la máquina 1 con un modelo más que precalentar, la revisión de los horneados (éste, `cf991100d706`), los docstrings y las 26 consultas, y el despliegue. *(La revisión y los docstrings, hechos en la primera parte de #234: ver «El cierre de `v0.8`, primera parte». La RAM y el despliegue, en la segunda.)*
+- **#217**: titular y cuerpo en idiomas distintos.
+- **Sin medir**: si la incoherencia en español separaría con otro modelo o leyendo más del artículo, y si el tono acierta en español.
+- **No está en producción**: la máquina 1 sirve `24e02ca`.
+
+| Condiciones | |
+|---|---|
+| Fecha | 2026-10-09, en hora de Madrid: `eval_incoherencia_es` a las 15:02, y `eval_ta1c` a las 21:26 |
+| Máquina | El PC de sobremesa del autor: WSL2 (Ubuntu 24.04.4), Python 3.12.3, en la GeForce GTX 1650 SUPER |
+| Versiones | sentence-transformers 5.6.0, transformers 5.12.0, torch 2.12.1+cu130 |
+| Modelos | Incoherencia: `sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2` `e8f8c211226b`. Tono: `lxyuan/distilbert-base-multilingual-cased-sentiments-student` `cf991100d706` |
+| Código | `334ba98` para `eval_incoherencia_es`; `eval_ta1c`, con la ficha del tono antes de commitearla (entra en esta PR) |
+| Guiones | `backend/evaluation/eval_incoherencia_es.py` (sus similitudes, en `var/incoherencia_es/`, locales y sin versionar) y `backend/evaluation/eval_ta1c.py --como-produccion` |
+
+### El cierre de `v0.8`, primera parte: el agente en inglés y español, y los modelos fijados por su revisión (#234, 10 oct 2026)
+
+La F de `v0.8`, la última. Esta primera parte deja el código listo para publicar: lo que el agente lee dice inglés y español, y cada modelo horneado queda fijado al commit de los pesos que se midieron. El despliegue con las claves de las noticias en español, la comprobación en producción, la memoria de la máquina 1 y la release `v0.8.0` van en una segunda PR, porque se hacen sobre lo ya mergeado.
+
+#### La revisión de cada modelo, fijada
+
+Desde #162 la imagen horneaba lo que hubiera en `main` de cada repositorio del Hub el día del build. Si un autor subía otros pesos, la siguiente construcción servía otro modelo con las medidas del anterior en su ficha. Se anotó entonces sin arreglar, porque fijarlo obligaba a decidir dónde vive el identificador sin duplicarlo.
+
+- **Decidido (autor): un campo `revision` en la ficha, junto a `model_id`, y publicado.** Las medidas de una ficha son de unos pesos concretos, y eso es lo que pide R3.9. Sale por `describe_models`, por el catálogo REST (`ToolModelCard.revision`, opcional en el contrato) y en la pantalla de Sistema, con los 12 primeros caracteres. Es `None` donde no hay modelo descargable (el léxico y el lineal), y en un modelo puesto por configuración, que no se fija; con el mismo id llamado de otra forma (#159) se conserva, porque los pesos son los mismos.
+- **Las revisiones fijadas son las que se midieron**: las tres del 16 de septiembre (#162), la de BETO que se publicó en #242 y la del tono en español de #233. El 9 de octubre, la API del Hub decía que `main` seguía en las cinco, así que fijarlas no cambia nada de lo servido.
+
+| Modelo | Revisión |
+|---|---|
+| `Stremie/roberta-base-clickbait` | `517de05db9ba` |
+| `cardiffnlp/twitter-roberta-base-sentiment-latest` | `3216a57f2a0d` |
+| `sentence-transformers/all-MiniLM-L6-v2` | `1110a243fdf4` |
+| `ggcastle/beto-clickbait-es` | `03c31ac0c288` |
+| `lxyuan/distilbert-base-multilingual-cased-sentiments-student` | `cf991100d706` |
+
+**Descargar un commit no basta, y se midió antes de construir nada encima.** Sin red, `transformers` y `sentence-transformers` piden el modelo por su nombre, y la caché lo resuelve leyendo `refs/main`, un fichero con el commit al que apunta `main`. `snapshot_download` sólo lo escribe cuando se le pide una rama, no un commit (leído en el código de `huggingface_hub` 1.16.1, `_cache_commit_hash_for_specific_revision`): la imagen se habría construido bien y los modelos habrían fallado al arrancar. `spikes/horneado_por_revision.py` lo comprueba sobre una copia de la caché de desarrollo, con enlaces duros y sin bajar pesos:
+
+| Fase | Resultado |
+|---|---|
+| Sin red y sin `refs/main` | fallan los cinco, con «falló por un motivo no previsto»: el fallo que daría la API al arrancar |
+| `hornear` en la copia | los cinco con `refs/main` en el commit fijado; sólo pidió metadatos al Hub |
+| Sin red, después | cargan los cinco y responden (Stremie `Clickbait` 0,950, BETO `Clickbait` 0,989, MiniLM similitud 0,107…) |
+
+Por eso `docker/hornear_modelos.py` descarga el commit de la ficha, escribe `refs/main` apuntando a él y comprueba con `try_to_load_from_cache` que la caché lo resuelve así; si no, el build se para y dice qué modelo. Y se niega a hornear un modelo cuya ficha no fije revisión. Un test exige que toda ficha con modelo la traiga entera (40 caracteres), que es como la caché nombra cada instantánea.
+
+- **Descartado: pasar la revisión a cada carga** (`local.py`, la incoherencia, la factoría). Fijaría también el desarrollo, no sólo la imagen, pero tocaba los detectores y sus cachés por un caso —que un autor cambie los pesos— que la imagen ya cubre.
+- En la caché de WSL, Stremie y cardiff tienen otra instantánea además de la fijada (`8fd96a0c19f2` y `d616e2bdfcdb`): la conversión a `safetensors` que vive en una PR del Hub (#162). Con `refs/main` escrito, la caché resuelve la fijada.
+- **Cambiar una revisión es cambiar de modelo**: sus medidas se repiten antes (#119).
+
+#### El agente: lo que lee, en inglés y español
+
+Lo que el modelo del agente lee de cada herramienta daba por hecho el inglés desde antes de `v0.8`, y desde #231 era falso: «Pensada para inglés» en el lineal, la dedicada y el tono, que ya analizan el español.
+
+- **Los docstrings de `nlp/tool.py`**: la dedicada, el lineal y el tono, «inglés y español», con el titular «(en inglés o en español)»; el léxico, «Sólo inglés: sus listas de pistas son inglesas»; la incoherencia, «Sólo en inglés, titular y cuerpo: en español la similitud apenas distingue el clickbait, y no se aplica». `describe_models` dice que devuelve una ficha por señal **e idioma**, y nombra `language`, `model_id` y `revision` entre sus campos. Y `analyze_headline`, que en español el léxico y la incoherencia no se aplican.
+- **Dos frases tocaban la frontera que #183 separó entre la dedicada y el lineal**, y se quedaron en su segunda variante (abajo). «Afinado… fuera de este proyecto», de la dedicada, ya no era cierto entero, porque BETO se afinó aquí (#242): queda «uno por idioma (el inglés, fuera de este proyecto)», y se conserva «sobre titulares anotados por personas», la frase que #159 midió que hacía falta. El lineal sigue siendo «el modelo entrenado en este proyecto»: lo es en lo que distingue, porque se entrenó aquí desde cero, y BETO se afinó sobre un modelo ya entrenado.
+- **El «Raises» de la dedicada y el tono**, que #236 dejó para F, decía «timeout o caída del proveedor»: sólo describe la vía remota, y desde que el defecto es local el modelo también puede fallar al cargarse.
+- **`05-llano`**, el prompt por defecto, decía «las herramientas están entrenadas con titulares de noticias en inglés». Ahora dice que analizan inglés y español y cuáles no se aplican en español. Se corrigió en su sitio y se midió con el examen de abajo: #78 dejó `03` y `04` como estaban porque cambiarlos exigía medirlos otra vez, y éste es el que usa el agente. El texto de antes queda en el guion que compara los dos.
+- **El catálogo del agente pasa de 12.677 a 13.215 caracteres** (`spikes/catalogo_peso.py`), con las mismas 14 herramientas; la primera variante, 13.043.
+
+#### El examen: las 26 consultas y ocho en español
+
+Cambiar lo que lee el modelo puede hacer que elija mal sin que ningún test lo vea (#159), así que se midió con la regla relativa de #78, publicada en la issue antes de medir ([comentario](https://github.com/codeurjc-students/2026-ClickBaitAnalysis/issues/234#issuecomment-6089425403)). La parte nueva de `spikes/agente_a40.py`, `cierre`:
+
+- **Compara dos catálogos.** `antes` es el de `v0.7.0`, el último examinado (#78): 12 herramientas, sus docstrings y el `05-llano` de entonces. Se reconstruye sobre el de ahora deshaciendo cada frase cambiada y escondiendo las dos herramientas de #235, y antes de gastar la sesión el guion comprueba que coincide, letra a letra, con lo que publicaba el tag. `nuevo` es el de esta rama. Así el examen cubre todo lo que cambió el catálogo desde la última vez, GNews y NewsData incluidas, que #235 dejó sin medir.
+- **En las condiciones de producción**: `05-llano`, `num_ctx` 16384, temperatura 0,6, `presence_penalty` 0, un tope de 1.500 tokens y razonando; hasta ahora el examen usaba `04-preciso`, 8192 y el muestreo del Modelfile, para medir lo mismo que #188. Cuatro pasadas de cada versión, intercaladas y en orden alterno, cortadas en la primera decisión.
+- **Las 26 de siempre y ocho en español, contadas aparte**: tres genéricas (una pide el análisis completo), lineal, caja negra, tono y dos de noticias en español. En español cuenta además si el titular llega a la herramienta tal cual: con «(en inglés)» en el docstring, el modelo podría traducirlo.
+- **Regla 1, la de #78, sobre las 26**: `nuevo` se queda si su total no baja más de 2 del de `antes`, y si ninguna consulta que `antes` acierta 4 de 4 la falla `nuevo` 4 de 4. **Regla 2, en español** sin las dos de noticias, que `antes` no puede acertar: `nuevo` no acierta menos que `antes`, y no traduce ningún titular.
+
+**Primera sesión: la regla 1 no se cumple, por una consulta.**
+
+| | `antes` (`v0.7.0`) | `nuevo` |
+|---|---|---|
+| Las 26, en cuatro pasadas | 100/104 | **97/104**: la regla pedía ≥ 98 |
+| En español, sin las de noticias | 11/24 | **24/24** |
+| Noticias en español | 0/8 | 8/8, todas a GNews |
+| Titulares que llegan cambiados a la herramienta | 0 | 0 |
+
+- **Lo tumba «Usa el modelo entrenado para puntuar 'Doctors Hate This One Trick'»**: de 4/4 a 2/4, y las dos veces a `detect_clickbait`. Es la frontera que #183 separó, y que tocaban las dos frases nuevas: la dedicada había perdido «fuera de este proyecto», y el lineal había pasado a «el modelo de pesos visibles entrenado en este proyecto». Además, «Explícame cómo funciona una regresión logística» bajó de 4/4 a 3/4 (una vez a `describe_models`).
+- ⚠️ **Con los textos de `v0.7.0`, un titular en español hace que el modelo se invente el análisis.** En 13 de las 24 consultas no llamó a ninguna herramienta, y **en 9 de ellas narró cifras y pistas que nada había devuelto** («el modelo de pesos da una probabilidad del 89 % de ser clickbait… el clasificador entrenado lo etiqueta como clickbait con una confianza del 81 %»); en las otras 4 se negó o preguntó si seguir. El prompt le decía que las herramientas estaban entrenadas con titulares en inglés y que avisara: avisaba, y después redactaba él el análisis. Es el modo de fallo de #188 y #192, por otra puerta. Con `nuevo`, 0 de 32 sin herramientas.
+- La cabecera de condiciones del JSON dice `04-preciso` y 8192: son las constantes de las partes viejas del guion, que la registran. `cierre` usó las de producción (`_config_produccion`, en `216c525`), y desde la segunda sesión las guarda en su propio registro.
+
+**Segunda variante, `v2`, elegida al ver los datos y declarada así en la issue** ([comentario](https://github.com/codeurjc-students/2026-ClickBaitAnalysis/issues/234#issuecomment-6090009972)), como en #159, con la misma regla y contra el mismo `antes`: el lineal vuelve a la frase de `v0.7.0`, la dedicada recupera «fuera de este proyecto» para el inglés, y entra el «Raises» (los tres, arriba).
+
+**Segunda sesión, con `v2`: cumple las dos reglas** (`cierre-234b.json`, commit `f758fb2`).
+
+| | `antes` (`v0.7.0`) | `nuevo` (`v2`) |
+|---|---|---|
+| Las 26, en cuatro pasadas | 101/104 | **99/104**: cumple, en el límite (≥ 99) |
+| En español, sin las de noticias | 9/24 | **23/24** |
+| Noticias en español | 0/8 | 8/8, todas a GNews |
+| Titulares que llegan cambiados a la herramienta | 0 | 0 |
+
+- «Usa el modelo entrenado…» vuelve a 4 de 4. De los cinco fallos de `nuevo`, cuatro son «¿Por qué es difícil detectar clickbait en español?», que pide `describe_models` (`antes` la falla tres de cuatro), y uno es «'Cure Found'…», que va a `analyze_headline`. En español falla una vez el lineal, también hacia `analyze_headline`.
+- En `antes`, otra vez: 15 de 24 sin herramientas, y 9 de ellas con el análisis inventado (5 se negaron y una salió vacía). Entre las dos sesiones, **18 de 48**.
+- Sin ser parte de la regla: `nuevo` decide antes, con una mediana de 6,1 s en la primera vuelta frente a 7,0 s, y un máximo de 16,2 s frente a 50,4 s.
+- **Se queda `v2`.** Los textos de las dos variantes van en los JSON (`versiones`), y el resumen de cada sesión se rehace sin GPU con `agente_a40.py --analisis-cierre`.
+
+**Las conversaciones completas en español**, cuatro por sesión con `nuevo`, leídas a mano y cotejadas con su traza (sin regla):
+
+- **Siete de ocho cuentan lo que devolvieron las herramientas**, con las cifras y las palabras de la traza, y cuando el titular se detecta como español dicen que el léxico y la incoherencia no se aplican. Las dos veces que se pidió analizar un titular sin cuerpo, el modelo pasó como cuerpo la cadena «None», y el análisis lo tomó como ausente (#197).
+- ⚠️ **Una se inventó el análisis.** En la segunda sesión, «Busca una noticia en español sobre el clima y dime si su titular es clickbait» trajo la noticia con `get_gnews_news` y narró un «clickbait estilístico» con pistas y una probabilidad sin llamar a ninguna señal, diciendo a la vez que en español el detector de pistas no se aplica. En la primera sesión, la misma consulta llamó a `analyze_headline` y lo contó bien. Es el fallo que #208 vio 1 vez de 40, aquí sin historial. Si la frase nueva del prompt, la que dice qué no se aplica en español, le da pie: sin medir.
+- En la primera sesión, «Cura milagrosa descubierta» se detectó como **inglés**: sin palabras funcionales ni tildes, los dos idiomas empatan, y el empate va al inglés (#229). La consulta era mala, y en la segunda se cambió por un titular con palabras funcionales.
+
+#### En el contrato y en la pantalla
+
+- **La descripción del titular de `AnalyzeRequest`** decía «hoy, sólo en inglés», falso desde #231. Ahora dice cuáles lo analizan en cada idioma, y el contrato se regeneró (junto con la revisión de las fichas).
+- **El aviso del asistente**, bajo el campo de la pregunta, decía que las herramientas están pensadas para titulares en inglés. Ahora, inglés y español.
+- **El formulario de análisis** gana un cuarto ejemplo, «en español», que #230 había dejado para F: desde #231 un titular en español recibe veredicto.
+- **Sistema** enseña la revisión de cada modelo junto a su id.
+
+#### R3.4: inglés y español
+
+`docs/requisitos.md` decía «EL NLP_Analyzer DEBERÁ admitir la entrada de texto en inglés», con el español pospuesto como mejora futura. Pasa a «en inglés y en español», con lo que no cubre dicho en la propia línea: el léxico no analiza el español por decisión (sus listas son de titulares en inglés), y la incoherencia, por medida (#233); un titular en otro idioma no recibe veredicto (#229).
+
+#### Lo que queda
+
+- **La segunda PR de F**, con `GNEWS_API_KEY` y `NEWSDATA_API_KEY` ya en el `.env` de la máquina 1 (las puso el autor el 9 oct): desplegar `dev` y comprobarlo en producción con `spikes/produccion_en_vivo.py`, que ya trae el español (las fichas con su revisión, las señales con un titular en español, un `/analyze` en español y las dos fuentes en español; probado contra la API local). Y medir allí el tamaño de la imagen y la memoria de la API y del MCP con los modelos de los dos idiomas, y el agente con una sesión corta de GPU. *(Hecho en la segunda parte, salvo el agente en producción: ver «El cierre de `v0.8`, segunda parte».)*
+- **La release `v0.8.0`** y el cierre del hito.
+- **La respuesta inventada con una noticia en español**, una de dos: se mirará en la sesión de GPU de la segunda PR, ya en producción. *(No se pudo: la máquina 2 tenía el driver de NVIDIA a medio actualizar; ver la segunda parte.)*
+- **No está en producción**: la máquina 1 sirve `24e02ca`. *(Desplegado el 10 oct, en `d54d2ba`: ver la segunda parte.)*
+
+Los tests pasan de 608 a 612 en el backend (los de la revisión), y los specs de 204 a 206 (Sistema y el ejemplo en español).
+
+| Condiciones | |
+|---|---|
+| Fecha | 9 y 10 oct 2026, en hora de Madrid: `horneado_por_revision.py` el 9 a las 22:38, repetido minutos después con la salida ordenada; la primera sesión del examen, de 23:18 a 23:56, y la segunda, de 00:03 a 00:41 |
+| Máquinas | El PC de sobremesa del autor (WSL2, Ubuntu 24.04.4, Python 3.12.3, GeForce GTX 1650 SUPER), que ejecuta las herramientas del examen; el modelo, en la A40 de la máquina 2, por un túnel SSH, con `gpu-sesion` `6ad6a751d636` |
+| Versiones | huggingface_hub 1.16.1, transformers 5.12.0, Ollama 0.34.2 |
+| Modelos | `qwen3.5:27b` `7653528ba5cb`; los horneados, en las revisiones de la tabla |
+| Código | `216c525` para la primera sesión y `f758fb2` para la segunda; `horneado_por_revision.py`, con el código que entró en `216c525` |
+| Guiones | `spikes/horneado_por_revision.py`; `spikes/agente_a40.py cierre`, lanzado con `spikes/agente_a40.sh` (datos en `spikes/agente_a40/cierre-234.json` y `cierre-234b.json`); `spikes/catalogo_peso.py` |
+
+### El cierre de `v0.8`, segunda parte: en producción (#234, 10 oct 2026)
+
+La segunda parte de F: desplegar `dev` con todo `v0.8`, comprobarlo en vivo y medir lo que cuesta en la máquina 1. El despliegue lo lanzó Claude a petición del autor, con la sesión fuera del modo automático, que bloquea los despliegues (#189).
+
+#### El despliegue
+
+- **Antes, la máquina 1 servía `24e02ca`, todo `v0.7.0`**, aunque el clon estaba en `541c5ef`: el autor lo había actualizado el 9 oct sin reconstruir. Se comprobó desde fuera: el contrato no tenía `language` y el catálogo daba 12 herramientas. Ese día puso también `GNEWS_API_KEY` y `NEWSDATA_API_KEY` en el `.env`, y se comprobó contándolas, sin leerlas.
+- **`git pull` hasta `d54d2ba` y `sudo docker compose up --build --wait`: 244 s**, con la capa de modelos rehecha (211 s en el despliegue de `v0.7`). El horneado salió por revisión, con los cinco modelos en el commit de su ficha, igual que en el CI de la PR #247. Los tres servicios, `healthy`.
+- **El precalentado de la API, 11,9 s en total**: la dedicada inglesa, 10,3 s —la primera en cargar paga también la de torch—, y las dos de español, 0,3 y 0,4 s. Fue recién construida la imagen, con los pesos seguramente en la caché de disco (sin comprobar). En frío de verdad, tras reiniciar la máquina, no se midió; #165 dio 19,1 s con tres modelos, y 6,6 s con la caché caliente.
+
+#### En vivo (`spikes/produccion_en_vivo.py`)
+
+- **Las 14 herramientas responden**, por la API pública y a través de Caddy. Las dos fuentes en español, GNews y NewsData.io, traen noticias con las claves nuevas, y el caso de #124 sigue en `ambiguous`.
+- **Cada ficha, con su revisión**, por idioma: los cinco modelos en los commits que se fijaron, y el léxico y el lineal como código propio.
+- **Con un titular en español**: la dedicada da `clickbait` (0,994), el lineal una probabilidad de 0,429 y el tono `negative` (0,514). El léxico y la incoherencia dicen por qué no lo analizan. Y un `/analyze` en español da `stylistic_clickbait`, con el idioma `es` y esas dos señales en `not_applicable`.
+- **El agente apagado se detecta** (R6.14): `GET /agent` dice `unreachable`, y `POST /chat` responde 503 con el mismo motivo.
+- La primera pasada dio Guardian en 429, y era el limitador de la propia API (10 peticiones por minuto y cliente en las rutas caras, #169), no Guardian. Con 14 herramientas y las peticiones en español, esperar una vez al `Retry-After` ya no bastaba: el guion reintenta ahora hasta tres veces, y la segunda pasada salió entera.
+
+#### Lo que cuesta en la máquina 1 (`spikes/memoria_maquina1.sh`)
+
+La memoria se lee de `/proc/1/status` dentro de cada contenedor, como en #164, porque `docker stats` no cuenta lo respaldado por ficheros. El MCP no precalienta, así que se midió después de `produccion_en_vivo.py`, que le hizo cargar los modelos de los dos idiomas.
+
+| | `v0.8` | Antes |
+|---|---|---|
+| Imagen del backend, en disco | **6,02 GB** | 4,13 GB (#162) |
+| Imagen web | 89 MB | 88,9 MB (#163) |
+| API, residente (privada + ficheros) | **1.813 MiB** (487 + 1.325) | 1.239 MiB (406 + 833), #164 |
+| MCP, con los modelos de los dos idiomas | **1.796 MiB** (474 + 1.322) | — |
+| La máquina | 2,5 GB en uso de 15,2; 13,1 GB disponibles | — |
+
+- **Cada proceso crece unos 574 MiB, casi todos respaldados por ficheros** (+492 MiB): son los pesos, que se leen del disco y se pueden compartir. La parte privada sube 81 MiB. Los 15 GB de la máquina sobran: entre los dos procesos, unos 3,5 GiB.
+- **La imagen crece 1,89 GB**, unas dos veces los ~980 MB de pesos nuevos, lo que cuadra con que containerd guarde cada capa comprimida y descomprimida (#162). Es una lectura: no se separó qué capa crece cuánto.
+
+#### El agente en producción: no se pudo
+
+La sesión corta de GPU que se decidió para ver el agente de `v0.8` en producción —`spikes/chat_maquina1.sh` con una parte nueva, `espanol`: una consulta genérica, la del léxico y tres veces la de la noticia en español que se inventó en el examen de la primera parte— **no se abrió**. En la máquina 2, `nvidia-smi` respondía «Failed to initialize NVML: Driver/library version mismatch», con la librería de NVIDIA ya en la 580.178: el driver se actualizó después de la segunda sesión del examen (00:41) y la máquina no se reinició. `gpu-sesion` tomó las líneas del error por procesos ajenos y, sin terminal, no abrió nada, como debía; al terminar no quedaba ningún Ollama propio ni ningún túnel. Reiniciarla le toca al administrador. Cuando vuelva:
+
+```bash
+CHAT_PARTE_ABIERTA=espanol bash spikes/chat_maquina1.sh
+```
+
+#### Lo que queda
+
+- **La release `v0.8.0`**: la PR `dev → main`, el tag, la release y el cierre de #234 y del hito. El criterio para etiquetar se cumple: las herramientas responden en vivo, y la disponibilidad del agente se detecta.
+- **El agente en producción**, cuando la máquina 2 se reinicie, con la noticia en español que se inventó una de dos veces en el examen.
+
+| Condiciones | |
+|---|---|
+| Fecha | 10 oct 2026, en hora de Madrid: el despliegue, de 07:26 a 07:30; `memoria_maquina1.sh` a las 07:33; el intento con `chat_maquina1.sh`, a las 07:35; y `produccion_en_vivo.py` a las 07:31 y, con los reintentos, a las 07:39 |
+| Máquina 1 | Ubuntu 24.04.4 LTS, Docker 29.8.1, Compose 5.5.1 |
+| Código servido | `d54d2ba` (`dev`, con la primera parte de #234) |
+| Modelos | Los horneados, en las revisiones de la primera parte |
+| Guiones | `spikes/produccion_en_vivo.py`, `spikes/memoria_maquina1.sh` y `spikes/chat_maquina1.sh` (`CHAT_PARTE_ABIERTA=espanol`) |
 
 
 

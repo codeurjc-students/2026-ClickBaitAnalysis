@@ -285,6 +285,7 @@ def _respuesta_analisis(headline="Un titular"):
     return AnalyzeResponse(
         headline=headline,
         content=None,
+        language="en",
         signals=[
             SignalResult(
                 name="detect_clickbait_lexical",
@@ -361,6 +362,22 @@ def test_la_entrada_guarda_la_respuesta_completa(analisis):
     assert payload["verdict"] == "stylistic_clickbait"
     assert payload["signals"][0]["name"] == "detect_clickbait_lexical"
     assert payload["signals"][0]["data"] == {"score": 2}
+
+
+def test_la_entrada_guarda_el_idioma_del_analisis(monkeypatch):
+    """La pantalla del historial lee de aquí el `lang` de cada titular (#229):
+    el idioma con el que el análisis decidió qué señales ejecutar, sin
+    recalcularlo."""
+
+    async def analyze_en_espanol(request):
+        respuesta = _respuesta_analisis(request.headline)
+        return respuesta.model_copy(update={"language": "es"})
+
+    monkeypatch.setattr(app_mod, "analyze", analyze_en_espanol)
+    client.post("/analyze", json={"headline": "No vas a creer lo que hizo"})
+
+    payload = client.get("/history").json()["items"][0]["payload"]
+    assert payload["language"] == "es"
 
 
 def test_una_ejecucion_suelta_guarda_su_titular(ejecucion):

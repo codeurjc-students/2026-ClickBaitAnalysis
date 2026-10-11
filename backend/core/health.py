@@ -11,6 +11,13 @@ Dos límites que el nombre no dice:
 - **Cada sondeo son tres peticiones externas reales**, con NYT limitado a 500
   al día. Por eso se cachea `health_cache_s` (#169), y por eso el healthcheck
   de compose no usa `/health` (#164).
+- **No sondea las fuentes en español, GNews y NewsData.io** (#235), a
+  propósito. GNews admite 100 peticiones al día: con la caché de 30 s, y una
+  caché por proceso (la API y el MCP), se pueden sondear hasta 240 veces por
+  hora, así que en menos de media hora de uso continuo se gastaría la cuota de
+  las noticias de verdad. NewsData.io tiene 200 créditos. Que falten no tumba
+  nada: sus claves son opcionales, y cada herramienta dice si no está
+  configurada o qué respondió su API.
 """
 
 import asyncio

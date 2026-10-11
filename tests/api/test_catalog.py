@@ -21,8 +21,9 @@ import pytest
 from backend.api import catalog
 from backend.api.schemas import ServerStatus
 from backend.config.settings import settings
+from backend.core.idioma import ESPANOL, INGLES
 from backend.core.mcp import session as mcp_session
-from backend.integrations.nlp.model_cards import cards_by_signal
+from backend.integrations.nlp.model_cards import fichas_en
 
 # El Host debe llevar puerto: la protección anti DNS-rebinding de FastMCP acepta
 # `127.0.0.1:*` y rechazaría con 421 un Host sin él.
@@ -71,7 +72,7 @@ async def test_el_catalogo_se_construye_por_handshake(monkeypatch, servidor_mcp)
     assert servidor.status == ServerStatus.OK
     # El nombre lo declara el propio servidor en el handshake, no la config.
     assert servidor.name == "tfg-mcp-server"
-    assert servidor.tool_count == len(resultado.tools) == 11
+    assert servidor.tool_count == len(resultado.tools) == 13
     assert not resultado.degraded
 
 
@@ -125,10 +126,11 @@ async def test_una_tool_del_nucleo_no_tiene_integracion(monkeypatch, servidor_mc
 async def test_las_senales_traen_su_ficha_de_modelo(monkeypatch, servidor_mcp):
     tools = await _tools(monkeypatch, servidor_mcp)
 
-    fichas = cards_by_signal()
+    fichas = fichas_en(INGLES)
 
-    ficha = tools["detect_clickbait_lexical"].model_card
-    assert ficha is not None
+    # Una sola, la inglesa: el léxico no analiza español (#230).
+    [ficha] = tools["detect_clickbait_lexical"].model_cards
+    assert ficha.language == INGLES
     assert ficha.type.value == "interpretable"
     assert ficha.dimension.value == "form"
     # Los límites medidos son lo que evita que el catálogo prometa de más.
@@ -152,13 +154,13 @@ async def test_el_catalogo_no_publica_las_notas_de_operacion(monkeypatch, servid
     pantalla de Sistema lo pinta tal cual."""
     tools = await _tools(monkeypatch, servidor_mcp)
     notas = {
-        nota for ficha in cards_by_signal().values() for nota in ficha["operation"]
+        nota for ficha in fichas_en(INGLES).values() for nota in ficha["operation"]
     }
     assert notas  # si no, el test no comprobaría nada
 
     for nombre, herramienta in tools.items():
-        if herramienta.model_card is not None:
-            assert notas.isdisjoint(herramienta.model_card.limitations), nombre
+        for ficha in herramienta.model_cards:
+            assert notas.isdisjoint(ficha.limitations), nombre
 
 
 @pytest.mark.asyncio
@@ -171,19 +173,45 @@ async def test_un_model_id_nulo_es_informacion_y_viaja(monkeypatch, servidor_mcp
     """
     tools = await _tools(monkeypatch, servidor_mcp)
 
-    lexico = tools["detect_clickbait_lexical"].model_card
-    dedicado = tools["detect_clickbait"].model_card
-    assert lexico is not None and dedicado is not None
+    [lexico] = tools["detect_clickbait_lexical"].model_cards
+    # Una ficha por idioma: la dedicada tiene modelo en español desde #242.
+    dedicado = {
+        ficha.language: ficha for ficha in tools["detect_clickbait"].model_cards
+    }
 
     assert lexico.model_id is None
-    assert dedicado.model_id == cards_by_signal()["detect_clickbait"]["model_id"]
+    assert (
+        dedicado[INGLES].model_id == fichas_en(INGLES)["detect_clickbait"]["model_id"]
+    )
+    assert (
+        dedicado[ESPANOL].model_id == fichas_en(ESPANOL)["detect_clickbait"]["model_id"]
+    )
+
+
+@pytest.mark.asyncio
+async def test_el_catalogo_publica_la_revision_de_la_ficha(monkeypatch, servidor_mcp):
+    """#234: el commit de los pesos sale también por el catálogo REST, que
+    construye su ficha campo a campo: si `catalog.py` no lo copiara, llegaría
+    `null` sin que nada fallara, y la pantalla de Sistema no lo enseñaría."""
+    tools = await _tools(monkeypatch, servidor_mcp)
+
+    publicadas = [
+        (nombre, ficha)
+        for nombre, herramienta in tools.items()
+        for ficha in herramienta.model_cards
+    ]
+    # Si ninguna trae revisión, el test no comprobaría nada.
+    assert any(ficha.revision for _, ficha in publicadas)
+    for nombre, ficha in publicadas:
+        declarada = fichas_en(ficha.language)[nombre]
+        assert ficha.revision == declarada["revision"], (nombre, ficha.language)
 
 
 @pytest.mark.asyncio
 async def test_solo_las_senales_traen_ficha(monkeypatch, servidor_mcp):
     tools = await _tools(monkeypatch, servidor_mcp)
 
-    con_ficha = {n for n, t in tools.items() if t.model_card is not None}
+    con_ficha = {n for n, t in tools.items() if t.model_cards}
     senales = {n for n, t in tools.items() if t.category == "Señales de análisis"}
 
     # La categoría predice si hay ficha: no es casualidad, es el criterio.
@@ -252,11 +280,33 @@ async def test_la_ficha_del_catalogo_es_la_del_modelo_QUE_SE_EJECUTA(
     monkeypatch.setattr(settings, "nlp_models", {"detect_clickbait": "otra/cosa"})
 
     tools = await _tools(monkeypatch, servidor_mcp)
-    dedicado = tools["detect_clickbait"].model_card
+    # `nlp_models` es la configuración del inglés: la ficha española no cambia.
+    dedicado = {
+        ficha.language: ficha for ficha in tools["detect_clickbait"].model_cards
+    }[INGLES]
 
-    assert dedicado is not None
     assert dedicado.model_id == "otra/cosa"
     assert len(dedicado.limitations) == 1
     assert "SIN EVALUAR" in dedicado.limitations[0]
     # Lo que describe a la señal y no al modelo se conserva: el hueco no cambia.
-    assert dedicado.dimension == cards_by_signal()["detect_clickbait"]["dimension"]
+    assert dedicado.dimension == fichas_en(INGLES)["detect_clickbait"]["dimension"]
+
+
+@pytest.mark.asyncio
+async def test_una_senal_trae_una_ficha_por_idioma(monkeypatch, servidor_mcp):
+    """#230: con un modelo en español puesto por configuración, la señal lo
+    analiza, y Sistema enseña sus dos fichas: la inglesa, como siempre, y la
+    española, «sin evaluar». Por la misma regla que la puerta y que
+    `describe_models`."""
+    monkeypatch.setattr(
+        settings, "nlp_models_es", {"detect_clickbait": "prueba/multilingue"}
+    )
+
+    tools = await _tools(monkeypatch, servidor_mcp)
+    inglesa, espanola = tools["detect_clickbait"].model_cards
+
+    assert (inglesa.language, espanola.language) == (INGLES, "es")
+    assert inglesa.model_id == fichas_en(INGLES)["detect_clickbait"]["model_id"]
+    assert espanola.model_id == "prueba/multilingue"
+    assert "SIN EVALUAR" in espanola.limitations[0]
+    assert len(tools["detect_clickbait_lexical"].model_cards) == 1

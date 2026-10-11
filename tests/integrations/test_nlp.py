@@ -14,7 +14,8 @@ from mcp.server.fastmcp.exceptions import ToolError
 from pydantic import ValidationError
 from structlog.testing import capture_logs
 
-from backend.config.settings import Settings, settings
+from backend.config.settings import ModeloConInvocacion, Settings, settings
+from backend.core.idioma import ESPANOL, INDETERMINADO, INGLES
 from backend.core.models import ToolResult
 from backend.integrations.nlp import dependencias, lexical, linear, model_cards
 from backend.integrations.nlp import tool as nlp_tool
@@ -25,6 +26,9 @@ from backend.integrations.nlp.factory import (
     get_nlp_backend,
     get_threshold,
     get_top_cues,
+    idiomas_de,
+    motivo_si_el_cuerpo_no_se_compara,
+    motivo_si_no_se_analiza,
 )
 from backend.integrations.nlp.incoherence import IncoherenceDetector
 from backend.integrations.nlp.local import LocalNLPClient
@@ -117,6 +121,41 @@ async def test_classify_http_error_propagates():
     assert not result.success
     assert "500" in result.error
     assert route.call_count == 1  # Solo se llama una vez (usar count en reintentos)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "llamar",
+    [
+        lambda cliente, modelo: cliente.classify("text", modelo),
+        lambda cliente, modelo: cliente.zero_shot(
+            "text", modelo, ["clickbait", "factual news"]
+        ),
+    ],
+    ids=["classify", "zero_shot"],
+)
+async def test_un_402_dice_que_falta_credito_sin_publicar_el_cuerpo(llamar):
+    """Hugging Face retiró el crédito gratuito el 7 oct 2026, y la vía remota
+    responde 402 en el tono (`classify`) y en BART (`zero_shot`). La tarjeta
+    decía «HTTP 402 Payment Required» a secas y la causa sólo quedaba en el log
+    (#236). El cuerpo del proveedor sigue sin publicarse (#89, #185)."""
+    modelo = "some/model"
+    cuerpo = {"error": f"You have no remaining credits. {MARCA_DEL_PROVEEDOR}"}
+    with respx.mock, capture_logs() as registrado:
+        respx.post(f"{MODELS_URL}{modelo}").mock(
+            return_value=Response(402, json=cuerpo)
+        )
+        result = await llamar(HFClient(), modelo)
+
+    assert not result.success
+    assert "HTTP 402" in result.error
+    assert "falta de crédito" in result.error
+    assert MARCA_DEL_PROVEEDOR not in result.error
+    assert "remaining credits" not in result.error
+    error_http = next(
+        linea for linea in registrado if linea["event"] == "api.error_http"
+    )
+    assert MARCA_DEL_PROVEEDOR in error_http["cuerpo"]
 
 
 # zero_shot
@@ -347,8 +386,21 @@ async def test_make_request_gives_up_after_max_retries():
 
 # No poner valores concretos ahora, ya haremos tests de valores, solo revisar que el fomrado del resultado es correcto
 
+# Los dos llaman a la Inference API de verdad, y desde el 7 oct 2026 necesitan
+# crédito: Hugging Face lo retiró de las cuentas gratuitas, y la del proyecto
+# recibe 402 (#236). Se saltan en vez de borrarse porque la vía remota se
+# conserva: con crédito vuelven a medir lo mismo. El estado de hoy lo da
+# `spikes/hf_credito.py`, que no cuenta como fallo de la suite.
+SIN_CREDITO_EN_HF = pytest.mark.skip(
+    reason=(
+        "Hugging Face retiró el crédito gratuito el 7 oct 2026 "
+        "(huggingface/hub-docs#2865): la cuenta del proyecto recibe 402 (#236)"
+    )
+)
+
 
 @pytest.mark.integration
+@SIN_CREDITO_EN_HF
 @pytest.mark.asyncio
 async def test_classify_real_contract():
     result = await HFClient().classify(
@@ -360,6 +412,7 @@ async def test_classify_real_contract():
 
 
 @pytest.mark.integration
+@SIN_CREDITO_EN_HF
 @pytest.mark.asyncio
 async def test_zero_shot_real_contract():
     result = await HFClient().zero_shot(
@@ -490,6 +543,17 @@ def test_lexical_acronym_no_false_positive():
     assert result.data["is_clickbait"] is False
 
 
+@pytest.mark.parametrize(
+    "titular",
+    ["ÚLTIMA hora: el Gobierno aprueba el decreto", "ESPAÑA gana el Mundial"],
+)
+def test_las_mayusculas_con_tilde_cuentan_como_mayusculas(titular):
+    # #231: con `[A-Z]` a secas, «ÚLTIMA» y «ESPAÑA» no contaban, porque la
+    # letra con tilde corta la secuencia y no deja frontera de palabra. Lo
+    # usan el léxico y los rasgos del lineal, que en español lo necesita.
+    assert lexical.PATTERNS["all_caps"].search(titular)
+
+
 # --Lineal Determinista!!! (Si cambia seed, cambia test)
 
 
@@ -544,7 +608,9 @@ def test_importar_la_senal_lineal_no_lee_los_pesos(monkeypatch):
 def test_model_cards_wellformed():
     required = {
         "signal",
+        "language",
         "model_id",
+        "revision",
         "name",
         "task",
         "type",
@@ -557,6 +623,8 @@ def test_model_cards_wellformed():
     assert isinstance(model_cards.MODEL_CARDS, list) and model_cards.MODEL_CARDS
     for card in model_cards.MODEL_CARDS:
         assert required <= card.keys()
+        # Una ficha es de un idioma que se analiza, nunca de «otro» (#230).
+        assert card["language"] in {INGLES, ESPANOL}
         assert card["type"] in valid_types
         assert card["dimension"] in valid_dimensions
         assert isinstance(card["limitations"], list) and card["limitations"]
@@ -567,7 +635,7 @@ def test_las_notas_de_operacion_van_aparte_de_los_limites():
     se sirve es de quien la opera. Las tres notas se movieron, no se borraron:
     siguen junto al modelo al que se refieren, para que si cambia se vea en el
     mismo sitio."""
-    fichas = model_cards.cards_by_signal()
+    fichas = model_cards.fichas_en(INGLES)
     for ficha in model_cards.MODEL_CARDS:
         assert isinstance(ficha["operation"], list), ficha["signal"]
         assert set(ficha["operation"]).isdisjoint(ficha["limitations"]), ficha["signal"]
@@ -587,9 +655,9 @@ def test_la_ficha_efectiva_no_publica_las_notas_de_operacion(monkeypatch):
     """`ficha_efectiva` es la única puerta entre lo declarado y lo publicado: por
     ella salen `describe_models`, el catálogo y el orquestador. Con el modelo de
     la ficha y con otro puesto por configuración."""
-    assert "operation" not in ficha_efectiva("detect_clickbait")
+    assert "operation" not in ficha_efectiva("detect_clickbait", INGLES)
     monkeypatch.setattr(settings, "nlp_models", {"detect_clickbait": "otra/cosa"})
-    assert "operation" not in ficha_efectiva("detect_clickbait")
+    assert "operation" not in ficha_efectiva("detect_clickbait", INGLES)
 
 
 def _sin_notas_de_operacion(ficha):
@@ -608,6 +676,49 @@ def test_model_id_es_id_de_maquina_o_None():
         assert isinstance(model_id, str) and model_id.strip()
         assert "/" in model_id, f"{card['signal']}: «{model_id}» no parece un id"
         assert model_id == model_id.strip()
+
+
+def test_cada_modelo_descargable_fija_su_revision():
+    """#234: la imagen hornea el commit de la ficha, no lo que haya en `main` el
+    día del build, y `hornear_modelos.py` se niega a hornear un modelo sin él.
+    Entero: la caché nombra cada instantánea por el hash completo, y `refs/main`
+    tiene que decir ése. Sin modelo descargable, `None`, como `model_id`."""
+    for ficha in model_cards.MODEL_CARDS:
+        revision = ficha["revision"]
+        if ficha["model_id"] is None:
+            assert revision is None, ficha["signal"]
+            continue
+        assert isinstance(revision, str), ficha["signal"]
+        assert len(revision) == 40, ficha["signal"]
+        assert set(revision) <= set("0123456789abcdef"), ficha["signal"]
+
+
+def test_otro_modelo_por_configuracion_no_publica_la_revision(monkeypatch):
+    """Un modelo puesto por configuración no se fija ni se hornea: publicar la
+    revisión de la ficha sería atarle unos pesos que no son los suyos."""
+    monkeypatch.setattr(settings, "nlp_models", {"detect_clickbait": "otra/cosa"})
+
+    assert ficha_efectiva("detect_clickbait", INGLES)["revision"] is None
+
+
+def test_el_mismo_modelo_llamado_de_otra_forma_conserva_la_revision(monkeypatch):
+    """Como zero-shot (#159) el modelo es otro experimento, pero los pesos son
+    los mismos: las medidas no se publican, y la revisión sí."""
+    declarada = model_cards.fichas_en(INGLES)["detect_clickbait"]
+    monkeypatch.setattr(
+        settings,
+        "nlp_models",
+        {
+            "detect_clickbait": ModeloConInvocacion(
+                id=declarada["model_id"], task="zero-shot-classification"
+            )
+        },
+    )
+
+    ficha = ficha_efectiva("detect_clickbait", INGLES)
+
+    assert "SIN EVALUAR" in ficha["limitations"][0]
+    assert ficha["revision"] == declarada["revision"]
 
 
 @pytest.mark.asyncio
@@ -631,7 +742,7 @@ async def test_las_dos_fachadas_usan_el_id_de_la_ficha(monkeypatch):
     from backend.analysis import orchestrator
     from backend.core.models import ToolResult
 
-    fichas = model_cards.cards_by_signal()
+    fichas = model_cards.fichas_en(INGLES)
 
     class _Espia:
         """Registra CADA llamada, no la última por método.
@@ -667,11 +778,11 @@ async def test_las_dos_fachadas_usan_el_id_de_la_ficha(monkeypatch):
     # --- fachada REST ---
     espia_rest = _Espia()
     monkeypatch.setattr(orchestrator, "get_nlp_backend", lambda: espia_rest)
-    await orchestrator._run_signals("Un titular", None)
+    await orchestrator._run_signals("Un titular", None, INGLES, None)
 
     esperado = {
-        get_model_id("detect_clickbait"),
-        get_model_id("analyze_sentiment"),
+        get_model_id("detect_clickbait", INGLES),
+        get_model_id("analyze_sentiment", INGLES),
     }
     assert set(espia_mcp.llamadas) == esperado, "la tool MCP no usa el id de la ficha"
     assert len(espia_mcp.llamadas) == 2, "alguna señal no llamó al backend"
@@ -688,8 +799,8 @@ async def test_las_dos_fachadas_usan_el_id_de_la_ficha(monkeypatch):
     # constante de clase: desde #119 el id puede venir de la configuración, y la
     # constante sólo es el defecto.
     assert (
-        get_incoherence_detector().model_id
-        == get_model_id("detect_clickbait_incoherence")
+        get_incoherence_detector(INGLES).model_id
+        == get_model_id("detect_clickbait_incoherence", INGLES)
         == fichas["detect_clickbait_incoherence"]["model_id"]
     )
 
@@ -718,7 +829,9 @@ async def test_la_incoherencia_sin_cuerpo_se_niega_en_vez_de_medir(
                 }
             )
 
-    monkeypatch.setattr(nlp_tool, "get_incoherence_detector", lambda: _Detector())
+    monkeypatch.setattr(
+        nlp_tool, "get_incoherence_detector", lambda idioma: _Detector()
+    )
     mcp = FastMCP("test")
     nlp_tool.register(mcp)
 
@@ -750,6 +863,48 @@ async def test_model_cards_signals_match_registered_tools():
 
     carded = {card["signal"] for card in model_cards.MODEL_CARDS}
     assert carded <= registered, f"fichas sin tool: {carded - registered}"
+
+
+def test_cada_senal_tiene_ficha_en_ingles_y_el_hueco_no_cambia_con_el_idioma():
+    """#230: una ficha por señal e idioma. Toda señal tiene la inglesa; una
+    segunda en el mismo idioma pisaría a la primera en el índice sin fallar; y
+    la dimensión y el tipo describen el hueco, no al modelo: el veredicto agrega
+    por dimensión, y una señal no puede medir otra cosa según el idioma."""
+    claves = [(card["signal"], card["language"]) for card in model_cards.MODEL_CARDS]
+    assert len(claves) == len(set(claves)), "una señal con dos fichas en un idioma"
+
+    inglesas = model_cards.fichas_en(INGLES)
+    for card in model_cards.MODEL_CARDS:
+        inglesa = inglesas.get(card["signal"])
+        assert inglesa is not None, f"{card['signal']} no tiene ficha en inglés"
+        assert card["dimension"] == inglesa["dimension"], card["signal"]
+        assert card["type"] == inglesa["type"], card["signal"]
+
+
+def test_la_ficha_y_el_modelo_se_piden_por_idioma(monkeypatch):
+    """Hoy tienen ficha en español el lineal (#231), la dedicada (#242) y el
+    tono (#233); la incoherencia, no. Con una de prueba, cada idioma da la suya
+    y el modelo inglés no se cuela en español."""
+    senal = "detect_clickbait_incoherence"
+    assert model_cards.ficha_declarada(senal, ESPANOL) is None
+    with pytest.raises(ValueError, match="no tiene ficha en español"):
+        model_cards.model_id_de(senal, ESPANOL)
+
+    inglesa = model_cards.ficha_declarada(senal, INGLES)
+    assert inglesa is not None
+    espanola = {**inglesa, "language": ESPANOL, "model_id": "prueba/multilingue"}
+    monkeypatch.setattr(
+        model_cards, "MODEL_CARDS", [*model_cards.MODEL_CARDS, espanola]
+    )
+
+    assert model_cards.model_id_de(senal, ESPANOL) == "prueba/multilingue"
+    assert model_cards.model_id_de(senal, INGLES) == inglesa["model_id"]
+    assert set(model_cards.fichas_en(ESPANOL)) == {
+        "detect_clickbait",
+        "detect_clickbait_linear",
+        "analyze_sentiment",
+        senal,
+    }
 
 
 # --Dependencias que la instalación de producción no trae
@@ -915,7 +1070,7 @@ def test_si_falta_un_modelo_declarado_sigue_siendo_una_averia(monkeypatch):
     """Los declarados se hornean en la imagen: si uno falta, está mal construida,
     y eso sí debe seguir diciéndose como fallo."""
     _descarga_desactivada(monkeypatch)
-    declarado = model_cards.cards_by_signal()["detect_clickbait"]["model_id"]
+    declarado = model_cards.fichas_en(INGLES)["detect_clickbait"]["model_id"]
     assert declarado is not None
 
     assert dependencias.motivo_si_falta_modelo(declarado, _no_descargable()) is None
@@ -962,17 +1117,17 @@ async def test_la_incoherencia_explica_el_modelo_sin_descargar(monkeypatch):
 
 
 def test_sin_configuracion_el_modelo_es_el_de_la_ficha():
-    esperado = model_cards.cards_by_signal()["detect_clickbait"]["model_id"]
-    assert get_model_id("detect_clickbait") == esperado
+    esperado = model_cards.fichas_en(INGLES)["detect_clickbait"]["model_id"]
+    assert get_model_id("detect_clickbait", INGLES) == esperado
 
 
 def test_la_configuracion_manda_sobre_la_ficha(monkeypatch):
     monkeypatch.setattr(settings, "nlp_models", {"detect_clickbait": "otra/cosa"})
 
-    assert get_model_id("detect_clickbait") == "otra/cosa"
+    assert get_model_id("detect_clickbait", INGLES) == "otra/cosa"
     # Sólo la señal configurada: las demás siguen con su ficha.
-    esperado = model_cards.cards_by_signal()["analyze_sentiment"]["model_id"]
-    assert get_model_id("analyze_sentiment") == esperado
+    esperado = model_cards.fichas_en(INGLES)["analyze_sentiment"]["model_id"]
+    assert get_model_id("analyze_sentiment", INGLES) == esperado
 
 
 def test_el_id_se_resuelve_en_cada_llamada_no_al_importar(monkeypatch):
@@ -982,10 +1137,10 @@ def test_el_id_se_resuelve_en_cada_llamada_no_al_importar(monkeypatch):
     `_SENTIMENT_MODEL` en el orquestador—, así que el valor quedaba fijado en el
     primer import y ninguna configuración posterior lo movía.
     """
-    antes = get_model_id("analyze_sentiment")
+    antes = get_model_id("analyze_sentiment", INGLES)
     monkeypatch.setattr(settings, "nlp_models", {"analyze_sentiment": "otro/tono"})
 
-    assert get_model_id("analyze_sentiment") == "otro/tono" != antes
+    assert get_model_id("analyze_sentiment", INGLES) == "otro/tono" != antes
 
 
 def test_el_backend_respeta_un_cambio_de_configuracion(monkeypatch):
@@ -1010,8 +1165,8 @@ def test_el_backend_se_reutiliza_dentro_de_la_misma_configuracion(monkeypatch):
 
 def test_la_ficha_sin_configurar_no_cambia():
     # Salvo las notas de operación, que no se publican nunca (#211).
-    assert ficha_efectiva("detect_clickbait") == _sin_notas_de_operacion(
-        model_cards.cards_by_signal()["detect_clickbait"]
+    assert ficha_efectiva("detect_clickbait", INGLES) == _sin_notas_de_operacion(
+        model_cards.fichas_en(INGLES)["detect_clickbait"]
     )
 
 
@@ -1020,9 +1175,9 @@ def test_la_ficha_efectiva_publica_el_modelo_que_se_ejecuta(monkeypatch):
     modelo, una divulgada y otra ejecutada, divergiendo sin que nada falle."""
     monkeypatch.setattr(settings, "nlp_models", {"detect_clickbait": "otra/cosa"})
 
-    ficha = ficha_efectiva("detect_clickbait")
+    ficha = ficha_efectiva("detect_clickbait", INGLES)
 
-    assert ficha["model_id"] == "otra/cosa" == get_model_id("detect_clickbait")
+    assert ficha["model_id"] == "otra/cosa" == get_model_id("detect_clickbait", INGLES)
 
 
 def test_al_configurar_otro_modelo_las_medidas_dejan_de_publicarse(monkeypatch):
@@ -1030,10 +1185,10 @@ def test_al_configurar_otro_modelo_las_medidas_dejan_de_publicarse(monkeypatch):
     a issue (#109, #115, #121). Heredarlas sería divulgar como propias unas
     medidas ajenas — y su ausencia es información: dice que esto es un
     experimento, no una señal caracterizada."""
-    declarada = model_cards.cards_by_signal()["detect_clickbait"]
+    declarada = model_cards.fichas_en(INGLES)["detect_clickbait"]
     monkeypatch.setattr(settings, "nlp_models", {"detect_clickbait": "otra/cosa"})
 
-    ficha = ficha_efectiva("detect_clickbait")
+    ficha = ficha_efectiva("detect_clickbait", INGLES)
 
     assert len(ficha["limitations"]) == 1
     assert "SIN EVALUAR" in ficha["limitations"][0]
@@ -1048,12 +1203,14 @@ def test_al_configurar_otro_modelo_las_medidas_dejan_de_publicarse(monkeypatch):
 def test_configurar_el_mismo_id_que_la_ficha_no_borra_las_medidas(monkeypatch):
     """Poner explícitamente el modelo que ya estaba no es sustituirlo, así que
     las medidas siguen siendo suyas."""
-    declarada = model_cards.cards_by_signal()["detect_clickbait"]
+    declarada = model_cards.fichas_en(INGLES)["detect_clickbait"]
     monkeypatch.setattr(
         settings, "nlp_models", {"detect_clickbait": declarada["model_id"]}
     )
 
-    assert ficha_efectiva("detect_clickbait") == _sin_notas_de_operacion(declarada)
+    assert ficha_efectiva("detect_clickbait", INGLES) == _sin_notas_de_operacion(
+        declarada
+    )
 
 
 # --Umbrales configurables (#93)
@@ -1107,12 +1264,13 @@ def test_el_tope_del_lineal_recorta_la_explicacion_no_la_decision():
 def test_sin_configuracion_cada_umbral_es_el_de_su_detector():
     """El defecto vive en un solo sitio, el detector, que es donde está escrito
     por qué vale lo que vale (E4-03, #92)."""
-    assert get_threshold("detect_clickbait_lexical") == lexical.THRESHOLD
+    assert get_threshold("detect_clickbait_lexical", INGLES) == lexical.THRESHOLD
     assert (
-        get_threshold("detect_clickbait_incoherence") == IncoherenceDetector.THRESHOLD
+        get_threshold("detect_clickbait_incoherence", INGLES)
+        == IncoherenceDetector.THRESHOLD
     )
     assert get_top_cues() == linear.TOP_CUES
-    assert get_incoherence_detector().threshold == IncoherenceDetector.THRESHOLD
+    assert get_incoherence_detector(INGLES).threshold == IncoherenceDetector.THRESHOLD
 
 
 def test_el_umbral_se_resuelve_en_cada_llamada_no_al_importar(monkeypatch):
@@ -1123,17 +1281,17 @@ def test_el_umbral_se_resuelve_en_cada_llamada_no_al_importar(monkeypatch):
     )
     monkeypatch.setattr(settings, "nlp_linear_top_cues", 3)
 
-    assert get_threshold("detect_clickbait_incoherence") == 0.5
+    assert get_threshold("detect_clickbait_incoherence", INGLES) == 0.5
     assert get_top_cues() == 3
     # La otra señal, con el suyo.
-    assert get_threshold("detect_clickbait_lexical") == lexical.THRESHOLD
+    assert get_threshold("detect_clickbait_lexical", INGLES) == lexical.THRESHOLD
 
-    detector = get_incoherence_detector()
+    detector = get_incoherence_detector(INGLES)
     assert detector.threshold == 0.5
     # Sólo cambia el corte: el modelo es el mismo, y el detector se reutiliza
     # mientras la configuración no cambie (#119).
-    assert detector.model_id == get_model_id("detect_clickbait_incoherence")
-    assert get_incoherence_detector() is detector
+    assert detector.model_id == get_model_id("detect_clickbait_incoherence", INGLES)
+    assert get_incoherence_detector(INGLES) is detector
 
 
 @pytest.mark.asyncio
@@ -1147,13 +1305,13 @@ async def test_el_analisis_decide_con_el_umbral_configurado(monkeypatch):
     senales = {senal.name: senal for senal in orchestrator._SIGNALS}
 
     lexica = await orchestrator._run_one(
-        senales["detect_clickbait_lexical"], UNA_PISTA, None
+        senales["detect_clickbait_lexical"], UNA_PISTA, None, INGLES
     )
     assert lexica.is_clickbait is False
     assert lexica.data is not None and lexica.data["threshold"] == 2
 
     lineal = await orchestrator._run_one(
-        senales["detect_clickbait_linear"], VARIAS_PISTAS, None
+        senales["detect_clickbait_linear"], VARIAS_PISTAS, None, INGLES
     )
     assert lineal.data is not None and len(lineal.data["top_cues"]) == 1
 
@@ -1162,10 +1320,10 @@ def test_con_otro_umbral_la_ficha_lo_avisa_sin_quitar_las_medidas(monkeypatch):
     """Al revés que con otro modelo (#119), las medidas se quedan: el modelo es
     el mismo, y límites como «sólo inglés» siguen siendo ciertos. Lo que deja
     de valer son las cifras, medidas con el umbral por defecto, y eso se avisa."""
-    declarada = model_cards.cards_by_signal()["detect_clickbait_lexical"]
+    declarada = model_cards.fichas_en(INGLES)["detect_clickbait_lexical"]
     monkeypatch.setattr(settings, "nlp_thresholds", {"detect_clickbait_lexical": 2})
 
-    aviso, *medidas = ficha_efectiva("detect_clickbait_lexical")["limitations"]
+    aviso, *medidas = ficha_efectiva("detect_clickbait_lexical", INGLES)["limitations"]
 
     assert "UMBRAL PUESTO POR CONFIGURACIÓN" in aviso
     assert "2 en lugar de 1" in aviso
@@ -1174,16 +1332,16 @@ def test_con_otro_umbral_la_ficha_lo_avisa_sin_quitar_las_medidas(monkeypatch):
 
 def test_el_umbral_por_defecto_puesto_a_mano_no_avisa(monkeypatch):
     """Poner el umbral que ya estaba no es cambiarlo, como con el modelo."""
-    declarada = model_cards.cards_by_signal()["detect_clickbait_incoherence"]
+    declarada = model_cards.fichas_en(INGLES)["detect_clickbait_incoherence"]
     monkeypatch.setattr(
         settings,
         "nlp_thresholds",
         {"detect_clickbait_incoherence": IncoherenceDetector.THRESHOLD},
     )
 
-    assert ficha_efectiva("detect_clickbait_incoherence") == _sin_notas_de_operacion(
-        declarada
-    )
+    assert ficha_efectiva(
+        "detect_clickbait_incoherence", INGLES
+    ) == _sin_notas_de_operacion(declarada)
 
 
 def test_los_umbrales_se_leen_del_entorno_como_json(monkeypatch):
@@ -1222,3 +1380,390 @@ def test_el_umbral_lexico_cuenta_pistas_enteras(umbral):
 def test_el_tope_del_lineal_no_baja_de_una_pista():
     with pytest.raises(ValidationError):
         Settings(nlp_linear_top_cues=0, **_CLAVES)
+
+
+# --El idioma: una señal suelta no analiza lo que no está en inglés (#229)
+
+TITULAR_EN_ESPANOL = (
+    "No vas a creer lo que hizo este perro cuando su dueño volvió a casa"
+)
+TITULAR_EN_INGLES = "You Won't Believe What This Dog Did When His Owner Came Home"
+SENALES_SUELTAS = [
+    "detect_clickbait",
+    "analyze_sentiment",
+    "detect_clickbait_incoherence",
+    "detect_clickbait_lexical",
+    "detect_clickbait_linear",
+]
+# Las que analizan el español por su ficha: el lineal, bilingüe desde #231, la
+# dedicada, con su modelo en español desde #242, y el tono, desde #233.
+ANALIZAN_ESPANOL = {"detect_clickbait_linear", "detect_clickbait", "analyze_sentiment"}
+SIN_ESPANOL = [senal for senal in SENALES_SUELTAS if senal not in ANALIZAN_ESPANOL]
+
+
+def _argumentos(senal: str, titular: str) -> dict[str, str]:
+    """Lo que recibe cada señal: la de tono llama `text` a su texto, y la de
+    incoherencia necesita además un cuerpo."""
+    if senal == "analyze_sentiment":
+        return {"text": titular}
+    if senal == "detect_clickbait_incoherence":
+        return {"headline": titular, "content": "The dog was waiting at the door."}
+    return {"headline": titular}
+
+
+@pytest.fixture
+def detectores(monkeypatch):
+    """Sustituye lo que ejecuta cada señal por un doble que apunta a cuál llegó
+    la llamada y devuelve un resultado con la forma del real. La fixture
+    devuelve esa lista de llamadas."""
+    llamadas = []
+
+    async def dedicada(backend, headline, model_id, task, labels):
+        llamadas.append("detect_clickbait")
+        return ToolResult.ok({"label": "clickbait", "score": 0.9})
+
+    class _Backend:
+        async def classify(self, text, model):
+            llamadas.append("analyze_sentiment")
+            return ToolResult.ok({"label": "neutral", "score": 0.6})
+
+    class _Incoherencia:
+        async def detect(self, headline, content):
+            llamadas.append("detect_clickbait_incoherence")
+            return ToolResult.ok(
+                {
+                    "similarity": 0.8,
+                    "incoherent": False,
+                    "threshold": 0.3,
+                    "headline": headline,
+                    "content": content,
+                }
+            )
+
+    def lexica(headline, threshold):
+        llamadas.append("detect_clickbait_lexical")
+        return ToolResult.ok(
+            {
+                "score": 0,
+                "is_clickbait": False,
+                "threshold": threshold,
+                "matches": [],
+                "headline": headline,
+            }
+        )
+
+    def lineal(headline, top_cues):
+        llamadas.append("detect_clickbait_linear")
+        return ToolResult.ok(
+            {
+                "is_clickbait": False,
+                "probability": 0.2,
+                "threshold": 0.35,
+                "top_cues": [],
+                "headline": headline,
+            }
+        )
+
+    monkeypatch.setattr(nlp_tool.dedicated, "detect", dedicada)
+    monkeypatch.setattr(nlp_tool, "get_nlp_backend", lambda: _Backend())
+    monkeypatch.setattr(
+        nlp_tool, "get_incoherence_detector", lambda idioma: _Incoherencia()
+    )
+    monkeypatch.setattr(lexical, "detect", lexica)
+    monkeypatch.setattr(linear, "predict", lineal)
+    return llamadas
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("senal", SIN_ESPANOL)
+async def test_una_senal_suelta_no_analiza_un_titular_en_espanol(detectores, senal):
+    """La puerta de `_run_signals`, por la otra fachada: el agente y Sistema
+    llaman a cada señal suelta, y hasta #229 un titular en español recibía un
+    veredicto sin aviso. Ahora se niega con la misma frase que la tarjeta del
+    análisis —desde #230, la de esa señal—, y el detector no llega a
+    ejecutarse."""
+    mcp = FastMCP("test")
+    nlp_tool.register(mcp)
+
+    # `capture_logs`: el rechazo se registra como cualquier fallo de una
+    # herramienta, con su traza.
+    with capture_logs(), pytest.raises(ToolError) as rechazo:
+        await mcp.call_tool(senal, _argumentos(senal, TITULAR_EN_ESPANOL))
+
+    motivo = motivo_si_no_se_analiza(senal, ESPANOL)
+    assert motivo and motivo in str(rechazo.value)
+    assert detectores == []
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("senal", SENALES_SUELTAS)
+async def test_un_titular_en_ingles_sigue_llegando_al_detector(detectores, senal):
+    """La otra mitad: la puerta no corta lo que sí se analiza. Sin este test, una
+    puerta que lo rechazara todo pasaría el de arriba."""
+    mcp = FastMCP("test")
+    nlp_tool.register(mcp)
+
+    await mcp.call_tool(senal, _argumentos(senal, TITULAR_EN_INGLES))
+
+    assert detectores == [senal]
+
+
+@pytest.mark.asyncio
+async def test_el_lineal_analiza_un_titular_en_espanol(detectores):
+    """#231: el lineal es bilingüe, así que su puerta deja pasar el español, y
+    lo que devuelve dice en qué idioma leyó el titular."""
+    mcp = FastMCP("test")
+    nlp_tool.register(mcp)
+
+    _, salida = await mcp.call_tool(
+        "detect_clickbait_linear",
+        _argumentos("detect_clickbait_linear", TITULAR_EN_ESPANOL),
+    )
+
+    assert detectores == ["detect_clickbait_linear"]
+    assert salida["language"] == ESPANOL
+
+
+@pytest.mark.asyncio
+async def test_en_espanol_y_sin_cuerpo_el_motivo_es_el_idioma(detectores):
+    """El idioma antes que el cuerpo, como en `analyze()`: pedir el cuerpo de un
+    titular que tampoco se analizaría con él sería una pista falsa."""
+    mcp = FastMCP("test")
+    nlp_tool.register(mcp)
+
+    with capture_logs(), pytest.raises(ToolError) as rechazo:
+        await mcp.call_tool(
+            "detect_clickbait_incoherence",
+            {"headline": TITULAR_EN_ESPANOL, "content": "None"},
+        )
+
+    motivo = motivo_si_no_se_analiza("detect_clickbait_incoherence", ESPANOL)
+    assert motivo and motivo in str(rechazo.value)
+    assert "cuerpo" not in str(rechazo.value)
+    assert detectores == []
+
+
+@pytest.mark.asyncio
+async def test_la_incoherencia_no_compara_un_cuerpo_en_espanol(detectores):
+    """El titular pasa la puerta, pero el modelo que compara es inglés: con el
+    cuerpo en español la similitud se hunde aunque diga lo mismo."""
+    mcp = FastMCP("test")
+    nlp_tool.register(mcp)
+
+    with capture_logs(), pytest.raises(ToolError) as rechazo:
+        await mcp.call_tool(
+            "detect_clickbait_incoherence",
+            {
+                "headline": TITULAR_EN_INGLES,
+                "content": "El perro esperaba en la puerta de casa.",
+            },
+        )
+
+    motivo = motivo_si_el_cuerpo_no_se_compara(ESPANOL)
+    assert motivo and motivo in str(rechazo.value)
+    assert detectores == []
+
+
+# Las frases viven en la factoría: el análisis completo y las herramientas
+# sueltas dicen exactamente lo mismo (#116). Desde #230, la del titular es de
+# cada señal.
+
+FUERA_DEL_INGLES = [(ESPANOL, "español"), (INDETERMINADO, "otro idioma")]
+
+
+@pytest.mark.parametrize("senal", SENALES_SUELTAS)
+def test_en_ingles_ninguna_senal_tiene_motivo(senal):
+    assert motivo_si_no_se_analiza(senal, INGLES) is None
+
+
+def test_en_ingles_el_cuerpo_se_compara():
+    assert motivo_si_el_cuerpo_no_se_compara(INGLES) is None
+
+
+@pytest.mark.parametrize(
+    ("senal", "idioma", "nombre"),
+    [
+        (senal, idioma, nombre)
+        for senal in SENALES_SUELTAS
+        for idioma, nombre in FUERA_DEL_INGLES
+        # Las que analizan el español por su ficha: ese par no tiene motivo.
+        if not (senal in ANALIZAN_ESPANOL and idioma == ESPANOL)
+    ],
+)
+def test_fuera_del_ingles_el_motivo_dice_en_que_idioma(senal, idioma, nombre):
+    motivo = motivo_si_no_se_analiza(senal, idioma)
+
+    assert motivo is not None
+    assert motivo.startswith(f"El titular parece estar en {nombre}:")
+
+
+@pytest.mark.parametrize(("idioma", "nombre"), FUERA_DEL_INGLES)
+def test_el_motivo_del_cuerpo_dice_en_que_idioma(idioma, nombre):
+    motivo = motivo_si_el_cuerpo_no_se_compara(idioma)
+
+    assert motivo is not None
+    assert motivo.startswith(f"El cuerpo parece estar en {nombre}:")
+
+
+# --La factoría, por idioma (#230)
+
+
+def test_el_espanol_se_activa_por_configuracion_solo_en_los_modelos(monkeypatch):
+    """Con un modelo en español puesto por configuración, la señal analiza
+    español como experimento. Al léxico y al lineal no: no tienen un modelo que
+    cambiar. El léxico no analiza español por decisión, con su propio motivo, y
+    el lineal lo analiza por su ficha (bilingüe, #231), no por configuración."""
+    assert all(idiomas_de(senal) == [INGLES] for senal in SIN_ESPANOL)
+
+    monkeypatch.setattr(
+        settings,
+        "nlp_models_es",
+        dict.fromkeys(SENALES_SUELTAS, "prueba/multilingue"),
+    )
+
+    assert idiomas_de("detect_clickbait") == [INGLES, ESPANOL]
+    assert idiomas_de("analyze_sentiment") == [INGLES, ESPANOL]
+    assert idiomas_de("detect_clickbait_incoherence") == [INGLES, ESPANOL]
+    assert idiomas_de("detect_clickbait_lexical") == [INGLES]
+    assert idiomas_de("detect_clickbait_linear") == [INGLES, ESPANOL]
+    assert "léxico" in (
+        motivo_si_no_se_analiza("detect_clickbait_lexical", ESPANOL) or ""
+    )
+    assert motivo_si_no_se_analiza("detect_clickbait_linear", ESPANOL) is None
+
+
+def test_un_modelo_en_espanol_sin_ficha_se_publica_como_experimento(monkeypatch):
+    """Con el hueco de su ficha inglesa y sin medidas: las de la inglesa son de
+    otro modelo y de otro idioma. La inglesa no cambia."""
+    senal = "detect_clickbait_incoherence"
+    monkeypatch.setattr(settings, "nlp_models_es", {senal: "prueba/multilingue"})
+    inglesa = model_cards.ficha_declarada(senal, INGLES)
+    assert inglesa is not None
+
+    ficha = ficha_efectiva(senal, ESPANOL)
+
+    assert ficha["language"] == ESPANOL
+    assert ficha["model_id"] == "prueba/multilingue"
+    assert get_model_id(senal, ESPANOL) == "prueba/multilingue"
+    assert ficha["limitations"][0].startswith("SIN EVALUAR EN ESTE PROYECTO")
+    assert "español" in ficha["limitations"][0]
+    assert (ficha["dimension"], ficha["type"]) == (
+        inglesa["dimension"],
+        inglesa["type"],
+    )
+    assert ficha_efectiva(senal, INGLES) == _sin_notas_de_operacion(inglesa)
+
+
+def test_en_un_idioma_que_no_analiza_no_hay_ficha_ni_modelo():
+    """Un error de quien llama, no un inglés silencioso: la puerta va antes."""
+    with pytest.raises(ValueError, match="no analiza titulares en español"):
+        ficha_efectiva("detect_clickbait_incoherence", ESPANOL)
+    with pytest.raises(ValueError, match="no tiene ficha en español"):
+        get_model_id("detect_clickbait_incoherence", ESPANOL)
+
+
+def test_la_dedicada_analiza_el_espanol_con_su_modelo(monkeypatch):
+    """#242: BETO afinado con TA1C y publicado a nombre del autor, por su ficha
+    y sin configurar nada. La ficha publicada lleva sus medidas, no «sin
+    evaluar», y el inglés sigue con el suyo."""
+    monkeypatch.setattr(settings, "nlp_models_es", {})
+
+    assert idiomas_de("detect_clickbait") == [INGLES, ESPANOL]
+    assert motivo_si_no_se_analiza("detect_clickbait", ESPANOL) is None
+    assert get_model_id("detect_clickbait", ESPANOL) == "ggcastle/beto-clickbait-es"
+    assert get_model_id("detect_clickbait", INGLES) == model_cards.model_id_de(
+        "detect_clickbait", INGLES
+    )
+    ficha = ficha_efectiva("detect_clickbait", ESPANOL)
+    assert ficha["model_id"] == "ggcastle/beto-clickbait-es"
+    assert not any("SIN EVALUAR" in limite for limite in ficha["limitations"])
+
+
+def test_el_tono_analiza_el_espanol_con_su_modelo(monkeypatch):
+    """#233: un modelo multilingüe con licencia Apache-2.0, por su ficha y sin
+    configurar nada. No se ha evaluado aquí, y su ficha lo dice, pero no es un
+    experimento: es el declarado."""
+    monkeypatch.setattr(settings, "nlp_models_es", {})
+
+    assert idiomas_de("analyze_sentiment") == [INGLES, ESPANOL]
+    assert motivo_si_no_se_analiza("analyze_sentiment", ESPANOL) is None
+    assert (
+        get_model_id("analyze_sentiment", ESPANOL)
+        == "lxyuan/distilbert-base-multilingual-cased-sentiments-student"
+    )
+    ficha = ficha_efectiva("analyze_sentiment", ESPANOL)
+    assert not any(
+        "SIN EVALUAR EN ESTE PROYECTO" in limite for limite in ficha["limitations"]
+    )
+
+
+def test_la_incoherencia_en_espanol_da_su_motivo_medido_y_se_puede_configurar(
+    monkeypatch,
+):
+    """#233 midió un modelo multilingüe en TA1C y no separa: el motivo lo dice,
+    en vez del «aún no lo analiza» genérico. Pero no es una decisión, como la
+    del léxico: con un modelo puesto por configuración, se analiza como
+    experimento (#230)."""
+    monkeypatch.setattr(settings, "nlp_models_es", {})
+
+    motivo = motivo_si_no_se_analiza("detect_clickbait_incoherence", ESPANOL)
+    assert motivo is not None
+    assert "TA1C" in motivo
+    assert "aún no lo analiza" not in motivo
+    assert idiomas_de("detect_clickbait_incoherence") == [INGLES]
+
+    monkeypatch.setattr(
+        settings,
+        "nlp_models_es",
+        {"detect_clickbait_incoherence": "prueba/multilingue"},
+    )
+
+    assert idiomas_de("detect_clickbait_incoherence") == [INGLES, ESPANOL]
+    assert motivo_si_no_se_analiza("detect_clickbait_incoherence", ESPANOL) is None
+
+
+def test_el_umbral_del_espanol_es_el_suyo_o_el_del_detector(monkeypatch):
+    assert (
+        get_threshold("detect_clickbait_incoherence", ESPANOL)
+        == IncoherenceDetector.THRESHOLD
+    )
+
+    monkeypatch.setattr(
+        settings, "nlp_thresholds_es", {"detect_clickbait_incoherence": 0.25}
+    )
+
+    assert get_threshold("detect_clickbait_incoherence", ESPANOL) == 0.25
+    assert (
+        get_threshold("detect_clickbait_incoherence", INGLES)
+        == IncoherenceDetector.THRESHOLD
+    )
+
+
+def test_un_detector_por_idioma_sin_echarse(monkeypatch):
+    """La caché de la incoherencia subió a 4 en #230: con dos idiomas, cada uno
+    tiene el suyo, y pedirlos otra vez no crea ni carga otro."""
+    monkeypatch.setattr(
+        settings,
+        "nlp_models_es",
+        {"detect_clickbait_incoherence": "prueba/multilingue"},
+    )
+
+    ingles = get_incoherence_detector(INGLES)
+    espanol = get_incoherence_detector(ESPANOL)
+
+    assert ingles is not espanol
+    assert espanol.model_id == "prueba/multilingue"
+    assert get_incoherence_detector(INGLES) is ingles
+    assert get_incoherence_detector(ESPANOL) is espanol
+
+
+def test_el_cuerpo_se_compara_en_los_idiomas_de_la_incoherencia(monkeypatch):
+    monkeypatch.setattr(
+        settings,
+        "nlp_models_es",
+        {"detect_clickbait_incoherence": "prueba/multilingue"},
+    )
+
+    assert motivo_si_el_cuerpo_no_se_compara(ESPANOL) is None
+    motivo = motivo_si_el_cuerpo_no_se_compara(INDETERMINADO)
+    assert motivo is not None and motivo.endswith("en inglés y español.")

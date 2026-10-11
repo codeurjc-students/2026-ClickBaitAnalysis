@@ -351,7 +351,7 @@ export interface components {
         AnalyzeRequest: {
             /**
              * Headline
-             * @description Titular a analizar (en inglés).
+             * @description Titular a analizar. Cada señal lo analiza si tiene un modelo en su idioma —en inglés, todas; en español, todas menos el léxico y la incoherencia—; si no, queda en 'not_applicable' con el motivo.
              */
             headline: string;
             /**
@@ -366,6 +366,12 @@ export interface components {
             headline: string;
             /** Content */
             content?: string | null;
+            /**
+             * Language
+             * @description Idioma detectado del titular: 'en', 'es' o 'und' (otro). Si las señales no analizan ese idioma, ninguna se ejecuta.
+             * @enum {string}
+             */
+            language: "en" | "es" | "und";
             /** Signals */
             signals: components["schemas"]["SignalResult"][];
             /** Dimensions */
@@ -664,7 +670,7 @@ export interface components {
             origin: components["schemas"]["Origin"];
             /**
              * Headline
-             * @description Titular analizado. Nulo en ejecuciones sueltas.
+             * @description Titular analizado, o el argumento `headline` de una ejecución suelta. Nulo si la herramienta no lo lleva.
              */
             headline?: string | null;
             /**
@@ -985,8 +991,11 @@ export interface components {
              * @description Servidor MCP que la expone.
              */
             server: string;
-            /** @description Sólo para las señales de análisis; None para el resto. */
-            model_card?: components["schemas"]["ToolModelCard"] | null;
+            /**
+             * Model Cards
+             * @description Las fichas de una señal de análisis, una por cada idioma que analiza (#230), empezando por el inglés; vacía para el resto. Hasta #230 era `model_card`, una sola.
+             */
+            model_cards: components["schemas"]["ToolModelCard"][];
         };
         /**
          * ToolModelCard
@@ -1002,6 +1011,9 @@ export interface components {
          *     diciendo «detect_clickbait_linear», que es justo lo que este tipo existe para
          *     evitar. El dato estaba en ``MODEL_CARDS`` y no salía — la misma forma que los
          *     cuatro huecos de #133.
+         *
+         *     Desde #230 es la ficha de UN idioma: una señal trae una por cada idioma en
+         *     que la analiza un modelo, y ``language`` dice cuál.
          */
         ToolModelCard: {
             /**
@@ -1019,10 +1031,21 @@ export interface components {
              * @description Identificador en HuggingFace del modelo que hay detrás. `null` en el léxico y el lineal, que no son un modelo descargable — y ese `null` es información, no un hueco: dice que la señal es código propio y auditable.
              */
             model_id?: string | null;
+            /**
+             * Revision
+             * @description El commit del Hub de esos pesos, entero (#234): las medidas de la ficha son de ellos, y es el que se sirve. `null` donde no hay modelo descargable, y en un modelo puesto por configuración, que no se fija.
+             */
+            revision?: string | null;
             type: components["schemas"]["SignalType"];
             dimension: components["schemas"]["Dimension"];
             /** Limitations */
             limitations: string[];
+            /**
+             * Language
+             * @description El idioma de los titulares que analiza este modelo (#230), en BCP 47.
+             * @enum {string}
+             */
+            language: "en" | "es" | "und";
         };
         /**
          * Turno
@@ -1071,6 +1094,11 @@ export interface components {
             label: string;
             /** Score */
             score: number;
+            /**
+             * Language
+             * @enum {string}
+             */
+            language: "en" | "es" | "und";
         };
         /**
          * Pista
@@ -1103,6 +1131,11 @@ export interface components {
             matches: components["schemas"]["Pista"][];
             /** Headline */
             headline: string;
+            /**
+             * Language
+             * @enum {string}
+             */
+            language: "en" | "es" | "und";
         };
         /**
          * SalidaLineal
@@ -1110,12 +1143,17 @@ export interface components {
          *
          *     ``top_cues`` empareja cada cue con su contribución al veredicto (peso ×
          *     frecuencia); es la explicación intrínseca del modelo.
+         *
+         *     Lleva el ``threshold`` desde #231, cuando dejó de ser 0,5: sin él, quien
+         *     leyera «probabilidad 0,41» junto a «clickbait» pensaría que no cuadra.
          */
         SalidaLineal: {
             /** Is Clickbait */
             is_clickbait: boolean;
             /** Probability */
             probability: number;
+            /** Threshold */
+            threshold: number;
             /** Top Cues */
             top_cues: [
                 string,
@@ -1123,6 +1161,11 @@ export interface components {
             ][];
             /** Headline */
             headline: string;
+            /**
+             * Language
+             * @enum {string}
+             */
+            language: "en" | "es" | "und";
         };
         /**
          * SalidaIncoherencia
@@ -1147,6 +1190,11 @@ export interface components {
             headline: string;
             /** Content */
             content: string;
+            /**
+             * Language
+             * @enum {string}
+             */
+            language: "en" | "es" | "und";
         };
     };
     responses: never;

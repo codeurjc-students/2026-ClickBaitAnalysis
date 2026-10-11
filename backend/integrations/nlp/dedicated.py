@@ -44,10 +44,11 @@ contrato, traducidas igual en los dos caminos.
 
 from collections.abc import Mapping
 
+from backend.core.idioma import INGLES
 from backend.core.models import ToolResult
 from backend.integrations.nlp.model_cards import model_id_de
 
-MODEL = model_id_de("detect_clickbait")
+MODEL = model_id_de("detect_clickbait", INGLES)
 
 CLASIFICACION = "text-classification"
 ZERO_SHOT = "zero-shot-classification"

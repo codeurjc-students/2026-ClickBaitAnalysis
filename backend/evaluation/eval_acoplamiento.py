@@ -35,7 +35,12 @@ Se corre sobre **dev**, nunca sobre test: éste sigue congelado para el número
 final.
 
     python -m backend.evaluation.eval_acoplamiento
-    python -m backend.evaluation.eval_acoplamiento --con-zero-shot 300
+    NLP_BACKEND=local python -m backend.evaluation.eval_acoplamiento --con-zero-shot 300
+
+Con ``--con-zero-shot``, BART se pide a la factoría, así que corre donde diga
+``nlp_backend``, y en remoto, desde el 7 oct 2026, no responde sin crédito en
+Hugging Face (#236). De ahí el ``NLP_BACKEND=local``, como en los demás guiones
+de evaluación, aunque desde #236 sea también el defecto.
 """
 
 import asyncio

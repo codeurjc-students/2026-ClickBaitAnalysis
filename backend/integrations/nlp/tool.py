@@ -8,9 +8,12 @@ vez de devolver el mensaje por el mismo canal que un resultado válido — que e
 indistinguible desde fuera.
 """
 
+from typing import Any
+
 from mcp.server.fastmcp import FastMCP
 from mcp.server.fastmcp.exceptions import ToolError
 
+from backend.core.idioma import INGLES, Idioma, detectar
 from backend.core.observability import log_tool_invocation
 from backend.core.texto import es_ausente
 from backend.integrations.metadata import tool_meta
@@ -23,6 +26,9 @@ from backend.integrations.nlp.factory import (
     get_nlp_backend,
     get_threshold,
     get_top_cues,
+    idiomas_de,
+    motivo_si_el_cuerpo_no_se_compara,
+    motivo_si_no_se_analiza,
 )
 from backend.integrations.nlp.outputs import (
     Etiqueta,
@@ -31,6 +37,35 @@ from backend.integrations.nlp.outputs import (
     SalidaLexica,
     SalidaLineal,
 )
+
+
+def _idioma_si_se_analiza(signal: str, texto: str) -> Idioma:
+    """El idioma del titular, si la señal lo analiza; si no, corta con el motivo.
+
+    La misma puerta que `_run_signals`, para quien llama a una señal suelta: el
+    agente por MCP, o Sistema por `/tools/{name}/execute`. La frase sale de la
+    factoría, así que las dos fachadas dicen lo mismo (#116).
+
+    Desde #230 es por señal y devuelve el idioma: con él pide cada herramienta
+    a la factoría su modelo y su umbral, y lo añade a su salida (`language`),
+    que el detector no sabe. Hasta entonces era una puerta para todas a la vez
+    (#229).
+    """
+    idioma = detectar(texto)
+    if motivo := motivo_si_no_se_analiza(signal, idioma):
+        raise ToolError(motivo)
+    return idioma
+
+
+def _con_idioma(salida: Any, idioma: Idioma) -> Any:
+    """La salida del detector, con el idioma en que se analizó (#230).
+
+    `Any` porque la salida del detector ya lo es (`ToolResult.unwrap`): la forma
+    la declara la firma de cada herramienta y FastMCP la valida al devolverla.
+    El orquestador añade lo mismo a cada `data`, así que el contrato dice la
+    verdad en las dos rutas.
+    """
+    return {**salida, "language": idioma}
 
 
 def register(mcp: FastMCP):
@@ -51,7 +86,8 @@ def register(mcp: FastMCP):
         """Clasifica un titular como clickbait o noticia factual con un modelo de caja negra.
 
         Por defecto es un clasificador neuronal afinado para esta tarea sobre
-        titulares anotados por personas, fuera de este proyecto; por
+        titulares anotados por personas, uno por idioma (el inglés, fuera de
+        este proyecto); por
         configuración puede ser otro, también un zero-shot que elige entre
         etiquetas que se le dan (`describe_models` dice cuál). Devuelve una
         etiqueta y la confianza del modelo en ESA etiqueta, sin explicar por
@@ -59,10 +95,10 @@ def register(mcp: FastMCP):
         clickbait (con "factual news" y 0.9, lo que afirma es que NO lo es).
         Si hace falta una probabilidad de clickbait o saber qué la explica, lo
         da `detect_clickbait_linear`; qué pistas aparecen y dónde,
-        `detect_clickbait_lexical`. Pensada para inglés.
+        `detect_clickbait_lexical`. Analiza titulares en inglés y en español.
 
         Args:
-            headline (str): titular a evaluar (en inglés).
+            headline (str): titular a evaluar (en inglés o en español).
 
         Returns:
             La etiqueta ganadora y su confianza (0-1), p.ej.
@@ -71,10 +107,13 @@ def register(mcp: FastMCP):
             detrás.
 
         Raises:
-            Si la llamada al modelo falla (timeout o caída del proveedor).
+            Si el modelo falla: no se puede cargar o, por la vía remota, no
+            responde (timeout, caída del proveedor o falta de crédito).
         """
-        # El modelo, el modo y las etiquetas, de la configuración (#159).
-        invocacion = get_invocacion("detect_clickbait")
+        idioma = _idioma_si_se_analiza("detect_clickbait", headline)
+        # El modelo, el modo y las etiquetas, de la configuración (#159), los
+        # del idioma del titular (#230).
+        invocacion = get_invocacion("detect_clickbait", idioma)
         response = await dedicated.detect(
             get_nlp_backend(),
             headline,
@@ -84,32 +123,34 @@ def register(mcp: FastMCP):
         )
         if not response.has_content():
             raise ToolError(response.error or "Error al analizar el titular")
-        return response.unwrap()
+        return _con_idioma(response.unwrap(), idioma)
 
     @mcp.tool(meta=tool_meta("Señales de análisis", __name__))
     @log_tool_invocation
     async def analyze_sentiment(text: str) -> Etiqueta:
         """Analiza el sentimiento de un texto (p.ej. un titular de noticia).
 
-        Clasifica en tres clases: positive, neutral o negative (modelo en
-        inglés, afinado para texto corto). Útil para medir el tono.
+        Clasifica en tres clases: positive, neutral o negative, con un modelo
+        para el inglés y otro para el español. Útil para medir el tono.
 
         Args:
-            text (str): texto a analizar (en inglés).
+            text (str): texto a analizar (en inglés o en español).
 
         Returns:
             La etiqueta ganadora y su confianza (0-1), p.ej.
             {"label": "neutral", "score": 0.62}.
 
         Raises:
-            Si la llamada al modelo falla (timeout o caída del proveedor).
+            Si el modelo falla: no se puede cargar o, por la vía remota, no
+            responde (timeout, caída del proveedor o falta de crédito).
         """
+        idioma = _idioma_si_se_analiza("analyze_sentiment", text)
         response = await get_nlp_backend().classify(
-            text, get_model_id("analyze_sentiment")
+            text, get_model_id("analyze_sentiment", idioma)
         )
         if not response.has_content():
             raise ToolError(response.error or "Error al analizar el sentimiento")
-        return response.unwrap()
+        return _con_idioma(response.unwrap(), idioma)
 
     @mcp.tool(meta=tool_meta("Señales de análisis", __name__))
     @log_tool_invocation
@@ -124,7 +165,8 @@ def register(mcp: FastMCP):
         noticia → señal de clickbait. Es complementaria a las señales que sólo
         miran el titular (`detect_clickbait`, `detect_clickbait_lexical` y
         `detect_clickbait_linear`): esta necesita además el cuerpo o teaser.
-        Pensada para texto en inglés.
+        Sólo en inglés, titular y cuerpo: en español la similitud apenas
+        distingue el clickbait, y no se aplica.
 
         Args:
             headline (str): titular a evaluar (en inglés).
@@ -139,6 +181,9 @@ def register(mcp: FastMCP):
         Raises:
             Si el cálculo de los embeddings falla.
         """
+        # El idioma antes que el cuerpo, como en `_run_signals`: con un titular
+        # que no se analiza, pedir el cuerpo sería una pista falsa (#229).
+        idioma = _idioma_si_se_analiza("detect_clickbait_incoherence", headline)
         # Un cuerpo que sólo dice «None» no es un cuerpo (#197): medir la
         # similitud contra esa palabra daría un «incoherente» inventado. El
         # error vuelve al modelo del agente para que lo corrija.
@@ -147,12 +192,17 @@ def register(mcp: FastMCP):
                 "Hace falta el cuerpo o el teaser de la noticia para medir la "
                 "incoherencia; sin él, esta señal no se puede aplicar."
             )
-        response = await get_incoherence_detector().detect(headline, content)
+        # Ni un cuerpo en un idioma que no compara: el modelo que los compara es
+        # de un idioma (`motivo_si_el_cuerpo_no_se_compara` dice por qué, #229).
+        motivo_del_cuerpo = motivo_si_el_cuerpo_no_se_compara(detectar(content))
+        if motivo_del_cuerpo:
+            raise ToolError(motivo_del_cuerpo)
+        response = await get_incoherence_detector(idioma).detect(headline, content)
         if not response.has_content():
             raise ToolError(
                 response.error or "Error al analizar incoherencia en el titular"
             )
-        return response.unwrap()
+        return _con_idioma(response.unwrap(), idioma)
 
     @mcp.tool(meta=tool_meta("Señales de análisis", __name__))
     @log_tool_invocation
@@ -165,7 +215,8 @@ def register(mcp: FastMCP):
         y devuelve qué pistas dispararon y dónde. Señal white-box (la evidencia ES la
         explicación), complementaria a `detect_clickbait` (caja negra), a
         `detect_clickbait_linear` (que pondera las palabras del titular) y a
-        `detect_clickbait_incoherence`. Pensada para titulares en inglés.
+        `detect_clickbait_incoherence`. Sólo inglés: sus listas de pistas son
+        inglesas.
 
         Args:
             headline (str): titular a evaluar (en inglés).
@@ -177,10 +228,13 @@ def register(mcp: FastMCP):
         Raises:
             Si el titular está vacío.
         """
-        response = lexical.detect(headline, get_threshold("detect_clickbait_lexical"))
+        idioma = _idioma_si_se_analiza("detect_clickbait_lexical", headline)
+        response = lexical.detect(
+            headline, get_threshold("detect_clickbait_lexical", idioma)
+        )
         if not response.has_content():
             raise ToolError(response.error or "Error al analizar léxico en el titular")
-        return response.unwrap()
+        return _con_idioma(response.unwrap(), idioma)
 
     @mcp.tool(meta=tool_meta("Señales de análisis", __name__))
     @log_tool_invocation
@@ -191,11 +245,11 @@ def register(mcp: FastMCP):
         las palabras del titular y su estructura (número inicial,
         interrogación…), en la que cada palabra tiene un peso visible. El
         veredicto se explica con las que más pesaron. Para la opinión de un
-        modelo sin pesos visibles, `detect_clickbait` (caja negra). Pensada
-        para inglés.
+        modelo sin pesos visibles, `detect_clickbait` (caja negra). Bilingüe:
+        los mismos pesos para el inglés y el español.
 
         Args:
-            headline (str): titular a evaluar (en inglés).
+            headline (str): titular a evaluar (en inglés o en español).
 
         Returns:
             `is_clickbait`, `probability` (0-1, de que sea clickbait), `top_cues`
@@ -205,10 +259,13 @@ def register(mcp: FastMCP):
         Raises:
             Si el titular está vacío.
         """
+        # Sin idioma para el detector: es bilingüe desde #231, con los mismos
+        # pesos para los dos idiomas. El idioma sí va en la salida, como en todas.
+        idioma = _idioma_si_se_analiza("detect_clickbait_linear", headline)
         response = linear.predict(headline, get_top_cues())
         if not response.has_content():
             raise ToolError(response.error or "Error al predecir clickbait")
-        return response.unwrap()
+        return _con_idioma(response.unwrap(), idioma)
 
     # Utilidad, no señal: describe los modelos, no analiza nada. Es el caso que
     # demuestra que la categoría no se puede derivar del paquete.
@@ -217,16 +274,25 @@ def register(mcp: FastMCP):
     async def describe_models() -> list[FichaModelo]:
         """Divulga los modelos/señales que emplea el sistema (transparencia, R3.9).
 
-        Devuelve, por cada señal, su nombre, tarea, tipo (interpretable /
-        híbrido / opaco), dimensión que mide y limitaciones conocidas. Sin
-        argumentos. Útil para la transparencia de sistema y para decidir qué
-        señal usar según su naturaleza (white-box vs caja negra) y sus límites.
+        Devuelve, por cada señal y cada idioma que analiza, su nombre, tarea,
+        tipo (interpretable / híbrido / opaco), dimensión que mide y
+        limitaciones conocidas. Sin argumentos. Útil para la transparencia de
+        sistema y para decidir qué señal usar según su naturaleza (white-box vs
+        caja negra) y sus límites.
 
         Returns:
-            La lista de fichas de modelo (signal, name, task, type, dimension,
-            limitations, backend).
+            La lista de fichas de modelo (signal, language, model_id, revision,
+            name, task, type, dimension, limitations, backend).
         """
         # La ficha EFECTIVA, no la declarada: si alguien ha puesto otro modelo
         # por configuración, esto publica ese id y deja de publicar unas medidas
         # que eran del anterior (#119).
-        return [ficha_efectiva(card["signal"]) for card in model_cards.MODEL_CARDS]
+        #
+        # Y desde #230, una por cada idioma que analiza cada señal (`idiomas_de`,
+        # la misma regla que la puerta): la de un modelo que no se ejecuta no
+        # sale, y la de uno puesto por configuración en español, sí.
+        return [
+            ficha_efectiva(senal, idioma)
+            for senal in model_cards.fichas_en(INGLES)
+            for idioma in idiomas_de(senal)
+        ]

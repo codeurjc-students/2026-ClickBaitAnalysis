@@ -65,3 +65,98 @@ Wiegmann, Erika Patricia Garces Fernandez, Matthias Hagen, and Benno Stein.
   year={2018}
 }
 ```
+
+---
+
+# TA1C (extracto) — clickbait en español
+
+Del corpus **TA1C** («Te Ahorré Un Click»: 3 500 tuits de 18 medios en español,
+cada uno anotado por tres personas, con un κ de Fleiss de 0,825 y la mayoría
+como etiqueta) se vendoriza **un extracto propio** (#229).
+
+| Fichero | Instancias | Origen |
+|---|---|---|
+| `ta1c.jsonl.gz` | 3 500: `train` 2 100, `validation` 700, `test` 700 | `TA1C_dataset_complete.tar.gz` (6,4 MB) |
+
+Una línea = `{"id", "parte", "medio", "pais", "headline", "label", "anotaciones"}`:
+
+- `headline` es el **Teaser Text**, crudo: el titular, el texto del tuit o los
+  dos, según el criterio del corpus, que es lo que leyó quien anotó. No es el
+  texto «preprocesado» que el corpus sugiere, porque producción recibe
+  titulares crudos.
+- `parte` es el **reparto del propio corpus**, no uno nuevo: así las cifras se
+  pueden comparar con las publicadas, que se midieron en su `test`.
+- `label` es 1 si la mayoría dijo «Clickbait», y `anotaciones`, las **tres
+  etiquetas individuales**, como los `truthJudgments` de Webis-17.
+
+Los **artículos** (titular, subtítulo y cuerpo; 5,4 MB) NO se versionan: van a
+`var/ta1c/`, gitignorados y regenerables con
+`python -m backend.evaluation.ta1c_extract <tarball>`. El cuerpo está vacío en
+18 de 3 500. El titular del artículo va con ellos, lejos de los teasers, por lo
+mismo que en Webis-17: la anotación se hizo sobre el teaser.
+
+**Dos cosas que conviene saber al usarlo:**
+
+- **Los medios son de 12 países hispanohablantes, más la BBC** (su servicio en
+  español, 150 tuits), que la columna de país registra como «Inglaterra»: por
+  eso salen 13 valores.
+- **La proporción de clickbait cambia mucho de un medio a otro**: del 2,9 %
+  (El Universal, Venezuela) al 68,7 % (BBC). La etiqueta es humana, no por medio
+  como en Chakraborty, pero un modelo puede aprender a reconocer al medio en vez
+  del clickbait: es el vocabulario de fuente que #78 vio con `wikinews`.
+
+## Origen
+Repositorio: https://github.com/gmordecki/TA1C (rama `master`; último cambio, el
+2024-02-05).
+
+SHA-256 de `TA1C_dataset_complete.tar.gz` (6 359 331 bytes), descargado el
+2026-10-07:
+`9556954d79142036f71cd6402b12083f2ee5b25b5b704d939d763b93ec31c9a6`
+
+## Licencia
+El repositorio lo publica con licencia **MIT**, cuyo texto va abajo porque la
+propia licencia exige incluirlo; el artículo lo describe como **CC BY 4.0**. Las
+dos permiten redistribuirlo conservando la atribución.
+
+## Cita
+Gabriel Mordecki, Guillermo Moncecchi y Javier Couto. *"Te Ahorré Un Click: A
+Revised Definition of Clickbait and Detection in Spanish News."*
+arXiv:2507.09777, 2025. Según su ficha de arXiv, publicado en *Advances in
+Artificial Intelligence – IBERAMIA 2024* (LNCS).
+
+```bibtex
+@misc{mordecki2025teahorre,
+  title={Te Ahorr{\'e} Un Click: A Revised Definition of Clickbait and Detection in Spanish News},
+  author={Mordecki, Gabriel and Moncecchi, Guillermo and Couto, Javier},
+  year={2025},
+  eprint={2507.09777},
+  archivePrefix={arXiv},
+  primaryClass={cs.CL}
+}
+```
+
+## Texto de la licencia MIT del repositorio
+
+```text
+MIT License
+
+Copyright (c) 2023 Gabriel Mordecki
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+```

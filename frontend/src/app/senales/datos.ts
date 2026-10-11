@@ -37,7 +37,15 @@ export type DatosLexico = Pick<SalidaLexica, 'score' | 'matches'> & {
   threshold?: SalidaLexica['threshold'];
 };
 
-export type DatosLineal = Pick<SalidaLineal, 'probability' | 'top_cues'>;
+export type DatosLineal = Pick<SalidaLineal, 'probability' | 'top_cues'> & {
+  /**
+   * Opcionales aunque el contrato los declare obligatorios: el historial
+   * guarda análisis de antes de #231, cuando el lineal votaba con un 0,5 que
+   * no devolvía, y de antes de #230, cuando ninguna salida decía su idioma.
+   */
+  threshold?: SalidaLineal['threshold'];
+  language?: SalidaLineal['language'];
+};
 
 export type DatosIncoherencia = Pick<
   SalidaIncoherencia,

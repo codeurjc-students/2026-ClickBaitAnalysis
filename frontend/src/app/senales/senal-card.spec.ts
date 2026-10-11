@@ -165,6 +165,35 @@ describe('SenalCard', () => {
     expect(palabra.classList.contains('cue--patron')).toBe(false);
   });
 
+  it('en el lineal en español, sus palabras van marcadas en español', async () => {
+    const html = await montar({
+      ...LINEAL,
+      data: { ...LINEAL.data, language: 'es' },
+    });
+    const [patron, palabra] = html.querySelectorAll('.cues .cue');
+
+    expect(patron.getAttribute('lang')).toBeNull();
+    expect(palabra.getAttribute('lang')).toBe('es');
+  });
+
+  // #231: el lineal vota con el umbral de sus pesos, y lo devuelve.
+  it('la nota del lineal dice desde qué probabilidad es clickbait', async () => {
+    const html = await montar({
+      ...LINEAL,
+      data: { ...LINEAL.data, threshold: 0.35 },
+    });
+
+    expect(html.querySelector('.nota')?.textContent).toContain(
+      'Es clickbait desde una probabilidad de 0,35.',
+    );
+  });
+
+  it('un lineal guardado sin umbral no afirma ninguno', async () => {
+    const html = await montar(LINEAL);
+
+    expect(html.querySelector('.nota')?.textContent).not.toContain('probabilidad');
+  });
+
   // El lineal de antes de #78 guardaba los patrones sin `< >`: no se distinguen
   // de una palabra, así que se pintan como llegaron.
   it('un lineal guardado con los nombres viejos se pinta tal cual', async () => {

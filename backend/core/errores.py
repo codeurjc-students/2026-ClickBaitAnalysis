@@ -6,7 +6,9 @@ interfaz marca como técnico— y da el código HTTP o el nombre del tipo.
 `mensaje_publico` escribe para quien LEE UN RESULTADO —la tarjeta de una señal
 caída (#89)— y no dice ni nombres de clase ni nada de cómo está hecho el
 sistema por dentro: un `KeyError: 'is_clickbait'` le cuenta a un tercero cómo
-está estructurado el código.
+está estructurado el código. Entre las dos, `describir_respuesta_http` (#236)
+da el código de una respuesta de error y, si su nombre no lo dice, qué
+significa: lo usa `base_api.py`, cuyo mensaje lee los dos.
 
 **La regla (#163): el texto de una excepción de librería no sale hacia fuera.**
 Un 401 de httpx lleva la URL entera en su mensaje, y Guardian y NYT llevan la
@@ -48,6 +50,28 @@ def describir_error(excepcion: BaseException) -> str:
         respuesta = excepcion.response
         return f"HTTP {respuesta.status_code} {respuesta.reason_phrase}"
     return type(excepcion).__name__
+
+
+# Códigos cuyo nombre no le dice a quien lee la tarjeta qué ha pasado.
+# «Payment Required» suena a que el sistema le pide pagar a él; lo que significa
+# es que el proveedor no sirve la llamada porque la cuenta no tiene crédito. Lo
+# destapó Hugging Face al retirar el crédito de las cuentas gratuitas el 7 oct
+# 2026 (#236). Se añade un código cuando se ve llegar, no por si acaso.
+_SIGNIFICADO_HTTP = {
+    402: "rechaza la llamada por falta de crédito o de pago en la cuenta",
+}
+
+
+def describir_respuesta_http(error: httpx.HTTPStatusError) -> str:
+    """El código de una respuesta de error y, si su nombre no lo dice, qué significa.
+
+    Lo usa `base_api.py` en el mensaje de un fallo, que es público: el código
+    sirve a quien depura, y el significado a quien lee. El cuerpo del proveedor
+    sigue sin publicarse (#89).
+    """
+    motivo = describir_error(error)
+    significado = _SIGNIFICADO_HTTP.get(error.response.status_code)
+    return f"{motivo}: {significado}" if significado else motivo
 
 
 # Predicados SIN SUJETO, a propósito: quien llama pone el suyo —«La señal…», «El

@@ -7,6 +7,13 @@ interrogación, mayúsculas, elipsis), ponderados con TF-IDF. Se entrena con el
 (`evaluation/train_linear.py`); la combinación salió de comparar cuatro
 featurizaciones en `evaluation/eval_reentreno.py`.
 
+Desde #231 es BILINGÜE: los mismos pesos para el inglés y el español,
+entrenados también con el `train` de TA1C, porque ganaron a unos sólo para el
+español en `evaluation/eval_lineal_es.py`. Y vota con el UMBRAL que guarda el
+JSON (0,35), no con un 0,5 fijo: lo eligió la regla de #78 sobre los tres
+`dev`, así que viaja con los pesos con los que se eligió. Sale en el resultado,
+como el del léxico (#93).
+
 Hasta #78 puntuaba las pistas del léxico, y la mitad de los titulares salía con
 el vector vacío: «no clickbait» sin haber mirado nada, y un techo de recall del
 66 % en Webis. Aquel modelo se conserva en `evaluation/lineal_pistas.py`.
@@ -112,10 +119,14 @@ def predict(headline, top_cues: int = TOP_CUES) -> ToolResult:
     )
     z = modelo["intercept"] + sum(contribucion for _, contribucion in contribuciones)
     probabilidad = 1 / (1 + math.exp(-z))
+    # El umbral, del JSON (#231): lo eligió la medida con estos pesos, y
+    # cambiar uno sin el otro sería votar con un corte que nadie midió.
+    umbral = modelo["threshold"]
     return ToolResult.ok(
         {
-            "is_clickbait": probabilidad >= 0.5,
+            "is_clickbait": probabilidad >= umbral,
             "probability": probabilidad,
+            "threshold": umbral,
             "top_cues": contribuciones[:top_cues],  # Las que más empujaron
             "headline": headline,
         }
