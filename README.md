@@ -554,7 +554,7 @@ Primer cliente que rompe el patrón GET + api-key en query: HF exige **POST con 
 - **`Settings`:** nueva variable obligatoria `hf_token` (`HF_TOKEN` en `.env`), fail-fast.
 - **`BaseAPI`:** soporte de `POST` con body JSON, y auth delegada en un método sobreescribible `_apply_auth` (por defecto, api-key en query → Guardian/NYT intactos). La subclase decide *dónde* va la auth sin un solo `if` por tipo (polimorfismo).
 - **`HFClient(BaseAPI)`** (`backend/integrations/nlp/`): `classify(text, model)` hace POST y normaliza a `{label, score}` (clase ganadora) con parseo defensivo.
-- **CI:** `HF_TOKEN: dummy` añadido al workflow (la nueva key obligatoria rompería el fail-fast de `Settings` en CI).
+- **CI:** `HF_TOKEN: dummy` añadido al workflow (la nueva key obligatoria rompería el fail-fast de `Settings` en CI). *(Revisado en #259: los `dummy` salieron del CI, porque ninguna clave es ya obligatoria.)*
 
 **Motivo del cambio de endpoint:** el endpoint clásico `api-inference.huggingface.co` está **deprecado** (ni resuelve DNS). Se migró al router del provider serverless: `https://router.huggingface.co/hf-inference/models/{model}`. *(De paso se detectó que WSL2 no tiene salida IPv6 — gotcha latente del entorno.)*
 
@@ -5545,7 +5545,9 @@ sudo docker compose up --build --wait
 Necesita un `.env` junto al fichero con las tres claves que `settings` exige
 (`GUARDIAN_API_KEY`, `NYT_API_KEY`, `HF_TOKEN`). Ahí van **sólo los secretos**:
 lo que define el despliegue va en `environment`, a la vista en el repositorio, y
-manda sobre lo que traiga el `.env`.
+manda sobre lo que traiga el `.env`. *(Revisado en #259: `settings` ya no exige
+ninguna clave, y el `.env` es opcional: sin él, el sistema arranca sin las
+herramientas de noticias.)*
 
 #### Lo medido, en la máquina 1
 
@@ -8562,7 +8564,7 @@ Medido con [`spikes/hf_credito.py`](spikes/hf_credito.py), con el token del proy
 - **Pagar PRO o crédito** (decidido arriba).
 - **Una sonda de salud de Hugging Face**: `/health` no lo sondea, así que el indicador seguiría en verde sin crédito. Está en #217, con la sonda por modelo.
 - **Los docstrings de las herramientas**, que hablan de «timeout o caída del proveedor»: tocarlos cambia el catálogo del agente y obliga a repetir las 26 consultas, así que van con F (#234). *(Hecho en #234, con las 26 consultas: ver «El cierre de `v0.8`, primera parte».)*
-- **`HF_TOKEN` sigue siendo obligatorio** aunque el defecto sea `local`: hacerlo opcional cambiaría la configuración del despliegue.
+- **`HF_TOKEN` sigue siendo obligatorio** aunque el defecto sea `local`: hacerlo opcional cambiaría la configuración del despliegue. *(Revisado en #259: pasó a opcional sin cambiar el despliegue: la máquina 1 conserva su `.env`, y lo que cambia es que sin él también arranca.)*
 - **Un patch `v0.7.1`**: lo publicado describe un despliegue en local, que no ha cambiado, así que no induce a error a quien lo despliegue o lo lea.
 
 Las secciones que daban la vía remota por buena —E3-02, E3-03, E5-01 (donde se eligió el defecto `remote`), «Corrección: la señal caída no era una caída del proveedor» y la de #159— llevan una nota que remite aquí; lo medido entonces no se toca.
@@ -8950,11 +8952,11 @@ El mismo titular llega a veces dos veces: con `qInTitle`, «Medio millón de pin
 
 #### Lo que entró
 
-- **Las claves, opcionales** (`gnews_api_key` y `newsdata_api_key`, `SecretStr | None`), mientras que las otras tres siguen siendo obligatorias y su falta impide arrancar. **Decidido (autor)**, frente a hacerlas obligatorias como las demás: que falte una clave de noticias no puede tumbar el análisis, y un despliegue que llegara a la máquina 1 sin ellas en su `.env` no arrancaría ni la API ni el MCP. Sin la clave, la herramienta no hace ninguna petición y dice qué falta («GNews no está configurado: falta GNEWS_API_KEY en la configuración.»). El CI no necesita ninguna, y el compose ya pasa el `.env` entero (`env_file`).
+- **Las claves, opcionales** (`gnews_api_key` y `newsdata_api_key`, `SecretStr | None`), mientras que las otras tres siguen siendo obligatorias y su falta impide arrancar. **Decidido (autor)**, frente a hacerlas obligatorias como las demás: que falte una clave de noticias no puede tumbar el análisis, y un despliegue que llegara a la máquina 1 sin ellas en su `.env` no arrancaría ni la API ni el MCP. Sin la clave, la herramienta no hace ninguna petición y dice qué falta («GNews no está configurado: falta GNEWS_API_KEY en la configuración.»). El CI no necesita ninguna, y el compose ya pasa el `.env` entero (`env_file`). *(Revisado en #259: las otras tres también son opcionales, y la comprobación pasó de cada cliente a `BaseAPI`, con la frase en `core/errores.py`.)*
 - **Los clientes**, como los de NYT y Guardian. Un fallo devuelve el error de `make_request`, nunca «No articles found» (#196, #212), y la fecha sale en ISO 8601. GNews ordena por fecha, que es su defecto, y lleva `days` de 1 a 30; NewsData.io no lleva `days`. Los dos piden español (`lang=es` y `language=es`) y **no filtran por país** (decidido: lo que se pide son noticias en español, no de un país). Los créditos que quedan en NewsData.io salen de su cabecera, como en Guardian; los de GNews los cuenta el proceso, como en NYT.
 - **Las herramientas**, con los nombres decididos por el autor y `topic` como `TextoOpcional` (#197). La primera línea de cada una dice lo que la distingue de la otra (#183): GNews deja elegir hasta 30 días atrás, y NewsData.io sólo da lo último, con las palabras del tema en el titular. Las descubre el servidor solo, y la pantalla de Sistema las pinta desde su esquema.
 - **Sin sonda en `/health`** (decidido: la tercera opción de la issue). `/health` se cachea 30 s **por proceso**, y la API y el MCP tienen cada uno su caché: hasta 240 sondeos por hora, frente a las 100 peticiones diarias de GNews, que se gastarían en menos de media hora de uso continuo. Que falten no tumba nada, y cada herramienta dice si no está configurada o qué respondió su API. Lo explica el docstring de `core/health.py`.
-- **Tests: 609, antes 568.** `test_gnews.py` y `test_newsdata.py`, con `respx`: los campos, el cuerpo de la entradilla y nunca `content`, `qInTitle`, los errores sin la clave ni la URL, que sin clave no se pide nada, los repetidos, la cuota y la fecha. Y dos `integration` por API, que pasan: la clave falsa (400 y 401) y una consulta real. Además, `test_settings.py` fija que las dos claves son opcionales, y dos tests que enumeran lo que existe se actualizaron: las integraciones descubiertas, y las herramientas del servidor de pruebas, que pasan de 11 a 13 (no lleva `analyze_headline`, #188).
+- **Tests: 609, antes 568.** `test_gnews.py` y `test_newsdata.py`, con `respx`: los campos, el cuerpo de la entradilla y nunca `content`, `qInTitle`, los errores sin la clave ni la URL, que sin clave no se pide nada, los repetidos, la cuota y la fecha. *(Revisado en #259: la de «sin clave no se pide nada» no lo comprobaba, porque registraba la ruta en otro enrutador de `respx`; se arregló.)* Y dos `integration` por API, que pasan: la clave falsa (400 y 401) y una consulta real. Además, `test_settings.py` fija que las dos claves son opcionales, y dos tests que enumeran lo que existe se actualizaron: las integraciones descubiertas, y las herramientas del servidor de pruebas, que pasan de 11 a 13 (no lleva `analyze_headline`, #188).
 
 #### Lo que queda
 
@@ -9374,6 +9376,74 @@ Fuera de los diagramas, la cabecera decía que el documento reflejaba `v0.6.0`, 
 | Código | `2a5f5f9` (`dev`, el mismo árbol que el merge de `v0.8.0`) y, para comparar, `v0.6.0` |
 | Dibujo | Mermaid 11.4.1, en una columna de 846 px: los 20 diagramas del documento se dibujan sin errores |
 | Guion | `spikes/imports_entre_capas.py`; sobre `v0.6.0`, con `git archive v0.6.0 backend` y `--raiz` |
+
+### Las claves de las APIs, opcionales (#259, 12 oct 2026)
+
+Al escribir `.env.example` para la guía de ejecución (#251), el autor dudó de que tuviera sentido que el sistema no arrancara sin las claves de las APIs externas. Se comprobó, y la protección que daban era casi nula:
+
+- **«Obligatoria» sólo exigía que la línea existiera.** Con `GUARDIAN_API_KEY=` vacía el proceso arrancaba igual, así que no detectaba una clave sin rellenar ni una inválida, sólo una línea borrada; y entonces no arrancaba **nada**, tampoco el análisis, que no usa ninguna.
+- **`HF_TOKEN` sólo la usaba la vía remota**, de pago desde #236 y que ya no es la de defecto.
+- **El CI necesitaba tres `dummy`** sólo para poder importar `settings`.
+
+Es el argumento con el que #235 hizo opcionales las de GNews y NewsData —que falte una clave de noticias no puede tumbar el análisis—, y vale igual para las otras tres. Va en una issue aparte de #251 a propósito: cambia comportamiento, y #251 es documentación.
+
+#### Lo que cambia
+
+- **Las cinco claves, `SecretStr | None`.** Lo que sigue fallando al arrancar es lo mal formado: un valor que un campo no admite, un JSON roto. R11.3 se matiza en `docs/requisitos.md`: las claves de las APIs externas no son configuración requerida.
+- **La comprobación, en un solo sitio: `BaseAPI.make_request`.** Cada cliente que pide clave declara su variable (`CLAVE = "GUARDIAN_API_KEY"`), y sin ella configurada `make_request` no sale a la red y devuelve qué falta, con la frase de `core/errores.py` (`falta_clave`), el único módulo que redacta errores públicos (#89, #163). Primero se escribió como en GNews y NewsData —una constante `SIN_CLAVE` y un `if` al principio de cada método—, y el autor preguntó si se podía evitar la repetición: en cinco clientes, la misma regla escrita a mano en cada método que pide algo —dos en Hugging Face, y en Guardian antes de `/tags`—, que un método nuevo olvidaría. Los clientes del tiempo y de Ollama no piden clave, no declaran nada y no cambian.
+- **La salud lee la clave al sondear**, no al importar, y sin ella la sonda sale `reachable: false` con «no configurada», sin preguntar: una petición sin clave da 401, que el indicador pintaría como una caída. El estado queda `degraded`. La alternativa era no sondearla, como GNews, y eso esconde que falta (decidido al definir la issue).
+- **Un aviso al arrancar**, en la API y en el MCP: `configuracion.claves_sin_configurar`, con los nombres de las variables que faltan o están vacías —una vacía cuenta como ausente, que es como llega de un `.env.example` copiado tal cual— y nunca un valor. Es lo que antes hacía visible el fallo al arrancar. La lista sale de los campos `SecretStr | None` de `Settings`, sin una segunda lista que se desfase.
+- **`compose.yaml`: `env_file` con `required: false`**, así que sin `.env` el sistema arranca, sin las herramientas de noticias. La máquina 1 (Compose 5.5.1) lo admite, y su `.env` sigue teniendo las claves: el despliegue no cambia.
+- **El CI, sin claves**: correr así es lo que comprueba que el sistema arranca sin ninguna.
+- **La regla de los detectores sigue, por otro motivo.** `settings.py` y `factory.py` daban como razón para que los detectores no importen `settings` que los campos de API eran obligatorios; ahora es que así se prueban sin montar una configuración.
+- **Pruebas: 625, antes 612.** `settings` sin ninguna clave y la clave vacía como ausente; el sistema entero importado sin claves, en otro proceso y sin `.env`; Guardian, NYT y la vía remota sin clave, que no piden nada; la sonda sin clave; el aviso, y la regla de `BaseAPI` con dos clientes de mentira, uno con `CLAVE` y otro sin ella. Cada una se vio fallar contra el código de antes.
+
+#### Lo que se descartó
+
+- **Comprobar al arrancar que una clave es buena**, pidiendo algo a su API: gastaría cuota en cada arranque, y `/health` ya lo dice.
+- **Derivar `API_KEY` en `BaseAPI` a partir de `CLAVE`**: ahorraba una línea por cliente, a cambio de que quien lee `GuardianAPI` no vea de dónde sale su clave.
+- **Decir «o no está configurada» en los docstrings de las herramientas de Guardian y NYT**: son el catálogo del agente, y cambiarlos exige las 26 consultas en la A40, que sigue esperando a que reinicien la máquina 2. El mensaje del fallo ya lo dice.
+
+#### Una trampa de `respx`, y dos pruebas que no comprobaban nada
+
+Las pruebas nuevas de «sin clave no se pide nada» copiaron el patrón de las de GNews y NewsData:
+
+```
+with respx.mock(assert_all_called=False):
+    ruta = respx.get(URL)
+```
+
+Con argumentos, `respx.mock(...)` crea un enrutador nuevo, pero `respx.get` registra la ruta en el **global**. Dentro de la prueba, el enrutador activo no tiene la ruta, así que `ruta.called` es falso pida lo que pida el cliente; y fuera, la ruta se queda en el global para las pruebas siguientes. Al implementar fallaron 24 pruebas de Hugging Face, Guardian, NYT y la caché de la salud, porque una ruta sin respuesta, `respx.post(url__startswith=…)`, capturaba sus peticiones. Lo correcto es el enrutador del `with`: `with respx.mock(...) as router: ruta = router.get(URL)`.
+
+Las dos de GNews y NewsData (#235) no fallaban, porque además comparaban el mensaje exacto, pero su `assert not ruta.called` no comprobaba nada. Se arreglaron con las nuevas.
+
+#### Lo medido
+
+| | Resultado |
+|---|---|
+| La suite del CI, con las claves del `.env` | 625 pasan |
+| **La misma, sin `.env` ni variables de clave**, como el CI | **625 pasan** |
+| Las pruebas nuevas, contra `e9880ab` | fallan las de configuración, Guardian, NYT y Hugging Face; la de la salud, al prepararse (`health.CLAVES` no existía); `test_logging.py` no importa; y en `test_base_api.py`, la de «sin la clave no sale a la red» (las otras dos no dependen del cambio) |
+| `docker compose up --build --wait api mcp`, sin `.env` | código 0 en 52 s, los dos sanos |
+| El aviso del arranque | en los dos procesos, con las cinco variables |
+| `GET /health` | `degraded`: el tiempo, bien; Guardian y NYT, «no configurada» |
+| `POST /analyze` | `stylistic_clickbait`: cuatro señales `ok` y la incoherencia `not_applicable`, sin cuerpo |
+| `get_guardian_news`, por MCP | «La API externa no está configurada: falta GUARDIAN_API_KEY en la configuración.» |
+
+**Observado, sin aislar**: la primera vez que se ejecutó el guion, la API quedó `unhealthy` —el healthcheck le da 120 s y tres intentos— aunque a los 691 s del guion ya respondía. En ese momento corrían a la vez dos suites completas, y WSL tenía 123 MB libres de 7,6 GB. Repetido sin nada más en marcha, sana en 52 s. Es coherente con la carga, pero no se midió aparte.
+
+#### Lo que queda
+
+- **`docs/ejecucion.md` y `.env.example`**, que llegan con #251 y aún no están en `dev`: se ajustan allí, al traer esta rama.
+- **Los diccionarios `_CLAVES` de tres pruebas** (`test_main.py`, `test_invocacion.py` y `test_nlp.py`), que ya no hacen falta para construir `Settings`: no estorban, y quitarlos no es de esta issue.
+- **La máquina 1**, sin redesplegar: lo hará el próximo despliegue que pida el autor, y con su `.env` nada cambia.
+
+| Condiciones | |
+|---|---|
+| Fecha | 12 oct 2026, en hora de Madrid: el guion, a las 17:48; la primera vez, con carga, de 17:32 a 17:44 |
+| Máquina | El PC de sobremesa del autor: WSL2 (Ubuntu 24.04.4, 7,6 GB), Docker 29.1.3, Compose 2.40.3, Python 3.12.3 |
+| Código | `7c277a9`, la rama de #259 sobre `e9880ab` |
+| Guiones | `spikes/sin_claves.sh`; la suite, `pytest -m "not integration"`, y sin claves en una copia sin `.env` y sin las cinco variables |
 
 
 

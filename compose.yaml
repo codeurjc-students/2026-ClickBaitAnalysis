@@ -20,7 +20,12 @@ x-backend: &backend
   image: clickbait-backend
   # Sólo los secretos. Lo que define el despliegue va en `environment`, a la
   # vista, y manda sobre lo que traiga el `.env`.
-  env_file: .env
+  #
+  # `required: false` desde #259: ninguna clave es obligatoria, así que sin
+  # `.env` el sistema arranca igual, sin las herramientas de noticias.
+  env_file:
+    - path: .env
+      required: false
   restart: unless-stopped
 
 # Configuración que necesitan los DOS procesos, porque los dos ejecutan señales

@@ -187,7 +187,7 @@ Este documento define los requisitos para un Trabajo de Fin de Grado (TFG) que i
 
 1. LA Backend_API DEBERÁ cargar la configuración desde las variables de entorno.
 2. LA Backend_API DEBERÁ admitir archivos de configuración para claves API, endpoints y ajustes de servicio.
-3. LA Backend_API DEBERÁ validar la configuración requerida al iniciarse y fallar rápidamente si falta.
+3. LA Backend_API DEBERÁ validar la configuración requerida al iniciarse y fallar rápidamente si falta. _(Matizado en #259: las claves de las APIs externas no son configuración requerida. Analizar un titular no usa ninguna, así que el sistema arranca sin ellas: cada herramienta dice qué le falta, la salud las da por «no configuradas» y el arranque avisa en el registro. Lo que sigue fallando al iniciarse es la configuración mal formada —un valor que no admite un campo, un JSON roto—. Justificado en el README.)_
 4. EL Docker_Environment DEBERÁ utilizar archivos `.env` para la configuración específica del entorno.
 5. LA Backend_API NO DEBERÁ exponer valores de configuración confidenciales en registros o respuestas de API.
 6. CUANDO existan diferentes entornos de implementación, LA Backend_API DEBERÁ admitir modificaciones de configuración específicas para cada entorno.
