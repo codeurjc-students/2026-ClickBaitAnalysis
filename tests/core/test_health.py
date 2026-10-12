@@ -199,6 +199,32 @@ async def test_check_health_sondea_todas_y_agrega():
     assert salud["timestamp"].endswith("+00:00")
 
 
+@pytest.mark.asyncio
+async def test_una_api_sin_clave_sale_no_configurada_sin_preguntar(monkeypatch):
+    """#259: la clave es opcional. Sin ella la sonda no pregunta —la API
+    respondería 401, que parece una caída— y dice lo que pasa de verdad. Las
+    demás se sondean igual, y el sistema queda `degraded`, no `down`."""
+    monkeypatch.setattr(settings, "guardian_api_key", None)
+    monkeypatch.setattr(settings, "health_cache_s", 0.0)
+    with respx.mock(assert_all_called=False):
+        rutas = {
+            nombre: respx.get(configuracion["url"]).mock(
+                return_value=httpx.Response(200, json={})
+            )
+            for nombre, configuracion in PROBES.items()
+        }
+
+        salud = await check_health()
+
+    assert not rutas["guardian"].called
+    assert salud["integrations"]["guardian"] == {
+        "reachable": False,
+        "error": "no configurada",
+    }
+    assert salud["integrations"]["nyt"]["reachable"] is True
+    assert salud["status"] == "degraded"
+
+
 # ----- La caché del sondeo (#169) -----
 
 

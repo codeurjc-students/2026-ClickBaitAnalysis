@@ -12,10 +12,17 @@ Y el defecto de `nlp_backend`, que pasó a `local` en #236, y la configuración
 del español (#230).
 """
 
+import os
+import subprocess
+import sys
+from pathlib import Path
+
 import pytest
 from pydantic import ValidationError
 
 from backend.config.settings import ModeloConInvocacion, Settings
+
+RAIZ = Path(__file__).resolve().parents[1]
 
 CLAVES_DE_PRUEBA = {
     "guardian_api_key": "clave-guardian-de-prueba",
@@ -74,6 +81,62 @@ def test_las_claves_de_las_noticias_en_espanol_son_opcionales(monkeypatch):
 
     assert configuracion.gnews_api_key is None
     assert configuracion.newsdata_api_key is None
+
+
+# Las cinco claves, opcionales (#259): ninguna es necesaria para analizar.
+VARIABLES_DE_CLAVE = [campo.upper() for campo in CLAVES_DE_PRUEBA]
+
+
+def test_ninguna_clave_es_obligatoria(monkeypatch):
+    """#259, con el argumento de #235: que falte una clave no puede tumbar el
+    análisis, que no usa ninguna. Antes, sin la línea de Guardian, de NYT o de
+    Hugging Face, el proceso no arrancaba; con la línea vacía, sí, así que
+    tampoco protegía de una clave sin rellenar."""
+    for variable in VARIABLES_DE_CLAVE:
+        monkeypatch.delenv(variable, raising=False)
+
+    configuracion = Settings(_env_file=None)
+
+    assert configuracion.guardian_api_key is None
+    assert configuracion.nyt_api_key is None
+    assert configuracion.hf_token is None
+    assert configuracion.claves_sin_configurar() == VARIABLES_DE_CLAVE
+
+
+def test_una_clave_vacia_cuenta_como_sin_configurar():
+    """`.env.example` las trae vacías: copiado tal cual, para el aviso del
+    arranque es lo mismo que no tenerlas."""
+    configuracion = Settings(**{**CLAVES_DE_PRUEBA, "nyt_api_key": ""}, _env_file=None)
+
+    assert configuracion.claves_sin_configurar() == ["NYT_API_KEY"]
+
+
+def test_el_sistema_se_importa_sin_ninguna_clave(tmp_path):
+    """De extremo a extremo: importar la API y el servidor MCP lee las claves en
+    varios sitios al definir una clase —los clientes de Guardian y NYT, la vía
+    remota de Hugging Face, que `factory.py` importa al cargarse, y las sondas
+    de salud—, y con una que faltara caería todo, también lo que no la usa.
+
+    En un proceso aparte, porque aquí ya están importados, y en otra carpeta,
+    porque `settings` lee el `.env` de la carpeta de trabajo."""
+    entorno = {
+        variable: valor
+        for variable, valor in os.environ.items()
+        if variable not in VARIABLES_DE_CLAVE
+    }
+    entorno["PYTHONPATH"] = str(RAIZ)
+
+    proceso = subprocess.run(
+        [sys.executable, "-c", "import backend.api.app, backend.main"],
+        cwd=tmp_path,
+        env=entorno,
+        capture_output=True,
+        text=True,
+        timeout=180,
+        check=False,
+    )
+
+    assert proceso.returncode == 0, proceso.stderr[-1500:]
 
 
 # La configuración del español (#230): la misma forma que la del inglés.

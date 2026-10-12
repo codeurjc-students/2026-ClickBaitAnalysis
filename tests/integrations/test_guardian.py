@@ -12,6 +12,37 @@ from backend.integrations.guardian.client import GuardianAPI
 TAGS_URL = "https://content.guardianapis.com/tags"
 SEARCH_URL = "https://content.guardianapis.com/search"
 
+# Las que van contra la API real necesitan la clave de verdad. Se mira al
+# cargar el módulo, antes de que el fixture de abajo ponga la de prueba.
+CON_CLAVE_REAL = pytest.mark.skipif(
+    not GuardianAPI.API_KEY, reason="sin GUARDIAN_API_KEY"
+)
+
+
+@pytest.fixture(autouse=True)
+def _clave_de_prueba_si_no_hay(monkeypatch):
+    """Desde #259 la clave es opcional y el CI no la trae: sin ella el cliente
+    no pide nada, así que las pruebas que hacen de Guardian con `respx` reciben
+    una de prueba. Una de verdad no se toca."""
+    if not GuardianAPI.API_KEY:
+        monkeypatch.setattr(GuardianAPI, "API_KEY", "clave-guardian-de-prueba-259")
+
+
+@pytest.mark.asyncio
+async def test_sin_clave_no_pide_nada_y_dice_que_falta(monkeypatch):
+    """#259: sin clave el sistema arranca, y esta herramienta dice qué falta sin
+    gastar una petición, tampoco la de `/tags`. Como GNews (#235)."""
+    monkeypatch.setattr(GuardianAPI, "API_KEY", None)
+    with respx.mock(assert_all_called=False):
+        etiquetas = respx.get(TAGS_URL)
+        busqueda = respx.get(SEARCH_URL)
+        result = await GuardianAPI().search_articles("artificial intelligence")
+
+    assert not etiquetas.called
+    assert not busqueda.called
+    assert not result.success
+    assert "GUARDIAN_API_KEY" in result.error
+
 
 def _mock_tags(tag_id="technology/test"):
     """Mockea /tags: devuelve un tag (o ninguno si tag_id=None), para controlar
@@ -242,6 +273,7 @@ async def test_find_tag_falls_back_to_first_when_no_canonical(fake_payload):
 
 @pytest.mark.integration
 @pytest.mark.asyncio
+@CON_CLAVE_REAL
 async def test_get_news_real_schema_contract():
 
     api = GuardianAPI()
@@ -258,6 +290,7 @@ async def test_get_news_real_schema_contract():
 # COMPROBAR MANUALMENTE QUE EL TEMA SELECCIONADO NO EXISTE Y NO DEVUELVE RESULTADOS
 @pytest.mark.integration
 @pytest.mark.asyncio
+@CON_CLAVE_REAL
 async def test_get_news_invalid_topic():
 
     api = GuardianAPI()
