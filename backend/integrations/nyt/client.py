@@ -4,6 +4,9 @@ Con tema, ordena por relevancia; sin él, por fecha. Con `sort=newest`, `q` deja
 de filtrar y devuelve lo último publicado, sea de lo que sea (#47). La clave va
 en la URL, y la cuota es de **500 llamadas al día** (`DAILY_LIMIT`), que es lo
 que obliga a cachear `/health` (#169).
+
+La clave es opcional desde #259 (`settings.nyt_api_key`): sin ella,
+`make_request` no hace ninguna petición, y el fallo dice qué falta.
 """
 
 from datetime import UTC, datetime, timedelta
@@ -16,8 +19,9 @@ from backend.core.models import ToolResult
 class NYTAPI(BaseAPI):
     BASE_URL = "https://api.nytimes.com/svc/search/v2/"
 
-    API_KEY = settings.nyt_api_key.get_secret_value()  # Key ya validada
+    API_KEY = settings.nyt_api_key.get_secret_value() if settings.nyt_api_key else None
     API_KEY_PARAM = "api-key"
+    CLAVE = "NYT_API_KEY"
 
     RATE_CALLS = 5  # Crea una instancia nueva con rate calls, no pasar por atributo o todos usan el mismo objecto.
     RATE_PERIOD = 60
@@ -55,7 +59,8 @@ class NYTAPI(BaseAPI):
         Returns:
             ToolResult.ok([{title, print_headline, url, date, content}, ...]) si hay artículos.
             ToolResult.fail("No articles found") si docs está vacío o ausente.
-            El error de `make_request`, tal cual, si la petición falla.
+            El error de `make_request`, tal cual, si la petición falla o si
+                falta la clave (sin llamar a la API).
         """
         # UTC explícito, no la zona de la máquina: en Docker el contenedor va en
         # UTC y el equipo de desarrollo no, así que `date.today()` desplazaría la

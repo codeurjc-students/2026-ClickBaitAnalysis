@@ -53,7 +53,9 @@ def _token_de_prueba_si_no_hay(monkeypatch):
     "llamar",
     [
         partial(HFClient.classify, text="titular", model="org/modelo"),
-        partial(HFClient.zero_shot, text="titular", model="org/modelo", labels=["a", "b"]),
+        partial(
+            HFClient.zero_shot, text="titular", model="org/modelo", labels=["a", "b"]
+        ),
     ],
     ids=["classify", "zero_shot"],
 )
@@ -63,8 +65,11 @@ async def test_la_via_remota_sin_token_no_pide_nada_y_dice_que_falta(
     """#259: sin `HF_TOKEN` el sistema arranca, y la vía remota —de pago desde
     #236— dice qué falta, en vez de mandar `Bearer None` y recibir un 401."""
     monkeypatch.setattr(HFClient, "API_KEY", None)
-    with respx.mock(assert_all_called=False):
-        ruta = respx.post(url__startswith=MODELS_URL)
+    # La ruta, en el enrutador de ESTE `with`: con argumentos, `respx.mock`
+    # crea uno nuevo, y `respx.post` la dejaría en el global, donde capturaría
+    # las peticiones de las pruebas siguientes.
+    with respx.mock(assert_all_called=False) as router:
+        ruta = router.post(url__startswith=MODELS_URL)
         result = await llamar(HFClient())
 
     assert not ruta.called

@@ -54,7 +54,7 @@ from backend.api.schemas import (
 )
 from backend.config.settings import settings
 from backend.core.health import Salud, check_health
-from backend.core.logging import configure_logging
+from backend.core.logging import avisar_si_faltan_claves, configure_logging
 
 # Las tres excepciones son vocabulario del MECANISMO, no de la fachada: viven
 # donde se lanzan (#137). Importarlas de `api.execute` las haría parecer suyas.
@@ -80,6 +80,7 @@ async def lifespan(app: FastAPI):
         cors_origins=settings.cors_origins,
         preheat_models=settings.preheat_models,
     )
+    avisar_si_faltan_claves()
 
     # Precalentado BLOQUEANTE, a propósito (#125). Hacerlo en segundo plano
     # dejaría a uvicorn aceptando conexiones mientras los modelos cargan: las

@@ -8,7 +8,7 @@ from mcp.server.fastmcp import FastMCP
 from backend.analysis import tool as analysis_tool
 from backend.config.settings import settings
 from backend.core import health
-from backend.core.logging import configure_logging
+from backend.core.logging import avisar_si_faltan_claves, configure_logging
 from backend.integrations.discovery import discover_and_register
 
 log = structlog.get_logger()
@@ -83,6 +83,7 @@ def main():
         # Las que no publican herramientas, como `llm/`: no es un fallo (#187).
         integraciones_sin_herramientas=list(integraciones.without_tools) or None,
     )
+    avisar_si_faltan_claves()
     mcp.run(transport=settings.mcp_transport)
 
 

@@ -33,9 +33,11 @@ async def test_sin_clave_no_pide_nada_y_dice_que_falta(monkeypatch):
     """#259: sin clave el sistema arranca, y esta herramienta dice qué falta sin
     gastar una petición, tampoco la de `/tags`. Como GNews (#235)."""
     monkeypatch.setattr(GuardianAPI, "API_KEY", None)
-    with respx.mock(assert_all_called=False):
-        etiquetas = respx.get(TAGS_URL)
-        busqueda = respx.get(SEARCH_URL)
+    # Las rutas, en el enrutador de ESTE `with`: con argumentos, `respx.mock`
+    # crea uno nuevo, y `respx.get` las dejaría en el global, para las demás.
+    with respx.mock(assert_all_called=False) as router:
+        etiquetas = router.get(TAGS_URL)
+        busqueda = router.get(SEARCH_URL)
         result = await GuardianAPI().search_articles("artificial intelligence")
 
     assert not etiquetas.called

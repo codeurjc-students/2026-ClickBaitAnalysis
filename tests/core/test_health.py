@@ -17,12 +17,26 @@ import json
 import httpx
 import pytest
 import respx
+from pydantic import SecretStr
 
 from backend.config.settings import settings
 from backend.core import health
 from backend.core.health import PROBES, _aggregate_status, _probe, check_health
 
 URL = "https://ejemplo.invalido/sonda"
+
+
+@pytest.fixture(autouse=True)
+def _claves_de_prueba_si_no_hay(request, monkeypatch):
+    """Desde #259 las claves son opcionales y el CI no las trae: sin ellas, la
+    sonda de Guardian y la de NYT no preguntan. Las pruebas que hacen de esas
+    APIs con `respx` reciben unas de prueba; unas de verdad no se tocan, y las
+    `integration` van con las que haya."""
+    if request.node.get_closest_marker("integration"):
+        return
+    for campo in health.CLAVES.values():
+        if not getattr(settings, campo):
+            monkeypatch.setattr(settings, campo, SecretStr(f"{campo}-de-prueba-259"))
 
 
 def test_aggregate_status_all_ok():
@@ -143,20 +157,24 @@ async def test_un_error_http_dice_el_codigo_y_no_la_url(codigo, esperado):
 
 
 @pytest.mark.asyncio
-async def test_check_health_no_publica_las_claves_configuradas():
-    """La prueba que fija el arreglo, sobre la respuesta ENTERA y con las claves
-    de verdad de la configuración: cualquier campo que se añada mañana queda
-    cubierto sin tener que acordarse de él."""
+async def test_check_health_no_publica_las_claves_configuradas(monkeypatch):
+    """La prueba que fija el arreglo, sobre la respuesta ENTERA: cualquier campo
+    que se añada mañana queda cubierto sin tener que acordarse de él. Con una
+    clave conocida en cada sonda que la lleva; hasta #259 las leía de `PROBES`,
+    que desde entonces no las guarda, y sin esto pasaría sin mirar nada."""
+    claves = {campo: f"{campo}-que-no-puede-salir" for campo in health.CLAVES.values()}
+    for campo, clave in claves.items():
+        monkeypatch.setattr(settings, campo, SecretStr(clave))
+    monkeypatch.setattr(settings, "health_cache_s", 0.0)
+
     with respx.mock:
         for configuracion in PROBES.values():
             respx.get(configuracion["url"]).mock(return_value=httpx.Response(401))
 
         salud = json.dumps(await check_health())
 
-    for configuracion in PROBES.values():
-        clave = configuracion.get("params", {}).get("api-key")
-        if clave:
-            assert clave not in salud
+    for clave in claves.values():
+        assert clave not in salud
 
 
 @pytest.mark.asyncio
@@ -206,9 +224,11 @@ async def test_una_api_sin_clave_sale_no_configurada_sin_preguntar(monkeypatch):
     demás se sondean igual, y el sistema queda `degraded`, no `down`."""
     monkeypatch.setattr(settings, "guardian_api_key", None)
     monkeypatch.setattr(settings, "health_cache_s", 0.0)
-    with respx.mock(assert_all_called=False):
+    # Las rutas, en el enrutador de ESTE `with`: con argumentos, `respx.mock`
+    # crea uno nuevo, y `respx.get` las dejaría en el global, para las demás.
+    with respx.mock(assert_all_called=False) as router:
         rutas = {
-            nombre: respx.get(configuracion["url"]).mock(
+            nombre: router.get(configuracion["url"]).mock(
                 return_value=httpx.Response(200, json={})
             )
             for nombre, configuracion in PROBES.items()
@@ -311,6 +331,8 @@ async def test_diez_peticiones_a_la_vez_sondean_una_sola_vez(monkeypatch):
 @pytest.mark.asyncio
 @pytest.mark.parametrize("name", list(PROBES))
 async def test_probe_reaches_api(name):
-    result = await _probe(**PROBES[name])
+    if name in health.CLAVES and not getattr(settings, health.CLAVES[name]):
+        pytest.skip(f"sin {health.CLAVES[name].upper()}")
+    result = await health._sondear_una(name)
     assert result["reachable"] is True
     assert result["error"] is None

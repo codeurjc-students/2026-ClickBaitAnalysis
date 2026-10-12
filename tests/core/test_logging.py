@@ -28,8 +28,16 @@ def test_logger_emits_structured_output_with_kwargs(monkeypatch, capsys):
 
 def _con_claves(monkeypatch, **claves: SecretStr | None) -> None:
     """Las cinco claves con un valor de prueba, salvo las que se pasan."""
-    for campo in ("guardian_api_key", "nyt_api_key", "hf_token", "gnews_api_key", "newsdata_api_key"):
-        monkeypatch.setattr(settings, campo, claves.get(campo, SecretStr("clave-de-prueba-259")))
+    for campo in (
+        "guardian_api_key",
+        "nyt_api_key",
+        "hf_token",
+        "gnews_api_key",
+        "newsdata_api_key",
+    ):
+        monkeypatch.setattr(
+            settings, campo, claves.get(campo, SecretStr("clave-de-prueba-259"))
+        )
 
 
 def test_el_arranque_avisa_de_las_claves_que_faltan(monkeypatch):

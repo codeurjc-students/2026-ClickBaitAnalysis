@@ -6,6 +6,12 @@ pone `make_request`: el límite de peticiones de cada instancia (`aiolimiter`),
 los reintentos —sólo ante un timeout o un 503, y sólo si `MAX_RETRIES` los
 pide: Guardian y NYT no reintentan—, la cuenta de llamadas y la cuota restante.
 
+Y, desde #259, la clave: un cliente cuya API la pide declara su variable en
+`CLAVE`, y si no está configurada `make_request` no sale a la red y devuelve
+qué falta. Vive aquí y no en cada método de cada cliente porque es una regla
+que había que repetir a mano —en Hugging Face, en `classify` y en `zero_shot`;
+en Guardian, antes de `/tags`—, y un método nuevo la habría olvidado.
+
 Devuelve siempre un `ToolResult`: un fallo viaja como valor, no como excepción.
 Sus mensajes de error SON públicos —salen por `/analyze`, por
 `/tools/.../execute` y por las tools MCP—, así que dicen qué pasó con las
@@ -19,7 +25,7 @@ import httpx
 import structlog
 from aiolimiter import AsyncLimiter
 
-from backend.core.errores import describir_respuesta_http, mensaje_publico
+from backend.core.errores import describir_respuesta_http, falta_clave, mensaje_publico
 from backend.core.models import ToolResult
 
 log = structlog.get_logger()
@@ -30,6 +36,10 @@ class BaseAPI:
     API_KEY: str | None = None
     TIMEOUT: float = 30.0
     API_KEY_PARAM: str = "api-key"
+    # La variable de la clave, en las APIs que la piden (#259): con ella puesta y
+    # sin `API_KEY`, `make_request` no hace la petición. Las que no piden clave,
+    # como el tiempo u Ollama, la dejan en `None`.
+    CLAVE: str | None = None
 
     # Variables para reintento
     MAX_RETRIES: int = 0  # Guardian/NYT NO reintentan
@@ -74,6 +84,11 @@ class BaseAPI:
         json: dict | None = None,  # Para llamadas HF
     ) -> ToolResult:
         """Make a request to the  API with proper error handling."""
+
+        # Antes que nada: sin la clave que esta API pide, la petición daría un
+        # 401 que parece una caída, o saldría con `Bearer None` (#259).
+        if self.CLAVE and not self.API_KEY:
+            return ToolResult.fail(falta_clave(self.CLAVE))
 
         headers = {"Accept": "application/json"}
 

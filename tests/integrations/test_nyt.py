@@ -28,8 +28,10 @@ async def test_sin_clave_no_pide_nada_y_dice_que_falta(monkeypatch):
     """#259: sin clave el sistema arranca, y esta herramienta dice qué falta sin
     gastar una de sus 500 peticiones diarias. Como GNews (#235)."""
     monkeypatch.setattr(NYTAPI, "API_KEY", None)
-    with respx.mock(assert_all_called=False):
-        busqueda = respx.get(BUSQUEDA)
+    # La ruta, en el enrutador de ESTE `with`: con argumentos, `respx.mock`
+    # crea uno nuevo, y `respx.get` la dejaría en el global, para las demás.
+    with respx.mock(assert_all_called=False) as router:
+        busqueda = router.get(BUSQUEDA)
         result = await NYTAPI().search_articles("technology")
 
     assert not busqueda.called

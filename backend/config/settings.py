@@ -1,15 +1,20 @@
 """La configuración del sistema, leída del entorno o del `.env`.
 
 Una clase, `Settings`, y una instancia, `settings`, que se valida AL IMPORTAR:
-si falta una clave obligatoria, el proceso no arranca. Que se lea del entorno
-es lo que permite dar los secretos en despliegue sin escribirlos en el código
-ni en la imagen (con compose, por `env_file`).
+un valor mal formado —un `Literal` que no existe, un JSON roto— hace que el
+proceso no arranque. Que se lea del entorno es lo que permite dar los secretos
+en despliegue sin escribirlos en el código ni en la imagen (con compose, por
+`env_file`).
 
-Las claves de Guardian, NYT y Hugging Face son campos obligatorios, y eso tiene
-una consecuencia fuera de este fichero: los detectores NLP no pueden
-importarlo, porque dejarían de poder importarse sin un `.env`. Lo vigila
-`tests/test_arquitectura.py`. Las de las noticias en español (#235) son
-opcionales: sin ellas sólo falla su herramienta, y lo dice.
+Las claves de las APIs externas son todas opcionales desde #259, como las de
+#235: sin una, sólo falla su herramienta, que dice qué falta, y su sonda de
+salud sale «no configurada»; al arrancar, el registro avisa. Hasta entonces las
+de Guardian, NYT y Hugging Face eran obligatorias, y eso no protegía de nada:
+con la línea vacía, el proceso arrancaba igual.
+
+Los detectores NLP siguen sin importar este módulo, y lo vigila
+`tests/test_arquitectura.py`: reciben su configuración de la factoría, y así se
+prueban sin montar nada.
 
 Cada campo lleva al lado el motivo de su valor por defecto. Desde el entorno,
 las listas y los diccionarios se pasan como JSON.
@@ -74,19 +79,38 @@ class Settings(BaseSettings):
 
     log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR"] = "INFO"
     log_format: Literal["console", "json"] = "console"
+    # Las claves de las APIs externas, TODAS OPCIONALES: que falte una no debe
+    # tumbar el análisis, que es el centro del sistema y no usa ninguna. Sin
+    # ella, su herramienta responde qué falta sin hacer la petición. Lo eran ya
+    # las de las noticias en español (#235); las otras tres, desde #259.
+    #
     # `SecretStr` y no `str` (#93): su `repr` es '**********', así que una traza,
     # un log o un test que falle sobre este objeto no las enseña. Pasó: un
     # `AttributeError` sobre `settings` hizo que pytest imprimiera las tres en
     # claro. El valor se saca con `get_secret_value()` sólo donde se usa.
-    guardian_api_key: SecretStr  # PS mapea automáticamente
-    nyt_api_key: SecretStr
-    hf_token: SecretStr
-    # Las de las noticias en español (#235), OPCIONALES a diferencia de las de
-    # arriba: que falte una no debe tumbar el análisis, que es el centro del
-    # sistema. Sin ella, su herramienta responde que no está configurada, y un
-    # despliegue cuyo `.env` no las tenga sigue arrancando.
+    guardian_api_key: SecretStr | None = None
+    nyt_api_key: SecretStr | None = None
+    # Sólo la usa la vía remota (`NLP_BACKEND=remote`), de pago desde #236.
+    hf_token: SecretStr | None = None
     gnews_api_key: SecretStr | None = None
     newsdata_api_key: SecretStr | None = None
+
+    def claves_sin_configurar(self) -> list[str]:
+        """Las variables de las claves que faltan o están vacías, en su orden.
+
+        Para el aviso del arranque (#259), que hace visible lo que antes hacía
+        fallar al arrancar. Una vacía cuenta como ausente: es como llegan de un
+        `.env.example` copiado tal cual. Devuelve los NOMBRES, nunca los valores.
+
+        Las claves son los campos `SecretStr | None`, sin una lista aparte: una
+        nueva entra sola en el aviso.
+        """
+        return [
+            campo.upper()
+            for campo, definicion in type(self).model_fields.items()
+            if definicion.annotation == SecretStr | None and not getattr(self, campo)
+        ]
+
     # DÓNDE corren los modelos: en el propio proceso o en la Inference API de
     # Hugging Face. El defecto era `remote` hasta #236: la vía remota no sirve la
     # dedicada (400 desde septiembre, #127) y, desde que Hugging Face retiró el
@@ -425,14 +449,11 @@ class Settings(BaseSettings):
     chat_max_history_chars: int = 4000
 
 
-# Activa la validación al importar: si falta una clave, el proceso no arranca.
+# Activa la validación al importar: si un valor está mal formado, el proceso no
+# arranca.
 #
-# El `ignore` es necesario: pydantic-settings rellena los campos sin valor por
-# defecto desde el entorno o el `.env`, y el comprobador sólo ve un constructor
-# al que le faltan tres argumentos.
-#
-# La sintaxis importa, y se comprobó (#139): pyright **ignora el contenido del
-# corchete** en `# type: ignore[...]` —una regla inventada suprime igual— así que
-# esa forma silencia cualquier error futuro de la línea. `# pyright: ignore[...]`
-# sí acota: puesta una regla equivocada, el error vuelve.
-settings = Settings()  # pyright: ignore[reportCallIssue]
+# Hasta #259 la línea llevaba un `# pyright: ignore[reportCallIssue]`: con tres
+# campos sin valor por defecto, que pydantic-settings rellena desde el entorno,
+# el comprobador veía un constructor al que le faltaban tres argumentos. Sin
+# campos obligatorios, ya no hace falta.
+settings = Settings()
