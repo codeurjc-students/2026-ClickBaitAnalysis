@@ -1,6 +1,14 @@
 # El sitio, por su nombre. Caddy sirve HTTPS en el 443 y redirige el 80 solo.
 #
-# El certificado es AUTOFIRMADO y se carga de dos ficheros que viven en la
+# El nombre y el certificado son dos variables (#251), con el valor de la
+# máquina 1 por defecto: allí no se definen, y el fichero dice lo mismo que
+# antes. Caddy las sustituye ANTES de leer el fichero, así que una puede valer
+# varias palabras, como el `tls` con sus dos rutas. En otra máquina las pone
+# `compose.local.yaml`: `localhost`, y `internal`, la autoridad propia de Caddy,
+# que vive dentro del contenedor (`docs/ejecucion.md`). Sin ellas, fuera de la
+# máquina 1 Caddy no encuentra el certificado y la web no arranca.
+#
+# El de la máquina 1 es AUTOFIRMADO y se carga de dos ficheros que viven en la
 # máquina, fuera del repositorio y de la imagen. No es lo que se quería: el
 # registro CAA de `urjc.es` sólo autoriza a HARICA, así que Let's Encrypt
 # responde `403 urn:ietf:params:acme:error:caa — CAA record for urjc.es prevents
@@ -11,8 +19,8 @@
 # Pasar a una autoridad de verdad es cambiar SÓLO la línea `tls`: quitarla si
 # arreglan el CAA —Caddy usaría Let's Encrypt— o sustituirla por un bloque con
 # el ACME de HARICA.
-gongarcia.tfg.etsii.urjc.es {
-	tls /certificados/certificado.pem /certificados/clave.pem
+{$SITIO:gongarcia.tfg.etsii.urjc.es} {
+	tls {$TLS:/certificados/certificado.pem /certificados/clave.pem}
 
 	# R12.5, un tope al tamaño de la petición. Va aquí porque esto es la puerta:
 	# lo que se rechaza en Caddy no llega a ocupar memoria en la API. 1 MB deja

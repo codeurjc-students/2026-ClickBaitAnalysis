@@ -4,7 +4,9 @@
 > español. Revisado entero en #173; §7, §10 y §12 otra vez en #193, al cerrar
 > H5; y el 11 de octubre de 2026, para `v0.8`: §3, §6, §7, §10 y §12 llevan un
 > diagrama **«Hoy, en `v0.8`»** —delante en las cuatro primeras, y al final en
-> §12, que va en orden cronológico—, y los de antes se conservan. Para los requisitos,
+> §12, que va en orden cronológico—, y los de antes se conservan. El 12 de
+> octubre, §8 sumó el diagrama de capas del cliente, que pide la plantilla de la
+> memoria (#251). Para los requisitos,
 > ver [`requisitos.md`](requisitos.md); para dónde vive cada cosa y con qué
 > criterio, [`estructura.md`](estructura.md).
 >
@@ -607,7 +609,77 @@ La primera lleva además un `assert modulos` delante del recorrido: si la
 travesía del árbol se rompiera, la prueba se convertiría en un `assert not []`
 que pasa siempre.
 
-## 8 · El frontend: de dónde salen sus tipos
+## 8 · El frontend: sus capas y de dónde salen sus tipos
+
+### Las capas del cliente
+
+*Añadido el 12 de octubre de 2026 (#251): lo pide la plantilla de la memoria, y
+hasta entonces esta sección sólo contaba de dónde salen los tipos.*
+
+```mermaid
+flowchart TD
+    CAS["Cáscara · la raíz de app/<br/>App: cabecera y navegación<br/>app.routes: una ruta por pantalla, perezosa"]
+
+    subgraph PAN["Pantallas · una carpeta por ruta"]
+        %% Explícito a propósito: sin él, Mermaid 11.12 las apila en columna
+        %% y hasta la 11.9 las pone en fila. Con él, en fila en todas.
+        direction TB
+        ANA["analisis/<br/>AnalisisPage"]
+        ASI["asistente/<br/>AsistentePage<br/>conversacion"]
+        HIS["historial/<br/>HistorialPage"]
+        SIS["sistema/<br/>SistemaPage<br/>EsquemaForm · campos"]
+    end
+
+    subgraph COM["Compartido · sin ruta"]
+        SEN["senales/<br/>ResultadoAnalisis · SenalCard<br/>TitularResaltado<br/>guardianes: datos · formas"]
+        SAL["salud/<br/>IndicadorSalud"]
+    end
+
+    API["api/ · lo único que habla con el backend<br/>servicios: Analyze · History · Chat · Tools · Health<br/>models · schema.d.ts · errores"]
+    BACK["API REST"]
+
+    CAS -->|"loadComponent"| PAN
+    CAS -->|"monta el indicador"| SAL
+    CAS -->|"ChatService: ¿hay asistente?"| API
+    PAN -->|"pinta, lee y nombra con"| SEN
+    PAN -->|"servicios y tipos"| API
+    SEN -->|"sólo tipos"| API
+    SAL -->|"HealthService"| API
+    API -.->|"HTTP, /api"| BACK
+```
+
+Cada caja es una carpeta de `frontend/src/app/` con sus clases y ficheros
+principales. **Cada flecha continua es un import**: `A → B` quiere decir que A
+usa piezas de B, así que marca de quién depende cada capa y no el camino de los
+datos, que van al revés. Son la dirección permitida, como en §7. **La
+discontinua es la única que no es un import**: la llamada por red a la API. Lo
+que hace cada capa:
+
+- **La cáscara** es lo que no pertenece a ninguna pantalla: la cabecera con la
+  navegación, que pregunta una vez a `GET /agent` para enseñar la pestaña del
+  asistente sólo si está configurado, y las rutas. Cada pantalla se descarga al
+  visitarla (`loadComponent`), así que su flecha es un import perezoso.
+- **Las pantallas**, una carpeta por ruta, con su componente, su estado en
+  `signal()` —el proyecto es *zoneless*— y sus mensajes de error. `/analizar` y
+  `/analisis/:id` son la misma ([§9](#9--volver-a-un-análisis-guardado)).
+  **Ninguna importa de otra**, y por eso no hay flechas dentro de su caja.
+- **Lo compartido** existe para que se cumpla eso. `senales/` pinta, lee y
+  nombra un resultado del dominio para más de una pantalla (#190, #191), y
+  `salud/` es el indicador de la cabecera (#147), que monta la cáscara. Ninguna
+  de las dos tiene ruta.
+- **`api/`** es lo único que habla con el backend: un servicio por familia de
+  rutas, los tipos generados del contrato y lo que se lee del cuerpo de un error
+  HTTP. No conoce el dominio. Llega a la API por `/api`, que en desarrollo
+  reenvía `proxy.conf.json` y en despliegue Caddy
+  ([§11](#11--el-camino-de-una-petición-en-despliegue)). De dónde salen sus
+  tipos, en el diagrama de abajo.
+
+Cada import entre carpetas queda cubierto por un camino del dibujo, y ninguna
+flecha sobra: 16 pares de carpetas, todos con camino, y ninguna pantalla que
+importe de otra (`spikes/imports_cliente.py`, 12 de octubre de 2026). Qué va en
+cada carpeta, y con qué criterio, en [`estructura.md`](estructura.md).
+
+### De dónde salen sus tipos
 
 Es la única cadena del sistema que **cruza dos lenguajes y un paso de
 compilación**, así que no se ve entera en ningún fichero.

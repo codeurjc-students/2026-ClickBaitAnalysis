@@ -113,7 +113,9 @@ jeepney==0.9.0
 jsonref==1.1.0
     # via fastmcp
 jsonschema==4.26.0
-    # via mcp
+    # via
+    #   -r requirements.in
+    #   mcp
 jsonschema-path==0.4.5
     # via fastmcp
 jsonschema-specifications==2025.9.1

@@ -2,13 +2,13 @@
 
 Version de Python: 3.12.3
 
-**Documentación:** [Requisitos](docs/requisitos.md) · [Arquitectura (UML + cierre del MVP)](docs/arquitectura.md)
+**Documentación:** [Requisitos](docs/requisitos.md) · [Arquitectura](docs/arquitectura.md) · [Estructura](docs/estructura.md) · [Ejecución](docs/ejecucion.md) · [Guía de desarrollo](docs/desarrollo.md)
 
 ---
 
 ## Plan de trabajo — hitos hasta la entrega
 
-**Estado actual (octubre 2026): `v0.7.0`.** El núcleo NLP está completo y
+**Estado actual (octubre 2026): `v0.8.0`.** El núcleo NLP está completo y
 validado —cuatro señales de clickbait contrastables, un modelo lineal
 interpretable propio, divulgación de modelos y una evaluación metodológicamente
 cerrada (split train/dev/test + validación externa)—, la capa web sirve sus
@@ -20,8 +20,12 @@ cinco señales respondiendo y el historial sobreviviendo a los redespliegues. Y
 el **agente conversacional** (R13), que da nombre al TFG, contesta en lenguaje
 natural desde la pantalla del asistente: elige las herramientas por MCP, las
 tarjetas salen de sus resultados y no de su texto, y el modelo corre en la A40
-de la universidad, que se enciende bajo demanda. Lo que resta es la memoria,
-con el análisis en español (`v0.8`) en paralelo hasta el 15 de diciembre.
+de la universidad, que se enciende bajo demanda. **Desde `v0.8`, también en
+español** (R3.4): se detecta el idioma del titular y cada señal usa su modelo
+para él —el lineal, bilingüe; la dedicada, un BETO afinado con TA1C; el tono,
+uno multilingüe—, y las que no lo analizan dicen por qué: el léxico, cuyas
+listas son de titulares en inglés, y la incoherencia, que no superó su regla en
+TA1C. Lo que resta es la memoria, con la congelación del 15 de diciembre.
 **Entrega: febrero 2027.**
 
 **El agente conversacional (R13) es H5.** Hasta el 7 de septiembre no estaba en
@@ -38,7 +42,7 @@ tenía fecha ni versión.
 | **H4 · `v0.5` Docker y despliegue** | diciembre | **20 sep** | Docker Compose (MCP + API / web), **volumen** para el historial, HTTPS y pruebas E2E | **R7, R8** |
 | **H5 · `v0.6` Agente conversacional** | — | **1 oct** | Bucle del agente, `POST /chat` con sondeo, pantalla de chat y traza de herramientas | **R13**, R6.10/12/13 |
 | **`v0.7` · Mejoras** *(en paralelo con H6)* | — | **7 oct** | Lo que H5 dejó abierto: la última vuelta del agente con historial, el historial que sobrevive a recargar, los enlaces de las noticias, las fichas y el fallo disfrazado de NYT (#208 a #212). Y cinco traídas del trabajo futuro: el veto del engaño (#124), los umbrales (#93) y el modo de invocación (#159) configurables, y el lineal reentrenado sobre las palabras del titular (#78 con #75) | R3.8, R3.9 |
-| **`v0.8` · Español** *(en paralelo con H6)* | — | *oct–15 dic* | El análisis de titulares en español: se detecta el idioma y cada señal usa su modelo para él, entrenado o medido con TA1C | **R3.4** |
+| **`v0.8` · Español** *(en paralelo con H6)* | — | **11 oct** | El análisis de titulares en español: se detecta el idioma y cada señal usa su modelo para él, entrenado o medido con TA1C | **R3.4** |
 | **H6 · `v1.0` Memoria y defensa** | ene–feb 2027 | *oct–feb* | Redacción de la memoria y preparación de la defensa | — |
 
 **El proyecto va casi tres meses por delante de esta previsión.** H2 se cerró en
@@ -72,6 +76,12 @@ un hito propio, `v0.8`, y etiquetar antes `v0.7.0`, para que quede publicada una
 versión sin él. La congelación del 15 de diciembre pasa a `v0.8`, y la memoria
 describe la versión de ese día. El certificado (#213) salió de `v0.7` sin hito:
 depende de la universidad, y puede entrar cuando responda.
+
+**`v0.8` se cerró el 11 de octubre, también antes de la congelación.** Sus
+nueve issues se hicieron del 7 al 11 de octubre, y `v0.8.0` se publicó ese
+día. La congelación del 15 de diciembre se mantiene como fecha: lo que entre en
+el código hasta entonces —como las claves opcionales de #259— va en H6, y la
+memoria describe la versión de ese día.
 
 **Reparto de H4 a H6, decidido el 2026-09-07.** El H5 original era «responsive,
 gestión de errores, pruebas E2E y despliegue», y #130 se llevó las dos primeras
@@ -5692,6 +5702,11 @@ sin poder, del despliegue, que sí.
 **Una imagen para dos servicios no se construye dos veces**: los pasos de `mcp`
 salieron todos `CACHED`. Lo que sí se hace dos veces es exportar la imagen —97 s
 cada una, en paralelo—, que es el coste de reescribir la capa de modelos.
+*(Revisado en #251: esas dos exportaciones en paralelo compiten por el nombre.
+En una instalación nueva de Docker —29.1, con Compose 2.40— la segunda falló en
+frío con «already exists», y `up --build` fallaba la primera vez que alguien
+levantaba el sistema. Desde entonces la imagen la construye sólo `api`, y `mcp`
+la usa con `pull_policy: never`. Ver la sección de #251.)*
 
 **El MCP no precalienta, y ahora está medido que no hace falta**: cargar los tres
 modelos en frío tarda 7,0 s frente a los 60 s de `mcp_execute_timeout`. Los
@@ -9429,6 +9444,91 @@ Las dos de GNews y NewsData (#235) no fallaban, porque además comparaban el men
 | Máquina | El PC de sobremesa del autor: WSL2 (Ubuntu 24.04.4, 7,6 GB), Docker 29.1.3, Compose 2.40.3, Python 3.12.3 |
 | Código | `7c277a9`, la rama de #259 sobre `e9880ab` |
 | Guiones | `spikes/sin_claves.sh`; la suite, `pytest -m "not integration"`, y sin claves en una copia sin `.env` y sin las cinco variables |
+
+### Lo que la plantilla de la memoria pide del repositorio (#251, 12 oct 2026)
+
+La plantilla de la memoria —la de TFG web del grupo del tutor— copia varios capítulos de la «documentación del repositorio»: Ejecución (anexo 2), Guía de desarrollo (anexo 3) y, en 4.3, un diagrama del cliente por capas. Este README es un diario y no tiene esas secciones, y para tres piezas no había sustituto: cómo se levanta el sistema desde cero, cómo se prepara un entorno para editarlo, y el diagrama. Sale del índice comentado de la memoria (12 oct 2026).
+
+#### Lo que entra
+
+- **`docs/ejecucion.md`**, la fuente del anexo 2: qué se levanta, lo que hace falta —con el disco y la memoria medidos—, la configuración, cómo se arranca y se comprueba, el asistente, cómo se para y qué cambia en la máquina de la universidad. La configuración lista **los 44 ajustes** de `settings`, cada uno con su defecto y lo que fija el compose, y la vigila `tests/test_documentacion.py`: un ajuste nuevo sin su fila, o la fila de uno que ya no existe, hace fallar el CI.
+- **`docs/desarrollo.md`**, la del anexo 3, en ocho pasos: el código, el backend (con las señales NLP como opcionales), el frontend, la configuración, arrancar en desarrollo, lo que comprueba el CI, cambiar el contrato y cambiar una dependencia.
+- **`.env.example`**, que la issue dejaba por decidir: **decidido (autor)**, las cinco claves vacías.
+- **El diagrama de capas del cliente**, en §8 de `docs/arquitectura.md`, con `spikes/imports_cliente.py` (abajo).
+- **El «Plan de trabajo» al día con `v0.8.0`**: el estado actual, la fecha real de `v0.8` (11 oct) y un párrafo sobre la congelación; y la línea «Documentación:», con las dos guías y `estructura.md`.
+- `frontend/README.md`, que era la plantilla en inglés de Angular CLI, remite a la guía; tres filas de `docs/estructura.md`, y `requirements.txt` regenerado (abajo).
+
+Dos cosas salieron de aquí como issues aparte, y se definieron con `crear-issues`: **#259**, las claves de las APIs opcionales, que se hizo antes y en un worktree porque esta guía la esperaba (ver su sección); y **#260**, un análisis de vulnerabilidades, que va después.
+
+#### Para que se pueda ejecutar fuera de la máquina 1
+
+`compose.yaml` estaba atado a la máquina de la universidad: el `Caddyfile` fijaba el sitio `gongarcia.tfg.etsii.urjc.es` y cargaba un certificado de `/etc/clickbait/tls`, generado a mano. En otra máquina, Caddy no encontraba el certificado, `web` no llegaba a sano y `--wait` fallaba. Una guía que dijera «`docker compose up`» habría fallado en cualquier clon. **Decidido (autor), de tres opciones**:
+
+- **Elegida: dos variables en el `Caddyfile` y una variante del compose.** `{$SITIO:gongarcia.tfg.etsii.urjc.es}` y `tls {$TLS:…}`, con el valor de la máquina 1 por defecto: Caddy las sustituye antes de leer el fichero, y sin definirlas el `caddy adapt` de la imagen da **el mismo JSON, byte a byte (1.148 B)**, que el `Caddyfile` anterior. `compose.local.yaml` se suma con `-f` y pone `SITIO=localhost` y `TLS=internal` —la autoridad propia de Caddy, que vive en el contenedor y no se instala en el equipo—, sin el montaje del certificado y con los puertos sólo en `127.0.0.1`.
+- Descartada: no tocar el código y que la guía describiera sólo la máquina 1, remitiendo para otra a `desarrollo.md`. Ningún evaluador podría levantarlo con Docker.
+- Descartada: documentar un certificado falso del dominio de la universidad y entrar con `--resolve` o el fichero de hosts. Un clon local se haría pasar por la universidad.
+
+**`!override` es lo que hace funcionar la variante.** Al juntar dos ficheros, Compose sustituye un valor suelto y mezcla un diccionario clave a clave, pero **una lista la suma**: `ports` se concatena y `volumes` se mezcla por la ruta en el contenedor. La variante quiere menos que `compose.yaml`, y sumando no se quita nada: sin la etiqueta, `docker compose config` dio seis puertos —los tres públicos y los tres locales— y el certificado de la máquina 1 seguía montado. `!override` (Compose 2.24) sustituye la lista entera. `yaml.safe_load` no la conoce, así que la prueba de la variante lleva un cargador propio que la conserva para poder exigirla; contra tres variantes rotas —la API publicada, `NLP_BACKEND` cambiado y sin `!override`— falla cada una por su prueba.
+
+Para comprobarlo hizo falta **Docker en WSL**, que no estaba: lo instaló el autor (`docker.io` 29.1.3 y `docker-compose-v2` 2.40.3, de Ubuntu). Usa el almacén de imágenes de containerd y no trae `buildx`.
+
+#### La carrera al construir: «already exists»
+
+La primera construcción en frío falló:
+
+```
+#34 [api] exporting to image … naming to docker.io/library/clickbait-backend:latest
+#34 ERROR: image "docker.io/library/clickbait-backend:latest": already exists
+```
+
+`api` y `mcp` comparten imagen (`image: clickbait-backend`, desde #162), y Compose construye las dos **en paralelo**: en frío, las dos exportaciones terminan a la vez y compiten por el nombre. Con la caché caliente no se ve —tres construcciones seguidas, en paralelo y en serie, con código 0—, así que falla justo la primera vez, la que sigue quien lee la guía. La máquina 1 tiene el mismo almacén, pero Compose 5.5.1, y nunca falló: si es la versión o la suerte, no se sabe.
+
+**El arreglo no depende de la versión: la imagen la construye un solo servicio.** El `build` sale del ancla `x-backend` y queda sólo en `api`; `mcp` lleva `pull_policy: never`, porque sin él Compose intenta descargar la imagen de Docker Hub antes de construirla y escribe un «Error pull access denied» que no lo es. Comprobado: sin imagen, una sola exportación y los tres sanos; y al cambiar el código, **`mcp` se recrea con la imagen nueva**, que era lo que podía romperse en silencio al dejar de construirla. La prueba nueva de `test_compose.py` falla contra el `compose.yaml` anterior. La sección de #164 lleva una nota.
+
+#### El diagrama del cliente
+
+Cuatro capas, cada una una carpeta de `frontend/src/app/`: la cáscara (la cabecera y las rutas), las pantallas (`analisis/`, `asistente/`, `historial/`, `sistema/`), lo compartido (`senales/` y `salud/`) y `api/`. **Cada flecha continua es un import** —la dirección de la dependencia, no del dato— y la única discontinua, la llamada por red. `spikes/imports_cliente.py` hace con este diagrama lo que `imports_entre_capas.py` con §7: **16 pares de carpetas, todos con camino en el dibujo, ninguna flecha sin un import que la forme y ningún import entre pantallas**; con uno de `historial/` añadido a `sistema/` en una copia, sale con código 1 y lo nombra.
+
+Dos cosas del dibujo:
+
+- **Mermaid cambió cómo coloca los nodos de una subgrafía.** Las cuatro pantallas, sin flechas entre ellas, salían en fila con Mermaid 11.4.1 —con el que se comprobaba— y apiladas en columna en la vista previa de VS Code del autor, que reprodujo la 11.12.0: 703 × 1.494 px. Antes había puesto `direction LR`, que también las apila, porque en LR los nodos del mismo rango van en columna. Con `direction TB` explícito salen en fila en las cuatro versiones probadas —10.9.1, 11.4.1, 11.9.0 y 11.12.0—, y lo explica un comentario dentro del diagrama. **Comprobar un diagrama con una sola versión de Mermaid no basta.**
+- **Todas las flechas llevan nombre.** El autor preguntó qué significaban las que no lo tenían: si la figura se lee sin el texto, como pasará en la memoria, no se explica sola. Las de las pantallas a `senales/` dicen «pinta, lee y nombra con», que es el criterio de esa carpeta en `estructura.md`: Historial y Sistema no pintan con ella, leen y nombran.
+
+#### Lo que destapó seguir las guías al pie de la letra
+
+- **`requirements.txt` no era el que sale de `requirements.in`.** `pip-compile`, sin cambiar nada, movía el lockfile: no una versión, sino el comentario de procedencia de `jsonschema`, que se declaró en el `.in` sin regenerarlo después. Se regeneró, y la guía ya no produce un cambio que nadie ha hecho.
+- **`npm ci` avisó de 14 vulnerabilidades**: 3 críticas, 9 altas y 2 moderadas. Con `npm audit --omit=dev`, lo que llega a la web servida, queda **una**, `@angular/router`: una denegación de servicio del renderizado en servidor (SSR), que el proyecto no usa. Va a #260.
+- **Las claves**: una vacía no era una que faltaba, y sólo sin la línea no arrancaba nada. Lo resolvió #259.
+- **Sin `buildx`, un `docker build` suelto** usa el constructor antiguo, con un aviso de obsoleto; y `docker builder prune` no vacía la caché del compose (lo hace `docker system prune -a`). La guía construye las imágenes con `docker compose build`, que es lo comprobado.
+
+#### Lo medido
+
+| | Resultado |
+|---|---|
+| **`desarrollo.md`**, en un clon limpio | los ocho pasos con código 0; **632 pruebas** y el 97 % de cobertura, ruff, pyright con 0 errores, 206 de Vitest, el build y ESLint; el contrato regenerado, sin cambios; `pip-compile`, sin cambios |
+| Los tres procesos de desarrollo | responden en 6 s; por el proxy de `ng serve`, 14 herramientas por MCP y el asistente `not_configured`; sin `torch`, el léxico y el lineal en `ok`, y la dedicada y el tono dicen qué paquete falta, como dice la guía |
+| **`ejecucion.md` en frío** (sin caché ni imágenes) | `up --build --wait` con código 0 en **585 s**, los tres sanos |
+| Lo que ocupa | la imagen del backend, 2,34 GB comprimida y 6,02 GB en disco; la web, 24 MB y 89 MB; la caché de construcción, 6,98 GB |
+| La memoria (`/proc/1/status`) | la API, **1,82 GB** —475 MB propios y 1,35 GB de ficheros, `torch` y los modelos precalentados—; el MCP, 64 MB; la web, 51 MB |
+| Por `https://localhost` | `http` da 308 a `https`; la salud, `degraded`; el ejemplo de la guía, cuatro señales `ok` y la incoherencia `not_applicable`; con cuerpo, las cinco `ok`; en español, el léxico y la incoherencia dicen por qué no; 14 herramientas; el asistente, `unreachable`. Desde Windows, `https://localhost` responde 200 |
+| **`ejecucion.md` otra vez, sin `.env`** (con #259) | código 0 en 232 s —con caché, pero rehaciendo la capa de las dependencias, que cambió con el lockfile—, y lo mismo por `https://localhost`; la memoria, igual |
+| El diagrama | 16 pares de carpetas cubiertos; a 846 px, escala de 0,59 a 0,68 según la versión |
+
+#### Lo que queda
+
+- **El texto de los anexos 2 y 3**, que escribe el autor a partir de estas guías (#258).
+- **El asistente fuera de las máquinas de la universidad**, sin comprobar: la guía dice qué hace falta y que no se ha probado.
+- **La instalación opcional de las señales** (`torch` de CPU y `requirements-dev.txt`), sin ejecutar en el clon: el comando de `torch` es el del Dockerfile, que sí se probó al construir la imagen.
+- **La máquina 1, sin redesplegar.** El próximo despliegue traerá el `build` sólo en `api` y el `Caddyfile` con variables, con la producción por defecto, y entonces hay que comprobar que `mcp` arranca con la imagen nueva.
+- Por qué Dependabot da 0 alertas y `npm audit` 14, con la misma base: en #260.
+
+| Condiciones | |
+|---|---|
+| Fecha | 12 oct 2026, en hora de Madrid: la construcción en frío, por la tarde, antes de #259; las dos guías desde el guion, de 18:15 a 18:25 |
+| Máquina | El PC de sobremesa del autor: WSL2 (Ubuntu 24.04.4, 7,6 GB), Python 3.12.3, Node 22.23.2, Docker 29.1.3 y Compose 2.40.3 (almacén de containerd, sin `buildx`) |
+| Código | La construcción en frío, la rama de #251 sin commitear sobre `e9880ab`; las dos guías, `0b7f70a` (#251 con `dev` y #259) con la configuración ya opcional encima |
+| Dibujo | Mermaid 10.9.1, 11.4.1, 11.9.0 y 11.12.0, en una columna de 846 px |
+| Guiones | `spikes/clon_limpio.sh` (`desarrollo` y `ejecucion`, con `RAMA=docs/251-documentacion-plantilla`) y `spikes/imports_cliente.py` |
 
 
 
