@@ -89,11 +89,11 @@ falla si no coincide con `package.json`. Es lo que hacen el CI y la imagen.
 cp .env.example .env
 ```
 
-Qué es cada variable y qué pasa sin ella, en
-[`ejecucion.md`](ejecucion.md#la-configuración). Para desarrollar no hace falta
-rellenar ninguna clave: analizar un titular no usa ninguna, y las pruebas no
-salen a la red. Con las claves vacías sólo fallan las herramientas de noticias
-de cada API.
+**Es opcional**, y para desarrollar no hace falta rellenar ninguna clave:
+analizar un titular no usa ninguna, las pruebas no salen a la red, y sin `.env`
+todo arranca igual. Sin una clave sólo falla la herramienta de noticias de esa
+API, que dice qué falta. Qué es cada variable, en
+[`ejecucion.md`](ejecucion.md#la-configuración).
 
 ## 5 · Arrancar en desarrollo
 

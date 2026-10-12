@@ -35,21 +35,25 @@ volumen, así que sobrevive a recrear los contenedores. El dibujo, en
 
 ## La configuración
 
+**Es opcional.** Analizar un titular no usa ninguna clave, y sin `.env` el
+sistema arranca igual. Las claves sólo hacen falta para las herramientas de
+noticias de cada API, y se ponen en un `.env` en la raíz:
+
 ```bash
 cp .env.example .env
 ```
 
-`.env.example` trae las claves de las APIs externas, vacías. **Analizar un
-titular no necesita ninguna**: con todas vacías el sistema arranca, y sólo
-fallan las herramientas de noticias de cada API.
+`.env.example` las trae todas, vacías. Sin una, o vacía, el registro lo avisa
+al arrancar (`configuracion.claves_sin_configurar`, con los nombres de las que
+faltan) y sólo falla la herramienta de esa API, que dice qué falta.
 
 | Variable | Para qué | Dónde se saca | Sin ella |
 |---|---|---|---|
-| `GUARDIAN_API_KEY` | Las noticias de The Guardian (`get_guardian_news`) y su sonda de salud | open-platform.theguardian.com | La línea tiene que estar: sin ella **no arranca**. Vacía, sólo falla su herramienta y la salud sale «degradada» |
+| `GUARDIAN_API_KEY` | Las noticias de The Guardian (`get_guardian_news`) y su sonda de salud | open-platform.theguardian.com | Su herramienta dice que falta, y la salud la da por «no configurada» |
 | `NYT_API_KEY` | Las de The New York Times (`get_nyt_news`) y su sonda. Admite 500 llamadas al día | developer.nytimes.com | Igual que la de Guardian |
-| `HF_TOKEN` | Sólo la vía remota de los modelos (`NLP_BACKEND=remote`), de pago desde octubre de 2026 | huggingface.co/settings/tokens | Igual: la línea tiene que estar. Con la vía local, la del despliegue, no se usa |
-| `GNEWS_API_KEY` | Noticias en español de GNews (`get_gnews_news`). Admite 100 peticiones al día | gnews.io | Opcional: su herramienta dice que no está configurada |
-| `NEWSDATA_API_KEY` | Noticias en español de NewsData.io (`get_newsdata_news`) | newsdata.io | Opcional, igual |
+| `HF_TOKEN` | Sólo la vía remota de los modelos (`NLP_BACKEND=remote`), de pago desde octubre de 2026 | huggingface.co/settings/tokens | Con la vía local, la del despliegue, no se usa |
+| `GNEWS_API_KEY` | Noticias en español de GNews (`get_gnews_news`). Admite 100 peticiones al día | gnews.io | Su herramienta dice que falta |
+| `NEWSDATA_API_KEY` | Noticias en español de NewsData.io (`get_newsdata_news`) | newsdata.io | Igual |
 
 ### Los demás ajustes
 
@@ -135,12 +139,11 @@ Caddy, y publica los puertos únicamente en el equipo.
 ```bash
 git clone https://github.com/codeurjc-students/2026-ClickBaitAnalysis.git
 cd 2026-ClickBaitAnalysis
-cp .env.example .env
 docker compose -f compose.yaml -f compose.local.yaml up --build --wait
 ```
 
-Si el usuario no está en el grupo `docker`, cada orden de `docker` va con
-`sudo`. `--wait` no vuelve hasta que los tres servicios están sanos. La primera
+Con el `.env` de arriba, si se quieren las noticias; sin él, igual. Si el
+usuario no está en el grupo `docker`, cada orden de `docker` va con `sudo`. `--wait` no vuelve hasta que los tres servicios están sanos. La primera
 vez construye las dos imágenes: sin nada descargado, tardó unos 10 minutos con
 una conexión doméstica. Después, con la caché, sólo se rehace lo que cambia.
 
@@ -156,8 +159,8 @@ curl -sk https://localhost/api/analyze -H 'Content-Type: application/json' \
   -d '{"headline": "You Will Never Believe What This Cat Did Next"}'
 ```
 
-La salud sale `degraded` mientras falten las claves de Guardian y NYT. El
-análisis devuelve el veredicto con sus cinco señales: la incoherencia queda en
+La salud sale `degraded` mientras falten las claves de Guardian y NYT, que da
+por «no configuradas». El análisis devuelve el veredicto con sus cinco señales: la incoherencia queda en
 `not_applicable`, porque compara el titular con el cuerpo, y sin `"content"` no
 hay cuerpo.
 

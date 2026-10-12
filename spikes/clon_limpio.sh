@@ -13,10 +13,12 @@
 # `ejecucion` levanta el sistema con `compose.local.yaml`, mide lo que cita
 # `ejecucion.md` —tiempo de construcción, tamaño de las imágenes y memoria de
 # cada contenedor, leída de /proc/1/status porque `docker stats` no cuenta la
-# respaldada por ficheros (#164)— y llama a todo por https://localhost. Al
-# terminar hace `down`, salvo con `MANTENER=1`. Necesita los puertos 80 y 443
-# libres, y no toca las imágenes ni la caché de construcción: para medir en
-# frío hay que vaciarlas antes (`docker builder prune -a`).
+# respaldada por ficheros (#164)— y llama a todo por https://localhost, sin
+# `.env`, que desde #259 es opcional. Al terminar hace `down`, salvo con
+# `MANTENER=1`. Necesita los puertos 80 y 443 libres, y no toca las imágenes ni
+# la caché de construcción: para medir en frío hay que vaciarlas antes, con
+# `docker system prune -a` (sin `buildx`, como en el Docker de Ubuntu,
+# `docker builder prune` no vacía la caché que usa el compose).
 #
 # Lo largo se lanza desacoplado y se lee el registro:
 #
@@ -146,8 +148,10 @@ if [ "$MODO" = ejecucion ]; then
   COMPOSE=(docker compose -f compose.yaml -f compose.local.yaml)
   docker --version; docker compose version
 
-  paso "la configuración"
-  cp .env.example .env; resultado $? "cp .env.example .env"
+  # Sin `.env`, a propósito: desde #259 es opcional, y el camino mínimo de la
+  # guía es clonar y levantar. Las claves sólo hacen falta para las noticias.
+  paso "la configuración: ninguna"
+  if [ -e .env ]; then resultado 1 "hay un .env y no debería"; else echo "  sin .env"; fi
 
   paso "arrancar: construir en frío y esperar a los tres sanos"
   if ss -ltn | grep -qE ':(80|443) '; then resultado 1 "los puertos 80 o 443 están ocupados"; echo "FIN"; exit 1; fi
