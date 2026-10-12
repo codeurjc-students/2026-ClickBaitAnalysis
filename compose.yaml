@@ -10,10 +10,13 @@ name: clickbait
 
 # La API y el MCP son la MISMA imagen con otro comando (#162). Lo común se
 # escribe una vez: repetirlo en los dos servicios es dejar que diverjan.
+#
+# Salvo el `build`, que no está aquí a propósito: la imagen la construye sólo
+# `api` (#251). Si la construyeran los dos, en frío las dos exportaciones
+# compiten por el nombre y la segunda falla con «already exists»: `up --build`
+# fallaba justo la primera vez (medido con Docker 29.1 y Compose 2.40, en una
+# instalación nueva; con la caché caliente no se ve).
 x-backend: &backend
-  build:
-    context: .
-    dockerfile: docker/backend.Dockerfile
   image: clickbait-backend
   # Sólo los secretos. Lo que define el despliegue va en `environment`, a la
   # vista, y manda sobre lo que traiga el `.env`.
@@ -34,6 +37,9 @@ x-entorno-backend: &entorno-backend
 services:
   api:
     <<: *backend
+    build:
+      context: .
+      dockerfile: docker/backend.Dockerfile
     # `--root-path /api`: Caddy quita el prefijo antes de reenviar, y sin esto la
     # documentación pide `/openapi.json` en vez de `/api/openapi.json` y recibe el
     # index.html de la SPA. Medido en #163. Aquí y no en el `CMD` del Dockerfile,
@@ -84,6 +90,9 @@ services:
 
   mcp:
     <<: *backend
+    # La imagen que construye `api`. Sin `never`, Compose intenta descargarla de
+    # Docker Hub antes de construirla, y escribe un error que no lo es.
+    pull_policy: never
     command: ["python", "-m", "backend.main"]
     environment:
       <<: *entorno-backend

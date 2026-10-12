@@ -2,13 +2,13 @@
 
 Version de Python: 3.12.3
 
-**Documentación:** [Requisitos](docs/requisitos.md) · [Arquitectura (UML + cierre del MVP)](docs/arquitectura.md)
+**Documentación:** [Requisitos](docs/requisitos.md) · [Arquitectura](docs/arquitectura.md) · [Estructura](docs/estructura.md) · [Ejecución](docs/ejecucion.md) · [Guía de desarrollo](docs/desarrollo.md)
 
 ---
 
 ## Plan de trabajo — hitos hasta la entrega
 
-**Estado actual (octubre 2026): `v0.7.0`.** El núcleo NLP está completo y
+**Estado actual (octubre 2026): `v0.8.0`.** El núcleo NLP está completo y
 validado —cuatro señales de clickbait contrastables, un modelo lineal
 interpretable propio, divulgación de modelos y una evaluación metodológicamente
 cerrada (split train/dev/test + validación externa)—, la capa web sirve sus
@@ -20,8 +20,12 @@ cinco señales respondiendo y el historial sobreviviendo a los redespliegues. Y
 el **agente conversacional** (R13), que da nombre al TFG, contesta en lenguaje
 natural desde la pantalla del asistente: elige las herramientas por MCP, las
 tarjetas salen de sus resultados y no de su texto, y el modelo corre en la A40
-de la universidad, que se enciende bajo demanda. Lo que resta es la memoria,
-con el análisis en español (`v0.8`) en paralelo hasta el 15 de diciembre.
+de la universidad, que se enciende bajo demanda. **Desde `v0.8`, también en
+español** (R3.4): se detecta el idioma del titular y cada señal usa su modelo
+para él —el lineal, bilingüe; la dedicada, un BETO afinado con TA1C; el tono,
+uno multilingüe—, y las que no lo analizan dicen por qué: el léxico, cuyas
+listas son de titulares en inglés, y la incoherencia, que no superó su regla en
+TA1C. Lo que resta es la memoria, con la congelación del 15 de diciembre.
 **Entrega: febrero 2027.**
 
 **El agente conversacional (R13) es H5.** Hasta el 7 de septiembre no estaba en
@@ -38,7 +42,7 @@ tenía fecha ni versión.
 | **H4 · `v0.5` Docker y despliegue** | diciembre | **20 sep** | Docker Compose (MCP + API / web), **volumen** para el historial, HTTPS y pruebas E2E | **R7, R8** |
 | **H5 · `v0.6` Agente conversacional** | — | **1 oct** | Bucle del agente, `POST /chat` con sondeo, pantalla de chat y traza de herramientas | **R13**, R6.10/12/13 |
 | **`v0.7` · Mejoras** *(en paralelo con H6)* | — | **7 oct** | Lo que H5 dejó abierto: la última vuelta del agente con historial, el historial que sobrevive a recargar, los enlaces de las noticias, las fichas y el fallo disfrazado de NYT (#208 a #212). Y cinco traídas del trabajo futuro: el veto del engaño (#124), los umbrales (#93) y el modo de invocación (#159) configurables, y el lineal reentrenado sobre las palabras del titular (#78 con #75) | R3.8, R3.9 |
-| **`v0.8` · Español** *(en paralelo con H6)* | — | *oct–15 dic* | El análisis de titulares en español: se detecta el idioma y cada señal usa su modelo para él, entrenado o medido con TA1C | **R3.4** |
+| **`v0.8` · Español** *(en paralelo con H6)* | — | **11 oct** | El análisis de titulares en español: se detecta el idioma y cada señal usa su modelo para él, entrenado o medido con TA1C | **R3.4** |
 | **H6 · `v1.0` Memoria y defensa** | ene–feb 2027 | *oct–feb* | Redacción de la memoria y preparación de la defensa | — |
 
 **El proyecto va casi tres meses por delante de esta previsión.** H2 se cerró en
@@ -72,6 +76,12 @@ un hito propio, `v0.8`, y etiquetar antes `v0.7.0`, para que quede publicada una
 versión sin él. La congelación del 15 de diciembre pasa a `v0.8`, y la memoria
 describe la versión de ese día. El certificado (#213) salió de `v0.7` sin hito:
 depende de la universidad, y puede entrar cuando responda.
+
+**`v0.8` se cerró el 11 de octubre, también antes de la congelación.** Sus
+nueve issues se hicieron del 7 al 11 de octubre, y `v0.8.0` se publicó ese
+día. La congelación del 15 de diciembre se mantiene como fecha: lo que entre en
+el código hasta entonces —como las claves opcionales de #259— va en H6, y la
+memoria describe la versión de ese día.
 
 **Reparto de H4 a H6, decidido el 2026-09-07.** El H5 original era «responsive,
 gestión de errores, pruebas E2E y despliegue», y #130 se llevó las dos primeras
@@ -5690,6 +5700,11 @@ sin poder, del despliegue, que sí.
 **Una imagen para dos servicios no se construye dos veces**: los pasos de `mcp`
 salieron todos `CACHED`. Lo que sí se hace dos veces es exportar la imagen —97 s
 cada una, en paralelo—, que es el coste de reescribir la capa de modelos.
+*(Revisado en #251: esas dos exportaciones en paralelo compiten por el nombre.
+En una instalación nueva de Docker —29.1, con Compose 2.40— la segunda falló en
+frío con «already exists», y `up --build` fallaba la primera vez que alguien
+levantaba el sistema. Desde entonces la imagen la construye sólo `api`, y `mcp`
+la usa con `pull_policy: never`. Ver la sección de #251.)*
 
 **El MCP no precalienta, y ahora está medido que no hace falta**: cargar los tres
 modelos en frío tarda 7,0 s frente a los 60 s de `mcp_execute_timeout`. Los
