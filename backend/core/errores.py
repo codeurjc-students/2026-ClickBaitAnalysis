@@ -8,7 +8,8 @@ caída (#89)— y no dice ni nombres de clase ni nada de cómo está hecho el
 sistema por dentro: un `KeyError: 'is_clickbait'` le cuenta a un tercero cómo
 está estructurado el código. Entre las dos, `describir_respuesta_http` (#236)
 da el código de una respuesta de error y, si su nombre no lo dice, qué
-significa: lo usa `base_api.py`, cuyo mensaje lee los dos.
+significa: lo usa `base_api.py`, cuyo mensaje lee los dos. Y `falta_clave`
+(#259), el fallo de una API que pide una clave que no está configurada.
 
 **La regla (#163): el texto de una excepción de librería no sale hacia fuera.**
 Un 401 de httpx lleva la URL entera en su mensaje, y Guardian y NYT llevan la
@@ -72,6 +73,17 @@ def describir_respuesta_http(error: httpx.HTTPStatusError) -> str:
     motivo = describir_error(error)
     significado = _SIGNIFICADO_HTTP.get(error.response.status_code)
     return f"{motivo}: {significado}" if significado else motivo
+
+
+def falta_clave(variable: str) -> str:
+    """El fallo de una API que pide una clave que no está configurada (#259).
+
+    Lo da `base_api.py` antes de salir a la red, para las cinco APIs con clave.
+    Nombra la VARIABLE, que es lo que tiene que añadir quien despliega, y nunca
+    un valor. Hasta #259 cada cliente tenía su frase; la de GNews y NewsData
+    (#235) decía lo mismo con otras palabras.
+    """
+    return f"La API externa no está configurada: falta {variable} en la configuración."
 
 
 # Predicados SIN SUJETO, a propósito: quien llama pone el suyo —«La señal…», «El

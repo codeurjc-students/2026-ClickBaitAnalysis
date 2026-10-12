@@ -5,8 +5,10 @@ Este módulo es —con `remote.py`, que necesita el token— **el único de la c
 al que se le permite leer `settings`**, y `tests/test_arquitectura.py` lo vigila.
 Esa restricción es la que decide la forma de todo lo de abajo: los detectores no
 resuelven su configuración, la **reciben**. Si `incoherence.py` llamara aquí para
-saber su id, arrastraría `settings` —cuyos campos de API son obligatorios— y
-dejaría de poder importarse sin un `.env`, que es justo lo que el test protege.
+saber su id, arrastraría `settings`, y su comportamiento dependería del `.env`
+de quien lo ejecuta: probarlo obligaría a montar una configuración, que es justo
+lo que el test protege. Hasta #259 había además un motivo más duro: los campos
+de API eran obligatorios, y el detector dejaba de poder importarse sin un `.env`.
 
 Su oficio era «decidir DÓNDE corre el modelo». Desde #119 decide también **cuál
 es** y **qué ficha se publica**, que es el mismo trabajo con un parámetro más;

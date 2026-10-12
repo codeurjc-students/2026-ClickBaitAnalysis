@@ -7,6 +7,37 @@ from backend.core.models import ToolResult
 from backend.integrations.nyt import tool as nyt_tool
 from backend.integrations.nyt.client import NYTAPI
 
+BUSQUEDA = f"{NYTAPI.BASE_URL}articlesearch.json"
+
+# Las que van contra la API real necesitan la clave de verdad. Se mira al
+# cargar el módulo, antes de que el fixture de abajo ponga la de prueba.
+CON_CLAVE_REAL = pytest.mark.skipif(not NYTAPI.API_KEY, reason="sin NYT_API_KEY")
+
+
+@pytest.fixture(autouse=True)
+def _clave_de_prueba_si_no_hay(monkeypatch):
+    """Desde #259 la clave es opcional y el CI no la trae: sin ella el cliente
+    no pide nada, así que las pruebas que hacen de NYT con `respx` reciben una
+    de prueba. Una de verdad no se toca."""
+    if not NYTAPI.API_KEY:
+        monkeypatch.setattr(NYTAPI, "API_KEY", "clave-nyt-de-prueba-259")
+
+
+@pytest.mark.asyncio
+async def test_sin_clave_no_pide_nada_y_dice_que_falta(monkeypatch):
+    """#259: sin clave el sistema arranca, y esta herramienta dice qué falta sin
+    gastar una de sus 500 peticiones diarias. Como GNews (#235)."""
+    monkeypatch.setattr(NYTAPI, "API_KEY", None)
+    # La ruta, en el enrutador de ESTE `with`: con argumentos, `respx.mock`
+    # crea uno nuevo, y `respx.get` la dejaría en el global, para las demás.
+    with respx.mock(assert_all_called=False) as router:
+        busqueda = router.get(BUSQUEDA)
+        result = await NYTAPI().search_articles("technology")
+
+    assert not busqueda.called
+    assert not result.success
+    assert "NYT_API_KEY" in result.error
+
 
 @pytest.fixture
 def fake_payload():
@@ -159,6 +190,7 @@ async def test_tracking_and_derived_quota(fake_payload):
 
 @pytest.mark.integration
 @pytest.mark.asyncio
+@CON_CLAVE_REAL
 async def test_search_articles_valid_use():
 
     api = NYTAPI()
@@ -175,6 +207,7 @@ async def test_search_articles_valid_use():
 # COMPROBAR MANUALMENTE QUE EL TEMA SELECCIONADO NO EXISTE Y NO DEVUELVE RESULTADOS
 @pytest.mark.integration
 @pytest.mark.asyncio
+@CON_CLAVE_REAL
 async def test_search_articles_invalid_topic():
 
     api = NYTAPI()

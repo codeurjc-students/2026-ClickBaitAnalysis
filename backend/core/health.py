@@ -18,6 +18,9 @@ Dos límites que el nombre no dice:
   las noticias de verdad. NewsData.io tiene 200 créditos. Que falten no tumba
   nada: sus claves son opcionales, y cada herramienta dice si no está
   configurada o qué respondió su API.
+- **Una API sin clave no se sondea** (#259): sale «no configurada», sin hacer
+  la petición. Preguntarle daría un 401, que el indicador pintaría como una
+  caída cuando lo que falta es configuración.
 """
 
 import asyncio
@@ -61,16 +64,18 @@ PROBES = {
     },
     "guardian": {
         "url": "https://content.guardianapis.com/search",
-        "params": {
-            "page-size": 1,
-            "api-key": settings.guardian_api_key.get_secret_value(),
-        },
+        "params": {"page-size": 1},
     },
     "nyt": {
         "url": "https://api.nytimes.com/svc/search/v2/articlesearch.json",
-        "params": {"api-key": settings.nyt_api_key.get_secret_value()},
     },
 }
+
+# La clave de las que la piden, por el NOMBRE de su campo en `settings`: se lee
+# al sondear, no al importar (#259). Leída al importar, como hasta entonces,
+# una clave que faltara tumbaba el proceso entero, y una cambiada después no se
+# veía: el congelado al importar de #87, aquí.
+CLAVES = {"guardian": "guardian_api_key", "nyt": "nyt_api_key"}
 
 
 async def _probe(url: str, params: dict | None = None) -> Sonda:
@@ -107,9 +112,21 @@ def _aggregate_status(integrations: dict) -> Literal["ok", "degraded", "down"]:
     return "degraded"
 
 
+async def _sondear_una(nombre: str) -> Sonda:
+    """Sondea una integración con su clave, o dice que no está configurada."""
+    configuracion = PROBES[nombre]
+    params = dict(configuracion.get("params", {}))
+    if nombre in CLAVES:
+        clave = getattr(settings, CLAVES[nombre])
+        if not clave:
+            return {"reachable": False, "error": "no configurada"}
+        params["api-key"] = clave.get_secret_value()
+    return await _probe(configuracion["url"], params or None)
+
+
 async def _sondear() -> Salud:
     """Pregunta de verdad a las tres APIs, en paralelo."""
-    results = await asyncio.gather(*(_probe(**cfg) for cfg in PROBES.values()))
+    results = await asyncio.gather(*(_sondear_una(nombre) for nombre in PROBES))
     integrations = dict(zip(PROBES, results, strict=True))
     return {
         "status": _aggregate_status(integrations),

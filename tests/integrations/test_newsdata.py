@@ -14,7 +14,7 @@ from structlog.testing import capture_logs
 
 from backend.core.models import ToolResult
 from backend.integrations.newsdata import tool as newsdata_tool
-from backend.integrations.newsdata.client import SIN_CLAVE, NewsDataAPI, _fecha_iso
+from backend.integrations.newsdata.client import NewsDataAPI, _fecha_iso
 
 CLAVE_DE_PRUEBA = "clave-newsdata-de-prueba-235"
 ULTIMAS = f"{NewsDataAPI.BASE_URL}latest"
@@ -163,13 +163,15 @@ async def test_el_error_publicado_no_lleva_la_clave_ni_la_url(con_clave):
 @pytest.mark.asyncio
 async def test_sin_clave_no_pide_nada_y_dice_que_falta(monkeypatch):
     monkeypatch.setattr(NewsDataAPI, "API_KEY", None)
-    with respx.mock(assert_all_called=False):
-        ruta = respx.get(ULTIMAS)
+    # La ruta, en el enrutador de ESTE `with` (#259): con argumentos,
+    # `respx.mock` crea uno nuevo, y con `respx.get` la ruta quedaba en el
+    # global, así que `ruta.called` era falso pidiera lo que pidiera el cliente.
+    with respx.mock(assert_all_called=False) as router:
+        ruta = router.get(ULTIMAS)
         result = await NewsDataAPI().latest_articles("elecciones")
 
     assert not ruta.called
     assert not result.success
-    assert result.error == SIN_CLAVE
     assert "NEWSDATA_API_KEY" in result.error
 
 

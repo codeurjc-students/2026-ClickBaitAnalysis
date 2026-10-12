@@ -16,6 +16,12 @@ zero-shot responden `402`. Se conserva porque elegir dónde corre el modelo es
 una opción de la arquitectura (#87) y con crédito vuelve a funcionar, pero ya
 no es el defecto de `nlp_backend` (#236).
 
+El token es opcional desde #259 (`settings.hf_token`): sin él, `make_request`
+no hace la petición, y el fallo dice qué falta en vez de mandar `Bearer None` y
+recibir un 401. Leerlo con cuidado importa más aquí que en los clientes de
+noticias: `factory.py` importa este módulo al cargarse, así que un `None` mal
+leído al definir la clase tumbaría toda la capa NLP, también la vía local.
+
 Una respuesta con forma inesperada se registra entera y NO se publica: hasta el
 2026-09-24 el mensaje de fallo llevaba la respuesta cruda del proveedor, y salía
 por `/analyze`, por `/tools/.../execute` y por MCP. Era una quinta puerta de #89,
@@ -55,7 +61,8 @@ def _fallo(tarea: str, model: str, error: Exception, respuesta: object) -> ToolR
 class HFClient(BaseAPI, NLPBackend):
     # Importante
     BASE_URL = "https://router.huggingface.co/hf-inference/models/"
-    API_KEY = settings.hf_token.get_secret_value()
+    API_KEY = settings.hf_token.get_secret_value() if settings.hf_token else None
+    CLAVE = "HF_TOKEN"
     MAX_RETRIES = 3
 
     def _apply_auth(self, headers, params):

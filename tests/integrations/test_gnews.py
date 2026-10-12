@@ -17,7 +17,7 @@ from structlog.testing import capture_logs
 
 from backend.core.models import ToolResult
 from backend.integrations.gnews import tool as gnews_tool
-from backend.integrations.gnews.client import SIN_CLAVE, GNewsAPI
+from backend.integrations.gnews.client import GNewsAPI
 
 CLAVE_DE_PRUEBA = "clave-gnews-de-prueba-235"
 BUSCAR = f"{GNewsAPI.BASE_URL}search"
@@ -168,13 +168,15 @@ async def test_sin_clave_no_pide_nada_y_dice_que_falta(monkeypatch):
     """La clave es opcional (`settings.gnews_api_key`): sin ella el sistema
     arranca, y esta herramienta dice qué falta sin gastar una petición."""
     monkeypatch.setattr(GNewsAPI, "API_KEY", None)
-    with respx.mock(assert_all_called=False):
-        ruta = respx.get(BUSCAR)
+    # La ruta, en el enrutador de ESTE `with` (#259): con argumentos,
+    # `respx.mock` crea uno nuevo, y con `respx.get` la ruta quedaba en el
+    # global, así que `ruta.called` era falso pidiera lo que pidiera el cliente.
+    with respx.mock(assert_all_called=False) as router:
+        ruta = router.get(BUSCAR)
         result = await GNewsAPI().search_articles("elecciones")
 
     assert not ruta.called
     assert not result.success
-    assert result.error == SIN_CLAVE
     assert "GNEWS_API_KEY" in result.error
 
 
