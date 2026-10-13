@@ -1,0 +1,4 @@
+fecha: 2026-10-13T15:45:29+02:00
+ejecución: 38407160235, del 2026-10-13T13:42:29Z, sobre 6329213 (https://github.com/codeurjc-students/2026-ClickBaitAnalysis/actions/runs/38407160235)
+codeql_javascript-typescript.sarif: CodeQL 2.27.2
+codeql_python.sarif: CodeQL 2.27.2

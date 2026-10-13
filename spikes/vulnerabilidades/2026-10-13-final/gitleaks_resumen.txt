@@ -1,0 +1,17 @@
+16 hallazgos
+   2026-03-19 470b539 generic-api-key              backend/api/the_guardian_api.py:14 · ya no está en HEAD
+   2026-03-23 ef51e07 generic-api-key              backend/api/the_guardian_api.py:15 · ya no está en HEAD
+   2026-09-17 a6e9a6a generic-api-key              tests/core/test_errores.py:9 · sigue en HEAD
+   2026-10-02 d4e0b53 generic-api-key              tests/integrations/test_nyt.py:99 · sigue en HEAD
+   2026-10-02 22ae9d9 generic-api-key              tests/integrations/test_nyt.py:99 · sigue en HEAD
+   2026-10-02 d4e0b53 generic-api-key              tests/integrations/test_nyt.py:102 · sigue en HEAD
+   2026-10-02 22ae9d9 generic-api-key              tests/integrations/test_nyt.py:102 · sigue en HEAD
+   2026-10-02 d4e0b53 generic-api-key              tests/integrations/test_nyt.py:194 · sigue en HEAD
+   2026-10-02 22ae9d9 generic-api-key              tests/integrations/test_nyt.py:194 · sigue en HEAD
+   2026-10-09 2f6c705 generic-api-key              tests/integrations/test_gnews.py:258 · sigue en HEAD
+   2026-10-09 2f6c705 generic-api-key              tests/integrations/test_newsdata.py:268 · sigue en HEAD
+   2026-10-12 5d6cf91 generic-api-key              tests/integrations/test_nyt.py:23 · sigue en HEAD
+   2026-10-13 a5907d2 generic-api-key              spikes/vulnerabilidades/2026-10-13-base-arreglada/trivy_clickbait-backend.json:71 · sigue en HEAD
+   2026-10-13 a5907d2 generic-api-key              spikes/vulnerabilidades/2026-10-13-base-arreglada/trivy_clickbait-backend.json:222 · sigue en HEAD
+   2026-10-13 a5907d2 generic-api-key              spikes/vulnerabilidades/2026-10-13-caddy-2.11.7/trivy_clickbait-backend.json:71 · sigue en HEAD
+   2026-10-13 a5907d2 generic-api-key              spikes/vulnerabilidades/2026-10-13-caddy-2.11.7/trivy_clickbait-backend.json:222 · sigue en HEAD
