@@ -1,0 +1,7 @@
+fecha: 2026-10-13T14:48:37+02:00
+commit: 249e405 (chore/260-analisis-vulnerabilidades)
+pip-audit 2.10.1, servicio de avisos: osv
+node: v22.23.2, npm: 10.9.8
+imagen: clickbait-backend sha256:58a46305f757aa4de00b7d8434cdbf7fc07d0a023df79d7d7da83e7e7caf035d creada 2026-10-13T14:43:48.422946408+02:00
+fuera del lockfile (de docker/backend.Dockerfile): torch==2.14.0 sentence-transformers==5.6.0
+en el freeze de la imagen: torch==2.14.0+cpu (se audita sin el sufijo local)

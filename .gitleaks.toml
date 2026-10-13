@@ -1,0 +1,20 @@
+# Configuración de gitleaks para este repositorio (#260).
+#
+# Las reglas son las de por defecto (`useDefault`): aquí sólo se añade lo que
+# NO es un secreto, para que una pasada nueva de
+# `spikes/vulnerabilidades_secretos.sh` dé 0 y cualquier hallazgo sea, por
+# definición, nuevo. Los hallazgos sueltos ya triados van en `.gitleaksignore`,
+# por su huella; aquí, lo que se repetiría en cada comprobación.
+
+title = "2026-ClickBaitAnalysis"
+
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = """Los informes de las herramientas de #260 (Trivy, pip-audit, npm
+audit, ruff, CodeQL). Citan avisos y el entorno de las imágenes, nunca una clave
+nuestra: Trivy copia el `GPG_KEY` de la imagen oficial de Python, que es la
+huella PÚBLICA de la clave con que se firma Python, y cada comprobación nueva
+la volvería a traer en otra carpeta."""
+paths = ['''^spikes/vulnerabilidades/''']

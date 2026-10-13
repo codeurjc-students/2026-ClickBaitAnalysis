@@ -1,0 +1,42 @@
+{
+ "PYSEC-2025-49": {
+  "cvss": "CVSS:3.1/AV:N/AC:L/PR:L/UI:N/S:U/C:H/I:H/A:H",
+  "ghsa": "GHSA-5rjg-fvgr-3xxf",
+  "gravedad": "high"
+ },
+ "PYSEC-2026-1795": {
+  "cvss": "CVSS:4.0/AV:N/AC:L/AT:P/PR:N/UI:A/VC:N/VI:H/VA:N/SC:N/SI:N/SA:N",
+  "ghsa": "GHSA-4xh5-x5gv-qwph",
+  "gravedad": "moderate"
+ },
+ "PYSEC-2026-1796": {
+  "cvss": "CVSS:4.0/AV:N/AC:L/AT:P/PR:L/UI:A/VC:N/VI:L/VA:N/SC:N/SI:N/SA:N",
+  "ghsa": "GHSA-6vgw-5pg2-w6jp",
+  "gravedad": "low"
+ },
+ "PYSEC-2026-196": {
+  "cvss": "CVSS:3.1/AV:L/AC:L/PR:L/UI:N/S:U/C:N/I:H/A:N",
+  "ghsa": "GHSA-wf93-45jw-7689",
+  "gravedad": "moderate"
+ },
+ "PYSEC-2026-2875": {
+  "cvss": "CVSS:4.0/AV:L/AC:L/AT:N/PR:N/UI:A/VC:N/VI:L/VA:N/SC:N/SI:N/SA:N",
+  "ghsa": "GHSA-58qw-9mgm-455v",
+  "gravedad": "moderate"
+ },
+ "PYSEC-2026-2876": {
+  "cvss": "CVSS:4.0/AV:L/AC:L/AT:P/PR:H/UI:A/VC:H/VI:H/VA:N/SC:N/SI:N/SA:N",
+  "ghsa": "GHSA-jp4c-xjxw-mgf9",
+  "gravedad": "moderate"
+ },
+ "PYSEC-2026-3447": {
+  "cvss": "CVSS:3.1/AV:L/AC:L/PR:N/UI:R/S:U/C:H/I:L/A:N",
+  "ghsa": "GHSA-h35f-9h28-mq5c",
+  "gravedad": "moderate"
+ },
+ "PYSEC-2026-3721": {
+  "cvss": "CVSS:3.1/AV:N/AC:L/PR:N/UI:R/S:U/C:N/I:H/A:N",
+  "ghsa": "GHSA-qwm4-qh6w-59xr",
+  "gravedad": "moderate"
+ }
+}

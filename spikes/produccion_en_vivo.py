@@ -28,19 +28,27 @@ vez no bastaba desde #234: con 14 herramientas y las peticiones en español la
 ventana deslizante seguía llena, y Guardian salió en 429 por el limitador. El certificado es
 autofirmado (#165), así que no se verifica.
 
+Desde #260, con `--local` prueba lo mismo contra la pila levantada en esta
+máquina con `compose.local.yaml` (`https://localhost/api`), y no entra por SSH
+a la máquina 1: dice qué commit tiene la copia local. Sirve para ver en vivo,
+con los modelos cargados, una imagen reconstruida tras subir dependencias,
+antes de desplegarla.
+
 Ejecutar desde la raíz:
 
-    .venv/bin/python spikes/produccion_en_vivo.py
+    .venv/bin/python spikes/produccion_en_vivo.py [--local]
 """
 
 import json
 import subprocess
+import sys
 import time
 from datetime import datetime
 
 import httpx
 
 BASE = "https://gongarcia.tfg.etsii.urjc.es/api"
+BASE_LOCAL = "https://localhost/api"  # compose.local.yaml (#251, #260)
 MAQUINA_1 = "vmuser@193.147.60.40"
 
 TITULAR = "10 Secrets Doctors Won't Tell You... Are You Ready?"
@@ -109,12 +117,23 @@ def resumen(nombre: str, datos: dict | None) -> str:
 
 
 def main() -> None:
-    servido = subprocess.run(
-        ["ssh", "-n", "-o", "BatchMode=yes", MAQUINA_1,
-         "cd ~/2026-ClickBaitAnalysis && git rev-parse --short HEAD"],
-        capture_output=True, text=True, check=False,
-    ).stdout.strip()
-    print(f"== {datetime.now().astimezone().isoformat(timespec='seconds')} · la máquina 1 sirve {servido}")
+    global BASE
+    ahora = datetime.now().astimezone().isoformat(timespec="seconds")
+    if "--local" in sys.argv[1:]:
+        BASE = BASE_LOCAL
+        commit = subprocess.run(
+            ["git", "rev-parse", "--short", "HEAD"], capture_output=True, text=True, check=False
+        ).stdout.strip()
+        sucio = subprocess.run(["git", "diff", "--quiet", "HEAD"], check=False).returncode != 0
+        aviso = " (con cambios sin commitear)" if sucio else ""
+        print(f"== {ahora} · en local ({BASE}), la copia está en {commit}{aviso}")
+    else:
+        servido = subprocess.run(
+            ["ssh", "-n", "-o", "BatchMode=yes", MAQUINA_1,
+             "cd ~/2026-ClickBaitAnalysis && git rev-parse --short HEAD"],
+            capture_output=True, text=True, check=False,
+        ).stdout.strip()
+        print(f"== {ahora} · la máquina 1 sirve {servido}")
 
     with httpx.Client(verify=False, timeout=120) as cliente:
         catalogo = pedir(cliente, "GET", "/tools").json()

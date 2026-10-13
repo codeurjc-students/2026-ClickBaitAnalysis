@@ -202,3 +202,140 @@ no instala. Las herramientas del CI (`ruff`, `pyright`) van fijadas allí y en
 **Del frontend**: `npm install <paquete>` en `frontend/`, que actualiza
 `package.json` y `package-lock.json`. Se commitean los dos, porque el CI y la
 imagen instalan con `npm ci`, que falla si no coinciden.
+
+## 9 · Comprobar las vulnerabilidades
+
+Cómo se repite el análisis de vulnerabilidades de #260: qué se ejecuta, en qué
+orden, dónde queda y cómo se tría. Por qué cada herramienta y lo que salió la
+primera vez, en la sección de #260 del README.
+
+**Cuándo**: antes de cada release, antes de la congelación del 15 de
+diciembre, y cuando Dependabot abra una alerta (lo hace solo desde que el grafo
+de dependencias está activado, el 13 de octubre de 2026). Ninguna de estas
+pasadas va en el CI: un aviso publicado hoy pondría en rojo una pull request
+que no ha cambiado nada.
+
+### Lo que hace falta, una vez
+
+Docker, `gh` autenticado, y dos binarios en `~/.local/bin`, **bajados de su
+release y comprobados con su `checksums.txt`**. Nunca la imagen de Trivy de
+Docker Hub ni su acción de GitHub: en marzo de 2026 se publicaron versiones
+malignas de las dos (CVE-2026-33634). Los guiones exigen estas versiones:
+
+```bash
+mkdir -p ~/.local/bin && cd "$(mktemp -d)"
+base=https://github.com/aquasecurity/trivy/releases/download/v0.75.0
+curl -sSfLO $base/trivy_0.75.0_Linux-64bit.tar.gz
+curl -sSfLO $base/trivy_0.75.0_checksums.txt
+grep ' trivy_0.75.0_Linux-64bit.tar.gz$' trivy_0.75.0_checksums.txt | sha256sum -c -
+tar -xzf trivy_0.75.0_Linux-64bit.tar.gz trivy && install -m 0755 trivy ~/.local/bin/
+
+base=https://github.com/gitleaks/gitleaks/releases/download/v8.30.1
+curl -sSfLO $base/gitleaks_8.30.1_linux_x64.tar.gz
+curl -sSfLO $base/gitleaks_8.30.1_checksums.txt
+grep ' gitleaks_8.30.1_linux_x64.tar.gz$' gitleaks_8.30.1_checksums.txt | sha256sum -c -
+tar -xzf gitleaks_8.30.1_linux_x64.tar.gz gitleaks && install -m 0755 gitleaks ~/.local/bin/
+```
+
+`sha256sum -c` tiene que decir `OK`. `pip-audit` no hace falta instalarlo: lo
+pone el guion, en su versión, en un entorno aparte (`/tmp/venv-auditoria`).
+
+### Los pasos
+
+Todos llevan **la misma etiqueta**, y todo cae en una carpeta,
+`spikes/vulnerabilidades/<fecha>-<etiqueta>/`, que es la foto de ese momento.
+Cada guion se niega a pisar sus propios ficheros.
+
+```bash
+docker compose -f compose.yaml -f compose.local.yaml build
+bash spikes/vulnerabilidades.sh <etiqueta> --anterior spikes/vulnerabilidades/<la última>
+```
+
+El primero construye las imágenes con lo que hay en la copia de trabajo: si
+no, los guiones se niegan a medir una imagen que no es la del repositorio (lo
+comprueban por su contenido, no por su fecha). El segundo lanza en orden
+dependencias, su resumen, imágenes, código y secretos, y se para en el primero
+que falle. Docker, sin otra carga a la vez. Sin `--anterior`, el resumen no
+marca lo nuevo.
+
+Al terminar dice cómo lanzar **CodeQL**, que corre en GitHub y deja su informe
+como artefacto, sin crear alertas. `workflow_dispatch` sólo se puede lanzar si
+`codeql.yml` está en la rama por defecto (`dev`), y analiza la rama que se le
+diga:
+
+```bash
+gh workflow run codeql.yml --ref <rama>
+bash spikes/vulnerabilidades_codeql.sh <etiqueta>    # cuando la ejecución termine
+```
+
+### Lo que queda
+
+| Ficheros | De | Qué es |
+|---|---|---|
+| `condiciones.txt`, `pip_*.json`, `npm_*.json`, `imagen_freeze.txt` | `vulnerabilidades_dependencias.sh` | pip-audit (con OSV) sobre el lockfile, las dos líneas de fuera (`torch`, `sentence-transformers`) y el `pip freeze --all` de la imagen; npm audit con y sin `--omit=dev` |
+| `resumen.md`, `gravedades.json` | `vulnerabilidades_resumen.py` | **la tabla para triar**: cada aviso una vez, con su gravedad (la de GitHub), su arreglo, en qué pasadas sale y, con `--anterior`, si es nuevo |
+| `trivy_*` | `vulnerabilidades_imagenes.sh` | los críticos y altos con arreglo de cada imagen, que se trían, y el recuento de todo lo demás |
+| `ruff_s*` | `vulnerabilidades_codigo.sh` | las reglas S de ruff, separando lo que va en la imagen |
+| `gitleaks*` | `vulnerabilidades_secretos.sh` | los secretos de todo el historial, sin el secreto |
+| `codeql_*` | `vulnerabilidades_codeql.sh` | los dos SARIF de CodeQL y su resumen |
+
+### Cómo se tría
+
+Cada aviso **nuevo** acaba en una casilla: **arreglado**, **aceptado** (con su
+motivo escrito) o **no aplicable**. Primero, si llega a lo servido: lo que va
+en la imagen o en la web importa más que lo que sólo se usa para compilar o
+probar (`tests/`, `spikes/`, `backend/evaluation/`, las dependencias de
+desarrollo de npm). Un crítico o un alto que llegue a lo servido se arregla o
+se justifica por escrito.
+
+Lo ya aceptado, con su motivo, está en la sección de #260 del README: pip y lo
+que lleva dentro (no hay versión que lo arregle), los avisos de Debian sin
+arreglo publicado, los de Caddy pendientes de su siguiente versión, los dos
+S608 de `api/history.py` y lo de `spikes/` en CodeQL. En gitleaks, lo ya
+triado está en `.gitleaksignore` (por su huella) y en `.gitleaks.toml` (la
+ruta de estos informes), y por eso una pasada limpia da 0.
+
+### Cómo se arregla
+
+**Python**: se sube cada paquete a lo mínimo que lo arregla, sin saltar de
+versión principal, con un `-P` por paquete, y después se comprueba todo lo del
+paso 6. Por ejemplo, `mcp` desde la versión que arregla su aviso y sin pasar a
+la 2:
+
+```bash
+.venv/bin/pip-compile requirements.in -P "mcp>=1.28.1,<2"
+.venv/bin/python -m pip install -r requirements.txt
+```
+
+Sin `-o`: con él, la cabecera del lockfile cambia. Si se suben `mcp` o
+`fastmcp`, el catálogo que lee el agente se vuelca antes y después
+(`spikes/catalogo_volcado.py`): si sale idéntico, no hace falta repetir el
+examen del agente.
+
+**npm**: `npm audit fix`, sin `--force`, y el paso 6. Si no mueve la familia
+`@angular` —sus paquetes se exigen la misma versión entre sí, y npm no mueve
+el grupo sobre el lockfile que ya tiene—, se quitan sus entradas del lockfile y
+se resuelven de nuevo, dentro de los rangos de `package.json`:
+
+```bash
+cd frontend
+python3 -c "import json; ruta = 'package-lock.json'; bloqueo = json.load(open(ruta)); [bloqueo['packages'].pop(clave) for clave in list(bloqueo['packages']) if 'node_modules/@angular/' in clave]; open(ruta, 'w').write(json.dumps(bloqueo, indent=2) + '\n')"
+rm -rf node_modules && npm install && npm audit fix
+```
+
+**La imagen base** (`pip` y `setuptools`, fijados en el paso 0 de
+`docker/backend.Dockerfile`) y **Caddy** (la etiqueta de `docker/web.Dockerfile`)
+se suben en su Dockerfile.
+
+Después de cualquier cambio en lo servido, la pila entera en local y la prueba
+en vivo, que ejecuta cada herramienta con sus modelos cargados:
+
+```bash
+docker compose -f compose.yaml -f compose.local.yaml up --build --wait
+.venv/bin/python spikes/produccion_en_vivo.py --local
+docker compose -f compose.yaml -f compose.local.yaml down
+```
+
+**Un secreto** que gitleaks encuentre **se rota**: borrarlo del código no lo
+quita del historial, que es público. Si es un falso positivo, su huella va a
+`.gitleaksignore` con un comentario que diga por qué.

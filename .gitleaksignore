@@ -1,0 +1,24 @@
+# Hallazgos de gitleaks ya triados (#260, 2026-10-13), por su huella
+# (commit:fichero:regla:línea). Lo que se repetiría en cada comprobación va en
+# `.gitleaks.toml`; aquí, sólo lo que está en commits que ya no cambian.
+
+# La clave de The Guardian que se filtró en la Fase A (README, «1.1 —
+# Incidente: filtración de API key y rotación»). ROTADA: la del `.env` de hoy
+# es otra (comprobado el 2026-10-13 comparándolas sin imprimir ninguna). El
+# fichero ya no existe, pero el historial la conserva; reescribirlo no la
+# desharía, porque ya fue pública.
+470b5394241e632c9f1b502a8ca1521efc04ca56:backend/api/the_guardian_api.py:generic-api-key:14
+ef51e072b08854c6c356331c163303bb9456a87d:backend/api/the_guardian_api.py:generic-api-key:15
+
+# Claves inventadas de las pruebas (empiezan por «clav…»): ninguna coincide con
+# una del `.env`. Las de 22ae9d9 son de la rama de #212 anterior al squash.
+a6e9a6a4d1b6467c29b3b868e369110c4a714e54:tests/core/test_errores.py:generic-api-key:9
+d4e0b53926b4e9d1fc76658cf18c613bf455f971:tests/integrations/test_nyt.py:generic-api-key:99
+22ae9d9b15d5a9cc082dc04d40be3b9d207b33b2:tests/integrations/test_nyt.py:generic-api-key:99
+d4e0b53926b4e9d1fc76658cf18c613bf455f971:tests/integrations/test_nyt.py:generic-api-key:102
+22ae9d9b15d5a9cc082dc04d40be3b9d207b33b2:tests/integrations/test_nyt.py:generic-api-key:102
+d4e0b53926b4e9d1fc76658cf18c613bf455f971:tests/integrations/test_nyt.py:generic-api-key:194
+22ae9d9b15d5a9cc082dc04d40be3b9d207b33b2:tests/integrations/test_nyt.py:generic-api-key:194
+2f6c7050f8d65331805213c81d4a5bd504b32295:tests/integrations/test_gnews.py:generic-api-key:258
+2f6c7050f8d65331805213c81d4a5bd504b32295:tests/integrations/test_newsdata.py:generic-api-key:268
+5d6cf91d3c582016e292827c37abcda7279264b5:tests/integrations/test_nyt.py:generic-api-key:23

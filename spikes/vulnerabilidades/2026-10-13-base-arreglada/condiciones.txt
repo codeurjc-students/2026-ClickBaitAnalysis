@@ -1,0 +1,8 @@
+fecha: 2026-10-13T15:07:37+02:00
+commit: 92a92f9 (chore/260-analisis-vulnerabilidades)
+  ⚠️ con cambios sin commitear en requirements.txt, el Dockerfile o el lockfile de npm
+pip-audit 2.10.1, servicio de avisos: osv
+node: v22.23.2, npm: 10.9.8
+imagen: clickbait-backend sha256:37126bf86f21b5fd8aba825b77d875431935a3f0f9e5ce61af2fdeb40d4a359e creada 2026-10-13T14:58:19.278037699+02:00
+fuera del lockfile (de docker/backend.Dockerfile): torch==2.14.0 sentence-transformers==5.6.0
+en el freeze de la imagen: torch==2.14.0+cpu (se audita sin el sufijo local)

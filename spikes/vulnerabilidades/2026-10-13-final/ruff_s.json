@@ -1,0 +1,8913 @@
+[
+ {
+  "regla": "S608",
+  "ruta": "backend/api/history.py",
+  "fila": 388,
+  "mensaje": "Possible SQL injection vector through string-based query construction",
+  "donde": "en la imagen"
+ },
+ {
+  "regla": "S608",
+  "ruta": "backend/api/history.py",
+  "fila": 407,
+  "mensaje": "Possible SQL injection vector through string-based query construction",
+  "donde": "en la imagen"
+ },
+ {
+  "regla": "S311",
+  "ruta": "backend/evaluation/eval_acoplamiento.py",
+  "fila": 116,
+  "mensaje": "Standard pseudo-random generators are not suitable for cryptographic purposes",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S311",
+  "ruta": "backend/evaluation/eval_dedicada_es.py",
+  "fila": 201,
+  "mensaje": "Standard pseudo-random generators are not suitable for cryptographic purposes",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S311",
+  "ruta": "backend/evaluation/eval_incoherencia.py",
+  "fila": 242,
+  "mensaje": "Standard pseudo-random generators are not suitable for cryptographic purposes",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S311",
+  "ruta": "backend/evaluation/eval_incoherencia_es.py",
+  "fila": 161,
+  "mensaje": "Standard pseudo-random generators are not suitable for cryptographic purposes",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S311",
+  "ruta": "backend/evaluation/eval_reentreno.py",
+  "fila": 219,
+  "mensaje": "Standard pseudo-random generators are not suitable for cryptographic purposes",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S311",
+  "ruta": "backend/evaluation/eval_transferencia.py",
+  "fila": 67,
+  "mensaje": "Standard pseudo-random generators are not suitable for cryptographic purposes",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S603",
+  "ruta": "backend/evaluation/eval_veredicto.py",
+  "fila": 197,
+  "mensaje": "`subprocess` call: check for execution of untrusted input",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S607",
+  "ruta": "backend/evaluation/eval_veredicto.py",
+  "fila": 198,
+  "mensaje": "Starting a process with a partial executable path",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S311",
+  "ruta": "backend/evaluation/eval_veredicto.py",
+  "fila": 596,
+  "mensaje": "Standard pseudo-random generators are not suitable for cryptographic purposes",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/agent/test_agente.py",
+  "fila": 213,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/agent/test_agente.py",
+  "fila": 214,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/agent/test_agente.py",
+  "fila": 215,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/agent/test_agente.py",
+  "fila": 216,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/agent/test_agente.py",
+  "fila": 219,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/agent/test_agente.py",
+  "fila": 220,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/agent/test_agente.py",
+  "fila": 221,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/agent/test_agente.py",
+  "fila": 222,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/agent/test_agente.py",
+  "fila": 223,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/agent/test_agente.py",
+  "fila": 225,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/agent/test_agente.py",
+  "fila": 237,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/agent/test_agente.py",
+  "fila": 242,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/agent/test_agente.py",
+  "fila": 243,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/agent/test_agente.py",
+  "fila": 244,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/agent/test_agente.py",
+  "fila": 255,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/agent/test_agente.py",
+  "fila": 258,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/agent/test_agente.py",
+  "fila": 262,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/agent/test_agente.py",
+  "fila": 275,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/agent/test_agente.py",
+  "fila": 289,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/agent/test_agente.py",
+  "fila": 306,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/agent/test_agente.py",
+  "fila": 326,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/agent/test_agente.py",
+  "fila": 352,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/agent/test_agente.py",
+  "fila": 386,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/agent/test_agente.py",
+  "fila": 387,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/agent/test_agente.py",
+  "fila": 401,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/agent/test_agente.py",
+  "fila": 404,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/agent/test_agente.py",
+  "fila": 406,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/agent/test_agente.py",
+  "fila": 423,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/agent/test_agente.py",
+  "fila": 426,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/agent/test_agente.py",
+  "fila": 427,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/agent/test_agente.py",
+  "fila": 428,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/agent/test_agente.py",
+  "fila": 430,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/agent/test_agente.py",
+  "fila": 431,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/agent/test_agente.py",
+  "fila": 445,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/agent/test_agente.py",
+  "fila": 446,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/agent/test_agente.py",
+  "fila": 447,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/agent/test_agente.py",
+  "fila": 448,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/agent/test_agente.py",
+  "fila": 462,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/agent/test_agente.py",
+  "fila": 475,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/agent/test_agente.py",
+  "fila": 476,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/agent/test_agente.py",
+  "fila": 477,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/agent/test_agente.py",
+  "fila": 478,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/agent/test_agente.py",
+  "fila": 479,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/agent/test_agente.py",
+  "fila": 481,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/agent/test_agente.py",
+  "fila": 494,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/agent/test_agente.py",
+  "fila": 495,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/agent/test_agente.py",
+  "fila": 497,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/agent/test_agente.py",
+  "fila": 499,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/agent/test_agente.py",
+  "fila": 521,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/agent/test_agente.py",
+  "fila": 522,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/agent/test_agente.py",
+  "fila": 524,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/agent/test_agente.py",
+  "fila": 539,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/agent/test_agente.py",
+  "fila": 540,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/agent/test_agente.py",
+  "fila": 542,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/agent/test_agente.py",
+  "fila": 561,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/agent/test_agente.py",
+  "fila": 562,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/agent/test_agente.py",
+  "fila": 563,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/agent/test_agente.py",
+  "fila": 567,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/agent/test_agente.py",
+  "fila": 568,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/agent/test_agente.py",
+  "fila": 572,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/agent/test_agente.py",
+  "fila": 591,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/agent/test_agente.py",
+  "fila": 592,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/agent/test_agente.py",
+  "fila": 594,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/agent/test_agente.py",
+  "fila": 598,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/agent/test_agente.py",
+  "fila": 612,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/agent/test_agente.py",
+  "fila": 613,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/agent/test_agente.py",
+  "fila": 614,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/agent/test_agente.py",
+  "fila": 629,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/agent/test_agente.py",
+  "fila": 630,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/agent/test_agente.py",
+  "fila": 641,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/agent/test_agente.py",
+  "fila": 642,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/agent/test_agente.py",
+  "fila": 643,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/agent/test_agente.py",
+  "fila": 659,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/agent/test_agente.py",
+  "fila": 662,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/agent/test_agente.py",
+  "fila": 663,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/agent/test_agente.py",
+  "fila": 664,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/agent/test_agente.py",
+  "fila": 668,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/agent/test_agente.py",
+  "fila": 692,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/agent/test_agente.py",
+  "fila": 693,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/agent/test_agente.py",
+  "fila": 694,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/agent/test_agente.py",
+  "fila": 695,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/agent/test_agente.py",
+  "fila": 710,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/agent/test_agente.py",
+  "fila": 734,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/agent/test_agente.py",
+  "fila": 735,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/agent/test_agente.py",
+  "fila": 737,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/agent/test_agente.py",
+  "fila": 744,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/agent/test_agente.py",
+  "fila": 745,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/agent/test_agente.py",
+  "fila": 761,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/agent/test_agente.py",
+  "fila": 763,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/agent/test_agente.py",
+  "fila": 764,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/agent/test_agente.py",
+  "fila": 780,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/agent/test_agente.py",
+  "fila": 790,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/agent/test_agente.py",
+  "fila": 791,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/agent/test_agente.py",
+  "fila": 792,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/agent/test_prompts.py",
+  "fila": 16,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/agent/test_prompts.py",
+  "fila": 20,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/agent/test_prompts.py",
+  "fila": 22,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/agent/test_prompts.py",
+  "fila": 34,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/analysis/test_tool.py",
+  "fila": 42,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/analysis/test_tool.py",
+  "fila": 50,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/analysis/test_tool.py",
+  "fila": 51,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/analysis/test_tool.py",
+  "fila": 60,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/analysis/test_tool.py",
+  "fila": 62,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/analysis/test_tool.py",
+  "fila": 69,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/analysis/test_tool.py",
+  "fila": 72,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/analysis/test_tool.py",
+  "fila": 79,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/analysis/test_tool.py",
+  "fila": 80,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/analysis/test_tool.py",
+  "fila": 108,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/analysis/test_tool.py",
+  "fila": 115,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/analysis/test_tool.py",
+  "fila": 116,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_analyze.py",
+  "fila": 189,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_analyze.py",
+  "fila": 205,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_analyze.py",
+  "fila": 206,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_analyze.py",
+  "fila": 224,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_analyze.py",
+  "fila": 225,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_analyze.py",
+  "fila": 232,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_analyze.py",
+  "fila": 242,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_analyze.py",
+  "fila": 259,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_analyze.py",
+  "fila": 260,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_analyze.py",
+  "fila": 261,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_analyze.py",
+  "fila": 264,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_analyze.py",
+  "fila": 290,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_analyze.py",
+  "fila": 291,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_analyze.py",
+  "fila": 292,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_analyze.py",
+  "fila": 299,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_analyze.py",
+  "fila": 312,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_analyze.py",
+  "fila": 321,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_analyze.py",
+  "fila": 326,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_analyze.py",
+  "fila": 331,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_analyze.py",
+  "fila": 336,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_analyze.py",
+  "fila": 341,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_analyze.py",
+  "fila": 346,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_analyze.py",
+  "fila": 354,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_analyze.py",
+  "fila": 366,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_analyze.py",
+  "fila": 367,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_analyze.py",
+  "fila": 368,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_analyze.py",
+  "fila": 370,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_analyze.py",
+  "fila": 380,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_analyze.py",
+  "fila": 399,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_analyze.py",
+  "fila": 400,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_analyze.py",
+  "fila": 401,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_analyze.py",
+  "fila": 425,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_analyze.py",
+  "fila": 426,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_analyze.py",
+  "fila": 429,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_analyze.py",
+  "fila": 430,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_analyze.py",
+  "fila": 433,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_analyze.py",
+  "fila": 448,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_analyze.py",
+  "fila": 449,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_analyze.py",
+  "fila": 465,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_analyze.py",
+  "fila": 468,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_analyze.py",
+  "fila": 469,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_analyze.py",
+  "fila": 494,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_analyze.py",
+  "fila": 495,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_analyze.py",
+  "fila": 496,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_analyze.py",
+  "fila": 497,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_analyze.py",
+  "fila": 499,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_analyze.py",
+  "fila": 500,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_analyze.py",
+  "fila": 523,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_analyze.py",
+  "fila": 536,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_analyze.py",
+  "fila": 548,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_analyze.py",
+  "fila": 558,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_analyze.py",
+  "fila": 559,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_analyze.py",
+  "fila": 560,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_analyze.py",
+  "fila": 577,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_analyze.py",
+  "fila": 579,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_analyze.py",
+  "fila": 593,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_analyze.py",
+  "fila": 594,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_analyze.py",
+  "fila": 595,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_analyze.py",
+  "fila": 597,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_analyze.py",
+  "fila": 598,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_analyze.py",
+  "fila": 611,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_analyze.py",
+  "fila": 613,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_analyze.py",
+  "fila": 614,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_analyze.py",
+  "fila": 627,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_analyze.py",
+  "fila": 629,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_analyze.py",
+  "fila": 630,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_analyze.py",
+  "fila": 645,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_analyze.py",
+  "fila": 646,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_analyze.py",
+  "fila": 647,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_analyze.py",
+  "fila": 649,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_analyze.py",
+  "fila": 699,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_analyze.py",
+  "fila": 701,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_analyze.py",
+  "fila": 708,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_analyze.py",
+  "fila": 709,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_analyze.py",
+  "fila": 710,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_analyze.py",
+  "fila": 712,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_analyze.py",
+  "fila": 713,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_analyze.py",
+  "fila": 714,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_analyze.py",
+  "fila": 715,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_analyze.py",
+  "fila": 716,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_analyze.py",
+  "fila": 718,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_analyze.py",
+  "fila": 719,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_analyze.py",
+  "fila": 720,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_analyze.py",
+  "fila": 753,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_analyze.py",
+  "fila": 754,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_analyze.py",
+  "fila": 755,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_analyze.py",
+  "fila": 756,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_analyze.py",
+  "fila": 758,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_analyze.py",
+  "fila": 759,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_analyze.py",
+  "fila": 763,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_analyze.py",
+  "fila": 776,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_analyze.py",
+  "fila": 777,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_analyze.py",
+  "fila": 778,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_analyze.py",
+  "fila": 779,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_analyze.py",
+  "fila": 792,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_analyze.py",
+  "fila": 793,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_analyze.py",
+  "fila": 794,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_analyze.py",
+  "fila": 795,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_analyze.py",
+  "fila": 826,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_analyze.py",
+  "fila": 827,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_analyze.py",
+  "fila": 828,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_analyze.py",
+  "fila": 829,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_analyze.py",
+  "fila": 834,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_analyze.py",
+  "fila": 848,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_analyze.py",
+  "fila": 849,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_analyze.py",
+  "fila": 866,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_analyze.py",
+  "fila": 867,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_analyze.py",
+  "fila": 889,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_analyze.py",
+  "fila": 896,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_analyze.py",
+  "fila": 911,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_analyze.py",
+  "fila": 932,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_analyze.py",
+  "fila": 953,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_analyze.py",
+  "fila": 964,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_analyze.py",
+  "fila": 981,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_analyze.py",
+  "fila": 982,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_analyze.py",
+  "fila": 1000,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_analyze.py",
+  "fila": 1001,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_analyze.py",
+  "fila": 1003,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_analyze.py",
+  "fila": 1039,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_analyze.py",
+  "fila": 1040,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_analyze.py",
+  "fila": 1058,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_app.py",
+  "fila": 77,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_app.py",
+  "fila": 81,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_app.py",
+  "fila": 82,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_app.py",
+  "fila": 85,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_app.py",
+  "fila": 88,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_app.py",
+  "fila": 93,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_app.py",
+  "fila": 100,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_app.py",
+  "fila": 105,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_app.py",
+  "fila": 106,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_app.py",
+  "fila": 113,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_app.py",
+  "fila": 117,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_app.py",
+  "fila": 122,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_app.py",
+  "fila": 133,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_app.py",
+  "fila": 136,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_app.py",
+  "fila": 154,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_app.py",
+  "fila": 156,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_app.py",
+  "fila": 157,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_app.py",
+  "fila": 174,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_app.py",
+  "fila": 175,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_app.py",
+  "fila": 187,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_app.py",
+  "fila": 198,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_app.py",
+  "fila": 204,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_app.py",
+  "fila": 218,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_app.py",
+  "fila": 279,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_app.py",
+  "fila": 291,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_app.py",
+  "fila": 295,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_app.py",
+  "fila": 311,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_app.py",
+  "fila": 314,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_app.py",
+  "fila": 336,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_catalog.py",
+  "fila": 70,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_catalog.py",
+  "fila": 72,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_catalog.py",
+  "fila": 74,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_catalog.py",
+  "fila": 75,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_catalog.py",
+  "fila": 76,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_catalog.py",
+  "fila": 85,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_catalog.py",
+  "fila": 86,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_catalog.py",
+  "fila": 87,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_catalog.py",
+  "fila": 97,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_catalog.py",
+  "fila": 98,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_catalog.py",
+  "fila": 99,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_catalog.py",
+  "fila": 100,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_catalog.py",
+  "fila": 109,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_catalog.py",
+  "fila": 110,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_catalog.py",
+  "fila": 118,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_catalog.py",
+  "fila": 119,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_catalog.py",
+  "fila": 133,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_catalog.py",
+  "fila": 134,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_catalog.py",
+  "fila": 135,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_catalog.py",
+  "fila": 137,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_catalog.py",
+  "fila": 142,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_catalog.py",
+  "fila": 143,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_catalog.py",
+  "fila": 146,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_catalog.py",
+  "fila": 159,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_catalog.py",
+  "fila": 163,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_catalog.py",
+  "fila": 182,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_catalog.py",
+  "fila": 183,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_catalog.py",
+  "fila": 186,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_catalog.py",
+  "fila": 204,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_catalog.py",
+  "fila": 207,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_catalog.py",
+  "fila": 218,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_catalog.py",
+  "fila": 243,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_catalog.py",
+  "fila": 244,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_catalog.py",
+  "fila": 245,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_catalog.py",
+  "fila": 255,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_catalog.py",
+  "fila": 257,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_catalog.py",
+  "fila": 260,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_catalog.py",
+  "fila": 261,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_catalog.py",
+  "fila": 263,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_catalog.py",
+  "fila": 288,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_catalog.py",
+  "fila": 289,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_catalog.py",
+  "fila": 290,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_catalog.py",
+  "fila": 292,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_catalog.py",
+  "fila": 308,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_catalog.py",
+  "fila": 309,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_catalog.py",
+  "fila": 310,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_catalog.py",
+  "fila": 311,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_catalog.py",
+  "fila": 312,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_chat.py",
+  "fila": 113,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_chat.py",
+  "fila": 136,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_chat.py",
+  "fila": 137,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_chat.py",
+  "fila": 138,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_chat.py",
+  "fila": 139,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_chat.py",
+  "fila": 144,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_chat.py",
+  "fila": 145,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_chat.py",
+  "fila": 146,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_chat.py",
+  "fila": 167,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_chat.py",
+  "fila": 168,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_chat.py",
+  "fila": 169,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_chat.py",
+  "fila": 170,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_chat.py",
+  "fila": 190,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_chat.py",
+  "fila": 191,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_chat.py",
+  "fila": 192,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_chat.py",
+  "fila": 205,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_chat.py",
+  "fila": 206,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_chat.py",
+  "fila": 209,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_chat.py",
+  "fila": 210,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_chat.py",
+  "fila": 213,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_chat.py",
+  "fila": 214,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_chat.py",
+  "fila": 226,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_chat.py",
+  "fila": 227,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_chat.py",
+  "fila": 228,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_chat.py",
+  "fila": 234,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_chat.py",
+  "fila": 236,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_chat.py",
+  "fila": 247,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_chat.py",
+  "fila": 248,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_chat.py",
+  "fila": 252,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_chat.py",
+  "fila": 265,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_chat.py",
+  "fila": 266,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_chat.py",
+  "fila": 267,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_chat.py",
+  "fila": 278,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_chat.py",
+  "fila": 279,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_chat.py",
+  "fila": 280,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_chat.py",
+  "fila": 297,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_chat.py",
+  "fila": 301,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_chat.py",
+  "fila": 302,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_chat.py",
+  "fila": 321,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_chat.py",
+  "fila": 328,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_chat.py",
+  "fila": 346,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_chat.py",
+  "fila": 347,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_chat.py",
+  "fila": 348,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_chat.py",
+  "fila": 363,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_chat.py",
+  "fila": 364,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_chat.py",
+  "fila": 409,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_chat.py",
+  "fila": 410,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_chat.py",
+  "fila": 426,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_chat.py",
+  "fila": 431,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_chat.py",
+  "fila": 432,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_chat.py",
+  "fila": 433,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_chat.py",
+  "fila": 439,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_chat.py",
+  "fila": 466,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_chat.py",
+  "fila": 467,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_chat.py",
+  "fila": 468,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_chat.py",
+  "fila": 469,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_chat.py",
+  "fila": 470,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_chat.py",
+  "fila": 471,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_chat.py",
+  "fila": 472,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_chat.py",
+  "fila": 473,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_chat.py",
+  "fila": 481,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_execute.py",
+  "fila": 74,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_execute.py",
+  "fila": 75,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_execute.py",
+  "fila": 76,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_execute.py",
+  "fila": 78,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_execute.py",
+  "fila": 79,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_execute.py",
+  "fila": 88,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_execute.py",
+  "fila": 91,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_execute.py",
+  "fila": 110,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_execute.py",
+  "fila": 111,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_execute.py",
+  "fila": 113,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_execute.py",
+  "fila": 128,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_execute.py",
+  "fila": 129,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_execute.py",
+  "fila": 130,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_execute.py",
+  "fila": 168,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_execute.py",
+  "fila": 169,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_history.py",
+  "fila": 71,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_history.py",
+  "fila": 74,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_history.py",
+  "fila": 75,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_history.py",
+  "fila": 76,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_history.py",
+  "fila": 77,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_history.py",
+  "fila": 90,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_history.py",
+  "fila": 101,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_history.py",
+  "fila": 102,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_history.py",
+  "fila": 111,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_history.py",
+  "fila": 112,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_history.py",
+  "fila": 120,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_history.py",
+  "fila": 128,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_history.py",
+  "fila": 136,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_history.py",
+  "fila": 139,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_history.py",
+  "fila": 140,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_history.py",
+  "fila": 152,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_history.py",
+  "fila": 193,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_history.py",
+  "fila": 223,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_history.py",
+  "fila": 241,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_history.py",
+  "fila": 242,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_history.py",
+  "fila": 254,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_history.py",
+  "fila": 266,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_history.py",
+  "fila": 278,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_history.py",
+  "fila": 335,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_history.py",
+  "fila": 336,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_history.py",
+  "fila": 337,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_history.py",
+  "fila": 350,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_history.py",
+  "fila": 351,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_history.py",
+  "fila": 352,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_history.py",
+  "fila": 353,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_history.py",
+  "fila": 362,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_history.py",
+  "fila": 363,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_history.py",
+  "fila": 364,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_history.py",
+  "fila": 380,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_history.py",
+  "fila": 392,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_history.py",
+  "fila": 393,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_history.py",
+  "fila": 394,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_history.py",
+  "fila": 401,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_history.py",
+  "fila": 402,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_history.py",
+  "fila": 414,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_history.py",
+  "fila": 418,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_history.py",
+  "fila": 426,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_history.py",
+  "fila": 427,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_history.py",
+  "fila": 428,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_history.py",
+  "fila": 429,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_history.py",
+  "fila": 440,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_history.py",
+  "fila": 444,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_history.py",
+  "fila": 456,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_history.py",
+  "fila": 457,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_history.py",
+  "fila": 458,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_history.py",
+  "fila": 472,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_history.py",
+  "fila": 473,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_history.py",
+  "fila": 474,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_history.py",
+  "fila": 480,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_history.py",
+  "fila": 495,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_history.py",
+  "fila": 496,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_history.py",
+  "fila": 501,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_history.py",
+  "fila": 521,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_history.py",
+  "fila": 522,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_history.py",
+  "fila": 532,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_history.py",
+  "fila": 533,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_history.py",
+  "fila": 541,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_history.py",
+  "fila": 542,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_history.py",
+  "fila": 551,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_history.py",
+  "fila": 552,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_history.py",
+  "fila": 559,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_history.py",
+  "fila": 560,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_history.py",
+  "fila": 568,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_history.py",
+  "fila": 569,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_history.py",
+  "fila": 579,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_history.py",
+  "fila": 580,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_history.py",
+  "fila": 594,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_history.py",
+  "fila": 595,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_history.py",
+  "fila": 609,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_history.py",
+  "fila": 611,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_history.py",
+  "fila": 612,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_history.py",
+  "fila": 642,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_history.py",
+  "fila": 643,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_history.py",
+  "fila": 648,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_history.py",
+  "fila": 659,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_ratelimit.py",
+  "fila": 47,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_ratelimit.py",
+  "fila": 48,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_ratelimit.py",
+  "fila": 65,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_ratelimit.py",
+  "fila": 74,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_ratelimit.py",
+  "fila": 78,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_ratelimit.py",
+  "fila": 85,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_ratelimit.py",
+  "fila": 86,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_ratelimit.py",
+  "fila": 87,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_ratelimit.py",
+  "fila": 99,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_ratelimit.py",
+  "fila": 100,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_ratelimit.py",
+  "fila": 112,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_ratelimit.py",
+  "fila": 117,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_ratelimit.py",
+  "fila": 140,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_ratelimit.py",
+  "fila": 163,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_ratelimit.py",
+  "fila": 207,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_ratelimit.py",
+  "fila": 211,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_ratelimit.py",
+  "fila": 212,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_ratelimit.py",
+  "fila": 213,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_ratelimit.py",
+  "fila": 219,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_ratelimit.py",
+  "fila": 225,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_ratelimit.py",
+  "fila": 226,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_ratelimit.py",
+  "fila": 232,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_ratelimit.py",
+  "fila": 234,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_ratelimit.py",
+  "fila": 251,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_ratelimit.py",
+  "fila": 252,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_ratelimit.py",
+  "fila": 253,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_ratelimit.py",
+  "fila": 266,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_ratelimit.py",
+  "fila": 268,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_ratelimit.py",
+  "fila": 284,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_ratelimit.py",
+  "fila": 286,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_ratelimit.py",
+  "fila": 301,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_ratelimit.py",
+  "fila": 310,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_ratelimit.py",
+  "fila": 319,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_timeout.py",
+  "fila": 66,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_timeout.py",
+  "fila": 79,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_timeout.py",
+  "fila": 80,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_timeout.py",
+  "fila": 90,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_timeout.py",
+  "fila": 91,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_timeout.py",
+  "fila": 133,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_timeout.py",
+  "fila": 156,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/api/test_timeout.py",
+  "fila": 157,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/core/test_base_api.py",
+  "fila": 34,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/core/test_base_api.py",
+  "fila": 35,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/core/test_base_api.py",
+  "fila": 36,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/core/test_base_api.py",
+  "fila": 47,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/core/test_base_api.py",
+  "fila": 48,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/core/test_base_api.py",
+  "fila": 58,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/core/test_base_api.py",
+  "fila": 59,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/core/test_errores.py",
+  "fila": 31,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/core/test_errores.py",
+  "fila": 32,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/core/test_errores.py",
+  "fila": 42,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/core/test_errores.py",
+  "fila": 43,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/core/test_errores.py",
+  "fila": 44,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/core/test_errores.py",
+  "fila": 50,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/core/test_errores.py",
+  "fila": 56,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/core/test_errores.py",
+  "fila": 64,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/core/test_errores.py",
+  "fila": 72,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/core/test_errores.py",
+  "fila": 78,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/core/test_errores.py",
+  "fila": 87,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/core/test_errores.py",
+  "fila": 88,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/core/test_errores.py",
+  "fila": 89,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/core/test_errores.py",
+  "fila": 95,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/core/test_errores.py",
+  "fila": 96,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/core/test_errores.py",
+  "fila": 99,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/core/test_errores.py",
+  "fila": 103,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/core/test_errores.py",
+  "fila": 112,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/core/test_errores.py",
+  "fila": 124,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/core/test_health.py",
+  "fila": 48,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/core/test_health.py",
+  "fila": 57,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/core/test_health.py",
+  "fila": 66,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/core/test_health.py",
+  "fila": 75,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/core/test_health.py",
+  "fila": 86,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/core/test_health.py",
+  "fila": 99,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/core/test_health.py",
+  "fila": 100,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/core/test_health.py",
+  "fila": 115,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/core/test_health.py",
+  "fila": 116,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/core/test_health.py",
+  "fila": 117,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/core/test_health.py",
+  "fila": 129,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/core/test_health.py",
+  "fila": 155,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/core/test_health.py",
+  "fila": 156,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/core/test_health.py",
+  "fila": 177,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/core/test_health.py",
+  "fila": 189,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/core/test_health.py",
+  "fila": 211,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/core/test_health.py",
+  "fila": 212,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/core/test_health.py",
+  "fila": 213,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/core/test_health.py",
+  "fila": 214,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/core/test_health.py",
+  "fila": 217,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/core/test_health.py",
+  "fila": 239,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/core/test_health.py",
+  "fila": 240,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/core/test_health.py",
+  "fila": 244,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/core/test_health.py",
+  "fila": 245,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/core/test_health.py",
+  "fila": 289,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/core/test_health.py",
+  "fila": 293,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/core/test_health.py",
+  "fila": 309,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/core/test_health.py",
+  "fila": 326,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/core/test_health.py",
+  "fila": 327,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/core/test_health.py",
+  "fila": 337,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/core/test_health.py",
+  "fila": 338,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/core/test_idioma.py",
+  "fila": 47,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/core/test_idioma.py",
+  "fila": 61,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/core/test_idioma.py",
+  "fila": 81,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/core/test_idioma.py",
+  "fila": 82,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/core/test_idioma.py",
+  "fila": 94,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/core/test_idioma.py",
+  "fila": 100,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/core/test_idioma.py",
+  "fila": 108,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/core/test_idioma.py",
+  "fila": 109,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/core/test_idioma.py",
+  "fila": 115,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/core/test_idioma.py",
+  "fila": 116,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/core/test_idioma.py",
+  "fila": 123,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/core/test_idioma.py",
+  "fila": 124,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/core/test_idioma.py",
+  "fila": 130,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/core/test_logging.py",
+  "fila": 23,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/core/test_logging.py",
+  "fila": 24,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/core/test_logging.py",
+  "fila": 25,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/core/test_logging.py",
+  "fila": 26,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/core/test_logging.py",
+  "fila": 53,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/core/test_logging.py",
+  "fila": 68,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/core/test_observability.py",
+  "fila": 20,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/core/test_observability.py",
+  "fila": 25,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/core/test_observability.py",
+  "fila": 26,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/core/test_observability.py",
+  "fila": 27,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/core/test_observability.py",
+  "fila": 28,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/core/test_observability.py",
+  "fila": 29,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/core/test_observability.py",
+  "fila": 30,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/core/test_observability.py",
+  "fila": 31,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/core/test_observability.py",
+  "fila": 54,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/core/test_observability.py",
+  "fila": 55,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/core/test_observability.py",
+  "fila": 56,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/core/test_observability.py",
+  "fila": 57,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/core/test_observability.py",
+  "fila": 58,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/core/test_observability.py",
+  "fila": 59,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/core/test_observability.py",
+  "fila": 64,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/core/test_texto.py",
+  "fila": 23,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/core/test_texto.py",
+  "fila": 37,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/core/test_texto.py",
+  "fila": 44,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S603",
+  "ruta": "tests/integration/test_timeout_real.py",
+  "fila": 73,
+  "mensaje": "`subprocess` call: check for execution of untrusted input",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integration/test_timeout_real.py",
+  "fila": 120,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integration/test_timeout_real.py",
+  "fila": 121,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integration/test_timeout_real.py",
+  "fila": 132,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integration/test_timeout_real.py",
+  "fila": 133,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_discovery.py",
+  "fila": 76,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_discovery.py",
+  "fila": 77,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_discovery.py",
+  "fila": 78,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_discovery.py",
+  "fila": 79,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_discovery.py",
+  "fila": 88,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_discovery.py",
+  "fila": 97,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_discovery.py",
+  "fila": 108,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_discovery.py",
+  "fila": 120,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_discovery.py",
+  "fila": 122,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_discovery.py",
+  "fila": 124,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_discovery.py",
+  "fila": 135,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_discovery.py",
+  "fila": 136,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_discovery.py",
+  "fila": 137,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_discovery.py",
+  "fila": 140,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_discovery.py",
+  "fila": 148,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_discovery.py",
+  "fila": 149,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_discovery.py",
+  "fila": 150,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_discovery.py",
+  "fila": 167,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_discovery.py",
+  "fila": 168,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_discovery.py",
+  "fila": 169,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_discovery.py",
+  "fila": 170,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_gnews.py",
+  "fila": 65,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_gnews.py",
+  "fila": 66,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_gnews.py",
+  "fila": 67,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_gnews.py",
+  "fila": 68,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_gnews.py",
+  "fila": 69,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_gnews.py",
+  "fila": 70,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_gnews.py",
+  "fila": 71,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_gnews.py",
+  "fila": 83,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_gnews.py",
+  "fila": 84,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_gnews.py",
+  "fila": 85,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_gnews.py",
+  "fila": 86,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_gnews.py",
+  "fila": 88,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_gnews.py",
+  "fila": 100,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_gnews.py",
+  "fila": 102,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_gnews.py",
+  "fila": 103,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_gnews.py",
+  "fila": 119,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_gnews.py",
+  "fila": 131,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_gnews.py",
+  "fila": 132,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_gnews.py",
+  "fila": 146,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_gnews.py",
+  "fila": 147,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_gnews.py",
+  "fila": 148,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_gnews.py",
+  "fila": 161,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_gnews.py",
+  "fila": 162,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_gnews.py",
+  "fila": 163,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_gnews.py",
+  "fila": 178,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_gnews.py",
+  "fila": 179,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_gnews.py",
+  "fila": 180,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_gnews.py",
+  "fila": 199,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_gnews.py",
+  "fila": 215,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_gnews.py",
+  "fila": 219,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_gnews.py",
+  "fila": 220,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_gnews.py",
+  "fila": 239,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_gnews.py",
+  "fila": 263,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_gnews.py",
+  "fila": 264,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_gnews.py",
+  "fila": 265,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_gnews.py",
+  "fila": 266,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_gnews.py",
+  "fila": 276,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_gnews.py",
+  "fila": 277,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_gnews.py",
+  "fila": 278,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_gnews.py",
+  "fila": 279,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_guardian.py",
+  "fila": 43,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_guardian.py",
+  "fila": 44,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_guardian.py",
+  "fila": 45,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_guardian.py",
+  "fila": 46,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_guardian.py",
+  "fila": 80,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_guardian.py",
+  "fila": 81,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_guardian.py",
+  "fila": 82,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_guardian.py",
+  "fila": 83,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_guardian.py",
+  "fila": 84,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_guardian.py",
+  "fila": 85,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_guardian.py",
+  "fila": 86,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_guardian.py",
+  "fila": 87,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_guardian.py",
+  "fila": 101,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_guardian.py",
+  "fila": 102,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_guardian.py",
+  "fila": 116,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_guardian.py",
+  "fila": 117,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_guardian.py",
+  "fila": 131,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_guardian.py",
+  "fila": 133,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_guardian.py",
+  "fila": 134,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_guardian.py",
+  "fila": 148,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_guardian.py",
+  "fila": 150,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_guardian.py",
+  "fila": 151,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_guardian.py",
+  "fila": 171,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_guardian.py",
+  "fila": 172,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_guardian.py",
+  "fila": 174,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_guardian.py",
+  "fila": 175,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_guardian.py",
+  "fila": 176,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_guardian.py",
+  "fila": 177,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_guardian.py",
+  "fila": 191,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_guardian.py",
+  "fila": 192,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_guardian.py",
+  "fila": 193,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_guardian.py",
+  "fila": 194,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_guardian.py",
+  "fila": 211,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_guardian.py",
+  "fila": 212,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_guardian.py",
+  "fila": 246,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_guardian.py",
+  "fila": 273,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_guardian.py",
+  "fila": 284,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_guardian.py",
+  "fila": 286,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_guardian.py",
+  "fila": 287,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_guardian.py",
+  "fila": 288,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_guardian.py",
+  "fila": 301,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_guardian.py",
+  "fila": 302,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_guardian.py",
+  "fila": 303,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_guardian.py",
+  "fila": 322,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_invocacion.py",
+  "fila": 82,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_invocacion.py",
+  "fila": 85,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_invocacion.py",
+  "fila": 95,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_invocacion.py",
+  "fila": 96,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_invocacion.py",
+  "fila": 110,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_invocacion.py",
+  "fila": 111,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_invocacion.py",
+  "fila": 112,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_invocacion.py",
+  "fila": 120,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_invocacion.py",
+  "fila": 121,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_invocacion.py",
+  "fila": 147,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_invocacion.py",
+  "fila": 148,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_invocacion.py",
+  "fila": 149,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_invocacion.py",
+  "fila": 158,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_invocacion.py",
+  "fila": 175,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_invocacion.py",
+  "fila": 179,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_invocacion.py",
+  "fila": 206,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_invocacion.py",
+  "fila": 207,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_invocacion.py",
+  "fila": 208,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_invocacion.py",
+  "fila": 218,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_invocacion.py",
+  "fila": 219,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_invocacion.py",
+  "fila": 244,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_invocacion.py",
+  "fila": 245,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_invocacion.py",
+  "fila": 252,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_invocacion.py",
+  "fila": 270,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_invocacion.py",
+  "fila": 271,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_invocacion.py",
+  "fila": 272,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_invocacion.py",
+  "fila": 274,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_invocacion.py",
+  "fila": 275,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_invocacion.py",
+  "fila": 276,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_invocacion.py",
+  "fila": 288,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_invocacion.py",
+  "fila": 303,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_invocacion.py",
+  "fila": 304,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_lineal.py",
+  "fila": 28,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_lineal.py",
+  "fila": 29,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_lineal.py",
+  "fila": 30,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_lineal.py",
+  "fila": 33,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_lineal.py",
+  "fila": 38,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_lineal.py",
+  "fila": 47,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_lineal.py",
+  "fila": 48,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_lineal.py",
+  "fila": 49,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_lineal.py",
+  "fila": 56,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_lineal.py",
+  "fila": 59,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_lineal.py",
+  "fila": 68,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_lineal.py",
+  "fila": 69,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_lineal.py",
+  "fila": 80,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_lineal.py",
+  "fila": 82,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_lineal.py",
+  "fila": 97,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_lineal.py",
+  "fila": 98,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_lineal.py",
+  "fila": 99,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_lineal.py",
+  "fila": 106,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_llm.py",
+  "fila": 72,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_llm.py",
+  "fila": 73,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_llm.py",
+  "fila": 74,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_llm.py",
+  "fila": 75,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_llm.py",
+  "fila": 76,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_llm.py",
+  "fila": 77,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_llm.py",
+  "fila": 88,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_llm.py",
+  "fila": 96,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_llm.py",
+  "fila": 123,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_llm.py",
+  "fila": 148,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_llm.py",
+  "fila": 162,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_llm.py",
+  "fila": 179,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_llm.py",
+  "fila": 180,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_llm.py",
+  "fila": 209,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_llm.py",
+  "fila": 210,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_llm.py",
+  "fila": 211,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_llm.py",
+  "fila": 223,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_llm.py",
+  "fila": 236,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_llm.py",
+  "fila": 250,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_llm.py",
+  "fila": 251,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_llm.py",
+  "fila": 252,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_llm.py",
+  "fila": 263,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_llm.py",
+  "fila": 264,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_llm.py",
+  "fila": 265,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_llm.py",
+  "fila": 280,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_llm.py",
+  "fila": 281,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_llm.py",
+  "fila": 282,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_llm.py",
+  "fila": 286,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_llm.py",
+  "fila": 315,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_llm.py",
+  "fila": 316,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_llm.py",
+  "fila": 329,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_llm.py",
+  "fila": 330,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_llm.py",
+  "fila": 331,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_llm.py",
+  "fila": 345,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_llm.py",
+  "fila": 346,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_llm.py",
+  "fila": 360,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_llm.py",
+  "fila": 361,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_llm.py",
+  "fila": 375,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_llm.py",
+  "fila": 385,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_llm.py",
+  "fila": 387,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_llm.py",
+  "fila": 397,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_llm.py",
+  "fila": 398,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_llm.py",
+  "fila": 399,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_llm.py",
+  "fila": 403,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_llm.py",
+  "fila": 404,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_llm.py",
+  "fila": 405,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_llm.py",
+  "fila": 416,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_llm.py",
+  "fila": 417,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_llm.py",
+  "fila": 421,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_llm.py",
+  "fila": 422,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_llm.py",
+  "fila": 423,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_llm.py",
+  "fila": 433,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_llm.py",
+  "fila": 434,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_llm.py",
+  "fila": 438,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_llm.py",
+  "fila": 439,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_llm.py",
+  "fila": 440,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_llm.py",
+  "fila": 446,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_llm.py",
+  "fila": 455,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_llm.py",
+  "fila": 456,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_llm.py",
+  "fila": 457,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_llm.py",
+  "fila": 458,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_llm.py",
+  "fila": 459,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_newsdata.py",
+  "fila": 68,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_newsdata.py",
+  "fila": 69,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_newsdata.py",
+  "fila": 70,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_newsdata.py",
+  "fila": 71,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_newsdata.py",
+  "fila": 72,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_newsdata.py",
+  "fila": 73,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_newsdata.py",
+  "fila": 74,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_newsdata.py",
+  "fila": 84,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_newsdata.py",
+  "fila": 97,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_newsdata.py",
+  "fila": 98,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_newsdata.py",
+  "fila": 99,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_newsdata.py",
+  "fila": 100,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_newsdata.py",
+  "fila": 103,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_newsdata.py",
+  "fila": 104,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_newsdata.py",
+  "fila": 113,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_newsdata.py",
+  "fila": 115,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_newsdata.py",
+  "fila": 116,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_newsdata.py",
+  "fila": 129,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_newsdata.py",
+  "fila": 130,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_newsdata.py",
+  "fila": 144,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_newsdata.py",
+  "fila": 145,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_newsdata.py",
+  "fila": 146,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_newsdata.py",
+  "fila": 158,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_newsdata.py",
+  "fila": 159,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_newsdata.py",
+  "fila": 160,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_newsdata.py",
+  "fila": 173,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_newsdata.py",
+  "fila": 174,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_newsdata.py",
+  "fila": 175,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_newsdata.py",
+  "fila": 191,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_newsdata.py",
+  "fila": 216,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_newsdata.py",
+  "fila": 217,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_newsdata.py",
+  "fila": 232,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_newsdata.py",
+  "fila": 250,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_newsdata.py",
+  "fila": 273,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_newsdata.py",
+  "fila": 274,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_newsdata.py",
+  "fila": 275,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_newsdata.py",
+  "fila": 276,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_newsdata.py",
+  "fila": 286,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_newsdata.py",
+  "fila": 287,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_newsdata.py",
+  "fila": 288,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_newsdata.py",
+  "fila": 289,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 75,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 76,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 77,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 96,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 97,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 109,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 110,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 138,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 139,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 140,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 141,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 145,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 146,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 160,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 161,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 162,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 189,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 190,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 191,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 192,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 193,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 197,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 218,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 219,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 234,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 235,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 250,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 278,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 279,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 298,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 299,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 316,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 317,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 345,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 346,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 354,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 359,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 381,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 382,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 383,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 401,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 402,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 403,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 418,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 419,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 420,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 448,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 449,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 450,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 462,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 463,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 496,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 497,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 498,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 499,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 500,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 510,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 511,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 512,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 513,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 514,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 526,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 529,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 533,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 544,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 545,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 546,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 549,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 550,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 558,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 559,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 560,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 570,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 579,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 581,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 582,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 593,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 603,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 604,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 605,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 609,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 610,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 617,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 618,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 619,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 625,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 641,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 662,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 664,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 666,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 667,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 668,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 669,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 679,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 680,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 683,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 684,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 686,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 690,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 697,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 699,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 715,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 716,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 717,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 728,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 730,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 731,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 732,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 740,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 759,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 760,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 826,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 827,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 828,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 840,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 884,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 886,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 893,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 904,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 913,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 918,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 919,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 920,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 928,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 933,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 939,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 940,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 941,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 968,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 979,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 980,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 981,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 992,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 993,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 994,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 1005,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 1006,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 1007,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 1008,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 1009,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 1020,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 1021,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 1022,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 1023,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 1048,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 1049,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 1094,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 1095,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 1096,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 1097,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 1105,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 1113,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 1115,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 1124,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 1134,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 1135,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 1136,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 1137,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 1149,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 1150,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 1151,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 1152,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 1160,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 1166,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 1169,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 1182,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 1190,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 1193,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 1202,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 1207,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 1219,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 1232,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 1233,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 1236,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 1238,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 1239,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 1250,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 1269,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 1270,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 1271,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 1274,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 1275,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 1277,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 1287,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 1289,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 1290,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 1297,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 1298,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 1300,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 1306,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 1307,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 1311,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 1312,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 1323,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 1324,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 1326,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 1329,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 1332,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 1333,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 1349,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 1350,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 1355,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 1367,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 1368,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 1369,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 1381,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 1393,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 1394,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 1533,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 1534,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 1547,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 1562,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 1563,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 1580,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 1581,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 1582,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 1602,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 1603,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 1615,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 1619,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 1635,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 1636,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 1643,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 1644,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 1655,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 1663,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 1664,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 1665,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 1666,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 1667,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 1668,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 1671,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 1680,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 1684,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 1685,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 1686,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 1687,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 1688,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 1689,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 1693,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 1710,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 1711,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 1712,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 1713,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 1717,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 1718,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 1727,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 1728,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 1729,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 1734,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 1749,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 1750,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 1751,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 1752,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 1760,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 1761,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 1765,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 1774,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 1775,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 1793,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 1794,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 1795,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 1796,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 1806,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nlp.py",
+  "fila": 1808,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nyt.py",
+  "fila": 37,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nyt.py",
+  "fila": 38,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nyt.py",
+  "fila": 39,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nyt.py",
+  "fila": 66,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nyt.py",
+  "fila": 67,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nyt.py",
+  "fila": 68,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nyt.py",
+  "fila": 69,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nyt.py",
+  "fila": 70,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nyt.py",
+  "fila": 71,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nyt.py",
+  "fila": 72,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nyt.py",
+  "fila": 88,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nyt.py",
+  "fila": 89,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nyt.py",
+  "fila": 102,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nyt.py",
+  "fila": 103,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nyt.py",
+  "fila": 120,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nyt.py",
+  "fila": 121,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nyt.py",
+  "fila": 122,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nyt.py",
+  "fila": 138,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nyt.py",
+  "fila": 139,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nyt.py",
+  "fila": 140,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nyt.py",
+  "fila": 154,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nyt.py",
+  "fila": 155,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nyt.py",
+  "fila": 169,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nyt.py",
+  "fila": 170,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nyt.py",
+  "fila": 180,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nyt.py",
+  "fila": 184,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nyt.py",
+  "fila": 187,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nyt.py",
+  "fila": 188,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nyt.py",
+  "fila": 199,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nyt.py",
+  "fila": 201,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nyt.py",
+  "fila": 202,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nyt.py",
+  "fila": 203,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nyt.py",
+  "fila": 216,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nyt.py",
+  "fila": 217,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nyt.py",
+  "fila": 218,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nyt.py",
+  "fila": 231,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nyt.py",
+  "fila": 232,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nyt.py",
+  "fila": 233,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nyt.py",
+  "fila": 234,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_nyt.py",
+  "fila": 253,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_tool_contract.py",
+  "fila": 53,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_tool_contract.py",
+  "fila": 68,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_tool_contract.py",
+  "fila": 79,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_tool_contract.py",
+  "fila": 90,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_tool_contract.py",
+  "fila": 92,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_tool_contract.py",
+  "fila": 106,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_tool_contract.py",
+  "fila": 111,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_tool_contract.py",
+  "fila": 113,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_tool_contract.py",
+  "fila": 115,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_tool_contract.py",
+  "fila": 116,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_tool_contract.py",
+  "fila": 138,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_tool_contract.py",
+  "fila": 144,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_tool_contract.py",
+  "fila": 159,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_tool_contract.py",
+  "fila": 161,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_tool_contract.py",
+  "fila": 162,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_tool_contract.py",
+  "fila": 164,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_tool_contract.py",
+  "fila": 188,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_tool_contract.py",
+  "fila": 189,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_tool_contract.py",
+  "fila": 190,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_tool_contract.py",
+  "fila": 191,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_tool_contract.py",
+  "fila": 205,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_tool_contract.py",
+  "fila": 206,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_tool_contract.py",
+  "fila": 208,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_tool_contract.py",
+  "fila": 217,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_weather.py",
+  "fila": 75,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_weather.py",
+  "fila": 76,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_weather.py",
+  "fila": 89,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_weather.py",
+  "fila": 101,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_weather.py",
+  "fila": 102,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_weather.py",
+  "fila": 130,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_weather.py",
+  "fila": 131,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_weather.py",
+  "fila": 133,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_weather.py",
+  "fila": 134,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_weather.py",
+  "fila": 135,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_weather.py",
+  "fila": 147,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_weather.py",
+  "fila": 148,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_weather.py",
+  "fila": 174,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_weather.py",
+  "fila": 175,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_weather.py",
+  "fila": 177,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_weather.py",
+  "fila": 178,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/integrations/test_weather.py",
+  "fila": 179,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/test_arquitectura.py",
+  "fila": 106,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/test_arquitectura.py",
+  "fila": 115,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/test_arquitectura.py",
+  "fila": 132,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/test_arquitectura.py",
+  "fila": 143,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S506",
+  "ruta": "tests/test_compose.py",
+  "fila": 48,
+  "mensaje": "Probable use of unsafe loader `_CargadorDeCompose` with `yaml.load`. Allows instantiation of arbitrary objects. Consider `yaml.safe_load`.",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/test_compose.py",
+  "fila": 70,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/test_compose.py",
+  "fila": 72,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/test_compose.py",
+  "fila": 88,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/test_compose.py",
+  "fila": 93,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/test_compose.py",
+  "fila": 106,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/test_compose.py",
+  "fila": 113,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/test_compose.py",
+  "fila": 119,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/test_compose.py",
+  "fila": 132,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/test_compose.py",
+  "fila": 133,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/test_compose.py",
+  "fila": 134,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/test_compose.py",
+  "fila": 144,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/test_compose.py",
+  "fila": 151,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/test_compose.py",
+  "fila": 162,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/test_compose.py",
+  "fila": 163,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/test_compose.py",
+  "fila": 164,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/test_compose.py",
+  "fila": 165,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/test_documentacion.py",
+  "fila": 35,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/test_documentacion.py",
+  "fila": 41,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/test_documentacion.py",
+  "fila": 51,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/test_documentacion.py",
+  "fila": 52,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/test_main.py",
+  "fila": 44,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/test_main.py",
+  "fila": 52,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S104",
+  "ruta": "tests/test_main.py",
+  "fila": 56,
+  "mensaje": "Possible binding to all interfaces",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/test_main.py",
+  "fila": 61,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S104",
+  "ruta": "tests/test_main.py",
+  "fila": 61,
+  "mensaje": "Possible binding to all interfaces",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/test_main.py",
+  "fila": 62,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S104",
+  "ruta": "tests/test_main.py",
+  "fila": 105,
+  "mensaje": "Possible binding to all interfaces",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/test_main.py",
+  "fila": 107,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/test_main.py",
+  "fila": 116,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/test_main.py",
+  "fila": 129,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/test_main.py",
+  "fila": 165,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/test_main.py",
+  "fila": 172,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/test_main.py",
+  "fila": 173,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/test_main.py",
+  "fila": 181,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/test_settings.py",
+  "fila": 43,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/test_settings.py",
+  "fila": 50,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/test_settings.py",
+  "fila": 65,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/test_settings.py",
+  "fila": 82,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/test_settings.py",
+  "fila": 83,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/test_settings.py",
+  "fila": 100,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/test_settings.py",
+  "fila": 101,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/test_settings.py",
+  "fila": 102,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/test_settings.py",
+  "fila": 103,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/test_settings.py",
+  "fila": 111,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/test_settings.py",
+  "fila": 139,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/test_settings.py",
+  "fila": 154,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/test_settings.py",
+  "fila": 157,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/test_settings.py",
+  "fila": 175,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ },
+ {
+  "regla": "S101",
+  "ruta": "tests/test_smoke.py",
+  "fila": 5,
+  "mensaje": "Use of `assert` detected",
+  "donde": "no servido"
+ }
+]
