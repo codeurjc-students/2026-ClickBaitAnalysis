@@ -27,21 +27,26 @@
 #
 # El runner va fijado a `ubuntu-24.04`, como los demás: `latest` pasa a Ubuntu
 # 26 el 2026-10-19.
+#
+# Cómo se lanza y se lee, con el resto del análisis: `docs/desarrollo.md`, §9.
+#
+# Ejecuciones de las que salen las cifras del README (GitHub borra los registros
+# a los 90 días; los SARIF están en `spikes/vulnerabilidades/2026-10-13-final/`):
+#   - 38407160235, 2026-10-13, commit 6329213, CodeQL 2.27.2: la primera, con
+#     un disparador `push` temporal a la rama de #260, quitado antes de la PR.
 
 name: CodeQL (a mano)
 
 on:
   workflow_dispatch:
-  # TEMPORAL (#260): `workflow_dispatch` sólo se puede lanzar cuando el fichero
-  # está en la rama por defecto (`dev`). Para la primera pasada, antes de la
-  # PR, se dispara con los push a la rama de la issue. Se quita antes de abrir
-  # la PR, como el de `medir-imagenes.yml` en #173.
-  push:
-    branches: [chore/260-analisis-vulnerabilidades]
 
+# `security-events: read` no sube nada: deja a la acción consultar su propia
+# configuración (qué versión de CodeQL usar). Sin él avisaba y usaba la que
+# trae dentro; el análisis era el mismo (ejecución 38407160235).
 permissions:
   contents: read
   actions: read
+  security-events: read
 
 jobs:
   codeql:
