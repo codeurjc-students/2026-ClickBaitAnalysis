@@ -1,0 +1,23 @@
+1273 avisos
+
+== en la imagen: 2
+   S608       2  backend/api/
+      backend/api/history.py:388 S608 Possible SQL injection vector through string-based query construction
+      backend/api/history.py:407 S608 Possible SQL injection vector through string-based query construction
+
+== al construir: 0
+
+== no servido: 1271
+   S101      50  tests/
+   S101      98  tests/agent/
+   S101      12  tests/analysis/
+   S101     395  tests/api/
+   S101      94  tests/core/
+   S101       4  tests/integration/
+   S101     604  tests/integrations/
+   S104       3  tests/
+   S311       7  backend/evaluation/
+   S506       1  tests/
+   S603       1  backend/evaluation/
+   S603       1  tests/integration/
+   S607       1  backend/evaluation/
