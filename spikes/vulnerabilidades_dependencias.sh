@@ -31,8 +31,14 @@
 # del Dockerfile; si no, hay que reconstruir:
 #   docker compose -f compose.yaml -f compose.local.yaml build
 #
+# La carpeta lleva la fecha y, si se da, una etiqueta (`antes`, `despues`):
+# dos pasadas del mismo día no pueden compartirla, y el guion se niega a
+# escribir en una que ya exista. Guarda también las versiones de npm que tenían
+# los paquetes con aviso (`npm_versiones.json`): npm audit no las da, y leerlas
+# del lockfile de después de un arreglo daría las nuevas.
+#
 # Uso, desde la raíz y con Docker sin otra carga (#259):
-#   bash spikes/vulnerabilidades_dependencias.sh
+#   bash spikes/vulnerabilidades_dependencias.sh [etiqueta]
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
@@ -41,10 +47,15 @@ VENV=/tmp/venv-auditoria
 NODE_BIN=/home/ggarciac/.nvm/versions/node/v22.23.2/bin
 IMAGEN=clickbait-backend
 DOCKERFILE=docker/backend.Dockerfile
-SALIDA="spikes/vulnerabilidades/$(date +%F)"
+ETIQUETA="${1:-}"
+SALIDA="spikes/vulnerabilidades/$(date +%F)${ETIQUETA:+-$ETIQUETA}"
 TEMPORAL="$(mktemp -d)"
 trap 'rm -rf "$TEMPORAL"' EXIT
 
+if [ -e "$SALIDA" ]; then
+    echo "$SALIDA ya existe: se pisaría una pasada. Dale otra etiqueta." >&2
+    exit 1
+fi
 mkdir -p "$SALIDA"
 
 # ── La herramienta, en su propio venv y con la versión fija ────────────────
@@ -106,9 +117,25 @@ grep '==' "$SALIDA/imagen_freeze.txt" | sed 's/+[A-Za-z0-9.]*$//' > "$TEMPORAL/i
     npm audit --json > "../$SALIDA/npm_todo.json" || true
     npm audit --json --omit=dev > "../$SALIDA/npm_servido.json" || true
 )
+# Las versiones instaladas de los paquetes con aviso, del lockfile de ahora.
+python3 - "$SALIDA" <<'EOF'
+import json
+import sys
+from pathlib import Path
+
+carpeta = Path(sys.argv[1])
+instalados = json.loads(Path("frontend/package-lock.json").read_text())["packages"]
+con_aviso = json.loads((carpeta / "npm_todo.json").read_text()).get("vulnerabilities", {})
+versiones = {
+    nodo: instalados.get(nodo, {}).get("version", "?")
+    for entrada in con_aviso.values()
+    for nodo in entrada["nodes"]
+}
+(carpeta / "npm_versiones.json").write_text(json.dumps(versiones, indent=1, sort_keys=True) + "\n")
+EOF
 
 # ── Que no falte ninguna pasada ────────────────────────────────────────────
-for pasada in pip_lockfile pip_fuera_del_lockfile pip_imagen npm_todo npm_servido; do
+for pasada in pip_lockfile pip_fuera_del_lockfile pip_imagen npm_todo npm_servido npm_versiones; do
     if ! python3 -c 'import json, sys; json.load(open(sys.argv[1]))' "$SALIDA/$pasada.json" 2>/dev/null; then
         echo "Falta $SALIDA/$pasada.json, o no es JSON: la pasada falló." >&2
         exit 1

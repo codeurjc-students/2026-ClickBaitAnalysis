@@ -1,4 +1,4 @@
-# Dependencias: el resumen para el triaje (2026-10-13)
+# Dependencias: el resumen para el triaje (2026-10-13-antes)
 
 Generado por `spikes/vulnerabilidades_resumen.py` a partir de los JSON de esta carpeta;
 las condiciones, en `condiciones.txt`. La casilla se rellena a mano: **arreglado**,
@@ -74,7 +74,7 @@ La gravedad es la de GitHub, del alias GHSA de cada aviso (`gravedades.json`).
 
 ## npm (npm audit)
 
-Versiones instaladas de `frontend/package-lock.json`, blob `2b29929a23631f3af2d0117a8cbbe9239673f5ec`.
+Versiones instaladas: de `npm_versiones.json`, guardadas por la pasada.
 
 - **todo**: 25 avisos en 11 paquetes (28 entradas en crudo)
 - **servido**: 1 avisos en 1 paquetes (1 entradas en crudo)

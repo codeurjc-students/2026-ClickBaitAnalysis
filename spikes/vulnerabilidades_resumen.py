@@ -18,9 +18,10 @@ Lo que no se deduce leyéndolo:
 - Las gravedades se guardan en `gravedades.json`, junto a los JSON de las
   pasadas: repetir el resumen no vuelve a la red, y la cifra no cambia aunque
   GitHub reclasifique un aviso después.
-- npm audit no da la versión instalada: se lee de `frontend/package-lock.json`,
-  y el resumen anota su hash de git para poder recuperarlo después de un
-  `npm audit fix`.
+- npm audit no da la versión instalada: la guarda la pasada en
+  `npm_versiones.json`. Una carpeta sin ese fichero la lee del
+  `frontend/package-lock.json` de hoy, y el resumen lo dice con su hash de git:
+  después de un arreglo, serían las versiones nuevas.
 
 Uso, desde la raíz (sólo biblioteca estándar):
     python3 spikes/vulnerabilidades_resumen.py spikes/vulnerabilidades/<fecha>
@@ -124,13 +125,22 @@ def _avisos_pip(carpeta: Path) -> tuple[dict[tuple, Aviso], Counter]:
     return avisos, entradas_crudas
 
 
-def _versiones_npm() -> dict[str, str]:
+def _versiones_npm(carpeta: Path) -> tuple[dict[str, str], str]:
+    """Las versiones que guardó la pasada; si no las guardó, las del lockfile de hoy."""
+    guardadas = carpeta / "npm_versiones.json"
+    if guardadas.exists():
+        return json.loads(guardadas.read_text()), "`npm_versiones.json`, guardadas por la pasada"
+    hash_lockfile = subprocess.run(
+        ["git", "hash-object", str(LOCKFILE_NPM)], capture_output=True, text=True, check=True
+    ).stdout.strip()
     paquetes = json.loads(LOCKFILE_NPM.read_text())["packages"]
-    return {ruta: datos.get("version", "?") for ruta, datos in paquetes.items()}
+    versiones = {ruta: datos.get("version", "?") for ruta, datos in paquetes.items()}
+    return versiones, f"`frontend/package-lock.json` al generar el resumen, blob `{hash_lockfile}`"
 
 
-def _avisos_npm(carpeta: Path) -> tuple[dict[tuple, Aviso], dict[str, set[str]], Counter]:
-    versiones = _versiones_npm()
+def _avisos_npm(
+    carpeta: Path, versiones: dict[str, str]
+) -> tuple[dict[tuple, Aviso], dict[str, set[str]], Counter]:
     avisos: dict[tuple, Aviso] = {}
     arrastrados: dict[str, set[str]] = {}  # paquete -> de quién hereda el aviso
     entradas_crudas: Counter = Counter()
@@ -210,10 +220,8 @@ def main() -> None:
         aviso.gravedad = _gravedad_de(aviso, gravedades)
     ruta_gravedades.write_text(json.dumps(gravedades, indent=1, sort_keys=True) + "\n")
 
-    avisos_npm, arrastrados, crudas_npm = _avisos_npm(carpeta)
-    hash_lockfile = subprocess.run(
-        ["git", "hash-object", str(LOCKFILE_NPM)], capture_output=True, text=True, check=True
-    ).stdout.strip()
+    versiones_npm, origen_versiones = _versiones_npm(carpeta)
+    avisos_npm, arrastrados, crudas_npm = _avisos_npm(carpeta, versiones_npm)
 
     lineas = [
         f"# Dependencias: el resumen para el triaje ({carpeta.name})",
@@ -232,7 +240,7 @@ def main() -> None:
         "",
         "## npm (npm audit)",
         "",
-        f"Versiones instaladas de `frontend/package-lock.json`, blob `{hash_lockfile}`.",
+        f"Versiones instaladas: de {origen_versiones}.",
         "",
         *_recuento(list(avisos_npm.values()), crudas_npm, PASADAS_NPM),
         "",
