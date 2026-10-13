@@ -7,6 +7,12 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONPATH=/app \
     HF_HOME=/modelos
 
+# 0 · pip y setuptools de la imagen base traían avisos publicados (pip 25.0.1 y
+#     setuptools 78.1.0, uno alto; #260). Se fijan a lo mínimo que los arregla,
+#     ANTES de instalar nada: así la instalación de lo de abajo ya usa la pip
+#     arreglada. Fijados, como torch, para que la imagen no cambie sola.
+RUN pip install --no-cache-dir pip==26.2.1 setuptools==83.0.0
+
 # 1 · Dependencias del lockfile.
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
