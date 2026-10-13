@@ -31,11 +31,14 @@
 # del Dockerfile; si no, hay que reconstruir:
 #   docker compose -f compose.yaml -f compose.local.yaml build
 #
-# La carpeta lleva la fecha y, si se da, una etiqueta (`antes`, `despues`):
-# dos pasadas del mismo día no pueden compartirla, y el guion se niega a
-# escribir en una que ya exista. Guarda también las versiones de npm que tenían
-# los paquetes con aviso (`npm_versiones.json`): npm audit no las da, y leerlas
-# del lockfile de después de un arreglo daría las nuevas.
+# La carpeta lleva la fecha y, si se da, una etiqueta (`antes`, `despues`), y
+# es UNA comprobación entera: cada frente (`vulnerabilidades_imagenes.sh`…)
+# escribe en ella sus ficheros. Dos pasadas de dependencias no pueden
+# compartirla: el guion se niega si ya están los suyos.
+#
+# Guarda también las versiones de npm que tenían los paquetes con aviso
+# (`npm_versiones.json`): npm audit no las da, y leerlas del lockfile de
+# después de un arreglo daría las nuevas.
 #
 # Uso, desde la raíz y con Docker sin otra carga (#259):
 #   bash spikes/vulnerabilidades_dependencias.sh [etiqueta]
@@ -52,8 +55,8 @@ SALIDA="spikes/vulnerabilidades/$(date +%F)${ETIQUETA:+-$ETIQUETA}"
 TEMPORAL="$(mktemp -d)"
 trap 'rm -rf "$TEMPORAL"' EXIT
 
-if [ -e "$SALIDA" ]; then
-    echo "$SALIDA ya existe: se pisaría una pasada. Dale otra etiqueta." >&2
+if [ -e "$SALIDA/pip_lockfile.json" ]; then
+    echo "$SALIDA ya tiene una pasada de dependencias: se pisaría. Dale otra etiqueta." >&2
     exit 1
 fi
 mkdir -p "$SALIDA"

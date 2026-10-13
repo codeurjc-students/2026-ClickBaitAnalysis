@@ -31,7 +31,11 @@ RUN npm run build
 #     de la imagen base: arranca con /etc/caddy/Caddyfile y declara 80, 443
 #     (TCP, y UDP para HTTP/3) y 2019, su API de administración. `EXPOSE` sólo
 #     documenta: lo que se publica lo decide `-p` al arrancar.
-FROM caddy:2.11.4-alpine
+#     2.11.7 y no 2.11.4 (#260): el binario de la 2.11.4 estaba compilado con
+#     Go 1.26.3 y Trivy le encontró 21 avisos altos con arreglo (la biblioteca
+#     estándar, x/crypto, x/net, x/text, grpc), y Caddy es lo único expuesto a
+#     internet. Se sube dentro de la misma rama.
+FROM caddy:2.11.7-alpine
 
 COPY docker/Caddyfile /etc/caddy/Caddyfile
 
