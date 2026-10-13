@@ -23,8 +23,15 @@ Lo que no se deduce leyéndolo:
   `frontend/package-lock.json` de hoy, y el resumen lo dice con su hash de git:
   después de un arreglo, serían las versiones nuevas.
 
+- Con `--anterior <carpeta>`, cada aviso que no estaba en esa comprobación se
+  marca como **nuevo**: al volver a comprobar, sólo hay que triar ésos. «El
+  mismo aviso» es el mismo paquete con el mismo identificador, sin mirar la
+  versión, que es lo que cambia al arreglarlo. Así no hay que arrastrar las
+  casillas de una carpeta a otra.
+
 Uso, desde la raíz (sólo biblioteca estándar):
-    python3 spikes/vulnerabilidades_resumen.py spikes/vulnerabilidades/<fecha>
+    python3 spikes/vulnerabilidades_resumen.py spikes/vulnerabilidades/<fecha>[-<etiqueta>] \\
+        [--anterior spikes/vulnerabilidades/<otra>]
 """
 
 import json
@@ -177,18 +184,41 @@ def _orden(aviso: Aviso) -> tuple:
     return (posicion, aviso.paquete.lower(), aviso.identificador)
 
 
-def _tabla(avisos: list[Aviso]) -> list[str]:
+def _clave(aviso: Aviso) -> tuple[str, str]:
+    """Lo que hace que un aviso sea «el mismo» en otra comprobación: el paquete
+    y el aviso, no la versión, que es justo lo que cambia al arreglarlo."""
+    return (aviso.paquete.lower(), aviso.identificador)
+
+
+def _ya_vistos(anterior: Path) -> set[tuple[str, str]]:
+    """Los avisos de una comprobación anterior. Sin red: no hace falta su gravedad."""
+    avisos_pip, _ = _avisos_pip(anterior)
+    versiones, _ = _versiones_npm(anterior)
+    avisos_npm, _, _ = _avisos_npm(anterior, versiones)
+    return {_clave(aviso) for aviso in [*avisos_pip.values(), *avisos_npm.values()]}
+
+
+def _tabla(avisos: list[Aviso], vistos: set[tuple[str, str]] | None) -> list[str]:
+    nueva = " Nuevo |" if vistos is not None else ""
     lineas = [
-        "| Gravedad | Paquete | Versión | Aviso | Alias | Qué | Arreglo | Pasadas | Casilla |",
-        "|---|---|---|---|---|---|---|---|---|",
+        f"| Gravedad | Paquete | Versión | Aviso | Alias | Qué | Arreglo | Pasadas |{nueva} Casilla |",
+        "|---|---|---|---|---|---|---|---|" + ("---|" if vistos is not None else "") + "---|",
     ]
     for aviso in sorted(avisos, key=_orden):
+        marca = (" **sí** |" if _clave(aviso) not in vistos else "  |") if vistos is not None else ""
         lineas.append(
             f"| {aviso.gravedad} | {aviso.paquete} | {aviso.version} | {aviso.identificador} "
             f"| {', '.join(aviso.alias) or '—'} | {aviso.que} | {aviso.arreglo} "
-            f"| {', '.join(sorted(aviso.pasadas))} |  |"
+            f"| {', '.join(sorted(aviso.pasadas))} |{marca}  |"
         )
     return lineas
+
+
+def _nuevos(avisos: list[Aviso], vistos: set[tuple[str, str]] | None, anterior: Path | None) -> list[str]:
+    if vistos is None or anterior is None:
+        return []
+    cuantos = sum(_clave(aviso) not in vistos for aviso in avisos)
+    return [f"- **nuevos** frente a `{anterior.name}`: {cuantos} (los únicos que hay que triar)"]
 
 
 def _recuento(avisos: list[Aviso], entradas_crudas: Counter, pasadas: dict[str, str]) -> list[str]:
@@ -209,9 +239,15 @@ def _recuento(avisos: list[Aviso], entradas_crudas: Counter, pasadas: dict[str, 
 
 
 def main() -> None:
-    if len(sys.argv) != 2:
+    argumentos = sys.argv[1:]
+    if len(argumentos) == 1:
+        anterior = None
+    elif len(argumentos) == 3 and argumentos[1] == "--anterior":
+        anterior = Path(argumentos[2])
+    else:
         sys.exit(__doc__)
-    carpeta = Path(sys.argv[1])
+    carpeta = Path(argumentos[0])
+    vistos = _ya_vistos(anterior) if anterior is not None else None
     ruta_gravedades = carpeta / "gravedades.json"
     gravedades = json.loads(ruta_gravedades.read_text()) if ruta_gravedades.exists() else {}
 
@@ -235,16 +271,18 @@ def main() -> None:
         "La gravedad es la de GitHub, del alias GHSA de cada aviso (`gravedades.json`).",
         "",
         *_recuento(list(avisos_pip.values()), crudas_pip, PASADAS_PIP),
+        *_nuevos(list(avisos_pip.values()), vistos, anterior),
         "",
-        *_tabla(list(avisos_pip.values())),
+        *_tabla(list(avisos_pip.values()), vistos),
         "",
         "## npm (npm audit)",
         "",
         f"Versiones instaladas: de {origen_versiones}.",
         "",
         *_recuento(list(avisos_npm.values()), crudas_npm, PASADAS_NPM),
+        *_nuevos(list(avisos_npm.values()), vistos, anterior),
         "",
-        *_tabla(list(avisos_npm.values())),
+        *_tabla(list(avisos_npm.values()), vistos),
         "",
         "Paquetes que sólo heredan el aviso de una dependencia suya (npm los cuenta aparte):",
         "",
@@ -253,6 +291,9 @@ def main() -> None:
     ]
     (carpeta / "resumen.md").write_text("\n".join(lineas))
     print("\n".join(lineas[:4]))
+    for linea in lineas:
+        if linea.startswith("- **"):
+            print(linea)
     print(f"Escrito {carpeta / 'resumen.md'}")
 
 
