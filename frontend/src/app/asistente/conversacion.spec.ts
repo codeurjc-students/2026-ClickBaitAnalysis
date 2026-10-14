@@ -89,11 +89,11 @@ describe('vistaDePaso', () => {
   it('una lista de noticias se pinta como noticias, por su forma', () => {
     const vista = vistaDePaso(
       herramienta('get_guardian_news', {
-        result: [{ title: 'A headline', url: 'https://x', date: '2026-09-27T10:00:00Z' }],
+        result: [{ title: 'A headline', url: 'https://x', date: '2026-09-27T10:00:00Z', language: 'en' }],
       }),
     );
     expect(vista.noticias).toEqual([
-      { title: 'A headline', url: 'https://x', date: '2026-09-27T10:00:00Z' },
+      { title: 'A headline', url: 'https://x', date: '2026-09-27T10:00:00Z', language: 'en' },
     ]);
   });
 
@@ -105,8 +105,8 @@ describe('vistaDePaso', () => {
       ],
     });
     expect(noticias).toEqual([
-      { title: 'Sin url', url: null, date: null },
-      { title: 'Url que no es texto', url: null, date: null },
+      { title: 'Sin url', url: null, date: null, language: '' },
+      { title: 'Url que no es texto', url: null, date: null, language: '' },
     ]);
   });
 
@@ -136,6 +136,36 @@ describe('comoNoticias', () => {
   it('rechaza lo que no es una lista', () => {
     expect(comoNoticias({ result: 'texto' })).toBeNull();
     expect(comoNoticias(null)).toBeNull();
+  });
+
+  // #263: el `lang` de cada titular en la pantalla. Lo dice la fuente —el
+  // idioma que le pidió a su API—, no se adivina aquí.
+  it('cada noticia trae el idioma que dijo su fuente (#263)', () => {
+    const noticias = comoNoticias({
+      result: [
+        { title: 'La IA resolvió el misterio del huevo', language: 'es' },
+        { title: 'College Leaders Are Using A.I.', language: 'en' },
+      ],
+    });
+    expect(noticias).toEqual([
+      { title: 'La IA resolvió el misterio del huevo', url: null, date: null, language: 'es' },
+      { title: 'College Leaders Are Using A.I.', url: null, date: null, language: 'en' },
+    ]);
+  });
+
+  // Desconocido y no inglés: una conversación guardada en `sessionStorage`
+  // antes de #263 puede traer noticias de GNews, que están en español.
+  it('sin idioma, o con uno que no es texto, queda desconocido y no inglés (#263)', () => {
+    const noticias = comoNoticias({
+      result: [
+        { title: 'Guardada antes de #263' },
+        { title: 'Idioma que no es texto', language: 42 },
+      ],
+    });
+    expect(noticias).toEqual([
+      { title: 'Guardada antes de #263', url: null, date: null, language: '' },
+      { title: 'Idioma que no es texto', url: null, date: null, language: '' },
+    ]);
   });
 });
 

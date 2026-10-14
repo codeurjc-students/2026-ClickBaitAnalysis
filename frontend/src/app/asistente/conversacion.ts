@@ -78,11 +78,17 @@ export function duracionLegible(milisegundos: number): string {
   return resto === 0 ? `${minutos} min` : `${minutos} min ${resto} s`;
 }
 
-/** Una noticia de `get_nyt_news` o `get_guardian_news`. */
+/** Una noticia de `get_nyt_news`, `get_guardian_news`, `get_gnews_news` o `get_newsdata_news`. */
 export interface Noticia {
   title: string;
   url: string | null;
   date: string | null;
+  /**
+   * El `lang` del titular (#263): el idioma que la fuente le pidió a su API.
+   * `''` si no lo dice —«desconocido» en HTML (#230)—, nunca inglés por
+   * defecto: una conversación guardada antes puede traer noticias en español.
+   */
+  language: string;
 }
 
 /**
@@ -148,8 +154,9 @@ export function vistaDePaso(paso: PasoDeLaTraza): VistaDePaso {
 
 /**
  * Las noticias de un resultado, si tiene su forma: `{result: [{title, url,
- * date}, …]}`, que es como llega por MCP una herramienta que devuelve una
- * lista.
+ * date, language}, …]}`, que es como llega por MCP una herramienta que
+ * devuelve una lista. Sólo `title` es obligatorio: lo demás puede faltar,
+ * también `language` en lo guardado antes de #263.
  *
  * Por la FORMA y no por el nombre de la herramienta, como los guardianes de
  * `senales/datos.ts`: una fuente de noticias nueva se pintaría igual, y una
@@ -163,12 +170,13 @@ export function comoNoticias(datos: unknown): Noticia[] | null {
   const noticias: Noticia[] = [];
   for (const elemento of result) {
     if (typeof elemento !== 'object' || elemento === null) return null;
-    const { title, url, date } = elemento as Record<string, unknown>;
+    const { title, url, date, language } = elemento as Record<string, unknown>;
     if (typeof title !== 'string') return null;
     noticias.push({
       title,
       url: typeof url === 'string' ? url : null,
       date: typeof date === 'string' ? date : null,
+      language: typeof language === 'string' ? language : '',
     });
   }
   return noticias;

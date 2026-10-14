@@ -117,6 +117,22 @@ async def test_sin_tema_no_filtra(con_clave):
 
 
 @pytest.mark.asyncio
+async def test_cada_noticia_dice_el_idioma_que_se_pidio(con_clave):
+    """El `lang` de cada titular en la pantalla del asistente sale de aquí
+    (#263): es el idioma que se le pidió a NewsData.io, el del parámetro
+    `language`, y no el nombre que trae cada noticia («spanish»)."""
+    with respx.mock:
+        ruta = respx.get(ULTIMAS).mock(
+            return_value=respuesta(noticia(), noticia("Otro titular"))
+        )
+        result = await NewsDataAPI().latest_articles("inteligencia artificial")
+
+    pedido = ruta.calls.last.request.url.params["language"]
+    assert pedido == "es"
+    assert [articulo["language"] for articulo in result.data] == [pedido, pedido]
+
+
+@pytest.mark.asyncio
 @pytest.mark.parametrize(
     "cuerpo",
     [{"status": "success", "totalResults": 0, "results": []}, {"status": "success"}],

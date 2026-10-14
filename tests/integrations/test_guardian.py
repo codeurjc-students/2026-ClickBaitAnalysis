@@ -85,6 +85,8 @@ async def test_article_valid_response(fake_payload):
         assert result.data[0]["url"] == fake_payload["webUrl"]
         assert result.data[0]["date"] == fake_payload["webPublicationDate"]
         assert result.data[0]["content"] == fake_payload["fields"]["trailText"]
+        # #263: no se pide idioma; Guardian publica en inglés.
+        assert result.data[0]["language"] == "en"
 
 
 @pytest.mark.asyncio
