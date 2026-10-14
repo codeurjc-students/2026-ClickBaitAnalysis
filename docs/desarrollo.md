@@ -109,8 +109,8 @@ Analizar un titular y el historial sólo necesitan la API. **El servidor MCP**
 hace falta para la pantalla de Sistema —que lista y ejecuta las herramientas— y
 para el asistente, que también las llama por MCP; sin él, Sistema lo enseña
 como inalcanzable. Por defecto el servidor MCP habla por `stdio`, que es lo que
-espera un cliente como Claude Desktop, que lo lanza como subproceso; la
-variable lo pone en HTTP.
+espera un cliente que lo lanza como subproceso, como Claude Desktop (más
+abajo); la variable lo pone en HTTP.
 
 **El asistente** necesita además un servidor [Ollama](https://ollama.com) con
 un modelo. Se enciende con tres variables en el `.env`:
@@ -125,6 +125,51 @@ Sin `LLM_BACKEND`, la pestaña del asistente no aparece, y quien entre en
 `/asistente` lee por qué. El modelo del despliegue y sus medidas están en
 `backend/integrations/llm/model_card.py`; cómo se enciende en las máquinas de la
 universidad, en [`despliegue/README.md`](../despliegue/README.md).
+
+### Desde Claude Desktop, con esta copia
+
+La guía de ejecución conecta Claude Desktop a la imagen de Docker
+([`ejecucion.md`](ejecucion.md#desde-claude-desktop)). Para probar las
+herramientas con el código que se está editando, Claude Desktop lanza el
+servidor desde el `.venv` de esta copia:
+
+```json
+{
+  "mcpServers": {
+    "tfg-mcp-server": {
+      "command": "wsl",
+      "args": [
+        "bash", "-c",
+        "cd /ruta/al/repositorio && PREHEAT_MODELS=true .venv/bin/python -m backend.main"
+      ]
+    }
+  }
+}
+```
+
+Ésa es la de Windows con el repositorio en WSL. En macOS, `"command": "/bin/sh"`
+y `"args": ["-c", "cd … && …"]`, con la misma línea.
+
+- **El `cd` es lo que importa**: el `.env` se lee de la carpeta en la que
+  arranca el proceso, y `backend` se importa desde ahí.
+- **`PREHEAT_MODELS` va en la línea de comandos**, y no en el campo `env` de la
+  configuración, porque ese campo no cruza a WSL.
+- Claude Desktop sólo relee la configuración al abrirse, y se edita con ella
+  cerrada ([`ejecucion.md`](ejecucion.md#desde-claude-desktop)). Y al cambiar
+  el código, para que el servidor lo cargue, se vuelve a abrir.
+- **Ejecuta lo que haya en la copia en ese momento**, también otra rama: al
+  cambiar de rama, el servidor de Claude Desktop cambia con ella la siguiente
+  vez que se abre. Para usarlo a diario, mejor la imagen.
+- **Tarda más que la imagen** (medido en #267, con WSL en un PC de
+  sobremesa). Con WSL en marcha, los modelos están listos entre 41 y 86 s
+  después de abrir Claude Desktop. Con WSL recién arrancado —y una vez con WSL
+  en marcha, sin causa conocida— el saludo tarda de 27 a 55 s y los modelos, de
+  146 a 183 s: la primera pregunta espera a que terminen (de 47 a 93 s), y una
+  que llegue antes del saludo la contesta Claude sin la herramienta, sin avisar
+  ([`ejecucion.md`](ejecucion.md#desde-claude-desktop)).
+
+Claude Code lo admite igual, con `claude mcp add tfg-mcp-server -- <comando>
+<argumentos…>`. Esto no se ha comprobado.
 
 ## 6 · Lo que comprueba el CI
 

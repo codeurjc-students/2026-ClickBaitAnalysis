@@ -4,6 +4,10 @@
 doble que sólo anota con qué se le llamó.
 """
 
+import asyncio
+import threading
+import types
+
 import httpx
 import pytest
 from mcp import ClientSession
@@ -37,6 +41,10 @@ def run_espia(monkeypatch):
         "transport_security",
         main_mod.mcp.settings.transport_security,
     )
+    # Desde #267 `main()` precalienta si el ajuste lo pide, y el ajuste sale del
+    # `.env` de quien ejecute la suite: apagado aquí, ningún test de arranque
+    # carga un modelo de verdad. Los que lo prueban lo encienden a propósito.
+    monkeypatch.setattr(settings, "preheat_models", False)
     return recibido
 
 
@@ -60,6 +68,68 @@ def test_main_propaga_host_y_puerto_al_servidor(monkeypatch, run_espia):
 
     assert main_mod.mcp.settings.host == "0.0.0.0"
     assert main_mod.mcp.settings.port == 9999
+
+
+# ----- El precalentado (#267) -----
+
+
+@pytest.fixture
+def orden(monkeypatch, run_espia):
+    """Sustituye `precalentar` y `mcp.run` por dobles que anotan en qué orden
+    ocurre cada cosa. Ninguno carga nada.
+
+    El precalentado falso no termina hasta que el servidor empieza a servir:
+    si `main` lo esperara antes de servir, se quedaría esperando. El tope de
+    2 s evita que la prueba se cuelgue y deja el fallo a la vista.
+    """
+    llamadas = []
+    sirviendo = threading.Event()
+    terminado = threading.Event()
+
+    async def falso_precalentar():
+        await asyncio.to_thread(sirviendo.wait, 2)
+        llamadas.append("termina de precalentar")
+        terminado.set()
+        return {"detect_clickbait_incoherence": 1.23}
+
+    def falso_run(transport):
+        llamadas.append("sirve")
+        sirviendo.set()
+
+    # `raising=False`: contra el código de antes de #267, `main` no tenía
+    # `precalentar`, y la prueba tiene que fallar por lo que comprueba, no
+    # por no poder sustituirlo.
+    monkeypatch.setattr(main_mod, "precalentar", falso_precalentar, raising=False)
+    monkeypatch.setattr(main_mod.mcp, "run", falso_run)
+    return types.SimpleNamespace(llamadas=llamadas, terminado=terminado)
+
+
+def test_sin_el_ajuste_el_servidor_mcp_no_precalienta(orden):
+    """El apagado es lo que mantiene rápidos la suite y el desarrollo: cargar
+    los modelos cuesta de 24 a 52 s (#126)."""
+    main_mod.main()
+
+    assert orden.llamadas == ["sirve"]
+
+
+def test_con_el_ajuste_el_servidor_mcp_sirve_sin_esperar_al_precalentado(
+    monkeypatch, orden
+):
+    """El fallo de #267: desde Claude Desktop, el primer análisis cargaba los
+    modelos dentro de la llamada y agotaba el tiempo de espera del cliente.
+
+    Y precalentar ANTES de servir, que fue lo primero que se probó, alargaba el
+    saludo hasta 85 s: el chat de Desktop espera 120 s, pero sus sesiones de
+    Code y Cowork lo dan por caído a los 60 (medido con
+    `spikes/claude_desktop_registro.py`). Así que se sirve en cuanto se puede,
+    y los modelos se cargan a la vez, en otro hilo.
+    """
+    monkeypatch.setattr(settings, "preheat_models", True)
+
+    main_mod.main()
+
+    assert orden.terminado.wait(2)
+    assert orden.llamadas == ["sirve", "termina de precalentar"]
 
 
 # ----- La protección contra DNS rebinding (#164) -----

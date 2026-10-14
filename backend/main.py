@@ -2,10 +2,15 @@
 Servidor MCP principal.
 """
 
+import asyncio
+import threading
+import time
+
 import structlog
 from mcp.server.fastmcp import FastMCP
 
 from backend.analysis import tool as analysis_tool
+from backend.analysis.orchestrator import precalentar
 from backend.config.settings import settings
 from backend.core import health
 from backend.core.logging import avisar_si_faltan_claves, configure_logging
@@ -33,6 +38,39 @@ health.register(mcp)
 analysis_tool.register(mcp)
 
 _HOSTS_LOCALES = ("127.0.0.1", "localhost", "::1")
+
+
+def precalentar_en_segundo_plano() -> threading.Thread:
+    """Carga los modelos en otro hilo, mientras el servidor ya atiende (#267).
+
+    No ANTES de servir, como hace la API (#125): fue lo primero que se probó,
+    y desde Claude Desktop alargaba el saludo hasta 85 s. Su chat espera
+    120 s, pero las sesiones de Code y Cowork dan el servidor por caído a los
+    60, y Desktop lo lanza dos o tres veces por apertura, todas cargando a la
+    vez (medido con `spikes/claude_desktop_registro.py`).
+
+    Una llamada que llegue a mitad no carga el modelo otra vez: espera a esta
+    carga, por el candado de `local.py` y de `incoherence.py`.
+
+    Su propio bucle, porque `mcp.run` abre el suyo en el hilo principal; los
+    modelos no quedan atados a ninguno. Y `daemon`: si el cliente cierra el
+    servidor a mitad, el proceso termina sin esperar a la carga.
+    """
+
+    def precalentar_y_registrar() -> None:
+        inicio = time.perf_counter()
+        tiempos = asyncio.run(precalentar())
+        log.info(
+            "mcp.preheat",
+            total_s=round(time.perf_counter() - inicio, 1),
+            **{senal: round(segundos, 1) for senal, segundos in tiempos.items()},
+        )
+
+    hilo = threading.Thread(
+        target=precalentar_y_registrar, name="precalentado", daemon=True
+    )
+    hilo.start()
+    return hilo
 
 
 def configurar_red(servidor: FastMCP, host: str, puerto: int) -> None:
@@ -84,6 +122,13 @@ def main():
         integraciones_sin_herramientas=list(integraciones.without_tools) or None,
     )
     avisar_si_faltan_claves()
+
+    # Por el mismo ajuste que la API (#125). Sin él, desde Claude Desktop el
+    # primer análisis cargaba los modelos dentro de la llamada y agotaba el
+    # tiempo de espera del cliente (#267).
+    if settings.preheat_models:
+        precalentar_en_segundo_plano()
+
     mcp.run(transport=settings.mcp_transport)
 
 

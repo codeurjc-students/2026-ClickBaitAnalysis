@@ -3,6 +3,8 @@ import builtins
 import importlib
 import json
 import sys
+import threading
+import time
 import types
 from functools import partial
 
@@ -1150,6 +1152,75 @@ async def test_la_incoherencia_explica_el_modelo_sin_descargar(monkeypatch):
     assert result.error is not None
     assert "HF_HUB_OFFLINE=0" in result.error
     assert "Error inesperado" not in result.error
+
+
+# --La carga, una sola vez aunque se pida a la vez (#267)
+
+
+def _a_la_vez(funcion, veces: int = 2) -> list:
+    """Llama a `funcion` desde `veces` hilos que salen juntos, y devuelve lo que
+    devolvió cada uno."""
+    salida = threading.Barrier(veces)
+    resultados = [None] * veces
+
+    def llamar(posicion: int) -> None:
+        salida.wait()
+        resultados[posicion] = funcion()
+
+    hilos = [
+        threading.Thread(target=llamar, args=(posicion,)) for posicion in range(veces)
+    ]
+    for hilo in hilos:
+        hilo.start()
+    for hilo in hilos:
+        hilo.join(5)
+    return resultados
+
+
+def _carga_lenta(construidos: list):
+    """Un constructor de modelo falso que tarda: es el hueco en el que, sin
+    candado, el segundo hilo no encuentra el modelo y lo carga otra vez."""
+
+    def construir(*args, **kwargs):
+        construidos.append(args)
+        time.sleep(0.2)
+        return object()
+
+    return construir
+
+
+def test_dos_llamadas_a_la_vez_cargan_el_pipeline_una_sola_vez(monkeypatch):
+    """Desde #267 el servidor MCP precalienta en un hilo mientras ya atiende:
+    una llamada que llegue a mitad tiene que esperar a esa carga, no repetirla.
+    Y sin precalentar, dos primeras peticiones a la vez a la API cargaban
+    también el mismo modelo dos veces."""
+    construidos = []
+    _paquete_falso(monkeypatch, "transformers", pipeline=_carga_lenta(construidos))
+    cliente = LocalNLPClient()
+
+    primero, segundo = _a_la_vez(
+        lambda: cliente._get_pipeline("text-classification", "modelo")
+    )
+
+    assert len(construidos) == 1
+    assert primero is segundo
+
+
+def test_dos_llamadas_a_la_vez_cargan_el_modelo_de_la_incoherencia_una_sola_vez(
+    monkeypatch,
+):
+    construidos = []
+    _paquete_falso(
+        monkeypatch,
+        "sentence_transformers",
+        SentenceTransformer=_carga_lenta(construidos),
+    )
+    detector = IncoherenceDetector(model="modelo")
+
+    primero, segundo = _a_la_vez(detector._get_model)
+
+    assert len(construidos) == 1
+    assert primero is segundo
 
 
 # --Modelos configurables (R3.9)
