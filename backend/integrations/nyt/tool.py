@@ -8,6 +8,7 @@ from mcp.server.fastmcp import FastMCP
 from mcp.server.fastmcp.exceptions import ToolError
 from pydantic import Field
 
+from backend.core.idioma import Idioma
 from backend.core.observability import log_tool_invocation
 from backend.core.texto import TextoOpcional
 from backend.integrations.metadata import tool_meta
@@ -18,6 +19,7 @@ class Articulo(TypedDict):
     """Un artículo del New York Times.
 
     Todos los campos son opcionales porque el cliente los extrae con ``.get()``.
+    Todos menos ``language``, que lo pone el cliente (#263).
 
     ``print_headline`` es el titular de la edición impresa, y no siempre coincide
     con el de web: esa discrepancia es material de análisis en sí misma, porque
@@ -29,6 +31,7 @@ class Articulo(TypedDict):
     url: str | None
     date: str | None
     content: str | None  # el `abstract`, lo que alimenta la incoherencia
+    language: Idioma  # el `lang` de su titular en la pantalla del asistente
 
 
 def register(mcp: FastMCP):

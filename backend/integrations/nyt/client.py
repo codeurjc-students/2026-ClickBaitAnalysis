@@ -13,6 +13,7 @@ from datetime import UTC, datetime, timedelta
 
 from backend.config.settings import settings
 from backend.core.base_api import BaseAPI
+from backend.core.idioma import INGLES
 from backend.core.models import ToolResult
 
 
@@ -22,6 +23,10 @@ class NYTAPI(BaseAPI):
     API_KEY = settings.nyt_api_key.get_secret_value() if settings.nyt_api_key else None
     API_KEY_PARAM = "api-key"
     CLAVE = "NYT_API_KEY"
+
+    # El idioma que se dice de cada noticia (#263). No se pide: el NYT publica
+    # en inglés, que es lo que la pantalla daba por hecho de todas.
+    IDIOMA = INGLES
 
     RATE_CALLS = 5  # Crea una instancia nueva con rate calls, no pasar por atributo o todos usan el mismo objecto.
     RATE_PERIOD = 60
@@ -55,9 +60,10 @@ class NYTAPI(BaseAPI):
             response.docs[].headline.print_headline  → print_headline
             response.docs[].pub_date   → date
             response.docs[].abstract   → content
+            (`IDIOMA`, siempre inglés)  → language
 
         Returns:
-            ToolResult.ok([{title, print_headline, url, date, content}, ...]) si hay artículos.
+            ToolResult.ok([{title, print_headline, url, date, content, language}, ...]) si hay artículos.
             ToolResult.fail("No articles found") si docs está vacío o ausente.
             El error de `make_request`, tal cual, si la petición falla o si
                 falta la clave (sin llamar a la API).
@@ -96,6 +102,7 @@ class NYTAPI(BaseAPI):
                 "url": article.get("web_url"),
                 "date": article.get("pub_date"),
                 "content": article.get("abstract"),
+                "language": self.IDIOMA,
             }
             for article in results
         ]

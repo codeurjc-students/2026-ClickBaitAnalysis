@@ -16,6 +16,7 @@ from datetime import UTC, datetime, timedelta
 
 from backend.config.settings import settings
 from backend.core.base_api import BaseAPI
+from backend.core.idioma import INGLES
 from backend.core.models import ToolResult
 
 
@@ -29,6 +30,10 @@ class GuardianAPI(BaseAPI):
     )
     API_KEY_PARAM = "api-key"
     CLAVE = "GUARDIAN_API_KEY"
+
+    # El idioma que se dice de cada noticia (#263). No se pide: The Guardian
+    # publica en inglés, que es lo que la pantalla daba por hecho de todas.
+    IDIOMA = INGLES
 
     RATE_CALLS = 60
     RATE_PERIOD = 60
@@ -58,9 +63,10 @@ class GuardianAPI(BaseAPI):
             response.results[].webTitle  → title
             response.results[].webPublicationDate   → date
             response.results[].fields.trailText   → content
+            (`IDIOMA`, siempre inglés)  → language
 
         Returns:
-            ToolResult.ok([{title, url, date, content}, ...]) si hay artículos.
+            ToolResult.ok([{title, url, date, content, language}, ...]) si hay artículos.
             ToolResult.fail("No articles found") si results está vacío o ausente.
             El error de `make_request`, tal cual, si la petición falla o si
                 falta la clave (sin llamar a la API).
@@ -107,6 +113,7 @@ class GuardianAPI(BaseAPI):
                 "url": article.get("webUrl"),
                 "date": article.get("webPublicationDate"),
                 "content": article.get("fields", {}).get("trailText"),
+                "language": self.IDIOMA,
             }
             for article in results
         ]

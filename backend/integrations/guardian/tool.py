@@ -8,6 +8,7 @@ from mcp.server.fastmcp import FastMCP
 from mcp.server.fastmcp.exceptions import ToolError
 from pydantic import Field
 
+from backend.core.idioma import Idioma
 from backend.core.observability import log_tool_invocation
 from backend.core.texto import TextoOpcional
 from backend.integrations.guardian.client import GuardianAPI
@@ -19,13 +20,15 @@ class Articulo(TypedDict):
 
     Todos los campos son opcionales porque el cliente los extrae con ``.get()``:
     la API no garantiza que estén, y declararlos obligatorios haría que el
-    esquema publicado prometiera más de lo que se puede cumplir.
+    esquema publicado prometiera más de lo que se puede cumplir. Todos menos
+    ``language``, que lo pone el cliente (#263).
     """
 
     title: str | None
     url: str | None
     date: str | None
     content: str | None  # el teaser (`trailText`), lo que alimenta la incoherencia
+    language: Idioma  # el `lang` de su titular en la pantalla del asistente
 
 
 def register(mcp: FastMCP):

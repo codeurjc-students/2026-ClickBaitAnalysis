@@ -73,6 +73,8 @@ async def test_search_articles_valid_response(fake_payload):
             result.data[0]["print_headline"]
             == fake_payload["headline"]["print_headline"]
         )
+        # #263: no se pide idioma; NYT publica en inglés.
+        assert result.data[0]["language"] == "en"
 
 
 @pytest.mark.asyncio

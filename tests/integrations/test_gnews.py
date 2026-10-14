@@ -104,6 +104,23 @@ async def test_sin_tema_pide_los_titulares_destacados(con_clave):
 
 
 @pytest.mark.asyncio
+async def test_cada_noticia_dice_el_idioma_que_se_pidio(con_clave):
+    """El `lang` de cada titular en la pantalla del asistente sale de aquí
+    (#263): es el idioma que se le pidió a GNews, el del parámetro `lang`."""
+    with respx.mock:
+        ruta = respx.get(BUSCAR).mock(
+            return_value=Response(
+                200, json={"articles": [noticia(), noticia("Otro titular")]}
+            )
+        )
+        result = await GNewsAPI().search_articles("inteligencia artificial")
+
+    pedido = ruta.calls.last.request.url.params["lang"]
+    assert pedido == "es"
+    assert [articulo["language"] for articulo in result.data] == [pedido, pedido]
+
+
+@pytest.mark.asyncio
 @pytest.mark.parametrize("dias", [1, 30])
 async def test_los_dias_fijan_desde_cuando_en_utc(con_clave, dias):
     with respx.mock:

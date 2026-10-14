@@ -86,18 +86,21 @@
                         <ul class="noticias">
                           @for (noticia of noticias; track $index) {
                             <li>
+                              <!-- Cada titular, en el idioma que dijo su fuente (#263);
+                                   `lang=""` si no lo dijo: «desconocido», no el
+                                   castellano de la página. -->
                               @if (noticia.url) {
                                 <!-- En otra pestaña, para no perder la conversación, y
                                      dicho al lector de pantalla: con la vista se nota el
                                      salto, de oído sólo empieza una página nueva y «Atrás»
-                                     no vuelve aquí (#210). El aviso, fuera del
-                                     `lang="en"`, para que no lo lea como inglés. -->
+                                     no vuelve aquí (#210). El aviso, fuera del `lang` del
+                                     titular, para que no lo lea en otro idioma. -->
                                 <a [href]="noticia.url" rel="noopener" target="_blank">
-                                  <span lang="en">{{ noticia.title }}</span>
+                                  <span [attr.lang]="noticia.language">{{ noticia.title }}</span>
                                   <span class="solo-lector"> (se abre en una pestaña nueva)</span>
                                 </a>
                               } @else {
-                                <span lang="en">{{ noticia.title }}</span>
+                                <span [attr.lang]="noticia.language">{{ noticia.title }}</span>
                               }
                               @if (noticia.date) {
                                 <!-- El espacio, dentro: Angular quita el que queda entre

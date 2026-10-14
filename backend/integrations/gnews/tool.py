@@ -12,6 +12,7 @@ from mcp.server.fastmcp import FastMCP
 from mcp.server.fastmcp.exceptions import ToolError
 from pydantic import Field
 
+from backend.core.idioma import Idioma
 from backend.core.observability import log_tool_invocation
 from backend.core.texto import TextoOpcional
 from backend.integrations.gnews.client import GNewsAPI
@@ -22,7 +23,8 @@ class Articulo(TypedDict):
     """Una noticia de GNews.
 
     Todos los campos son opcionales porque el cliente los extrae con ``.get()``:
-    la API no garantiza que estén.
+    la API no garantiza que estén. Todos menos ``language``, que lo pone el
+    cliente: el idioma que pidió (#263).
     """
 
     title: str | None
@@ -30,6 +32,7 @@ class Articulo(TypedDict):
     date: str | None  # ISO 8601, en UTC
     content: str | None  # la `description`, lo que alimenta la incoherencia
     source: str | None  # el nombre del medio
+    language: Idioma  # el `lang` de su titular en la pantalla del asistente
 
 
 def register(mcp: FastMCP):
