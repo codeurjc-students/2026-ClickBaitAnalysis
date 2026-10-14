@@ -2617,6 +2617,11 @@ está. **Consecuencia para H4:** un arranque de ~75 s obliga a un `start_period`
 generoso en el `healthcheck`, o el orquestador matará el contenedor por no
 responder a tiempo.
 
+*(Revisado en #267: el servidor MCP precalienta con el mismo ajuste, pero en
+segundo plano. Su cliente, Claude Desktop, no espera a que esté listo: sus
+sesiones de Code dan por caído a los 60 s un saludo que tarde más, y bloqueando
+tardaba 85 s. La API sigue bloqueando.)*
+
 **Vive en `orchestrator.py`, no en la app REST.** Y no es cuestión de capas:
 `LocalNLPClient` cachea sus pipelines **por instancia**, así que hay que calentar
 los objetos `_api` y `_detector` concretos que usará la petición. Calentar otros
@@ -9759,6 +9764,109 @@ La prueba del navegador se hizo con la API y el frontend de la rama, con el agen
 | Máquina | El PC de sobremesa del autor: WSL2 (Ubuntu 24.04.4), Python 3.12.3 con mcp 1.30.0 y fastmcp 3.4.8, Node 22.23.2 |
 | Código | la rama de #263 sobre `ac6f9a3`, sin commitear; «antes», `ac6f9a3` con sólo las pruebas nuevas |
 | Guiones | `spikes/catalogo_volcado.py` (antes y después) y `spikes/noticias_idioma_mcp.py`; las suites, `pytest -m "not integration"` y `npm test` |
+
+### Las herramientas desde Claude Desktop, y el primer análisis en frío (#267, 14 oct 2026)
+
+El servidor MCP ya estaba conectado a Claude Desktop por `stdio`: Desktop lo lanza como subproceso (`wsl bash -c "cd … && .venv/bin/python -m backend.main"`) y habla con él por la entrada y la salida estándar. Desde una sesión de Code se veían las 14 herramientas y `describe_models` respondía, pero el primer `analyze_headline` agotó el tiempo de espera del cliente. La API precalienta los modelos al arrancar (#125), y el servidor MCP nunca llamaba a `precalentar`: el primer análisis los cargaba dentro de la llamada, y por `stdio` eso son 42,5 s con el `.venv` y 63,7 s con la imagen. La issue pedía una guía para instalarlo y que ese primer análisis respondiera.
+
+#### Lo que espera Claude Desktop
+
+Antes de decidir nada se leyó su registro, que anota la hora de cada mensaje del protocolo, con un guion nuevo, `spikes/claude_desktop_registro.py`. Lo que dice:
+
+- **El chat cancela el saludo (`initialize`) si tarda.** Lo hizo a los 60 s quince veces entre el 10 de junio y el 15 de septiembre: el saludo en frío, sin precalentar nada, ya pasaba a veces de ese límite. El 14 de octubre esperaba 120 s: un servidor de prueba que duerme 300 s sin contestar se canceló a los 120,0 s en las nueve aperturas de ese día.
+- **Las sesiones de Code y Cowork arrancan el servidor aparte** (el «shared-pool» del registro) **y lo dan por caído a los 60 s**: «Not ready after 60 seconds; the sessions waiting for it started without it». Esas sesiones siguen, sin sus herramientas.
+- **Desktop lanza el servidor dos o tres veces en cada apertura**, y cada proceso es independiente.
+- **La referencia de antes de #267**, del 27 de septiembre al 14 de octubre: 33 aperturas, 24 con un saludo de más de 20 s —la más lenta, 50,3 s— y dos en las que Code y Cowork se quedaron sin el servidor (28 sep y 2 oct). *(En la issue se escribió 36; recontado con el guion, son 33.)*
+
+#### B, precalentar antes de saludar: no cumplió
+
+Lo primero que se decidió (el autor) fue B: precalentar en `main()` antes de `mcp.run`, con el mismo ajuste que la API, `PREHEAT_MODELS`, apagado por defecto. Se descartaron A, documentar el problema y nada más, y C, precalentar en segundo plano mientras el servidor ya atiende, porque una llamada que llegara a mitad de la carga cargaría el mismo modelo otra vez, con el doble de memoria y de tiempo. El riesgo de B, sin medir, era que Desktop diera por caído un saludo largo; la regla se publicó en la issue antes de medir.
+
+Con B, en una apertura de Desktop con WSL en marcha, el saludo tardó **85,2 s**, con tres procesos precalentando a la vez. El chat conectó, porque ya esperaba 120 s; Code y Cowork, no. Solo, sin Desktop, el saludo de B ya era de 42,3 s con la imagen y de 71,7 s con el `.venv`.
+
+#### C, con un candado de carga
+
+Visto eso, el autor eligió C, quitándole el motivo por el que se había descartado:
+
+- **El precalentado va en un hilo** (`precalentar_en_segundo_plano`, en `main.py`), con su propio bucle de `asyncio`, y el servidor saluda sin esperarlo. Al terminar deja en el registro `mcp.preheat`, con lo que tardó cada señal. El hilo es `daemon`: cuando Desktop cierra el servidor, no lo mantiene vivo.
+- **Un candado por instancia** (`threading.Lock`) en `LocalNLPClient._get_pipeline` y en `IncoherenceDetector._get_model`, con la comprobación hecha dos veces: un modelo ya cargado se devuelve sin tocar el candado; si no, se toma el candado y se vuelve a mirar, porque mientras se esperaba lo ha podido cargar otro. Así, una llamada que llega a mitad de una carga la espera en vez de repetirla. Es el patrón del cerrojo de `health.py` (#169), pero de `threading` y no de `asyncio`: el precalentado y el servidor corren en hilos distintos, cada uno con su bucle, y un `asyncio.Lock` sólo sirve dentro de un bucle.
+- **Por qué la API no lo hace igual.** #125 decidió bloquear el arranque de la API, porque detrás tiene un orquestador que espera a que esté sana. Desktop no espera: da por caído el saludo.
+- `PREHEAT_MODELS` sigue apagado por defecto, y en el compose sólo lo lleva `api`. El `mcp` del despliegue no lo enciende: sólo lo llama la API, y cambiarlo pediría redesplegar.
+
+Las pruebas nuevas son cuatro: en `test_main.py`, que sin el ajuste el servidor no precalienta y que con él sirve sin esperar al precalentado; en `test_nlp.py`, que dos llamadas a la vez cargan el pipeline, y el modelo de la incoherencia, una sola vez. La de servir sin esperar se vio fallar contra B, y las dos del candado, sin él.
+
+Por `stdio`, con C (`spikes/mcp_stdio_frio.py`):
+
+| | `.venv` | imagen |
+|---|---|---|
+| Saludo | 0,8 y 0,9 s | 6,7 y 12,7 s |
+| Primer análisis, pedido nada más saludar | 25,9 s | 18,3 s |
+| Lo mismo, sin precalentar | 42,5 s | 63,7 s |
+| Primer análisis, pedido 60 s después | 0,1 s | 0,2 s |
+| El precalentado, en esa última | 45,8 s | 53,2 s |
+
+Pedido nada más saludar, el análisis espera lo que le falta a la carga y no la repite: tarda menos que sin precalentar.
+
+#### La regla, en Claude Desktop
+
+Después de ver B, la regla se amplió y se declaró así en la issue, antes de medir C: a los tres reinicios con WSL en marcha se sumaron tres aperturas con WSL parado (`wsl --shutdown` antes de abrir Desktop) y tres con la variante de Docker de la guía. En cada una, el primer `analyze_headline` se pide en un chat nuevo, un minuto después de abrir. **Se cumple si en las nueve el chat conecta y el primer análisis responde sin agotar el tiempo de espera.** Code y Cowork se cuentan aparte, frente a la referencia.
+
+| Apertura | Variante | WSL | Saludo | Pregunta, a los | Primer análisis | Modelos listos, a los |
+|---|---|---|---|---|---|---|
+| 14:26 | `.venv` | en marcha | 6,1 s | 69 s | 13,9 s | 86 s |
+| 18:03 | `.venv` | en marcha | 3,8 s | 85 s | 0,3 s | 84 s |
+| 18:05 | `.venv` | en marcha | 2,0 s | 74 s | 1,5 s | 41 s |
+| 18:08 | `.venv` | parado | 41,2 s | 73 s | 93,2 s | 178 s |
+| 18:19 | `.venv` | parado | 26,9 s | 85 s | 46,6 s | 146 s |
+| 18:29 | `.venv` | parado | 36,0 s | 73 s | 62,3 s | 152 s |
+| 18:33 | imagen | en marcha | 14,8 s | 122 s | 0,5 s | 90 s |
+| 18:36 | imagen | en marcha | 5,3 s | 66 s | 0,2 s | 16 s |
+| 18:37 | imagen | en marcha | 4,7 s | 67 s | 0,2 s | 15 s |
+
+Los segundos «a los» se cuentan desde que Desktop lanza el servidor, y los modelos están listos cuando termina el último de sus procesos. **Se cumple: en las nueve el chat conectó y el primer análisis respondió.** Code y Cowork no se quedaron sin el servidor en ninguna de las once aperturas con C —las nueve y dos más, abajo—, frente a 2 de 33 antes.
+
+Lo que no se ve en el «se cumple»:
+
+- **Con WSL parado, el primer análisis responde, pero tarda de 47 a 93 s**: espera a una carga que lee los modelos de un disco frío, con dos procesos a la vez. Y C no toca el saludo, que con WSL parado tardó de 27 a 41 s en estas tres: es arrancar WSL e importar el código, antes de que empiece el precalentado.
+- **La primera de Docker tardó 90 s en tener los modelos**, y las dos siguientes, 15 y 16 s: era la primera vez que se leía la imagen desde que arrancó WSL.
+- **Con el `.venv`, el precalentado tardó de 35 a 80 s con WSL en marcha; con la imagen, unos 9 s.** El torch del `.venv` (2.12.1+cu130) ve la GTX, y `transformers` pone en ella los pipelines sin que nadie se lo pida (#159), con los dos procesos de Desktop en la misma GPU de 4 GB; el de la imagen (2.14.0+cpu) no la ve. Es una hipótesis, sin aislar.
+
+Dos aperturas más, fuera del protocolo:
+
+- **18:11, WSL parado, preguntando sin esperar.** El saludo tardó 49,2 s, al servidor no llegó ninguna llamada, y Claude analizó el titular él solo, sin decirlo (lo vio el autor en el chat). Es un fallo silencioso: mientras el servidor arranca, el chat no tiene sus herramientas y contesta por su cuenta.
+- **18:23, con WSL en marcha desde hacía 5 minutos**, sin pregunta: saludo de 55,5 s y modelos a los 183 s, como una apertura en frío. Es lo más cerca que se estuvo del límite de 60 s de Code, que esta vez no falló. Observado, sin explicar.
+
+#### Lo que se aprendió de Claude Desktop
+
+- **La configuración no está donde parece.** Con Desktop instalada como paquete (MSIX), `%APPDATA%` es una carpeta virtual que sólo ven ella y sus procesos: Claude Code, dentro de Desktop, leía `%APPDATA%\Claude\claude_desktop_config.json`, y desde un PowerShell normal esa carpeta no existe. El fichero está en `%LOCALAPPDATA%\Packages\Claude_pzs8sxrjxfjjc\LocalCache\Roaming\Claude\`. Se vio cuando un guion que cambiaba la configuración falló fuera de Desktop.
+- **Desktop reescribe la configuración mientras está abierta**, con la que leyó al arrancar: el servidor de prueba, quitado del fichero con Desktop abierta, volvió a aparecer en él, y el fichero se escribió con Desktop abierta a las 14:28 y a las 18:11. Se edita con ella cerrada.
+- **El registro cambió de sitio el 24 de agosto**, de `%APPDATA%\Claude\logs\` a `%LOCALAPPDATA%\Claude\Logs\`. El antiguo, con la misma virtualización, está en la carpeta del paquete.
+- **Con Docker, cerrar Desktop no deja contenedores**: cada apertura arranca dos con `--rm`, y no quedó ninguno de las anteriores (`docker ps -a`).
+
+Todo eso está en las dos guías: la imagen de Docker en `docs/ejecucion.md` («Desde Claude Desktop») y el `.venv` de una copia del repositorio en `docs/desarrollo.md` («Desde Claude Desktop, con esta copia»), con lo que tarda cada una y el aviso del fallo silencioso. El autor se queda con la de Docker.
+
+#### Límites conocidos
+
+- **Un candado por instancia, no por modelo.** Una llamada puede esperar a la carga de un modelo que no necesita: el precalentado carga también los del español.
+- **El candado no cruza procesos.** Cada uno de los que lanza Desktop carga todos sus modelos, con su memoria, y compiten por la CPU, el disco y, en el `.venv`, la GPU.
+- **La caché de la factoría tiene una ventana.** Las instancias de `LocalNLPClient` y de `IncoherenceDetector` se construyen la primera vez que se piden, bajo un `lru_cache`, que no impide que dos hilos que las pidan en el mismo instante construyan cada uno la suya, con su candado: el modelo se cargaría dos veces. La ventana es de microsegundos, y el hilo del precalentado las pide en cuanto arranca, antes de que el servidor atienda. No se ha arreglado.
+- **Mientras una llamada espera el candado, el bucle del servidor está parado**: `_get_pipeline` se llama sin salir del bucle, como antes de #267, cuando una llamada cargaba ella misma el modelo.
+
+#### Lo que queda
+
+- **Encender el precalentado en el `mcp` del compose**: sólo lo llama la API, y cambiarlo pide redesplegar la máquina 1.
+- **La comparación de Claude frente al 27B**, aparcada desde #265.
+- **Las dos causas sin aislar**: la apertura lenta de las 18:23 y el precalentado más lento del `.venv`.
+- **Claude Code fuera de Desktop** (`claude mcp add`), que la guía nombra sin haberlo comprobado.
+
+| Condiciones | |
+|---|---|
+| Fecha | 14 oct 2026, en hora de Madrid: B por `stdio` a las 10:48 y 11:03, y en Desktop a las 11:10; C por `stdio` a las 11:27 y 11:30; la regla en Desktop, de 14:26 a 18:37. El registro guardado va en UTC, dos horas menos |
+| Máquina | El PC de sobremesa del autor (Ryzen 5 5600G, GTX 1650 SUPER de 4 GB): Windows 11 (10.0.26200), WSL 2.5.9 con Ubuntu 24.04.4 (7,6 GB), Python 3.12.3 con mcp 1.30.0, fastmcp 3.4.8 y transformers 5.12.0; torch 2.12.1+cu130 en el `.venv` y 2.14.0+cpu en la imagen; Docker 29.1.3 y Compose 2.40.3 |
+| Claude Desktop | 2.37337.1, instalada como paquete (MSIX); el registro abarca versiones anteriores, desde mayo. El servidor de prueba estuvo en la configuración hasta la apertura de las 18:29; las de Docker, sin él |
+| Código | la rama de #267 sobre `03c4f1f`, sin commitear; la imagen `clickbait-backend`, `f1ccae67d89c`, construida desde la rama con C (sus `main.py`, `local.py` e `incoherence.py`, iguales por hash a los de la copia) |
+| Modelos | los de `model_cards.py` en `03c4f1f`, por su revisión fijada (#234) |
+| Guiones | `spikes/claude_desktop_registro.py`, con su salida en `spikes/claude_desktop/2026-10-14-registro.txt`, y `spikes/mcp_stdio_frio.py`; la suite, `pytest -m "not integration"`: 638 pasan (634 antes); ruff y pyright, limpios |
 
 
 

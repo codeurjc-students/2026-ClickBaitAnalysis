@@ -82,7 +82,7 @@ ya no existe, hace fallar el CI.
 | `NLP_THRESHOLDS` | `{}` | — | Otro umbral para el léxico o la incoherencia: `{"detect_clickbait_lexical": 2}` |
 | `NLP_THRESHOLDS_ES` | `{}` | — | El de la incoherencia en español |
 | `NLP_LINEAR_TOP_CUES` | el del lineal | — | Cuántas pistas enseña el lineal como explicación |
-| `PREHEAT_MODELS` | `false` | `true`, en `api` | Cargar los modelos al arrancar, en vez de en la primera petición |
+| `PREHEAT_MODELS` | `false` | `true`, en `api` | Cargar los modelos al arrancar, en vez de en la primera petición: la API, antes de servir; el servidor MCP, mientras ya atiende |
 
 **El servidor MCP y el catálogo**
 
@@ -176,6 +176,81 @@ En otra máquina, hace falta un Ollama que escuche donde lo alcanza el
 contenedor —la puerta de enlace de Docker, `172.17.0.1`, y no el `127.0.0.1` del
 equipo— y, en el `.env`, `LLM_MODEL` con un modelo que tenga descargado. Esto no
 se ha comprobado fuera de las máquinas de la universidad.
+
+## Desde Claude Desktop
+
+Las herramientas del servidor MCP —las mismas que usa el asistente— se pueden
+usar desde un cliente MCP de fuera del sistema, como Claude Desktop. El cliente
+lanza el servidor como un subproceso y habla con él por la entrada y la salida
+estándar (`stdio`), así que **no hace falta tener el compose arrancado**: basta
+con la imagen `clickbait-backend` ya construida, que lleva los modelos dentro.
+Cada vez que se abre Claude Desktop arranca un contenedor nuevo, y al cerrarla
+se borra; no comparte nada con el de `compose.yaml`.
+
+Se declara en `claude_desktop_config.json`, que vive en
+`%APPDATA%\Claude\` en Windows y en `~/Library/Application Support/Claude/` en
+macOS. En Windows, con Claude Desktop instalada como paquete (MSIX), ese
+`%APPDATA%` es una carpeta virtual que sólo ve ella: desde fuera —un editor,
+PowerShell— el fichero está en
+`%LOCALAPPDATA%\Packages\Claude_pzs8sxrjxfjjc\LocalCache\Roaming\Claude\`.
+**Se edita con Claude Desktop cerrada**, también en la bandeja del sistema:
+abierta, escribe encima la configuración que leyó al arrancar, y el cambio se
+pierde sin avisar (las dos cosas, vistas en #267). Si ya existe, se añade la
+entrada dentro de `mcpServers`:
+
+```json
+{
+  "mcpServers": {
+    "tfg-mcp-server": {
+      "command": "docker",
+      "args": [
+        "run", "-i", "--rm",
+        "--env-file", "/ruta/al/repositorio/.env",
+        "-e", "PREHEAT_MODELS=true",
+        "clickbait-backend", "python", "-m", "backend.main"
+      ]
+    }
+  }
+}
+```
+
+- **`-i` es obligatorio**: sin él, el contenedor no lee lo que le manda el
+  cliente. Y sin `-t`, porque una terminal mezclaría su salida con la del
+  protocolo.
+- **`--env-file`** va con la ruta absoluta del `.env`, porque Claude Desktop no
+  arranca en la carpeta del repositorio. Sólo hace falta para las noticias: sin
+  `.env`, se quitan esas dos entradas, porque `docker` falla si el fichero no
+  existe.
+- **`PREHEAT_MODELS=true`** carga los modelos en cuanto arranca el servidor,
+  mientras ya atiende al cliente (#267). Sin él, el primer análisis los carga
+  dentro de la llamada, y puede tardar más de lo que el cliente espera. Con
+  él, medido con Docker en WSL, los tiene listos unos 15 s después de abrir
+  Claude Desktop, y en torno a un minuto y medio la primera vez que se lee la
+  imagen desde que arrancó WSL. Una pregunta que llegue antes espera lo que
+  falte.
+- **En Windows, con Docker dentro de WSL**, el comando es `wsl` y `docker` pasa
+  a ser el primer argumento: `"command": "wsl", "args": ["docker", "run", "-i",
+  …]`. La ruta del `.env` es la de WSL (`/home/…/.env`).
+
+Después se cierra Claude Desktop del todo —en Windows sigue abierta en la
+bandeja del sistema— y se vuelve a abrir. Para comprobarlo, en una conversación
+se le pide, por ejemplo, qué modelos usa el sistema: tiene que llamar a
+`describe_models`. **Si contesta sin llamarla, el servidor aún no estaba
+conectado**: mientras arranca, Claude no tiene sus herramientas y responde por
+su cuenta, sin avisar. Pasó con la variante de `desarrollo.md` y WSL recién
+arrancado: el saludo tardó 49 s, y un titular pedido antes lo analizó Claude
+solo (#267). En el diálogo «Servidores MCP» de una sesión de Code aparece con
+✓ cuando ya está conectado. Si el servidor no aparece, el motivo está en su
+registro, `mcp-server-tfg-mcp-server.log`, en `%LOCALAPPDATA%\Claude\Logs\` en
+Windows (hasta agosto de 2026, en `%APPDATA%\Claude\logs\`) y en
+`~/Library/Logs/Claude/` en macOS.
+
+Para usar el código de una copia del repositorio en vez de la imagen, al
+editarlo, está la variante de [`desarrollo.md`](desarrollo.md#desde-claude-desktop-con-esta-copia).
+
+**Lo que no se hace**: conectar Claude Desktop al servidor MCP del despliegue.
+No tiene autenticación, y por eso el compose no publica su puerto: sólo lo
+alcanza la API, dentro de su red.
 
 ## Parar
 

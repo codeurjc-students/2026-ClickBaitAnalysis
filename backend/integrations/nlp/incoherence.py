@@ -12,6 +12,7 @@ y el umbral los RECIBE, con la ficha y `THRESHOLD` como defecto (#119, #93).
 """
 
 import asyncio
+import threading
 
 import structlog
 
@@ -80,6 +81,8 @@ class IncoherenceDetector:
         # `is None` y no `or`: un umbral de 0 es un umbral.
         self.threshold = self.THRESHOLD if threshold is None else threshold
         self._model = None  # Singleton
+        # Una carga a la vez: ver `_get_model` (#267).
+        self._carga = threading.Lock()
 
     def _get_model(self):
         # Dentro del cargador y no en la puerta de `detect`, por lo mismo que en
@@ -88,27 +91,34 @@ class IncoherenceDetector:
         if motivo := motivo_si_falta("sentence_transformers"):
             raise FaltaDependencia(motivo)
 
-        if self._model is None:
-            # `sentence-transformers` vive en `requirements-dev.txt`, no en
-            # `requirements.txt`, porque arrastra torch y wheels de CUDA. El CI
-            # instala sólo el segundo, así que ahí este import NO se puede
-            # resolver y pyright lo dice con razón — en local sí resuelve.
-            #
-            # El import es perezoso justamente por eso: la dependencia sólo hace
-            # falta cuando se usa esta señal, y el resto del sistema arranca sin
-            # ella. El `ignore` declara esa asimetría en vez de esconderla.
-            from sentence_transformers import (  # pyright: ignore[reportMissingImports]
-                SentenceTransformer,
-            )
+        if self._model is not None:
+            return self._model
 
-            try:
-                self._model = SentenceTransformer(self.model_id)
-            except OSError as error:
-                # Lo mismo que en `local.py`: sólo el modelo que no se puede
-                # descargar con la descarga desactivada deja de ser «inesperado».
-                if motivo := motivo_si_falta_modelo(self.model_id, error):
-                    raise FaltaDependencia(motivo) from error
-                raise
+        # Con el candado, y la comprobación otra vez dentro, por lo mismo que en
+        # `local.py` (#267): una llamada que llegue a mitad del precalentado
+        # espera a esa carga en vez de repetirla.
+        with self._carga:
+            if self._model is None:
+                # `sentence-transformers` vive en `requirements-dev.txt`, no en
+                # `requirements.txt`, porque arrastra torch y wheels de CUDA. El CI
+                # instala sólo el segundo, así que ahí este import NO se puede
+                # resolver y pyright lo dice con razón — en local sí resuelve.
+                #
+                # El import es perezoso justamente por eso: la dependencia sólo hace
+                # falta cuando se usa esta señal, y el resto del sistema arranca sin
+                # ella. El `ignore` declara esa asimetría en vez de esconderla.
+                from sentence_transformers import (  # pyright: ignore[reportMissingImports]
+                    SentenceTransformer,
+                )
+
+                try:
+                    self._model = SentenceTransformer(self.model_id)
+                except OSError as error:
+                    # Lo mismo que en `local.py`: sólo el modelo que no se puede
+                    # descargar con la descarga desactivada deja de ser «inesperado».
+                    if motivo := motivo_si_falta_modelo(self.model_id, error):
+                        raise FaltaDependencia(motivo) from error
+                    raise
         return self._model
 
     @classmethod
