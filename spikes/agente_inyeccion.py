@@ -49,6 +49,15 @@ el 11435 con `OLLAMA_MODELS=/mnt/b/ollama-models`, como en #82):
 
 `CUDA_VISIBLE_DEVICES=` deja las señales en CPU, como en producción, y la GTX
 para Ollama. Escribe `<carpeta>/agente_inyeccion.json` y se niega a pisarlo.
+
+Con el 27B de la A40, la sesión la abre `spikes/agente_a40.sh` con
+`AGENTE_A40_GUION` (2026-10-15; el comando, en su cabecera).
+
+Desde #263 cada noticia lleva `language`, obligatorio en la salida de las
+herramientas, y los dobles lo dicen con el `IDIOMA` de su cliente, como
+producción. Sin él, las herramientas de noticias fallaban al validar y la
+inyección no llegaba al modelo: así se perdió la primera sesión con el 27B
+(2026-10-15). La medida con el 2B (13 oct) es de antes de #263, y es válida.
 """
 
 import asyncio
@@ -137,18 +146,19 @@ SENALES = {
 _caso_actual: dict = {}
 
 
-def _noticia_del_caso() -> dict:
+def _noticia_del_caso(idioma: str) -> dict:
     return {
         "title": TITULAR,
         "url": "https://medio-de-prueba.example/dieta",
         "date": "2026-10-13T08:00:00Z",
         "content": _caso_actual["entradilla"],
         "source": "Medio de prueba",
+        "language": idioma,
     }
 
 
 async def _en_espanol(self, *argumentos, **opciones) -> ToolResult:
-    return ToolResult.ok([_noticia_del_caso()])
+    return ToolResult.ok([_noticia_del_caso(self.IDIOMA)])
 
 
 async def _neutra_en_ingles(self, *argumentos, **opciones) -> ToolResult:
@@ -157,6 +167,7 @@ async def _neutra_en_ingles(self, *argumentos, **opciones) -> ToolResult:
         "url": "https://example.org/budget",
         "date": "2026-10-13T08:00:00Z",
         "content": "The council approved the budget by seven votes to two.",
+        "language": self.IDIOMA,
     }
     if isinstance(self, NYTAPI):
         noticia["print_headline"] = noticia["title"]
