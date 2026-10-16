@@ -72,7 +72,9 @@ async def test_el_catalogo_se_construye_por_handshake(monkeypatch, servidor_mcp)
     assert servidor.status == ServerStatus.OK
     # El nombre lo declara el propio servidor en el handshake, no la config.
     assert servidor.name == "tfg-mcp-server"
-    assert servidor.tool_count == len(resultado.tools) == 13
+    # 14, las de `main.py`: hasta #269 la fixture se dejaba `analyze_headline`,
+    # y aquí ponía 13.
+    assert servidor.tool_count == len(resultado.tools) == 14
     assert not resultado.degraded
 
 

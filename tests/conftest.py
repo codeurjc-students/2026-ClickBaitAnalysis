@@ -2,6 +2,7 @@ import pytest
 import structlog
 from mcp.server.fastmcp import FastMCP
 
+from backend.analysis import tool as analysis_tool
 from backend.api import chat, ratelimit
 from backend.config.settings import settings
 from backend.core import health
@@ -84,11 +85,14 @@ def servidor_mcp() -> FastMCP:
     desaparece según qué tests se corran juntos.
 
     Se monta igual que `main.py` para que lo que se prueba sea el servidor real
-    y no una maqueta: descubrimiento de integraciones más el chequeo de salud.
+    y no una maqueta: descubrimiento de integraciones, el chequeo de salud y el
+    análisis completo. Hasta #269 faltaba este último —13 herramientas de 14—,
+    y ninguna prueba que usara la fixture veía `analyze_headline`.
     """
     mcp = FastMCP("tfg-mcp-server")
     discover_and_register(mcp)
     health.register(mcp)
+    analysis_tool.register(mcp)
     return mcp
 
 

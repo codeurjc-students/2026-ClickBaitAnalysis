@@ -27,7 +27,7 @@ from mcp.server.fastmcp import FastMCP
 from backend.analysis.domain import AnalyzeRequest, AnalyzeResponse
 from backend.analysis.orchestrator import analyze
 from backend.core.observability import log_tool_invocation
-from backend.integrations.metadata import tool_meta
+from backend.integrations.metadata import SOLO_LECTURA, tool_meta
 
 
 def register(mcp: FastMCP):
@@ -37,7 +37,7 @@ def register(mcp: FastMCP):
     # La categoría NO es «Señales de análisis»: esta herramienta no es una señal
     # más, es la que las contrasta. Mezclarla con las cinco invitaría al modelo a
     # elegir entre ellas como si fueran alternativas del mismo tipo.
-    @mcp.tool(meta=tool_meta("Análisis completo", __name__))
+    @mcp.tool(meta=tool_meta("Análisis completo", __name__), annotations=SOLO_LECTURA)
     @log_tool_invocation
     async def analyze_headline(
         headline: str, content: str | None = None

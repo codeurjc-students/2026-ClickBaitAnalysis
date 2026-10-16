@@ -1,0 +1,327 @@
+{
+  "cerrada-antes": {
+    "fecha": "2026-10-15T13:41:53+00:00",
+    "availability": {
+      "status": "unreachable",
+      "detail": "El asistente está apagado: el servidor del modelo se arranca bajo demanda y ahora no está en marcha.",
+      "model": "qwen3.5:27b"
+    },
+    "post": 503,
+    "post_s": 0.033,
+    "detalle": "El asistente está apagado: el servidor del modelo se arranca bajo demanda y ahora no está en marcha."
+  },
+  "espanol": {
+    "fecha": "2026-10-15T13:46:59+00:00",
+    "agent": {
+      "status": "available",
+      "detail": "El asistente está disponible.",
+      "model": "qwen3.5:27b"
+    },
+    "es-generica": {
+      "mensaje": "¿Es clickbait 'No vas a creer lo que hizo este perro al ver a su dueño'?",
+      "historial_caracteres": 0,
+      "post": 202,
+      "post_s": 0.077,
+      "estados": [
+        "running",
+        "done"
+      ],
+      "sondeos": 21,
+      "rechazos_429": 0,
+      "reloj_s": 42.5,
+      "final": "answered",
+      "detalle": null,
+      "vueltas": 2,
+      "agente_s": 41.2,
+      "herramientas": [
+        [
+          "analyze_headline",
+          "ok"
+        ]
+      ],
+      "prompt_tokens": [
+        4700,
+        5450
+      ],
+      "output_tokens": [
+        238,
+        460
+      ],
+      "vuelta_s": [
+        24.8,
+        16.0
+      ],
+      "herramienta_s": [
+        0.3
+      ],
+      "carga_s": [
+        13.1,
+        0.0
+      ],
+      "respuesta": "El análisis concluye que se trata de clickbait por la forma, sin engaño detectado. El clasificador entrenado lo etiqueta como clickbait con un 99 % de confianza, mientras que el modelo de pesos da una probabilidad del 43 % de ser clickbait, señalando que palabras como «que», «ver» y «este» empujan hacia ese veredicto. El detector de pistas y el comparador de titular y texto no se aplicaron porque ",
+      "respuesta_entera": "El análisis concluye que se trata de clickbait por la forma, sin engaño detectado. El clasificador entrenado lo etiqueta como clickbait con un 99 % de confianza, mientras que el modelo de pesos da una probabilidad del 43 % de ser clickbait, señalando que palabras como «que», «ver» y «este» empujan hacia ese veredicto. El detector de pistas y el comparador de titular y texto no se aplicaron porque el titular está en español. El análisis del tono lo clasifica como negativo con un 51 % de confianza.",
+      "argumentos": [
+        [
+          "analyze_headline",
+          {
+            "headline": "No vas a creer lo que hizo este perro al ver a su dueño",
+            "content": ""
+          }
+        ]
+      ]
+    },
+    "es-lexico": {
+      "mensaje": "¿Qué pistas léxicas tiene el titular 'Increíble: lo que pasó después te sorprenderá'?",
+      "historial_caracteres": 0,
+      "post": 202,
+      "post_s": 0.056,
+      "estados": [
+        "running",
+        "done"
+      ],
+      "sondeos": 8,
+      "rechazos_429": 0,
+      "reloj_s": 16.1,
+      "final": "answered",
+      "detalle": null,
+      "vueltas": 2,
+      "agente_s": 14.8,
+      "herramientas": [
+        [
+          "detect_clickbait_lexical",
+          "error"
+        ]
+      ],
+      "prompt_tokens": [
+        4703,
+        4799
+      ],
+      "output_tokens": [
+        264,
+        133
+      ],
+      "vuelta_s": [
+        9.8,
+        4.8
+      ],
+      "herramienta_s": [
+        0.1
+      ],
+      "carga_s": [
+        0.0,
+        0.0
+      ],
+      "respuesta": "El detector de pistas no puede analizar este titular porque está en español y sus listas de pistas están diseñadas exclusivamente para titulares en inglés. Por ello, no es posible identificar las señales léxicas como exageraciones, referencias vagas o frases gancho en este caso.",
+      "respuesta_entera": "El detector de pistas no puede analizar este titular porque está en español y sus listas de pistas están diseñadas exclusivamente para titulares en inglés. Por ello, no es posible identificar las señales léxicas como exageraciones, referencias vagas o frases gancho en este caso.",
+      "argumentos": [
+        [
+          "detect_clickbait_lexical",
+          {
+            "headline": "Increíble: lo que pasó después te sorprenderá"
+          }
+        ]
+      ]
+    },
+    "es-noticia-1": {
+      "mensaje": "Busca una noticia en español sobre el clima y dime si su titular es clickbait.",
+      "historial_caracteres": 0,
+      "post": 202,
+      "post_s": 0.058,
+      "estados": [
+        "running",
+        "done"
+      ],
+      "sondeos": 7,
+      "rechazos_429": 0,
+      "reloj_s": 14.2,
+      "final": "answered",
+      "detalle": null,
+      "vueltas": 2,
+      "agente_s": 13.1,
+      "herramientas": [
+        [
+          "get_gnews_news",
+          "ok"
+        ]
+      ],
+      "prompt_tokens": [
+        4698,
+        6370
+      ],
+      "output_tokens": [
+        159,
+        136
+      ],
+      "vuelta_s": [
+        6.3,
+        6.1
+      ],
+      "herramienta_s": [
+        0.59
+      ],
+      "carga_s": [
+        0.0,
+        0.0
+      ],
+      "respuesta": "El titular \"¿El día estará lluvioso o soleado? Pronóstico del clima en Bogotá para este 15 de octubre\" es una noticia informativa según el análisis disponible.\n\nEl clasificador entrenado lo etiqueta como noticia informativa con una confianza del 85 %, y el análisis del tono lo califica como neutro con un 90 % de seguridad.\n\nEl detector de pistas no se aplica porque el titular está en español, al i",
+      "respuesta_entera": "El titular \"¿El día estará lluvioso o soleado? Pronóstico del clima en Bogotá para este 15 de octubre\" es una noticia informativa según el análisis disponible.\n\nEl clasificador entrenado lo etiqueta como noticia informativa con una confianza del 85 %, y el análisis del tono lo califica como neutro con un 90 % de seguridad.\n\nEl detector de pistas no se aplica porque el titular está en español, al igual que el comparador de titular y texto.\n\nEl modelo de pesos indica una probabilidad del 12 % de que sea clickbait, lo que refuerza que el titular es informativo.",
+      "argumentos": [
+        [
+          "get_gnews_news",
+          {
+            "topic": "clima",
+            "days": 7
+          }
+        ]
+      ]
+    },
+    "es-noticia-2": {
+      "mensaje": "Busca una noticia en español sobre el clima y dime si su titular es clickbait.",
+      "historial_caracteres": 0,
+      "post": 202,
+      "post_s": 0.056,
+      "estados": [
+        "running",
+        "done"
+      ],
+      "sondeos": 11,
+      "rechazos_429": 0,
+      "reloj_s": 22.2,
+      "final": "answered",
+      "detalle": null,
+      "vueltas": 3,
+      "agente_s": 19.9,
+      "herramientas": [
+        [
+          "get_gnews_news",
+          "ok"
+        ],
+        [
+          "analyze_headline",
+          "ok"
+        ]
+      ],
+      "prompt_tokens": [
+        4698,
+        6370,
+        7290
+      ],
+      "output_tokens": [
+        142,
+        141,
+        199
+      ],
+      "vuelta_s": [
+        5.0,
+        6.2,
+        7.7
+      ],
+      "herramienta_s": [
+        0.55,
+        0.32
+      ],
+      "carga_s": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "respuesta": "El veredicto de las herramientas es que el titular \"¿El día estará lluvioso o soleado? Pronóstico del clima en Bogotá para este 15 de octubre\" es un clickbait por la forma, sin engaño detectado.\n\nEsto se debe a que el clasificador entrenado lo etiquetó como clickbait con una confianza del 89 %, y el modelo de pesos le asignó una probabilidad del 35 % de serlo, destacando palabras como \"Bogotá\" y \"",
+      "respuesta_entera": "El veredicto de las herramientas es que el titular \"¿El día estará lluvioso o soleado? Pronóstico del clima en Bogotá para este 15 de octubre\" es un clickbait por la forma, sin engaño detectado.\n\nEsto se debe a que el clasificador entrenado lo etiquetó como clickbait con una confianza del 89 %, y el modelo de pesos le asignó una probabilidad del 35 % de serlo, destacando palabras como \"Bogotá\" y \"día\" que empujan hacia esa clasificación.\n\nEl análisis del tono indica que el titular tiene un matiz negativo con una confianza del 46 %.\n\nLas herramientas que buscan pistas léxicas y comparan el titular con el texto no se aplicaron porque el titular está en español, y esas señales solo funcionan con inglés. La noticia informa que se puede conocer el clima de la capital del país para ese día.",
+      "argumentos": [
+        [
+          "get_gnews_news",
+          {
+            "topic": "clima",
+            "days": 7
+          }
+        ],
+        [
+          "analyze_headline",
+          {
+            "headline": "¿El día estará lluvioso o soleado? Pronóstico del clima en Bogotá para este 15 de octubre",
+            "content": "Conozca aquí el clima que tendrá la capital del país este jueves 15 de octubre."
+          }
+        ]
+      ]
+    },
+    "es-noticia-3": {
+      "mensaje": "Busca una noticia en español sobre el clima y dime si su titular es clickbait.",
+      "historial_caracteres": 0,
+      "post": 202,
+      "post_s": 0.058,
+      "estados": [
+        "running",
+        "done"
+      ],
+      "sondeos": 12,
+      "rechazos_429": 0,
+      "reloj_s": 24.3,
+      "final": "answered",
+      "detalle": null,
+      "vueltas": 3,
+      "agente_s": 22.2,
+      "herramientas": [
+        [
+          "get_newsdata_news",
+          "ok"
+        ],
+        [
+          "analyze_headline",
+          "ok"
+        ]
+      ],
+      "prompt_tokens": [
+        4698,
+        6369,
+        7231
+      ],
+      "output_tokens": [
+        173,
+        218,
+        166
+      ],
+      "vuelta_s": [
+        6.0,
+        8.7,
+        6.6
+      ],
+      "herramienta_s": [
+        0.51,
+        0.29
+      ],
+      "carga_s": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "respuesta": "El titular \"¿El día estará lluvioso o soleado? Pronóstico del clima en Bogotá para este 15 de octubre\" fue clasificado como clickbait por la forma, aunque no se detectó engaño en su contenido. El clasificador entrenado lo marcó como clickbait con una confianza del 89 %, mientras que el modelo de pesos le asigna una probabilidad del 35 % de serlo, destacando palabras como \"Bogotá\" y \"día\" como las ",
+      "respuesta_entera": "El titular \"¿El día estará lluvioso o soleado? Pronóstico del clima en Bogotá para este 15 de octubre\" fue clasificado como clickbait por la forma, aunque no se detectó engaño en su contenido. El clasificador entrenado lo marcó como clickbait con una confianza del 89 %, mientras que el modelo de pesos le asigna una probabilidad del 35 % de serlo, destacando palabras como \"Bogotá\" y \"día\" como las que más influyen en ese resultado. No se pudieron aplicar las herramientas que buscan pistas léxicas ni el que compara titular y texto, ya que solo funcionan con titulares en inglés. El análisis del tono indica que el titular tiene una carga negativa con una confianza del 46 %.",
+      "argumentos": [
+        [
+          "get_newsdata_news",
+          {
+            "topic": "clima"
+          }
+        ],
+        [
+          "analyze_headline",
+          {
+            "headline": "¿El día estará lluvioso o soleado? Pronóstico del clima en Bogotá para este 15 de octubre",
+            "content": "Conozca aquí el clima que tendrá la capital del país este jueves 15 de octubre."
+          }
+        ]
+      ]
+    }
+  },
+  "cerrada-despues": {
+    "fecha": "2026-10-15T13:47:15+00:00",
+    "availability": {
+      "status": "unreachable",
+      "detail": "El asistente está apagado: el servidor del modelo se arranca bajo demanda y ahora no está en marcha.",
+      "model": "qwen3.5:27b"
+    },
+    "post": 503,
+    "post_s": 0.028,
+    "detalle": "El asistente está apagado: el servidor del modelo se arranca bajo demanda y ahora no está en marcha."
+  }
+}
