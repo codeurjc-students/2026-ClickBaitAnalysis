@@ -63,6 +63,17 @@ Y una séptima, de #234 (2026-10-09), para cerrar `v0.8`:
    dos frases de la frontera de #183 recuperadas y el «Raises» de la
    dedicada y el tono, que #236 había dejado para F.
 
+Y una octava, de #269 (2026-10-16), contra la inyección indirecta:
+
+8. `dato`: las mismas consultas que `cierre` —las 26, que juzga la regla de
+   #78, y las ocho en español, sólo como información— con `05-llano`
+   (`antes`) y `06-dato` (`nuevo`), intercaladas y repetidas
+   (`AGENTE_A40_REPETICIONES`, cuatro por defecto), en las condiciones de
+   producción. Sólo cambia el prompt: el catálogo es el de ahora en las dos.
+   Antes de gastar la sesión comprueba que `06-dato` es `05-llano` más un
+   párrafo y nada más (`--comprobar-dato` lo hace sin sesión). Es la medida
+   (b) de #269: si cumple la regla, `06-dato` pasa a ser el de por defecto.
+
 El servidor MCP es el `mcp` de `backend.main` —el mismo objeto que arranca en
 producción— servido en proceso, como en la fase 5: las herramientas se ejecutan
 aquí de verdad, con NLP_BACKEND=local, y las de noticias llaman a NYT y a
@@ -86,6 +97,10 @@ consulta— se rehace sin sesión desde lo guardado:
 y el de `cierre`, igual:
 
     .venv/bin/python spikes/agente_a40.py --analisis-cierre spikes/agente_a40/cierre-234.json
+
+y el de `dato`:
+
+    .venv/bin/python spikes/agente_a40.py --analisis-dato <fichero>
 """
 
 import ast
@@ -848,6 +863,19 @@ CONVERSACIONES_ES = [
 REPETICIONES_CIERRE = int(os.environ.get("AGENTE_A40_REPETICIONES", "4"))
 
 
+def _las_26_y_las_de_espanol() -> list[tuple[str, str, set[str]]]:
+    """Las consultas de `cierre` y de `dato`: las 26 —en las genéricas vale
+    también `analyze_headline`— y las ocho en español."""
+    return (
+        [
+            (categoria, consulta, GENERICA_ACEPTABLE if categoria == "GENERICA" else aceptables)
+            for categoria, consulta, aceptables in PRUEBAS
+        ]
+        + [("CONTRASTE", consulta, aceptables) for _, consulta, aceptables in CONTRASTE]
+        + CONSULTAS_ES
+    )
+
+
 def _config_produccion(prompt: str, **cambios) -> Configuracion:
     """El agente como lo monta la API (`api/chat.py`), con los valores por
     defecto de `Settings`, que son los de producción: el compose sólo fija el
@@ -952,14 +980,7 @@ async def cierre(registro: dict) -> None:
     gestor = SERVIDOR._tool_manager
     originales = {nombre: herramienta.description for nombre, herramienta in gestor._tools.items()}
     escondibles = {nombre: gestor._tools[nombre] for nombre in NO_ESTABAN_EN_V070}
-    pruebas = (
-        [
-            (categoria, consulta, GENERICA_ACEPTABLE if categoria == "GENERICA" else aceptables)
-            for categoria, consulta, aceptables in PRUEBAS
-        ]
-        + [("CONTRASTE", consulta, aceptables) for _, consulta, aceptables in CONTRASTE]
-        + CONSULTAS_ES
-    )
+    pruebas = _las_26_y_las_de_espanol()
     # La cabecera del registro lleva las constantes de las partes viejas
     # (`04-preciso`, 8192): las de ésta son las de producción, y van aquí.
     defecto = {nombre: campo.default for nombre, campo in Settings.model_fields.items()}
@@ -1023,6 +1044,74 @@ async def cierre(registro: dict) -> None:
     resumen_cierre(registro["cierre"])
 
 
+# ----- 8 · El prompt contra la inyección indirecta (#269) -----
+
+PROMPT_DATO = "06-dato"
+
+
+def _preparar_dato() -> dict:
+    """Los dos prompts de #269, comprobados antes de gastar la sesión.
+
+    `06-dato` tiene que ser `05-llano` más un párrafo y nada más, como exige
+    también `tests/agent/test_prompts.py`: si divergieran en algo más, no se
+    sabría a qué atribuir la diferencia."""
+    antes = prompts.cargar(PROMPT_CIERRE)
+    nuevo = prompts.cargar(PROMPT_DATO)
+    comun = len(os.path.commonprefix([antes, nuevo]))
+    anadido = nuevo[comun : comun + len(nuevo) - len(antes)]
+    if not anadido.strip() or nuevo[:comun] + nuevo[comun + len(anadido) :] != antes:
+        raise SystemExit(f"ABORTADO: `{PROMPT_DATO}` no es `{PROMPT_CIERRE}` más un párrafo.")
+    return {
+        "antes": {"nombre": PROMPT_CIERRE, "prompt": antes},
+        "nuevo": {"nombre": PROMPT_DATO, "prompt": nuevo, "anadido": anadido},
+    }
+
+
+async def dato(registro: dict) -> None:
+    """Las 26 y las ocho en español con `05-llano` y `06-dato`, intercaladas
+    (#269, la medida (b)).
+
+    La regla es la de #78 sobre las 26, la misma que en `cierre`; el español va
+    sólo como información. En cada repetición van las dos versiones, en orden
+    alterno, y sólo cambia el prompt."""
+    versiones = _preparar_dato()
+    pruebas = _las_26_y_las_de_espanol()
+    defecto = {nombre: campo.default for nombre, campo in Settings.model_fields.items()}
+    condiciones = {
+        "prompts": {version: textos["nombre"] for version, textos in versiones.items()},
+        "think": True,
+        "repeticiones": REPETICIONES_CIERRE,
+        **{
+            nombre: defecto[nombre]
+            for nombre in (
+                "llm_num_ctx",
+                "llm_temperature",
+                "llm_presence_penalty",
+                "llm_num_predict",
+                "llm_keep_alive",
+                "llm_timeout",
+            )
+        },
+    }
+    print(f"\n== dato, condiciones: {condiciones}")
+    registro["dato"] = {"condiciones": condiciones, "versiones": versiones, "pasadas": []}
+    for repeticion in range(1, REPETICIONES_CIERRE + 1):
+        orden = list(versiones) if repeticion % 2 else list(reversed(versiones))
+        for version in orden:
+            textos = versiones[version]
+            print(f"\n######## repetición {repeticion} · {version} ({textos['nombre']})")
+            filas = []
+            for categoria, consulta, aceptables in pruebas:
+                config = _config_produccion(textos["prompt"], max_rounds=1)
+                filas.append(await _elegir(categoria, consulta, aceptables, config))
+            registro["dato"]["pasadas"].append(
+                {"repeticion": repeticion, "version": version, "filas": filas}
+            )
+            _guardar(registro)
+
+    resumen_cierre(registro["dato"], nombre="dato", regla_espanol=False)
+
+
 def _titulares_cambiados(fila: dict) -> list[tuple[str, str]]:
     """Las llamadas cuyo titular no es el de la consulta, tal cual."""
     entre_comillas = re.search(r"'([^']+)'", fila["consulta"])
@@ -1042,10 +1131,12 @@ def _titulares_cambiados(fila: dict) -> list[tuple[str, str]]:
     return cambiados
 
 
-def resumen_cierre(medido: dict) -> None:
+def resumen_cierre(medido: dict, nombre: str = "cierre", regla_espanol: bool = True) -> None:
     """Las dos reglas de #234 y los aciertos de cada consulta.
 
-    Sólo lee lo guardado, así que se repite sin sesión con `--analisis-cierre`."""
+    Sólo lee lo guardado, así que se repite sin sesión con `--analisis-cierre`.
+    `dato` (#269) lo usa sin la regla 2: allí el español es sólo información,
+    y su regla es la 1, la de #78."""
     aciertos: dict[str, dict[str, list[bool]]] = {}
     categorias: dict[str, str] = {}
     cambiados: dict[str, list] = {}
@@ -1081,7 +1172,7 @@ def resumen_cierre(medido: dict) -> None:
     def noticias_es(consulta: str) -> bool:
         return categorias[consulta] == "ES_NOTICIAS"
 
-    print("\n== cierre: aciertos, por versión")
+    print(f"\n== {nombre}: aciertos, por versión")
     for version in aciertos:
         print(
             f"  {version:6s} las 26: {'/'.join(map(str, total(version, las_26)))} · "
@@ -1102,14 +1193,15 @@ def resumen_cierre(medido: dict) -> None:
         f"\n== regla 1, la de #78 (las 26): (a) nuevo {total('nuevo', las_26)[0]} ≥ {minimo}; "
         f"(b) {rotas or 'ninguna'} → {'cumple' if primera else 'NO cumple'}"
     )
-    traducidos = cambiados.get("nuevo", [])
-    segunda = total("nuevo", comparables_es)[0] >= total("antes", comparables_es)[0]
-    print(
-        f"== regla 2 (español sin noticias): nuevo {total('nuevo', comparables_es)[0]} ≥ antes "
-        f"{total('antes', comparables_es)[0]}: {'sí' if segunda else 'no'} · titulares cambiados "
-        f"con nuevo: {len(traducidos)} (con antes: {len(cambiados.get('antes', []))}), "
-        "leídos uno a uno abajo"
-    )
+    if regla_espanol:
+        traducidos = cambiados.get("nuevo", [])
+        segunda = total("nuevo", comparables_es)[0] >= total("antes", comparables_es)[0]
+        print(
+            f"== regla 2 (español sin noticias): nuevo {total('nuevo', comparables_es)[0]} ≥ antes "
+            f"{total('antes', comparables_es)[0]}: {'sí' if segunda else 'no'} · titulares cambiados "
+            f"con nuevo: {len(traducidos)} (con antes: {len(cambiados.get('antes', []))}), "
+            "leídos uno a uno abajo"
+        )
     for version, lista in cambiados.items():
         for consulta, nombre, titular in lista:
             print(f"  {version:6s} {nombre}: «{titular}» ← {consulta}")
@@ -1130,6 +1222,7 @@ PARTES = {
     "cuerpo": cuerpo,
     "variantes": variantes,
     "cierre": cierre,
+    "dato": dato,
 }
 PRIMERA_SESION = ["contexto", "seleccion", "bucles"]
 
@@ -1184,6 +1277,18 @@ if __name__ == "__main__":
                 f"escondidas {textos['escondidas'] or '-'}, prompt de {len(textos['prompt'])} caracteres"
             )
         print(f"`antes` es, letra a letra, lo que publicaba {TAG_ANTES}.")
+        sys.exit()
+    if sys.argv[1:2] == ["--analisis-dato"]:
+        guardado = json.loads(Path(sys.argv[2]).read_text(encoding="utf-8"))
+        resumen_cierre(guardado["dato"], nombre="dato", regla_espanol=False)
+        sys.exit()
+    if sys.argv[1:2] == ["--comprobar-dato"]:
+        # Sin sesión: que `06-dato` es `05-llano` más un párrafo, y cuál.
+        comprobadas = _preparar_dato()
+        print(
+            f"`{PROMPT_DATO}` es `{PROMPT_CIERRE}` más este párrafo, y nada más:\n"
+            f"{comprobadas['nuevo']['anadido']}"
+        )
         sys.exit()
     if sys.argv[1:2] == ["--analisis"]:
         # Sin sesión: el resumen de la parte `variantes`, desde su JSON.

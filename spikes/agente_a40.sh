@@ -21,6 +21,8 @@
 #   AGENTE_A40_MAX_MIN=75 AGENTE_A40_JSON=/tmp/agente_a40_cierre.json setsid nohup bash spikes/agente_a40.sh cierre > /tmp/agente_a40_cierre.log 2>&1 < /dev/null & disown
 # y su segunda sesión, con la variante `v2`:
 #   AGENTE_A40_MAX_MIN=75 AGENTE_A40_JSON=/tmp/agente_a40_cierre_v2.json setsid nohup bash spikes/agente_a40.sh cierre > /tmp/agente_a40_cierre_v2.log 2>&1 < /dev/null & disown
+# La de #269, `dato` (`05-llano` frente a `06-dato`), del mismo tamaño:
+#   AGENTE_A40_MAX_MIN=75 AGENTE_A40_JSON=/tmp/agente_a40_dato.json setsid nohup bash spikes/agente_a40.sh dato > /tmp/agente_a40_dato.log 2>&1 < /dev/null & disown
 # Desde el 2026-10-15, `AGENTE_A40_GUION` cambia el guion de Python que se
 # ejecuta con la sesión abierta (por defecto, `spikes/agente_a40.py`), y le
 # llegan las mismas variables. La inyección de #260 con el 27B:
