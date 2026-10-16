@@ -123,7 +123,7 @@ ya no existe, hace fallar el CI.
 | `LLM_PRESENCE_PENALTY` | `0.0` | — | Muestreo |
 | `LLM_KEEP_ALIVE` | `10m` | — | Cuánto sigue el modelo en memoria tras la última petición |
 | `LLM_TIMEOUT` | `300.0` | — | Segundos por llamada al modelo |
-| `LLM_PROMPT` | `05-llano` | — | El prompt de sistema, de los de `backend/agent/prompts/` |
+| `LLM_PROMPT` | `06-dato` | — | El prompt de sistema, de los de `backend/agent/prompts/` |
 | `CHAT_QUEUE_SIZE` | `2` | — | Conversaciones en espera; con la cola llena, 503 |
 | `CHAT_JOB_TTL_S` | `900.0` | — | Cuánto se guarda una conversación terminada |
 | `CHAT_MAX_JOBS` | `20` | — | Cuántas como mucho |
