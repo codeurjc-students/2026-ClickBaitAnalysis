@@ -17,9 +17,23 @@ La **integración** es un hecho de ubicación: de qué paquete viene. Se deriva 
 módulo, y por eso **no puede mentir**. Declararla a mano permitiría que el
 paquete dijera una cosa y el ``meta`` otra, en silencio — el mismo fallo que el
 campo ``signal`` de las fichas de modelo.
+
+**Y si la herramienta modifica algo** (#269). Eso sí lo prevé el protocolo, con
+las anotaciones de cada tool, y sin declararlas MCP manda al cliente suponer lo
+peor: que puede modificar su entorno, y destruir. Todas las de este servidor
+sólo leen —traen noticias o analizan un titular—, así que todas llevan
+``SOLO_LECTURA``. Son pistas para el cliente, no una garantía: no protegen nada
+por sí solas. Y no llegan al modelo del agente, que sólo recibe nombre,
+descripción y esquema, así que no cambian lo que elige.
 """
 
 from typing import Any, Literal
+
+from mcp.types import ToolAnnotations
+
+# Se usa como ``@mcp.tool(meta=..., annotations=SOLO_LECTURA)``. Una herramienta
+# que escribiera algo no la llevaría, y declararía en su lugar lo que hace.
+SOLO_LECTURA = ToolAnnotations(readOnlyHint=True)
 
 # Cerradas a propósito: si hiciera falta una cuarta, es una decisión, no un
 # descuido de quien añade una tool.

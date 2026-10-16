@@ -12,7 +12,7 @@ from backend.core.idioma import Idioma
 from backend.core.observability import log_tool_invocation
 from backend.core.texto import TextoOpcional
 from backend.integrations.guardian.client import GuardianAPI
-from backend.integrations.metadata import tool_meta
+from backend.integrations.metadata import SOLO_LECTURA, tool_meta
 
 
 class Articulo(TypedDict):
@@ -35,7 +35,9 @@ def register(mcp: FastMCP):
 
     api = GuardianAPI()
 
-    @mcp.tool(meta=tool_meta("Fuentes de contenido", __name__))
+    @mcp.tool(
+        meta=tool_meta("Fuentes de contenido", __name__), annotations=SOLO_LECTURA
+    )
     @log_tool_invocation
     async def get_guardian_news(
         # «None» escrito como tema es buscar sin tema, no buscar la palabra (#197).

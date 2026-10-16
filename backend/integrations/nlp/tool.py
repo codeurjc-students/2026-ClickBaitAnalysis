@@ -16,7 +16,7 @@ from mcp.server.fastmcp.exceptions import ToolError
 from backend.core.idioma import INGLES, Idioma, detectar
 from backend.core.observability import log_tool_invocation
 from backend.core.texto import es_ausente
-from backend.integrations.metadata import tool_meta
+from backend.integrations.metadata import SOLO_LECTURA, tool_meta
 from backend.integrations.nlp import dedicated, lexical, linear, model_cards
 from backend.integrations.nlp.factory import (
     ficha_efectiva,
@@ -80,7 +80,7 @@ def register(mcp: FastMCP):
     # y también por llamada: una constante aquí volvería a congelarlos. Lo
     # mismo los umbrales y el tope de pistas del lineal (#93).
 
-    @mcp.tool(meta=tool_meta("Señales de análisis", __name__))
+    @mcp.tool(meta=tool_meta("Señales de análisis", __name__), annotations=SOLO_LECTURA)
     @log_tool_invocation
     async def detect_clickbait(headline: str) -> Etiqueta:
         """Clasifica un titular como clickbait o noticia factual con un modelo de caja negra.
@@ -125,7 +125,7 @@ def register(mcp: FastMCP):
             raise ToolError(response.error or "Error al analizar el titular")
         return _con_idioma(response.unwrap(), idioma)
 
-    @mcp.tool(meta=tool_meta("Señales de análisis", __name__))
+    @mcp.tool(meta=tool_meta("Señales de análisis", __name__), annotations=SOLO_LECTURA)
     @log_tool_invocation
     async def analyze_sentiment(text: str) -> Etiqueta:
         """Analiza el sentimiento de un texto (p.ej. un titular de noticia).
@@ -152,7 +152,7 @@ def register(mcp: FastMCP):
             raise ToolError(response.error or "Error al analizar el sentimiento")
         return _con_idioma(response.unwrap(), idioma)
 
-    @mcp.tool(meta=tool_meta("Señales de análisis", __name__))
+    @mcp.tool(meta=tool_meta("Señales de análisis", __name__), annotations=SOLO_LECTURA)
     @log_tool_invocation
     async def detect_clickbait_incoherence(
         headline: str, content: str
@@ -204,7 +204,7 @@ def register(mcp: FastMCP):
             )
         return _con_idioma(response.unwrap(), idioma)
 
-    @mcp.tool(meta=tool_meta("Señales de análisis", __name__))
+    @mcp.tool(meta=tool_meta("Señales de análisis", __name__), annotations=SOLO_LECTURA)
     @log_tool_invocation
     async def detect_clickbait_lexical(headline: str) -> SalidaLexica:
         """
@@ -236,7 +236,7 @@ def register(mcp: FastMCP):
             raise ToolError(response.error or "Error al analizar léxico en el titular")
         return _con_idioma(response.unwrap(), idioma)
 
-    @mcp.tool(meta=tool_meta("Señales de análisis", __name__))
+    @mcp.tool(meta=tool_meta("Señales de análisis", __name__), annotations=SOLO_LECTURA)
     @log_tool_invocation
     async def detect_clickbait_linear(headline: str) -> SalidaLineal:
         """Da la probabilidad de que un titular sea clickbait y las pistas que la explican.
@@ -269,7 +269,7 @@ def register(mcp: FastMCP):
 
     # Utilidad, no señal: describe los modelos, no analiza nada. Es el caso que
     # demuestra que la categoría no se puede derivar del paquete.
-    @mcp.tool(meta=tool_meta("Utilidades", __name__))
+    @mcp.tool(meta=tool_meta("Utilidades", __name__), annotations=SOLO_LECTURA)
     @log_tool_invocation
     async def describe_models() -> list[FichaModelo]:
         """Divulga los modelos/señales que emplea el sistema (transparencia, R3.9).
