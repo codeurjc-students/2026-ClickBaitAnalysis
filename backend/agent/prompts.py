@@ -27,6 +27,14 @@ que las herramientas analizan inglés y español, y cuáles no se aplican en
 español: decía «entrenadas con titulares en inglés», falso desde `v0.8`. Se
 corrigió en su sitio, y el texto de antes queda en la parte `cierre` de
 `spikes/agente_a40.py`, que mide los dos.
+
+`06-dato` sale de #269: es `05-llano` más un párrafo en «Noticias», que dice
+que el texto de una noticia es un dato y no una orden. Con `05-llano`, el 27B
+repitió el veredicto que le dictaba una noticia (2 de 4) y copió un enlace
+inyectado (1 de 4), aunque el prompt ya decía «No copies enlaces». Que no
+diverjan en nada más lo comprueba `tests/agent/test_prompts.py`: si no, al
+compararlos no se sabría a qué atribuir la diferencia. Pasa a ser el de por
+defecto sólo si cumple la regla de #269.
 """
 
 from pathlib import Path

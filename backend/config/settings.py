@@ -422,8 +422,10 @@ class Settings(BaseSettings):
     # y con el que se aceptó #188. Desde #192 es `05-llano`, que ganó la
     # comparación con una regla fijada antes de medir: 0 nombres internos,
     # posiciones o decimales largos en 27 respuestas (1,78 por respuesta con
-    # `04-preciso`), sin pasar de su infidelidad más 5 puntos.
-    llm_prompt: Literal["03-estricto", "04-preciso", "05-llano"] = "05-llano"
+    # `04-preciso`), sin pasar de su infidelidad más 5 puntos. `06-dato` es
+    # `05-llano` más una regla contra la inyección indirecta (#269); pasa a ser
+    # el defecto sólo si cumple su regla con las 26 consultas.
+    llm_prompt: Literal["03-estricto", "04-preciso", "05-llano", "06-dato"] = "05-llano"
 
     # Los trabajos del chat, en memoria del proceso (#189).
     #
