@@ -853,6 +853,8 @@ Issue #72 (sugerencia del tutor). Cierra el **caveat metodológico** arrastrado 
 
 **Límite honesto (validez externa):** el test es *held-out* pero **no es dato ajeno** — todo sale de Chakraborty (misma distribución). La generalización real a otro dominio se medirá con datasets externos (#76, p. ej. Webis-17).
 
+*(Revisado en #256: esta sección da el tamaño de cada parte, pero no su clickbait. Contado después: 9.599 en `train`, y 3.200 en `dev` y en `test`, un 50,0 % en las tres. Ver «El reparto de clases de cada partición».)*
+
 ### Validación externa: Webis-Clickbait-17 (#76)
 
 Issue #76. Mide la **generalización real** evaluando la vía shipeada sobre un dataset **ajeno**: extracto del **Webis Clickbait Corpus 2017** (2 459 tuits de 27 medios USA, anotados 0–1 por 5 personas; **CC BY 4.0**, cita en `data/external/ATTRIBUTION.md`). **Cero adaptación**: sin reentrenar ni re-afinar nada. Reproducir: `python -m backend.evaluation.eval_external`.
@@ -8114,6 +8116,8 @@ Se publicaron en la issue antes de ejecutar nada ([comentario](https://github.co
 
 Así `validation170630`, el corpus de las evaluaciones grandes (#92, #121, #124), no entrena el lineal. Las dos particiones nuevas se guardan en `data/splits/` con su `id`, como las de #72 (`python -m backend.evaluation.splits webis`). El coste, aceptado al diseñar: medir el lineal sobre `train170331` deja de ser la validación externa que fue en #76.
 
+*(Revisado en #256: el clickbait de cada parte, contado después: 762 de 2.458 en `train170331` (31,0 %), y 943 de 3.896 en `webis_dev` y 3.773 de 15.588 en `webis_test` (24,2 % los dos). Ver «El reparto de clases de cada partición».)*
+
 **La regla**: (1) en `dev` gana el mejor F1 en Webis entre las combinaciones que no bajen el de Chakraborty más de 0,02 respecto al lineal actual; (2) en `test`, la ganadora se queda sólo si el F1 en Webis sube al menos 0,05 y el de Chakraborty no baja más de 0,02 de 0,865; y (3) el umbral se elige en `dev` y se queda en 0,5 salvo que otro corte suba el F1 medio de los dos dominios al menos 0,01. Siempre F1 por dominio, nunca sobre los dos corpus mezclados.
 
 #### Los rasgos en `dev`: lo que preguntaba #75
@@ -9988,6 +9992,38 @@ Con `CHAT_PARTE_ABIERTA=espanol bash spikes/chat_maquina1.sh`, por Caddy y con e
 | Guiones | `spikes/agente_inyeccion.py` (con `AGENTE_INYECCION_PROMPTS`), `spikes/agente_a40.py` (parte `dato`), las dos sesiones abiertas por `spikes/agente_a40.sh` (con `AGENTE_A40_GUION`), `spikes/chat_maquina1.sh`, `spikes/produccion_en_vivo.py`, `spikes/catalogo_volcado.py` y `spikes/intervalo_wilson.py` |
 | Datos | `spikes/vulnerabilidades/2026-10-15-agente_inyeccion_27b/` y `2026-10-16-agente_inyeccion_27b_prompts/`, con su `agente_inyeccion.json` y el registro de la sesión; `spikes/agente_a40/dato-269.json` y `.log`; y `spikes/agente_a40/produccion-espanol-2026-10-15.json`, con su registro y la salida de `produccion_en_vivo.py` |
 | Pruebas | la suite del CI, 641 (638 antes); pyright, 0 errores; `openapi.json`, sin cambios |
+
+### El reparto de clases de cada partición (#256, 22 oct 2026)
+
+La pauta de la cotutora para el capítulo 5 de la memoria, «Experimentación y resultados», pide tablas con la distribución de clases y el tamaño de cada partición. Este README daba el tamaño de todas, pero el clickbait de cada una sólo en TA1C, en porcentaje (#229), y en `webis_test` (#78). [`spikes/reparto_clases.py`](spikes/reparto_clases.py) lo cuenta en todas, con lo versionado en `data/` y con las funciones del propio proyecto, para que lo contado sea lo que se usó. `train170331`, por ejemplo, sale de `cargar_datos()` (`eval_reentreno.py`), que le quita el tuit que comparte con `validation170630`, igual que al entrenar el lineal.
+
+```bash
+.venv/bin/python spikes/reparto_clases.py
+```
+
+| Corpus | Parte | Titulares | Clickbait | No clickbait | Clickbait (%) |
+|---|---|---|---|---|---|
+| Chakraborty | `train` | 19.200 | 9.599 | 9.601 | 50,0 % |
+| Chakraborty | `dev` | 6.400 | 3.200 | 3.200 | 50,0 % |
+| Chakraborty | `test` | 6.400 | 3.200 | 3.200 | 50,0 % |
+| Webis-17 | `train170331`, sin el tuit repetido | 2.458 | 762 | 1.696 | 31,0 % |
+| Webis-17 | `webis_dev` | 3.896 | 943 | 2.953 | 24,2 % |
+| Webis-17 | `webis_test` | 15.588 | 3.773 | 11.815 | 24,2 % |
+| TA1C | `train` | 2.100 | 591 | 1.509 | 28,1 % |
+| TA1C | `validation` | 700 | 206 | 494 | 29,4 % |
+| TA1C | `test` | 700 | 204 | 496 | 29,1 % |
+
+- **Las partes suman los corpus enteros**, y el guion lo comprueba: Chakraborty, 32.000 titulares con 15.999 clickbait (50,0 %); `validation170630`, 19.484 con 4.716 (24,2 %); y TA1C, 3.500 con 1.001 (28,6 %). También comprueba que cada tamaño sea el que ya citaba este README, y lo es.
+- **Estratificar copia la proporción, no la equilibra.** En Chakraborty y en Webis, cada parte tiene la de su corpus. El reparto de TA1C no lo hizo el proyecto, sino el corpus, y aun así sus partes quedan cerca de su 28,6 %. Ningún guion de `backend/evaluation/` equilibra las clases.
+- **No mide ningún modelo.** Contar las etiquetas de un `test` no es abrirlo, porque no se decide nada con ello.
+
+| Condiciones | |
+|---|---|
+| Fecha | 22 oct 2026 |
+| Máquina | El PC de sobremesa del autor: WSL2 con Ubuntu, Python 3.12.3; sin red ni modelos |
+| Datos | los de `df07f15`: `data/splits/` y `data/external/` |
+| Código | las funciones de `df07f15` y el guion de `3d7117b`, que al ejecutarlo estaba sin commitear; después sólo cambió su cabecera, con los resultados |
+| Guion | `spikes/reparto_clases.py` |
 
 
 
