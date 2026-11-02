@@ -5,21 +5,21 @@ forward-compatible con un futuro frontend. El campo ``type`` enlaza con R3.8:
 marca qué señales son white-box (``interpretable``) frente a caja negra
 (``opaque``), pasando por las ``hybrid`` (decisión transparente, feature opaca).
 
-CUIDADO CON LA OTRA MITAD DE R3.9
+LA OTRA MITAD DE R3.9: INTERCAMBIAR LOS MODELOS
 
-Este docstring afirmaba que «intercambiar modelos por configuración» lo cubría la
-factoría ``get_nlp_backend`` vía el setting ``nlp_backend``. **Es falso, y se
-comprobó al cambiar de modelo en #115**: ``nlp_backend`` decide DÓNDE corre el
-modelo (remoto o local), no CUÁL es. Sustituir el modelo de la señal de clickbait
-exigió tocar esta tabla, escribir ``dedicated.py`` y añadir un mapeo de
+Este docstring afirmó primero que «intercambiar modelos por configuración» lo
+cubría la factoría ``get_nlp_backend`` vía el setting ``nlp_backend``. **Era
+falso, y se comprobó al cambiar de modelo en #115**: ``nlp_backend`` decide DÓNDE
+corre el modelo (remoto o local), no CUÁL es. Sustituir el modelo de la señal de
+clickbait exigió tocar esta tabla, escribir ``dedicated.py`` y añadir un mapeo de
 etiquetas — todo código, que es justo lo que el requisito excluye.
 
-Queda por tanto **sin cumplir**, y anotado como tal en vez de darlo por hecho.
-#116 lo dejó a un paso —el id ya vive en un único sitio, así que leerlo de
-settings con la ficha como defecto es pequeño—, pero hay una tensión de fondo: el
-mapeo de etiquetas NO se configura igual de fácil, porque cada modelo trae su
-propio vocabulario. Intercambiar cualquier modelo por configuración sólo es
-realista dentro de una familia que comparta convención.
+**Se cumple desde #119**: el id de cada señal se pone en ``NLP_MODELS`` (y en
+``NLP_MODELS_ES`` desde #230), con esta ficha como defecto, y
+``factory.ficha_efectiva`` publica el modelo que se ejecuta de verdad. La tensión
+que quedaba —cada modelo trae su propio vocabulario de etiquetas— la resolvió
+#159 para ``detect_clickbait``, la única señal que las traduce: su entrada puede
+llevar también el modo de invocación y las etiquetas (``ModeloConInvocacion``).
 
 TRES CAMPOS QUE PARECEN LO MISMO Y NO LO SON
 
@@ -202,7 +202,7 @@ MODEL_CARDS: list[FichaDeclarada] = [
         "type": "hybrid",
         "limitations": [
             "Decisión transparente (umbral sobre la similitud) pero feature opaca (embeddings).",
-            "Umbral 0.3 CALIBRADO en #92 sobre 19484 pares de Webis-17, eligiéndolo en una mitad y midiéndolo en la otra: es el punto de mayor precisión de la curva (0.649 en test) a cambio de pronunciarse sólo en el 7.4% de los titulares. ROC-AUC de la señal 0.720.",
+            "Umbral 0.3, contrastado en #92 sobre 19484 pares de Webis-17, eligiendo en una mitad y midiendo en la otra: el criterio fijado antes de medir daba 0.46, y se conservó el 0.3 porque supera con holgura su suelo de precisión, 0.50 (0.649 en test), y en esta señal pesa más la precisión, a cambio de pronunciarse sólo en el 7.4% de los titulares. No es el más preciso de la curva: más abajo sube la precisión y baja la cobertura. ROC-AUC de la señal 0.720.",
             "Sólo lee los primeros 1000 caracteres del cuerpo, porque el modelo trunca a 256 tokens de todas formas. Medido: trocear el artículo entero y quedarse con la mayor similitud da AUC 0.717 frente a 0.716 truncando — el resto del texto no aportaba nada.",
             "REDUNDANTE con la señal dedicada: `dedicada ∨ incoherencia` BAJA la precisión de 0.709 a 0.673, así que los casos que añade son mayoritariamente falsos. Aporta en cambio a las señales débiles (`linear ∨ incoherencia` sube F1 de 0.448 a 0.517).",
             "Precisión de sólo 0.12 en el subconjunto donde ninguna señal de forma dispara — que es justamente el hueco que esta dimensión existe para cubrir (titulares sobrios que engañan: 470 de 8793). No es culpa del umbral: con un 5.3% de positivos y AUC 0.628 ahí, la precisión alta es inalcanzable.",
