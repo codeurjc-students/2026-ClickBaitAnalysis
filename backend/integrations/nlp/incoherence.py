@@ -41,11 +41,15 @@ class IncoherenceDetector:
     # Similitud POR DEBAJO de esto = incoherente = posible clickbait. Ojo al
     # sentido, que es el contrario del habitual y confunde a quien lo lee rápido.
     #
-    # El valor era una estimación sin contrastar. Calibrado en #92 sobre 19.484
-    # pares titular↔cuerpo de Webis-17, eligiendo el umbral en una mitad y
-    # midiéndolo en la otra, resulta que la estimación era buena: de toda la
-    # curva es el punto de mayor precisión (0,649 en test), a cambio de
-    # pronunciarse sólo en el 7,4 % de los titulares.
+    # El valor era una estimación sin contrastar. Contrastado en #92 sobre
+    # 19.484 pares titular↔cuerpo de Webis-17, eligiendo en una mitad y
+    # midiendo en la otra: supera con holgura el suelo de precisión que se
+    # fijó antes de medir, 0,50 (0,697 en la mitad de elección y 0,649 en la
+    # otra), a cambio de pronunciarse sólo en el 7,4 % de los titulares. El
+    # criterio fijado, el mayor recall con ese suelo, daba 0,46. No es el
+    # punto más preciso de la curva —por debajo sube la precisión y baja la
+    # cobertura, y la curva no tiene codo—: es el más preciso de los tres
+    # umbrales que se compararon.
     #
     # Se conserva justamente por eso. `deception` desempata en `_overall` cuando
     # la forma está dividida, así que un falso positivo suyo declara «engañoso»

@@ -2430,6 +2430,12 @@ El 0,3 no era un mal valor: es **el punto de mayor precisión de toda la curva**
 supera con holgura el suelo que habíamos exigido. Lo que le falta no es acierto,
 es cobertura — sólo se pronuncia en el 7 % de los titulares.
 
+*(Revisado el 2 nov 2026: no es el punto de mayor precisión de la curva. En la
+mitad de elección la precisión sube sin parar al bajar el umbral —0,771 con
+0,15—, y el 0,3 sólo es el más preciso de los tres que compara esta tabla. Lo
+que sí es cierto es que supera con holgura el suelo; el criterio literal daba
+0,46. Ver «El 0,3 de la incoherencia no era el umbral más preciso».)*
+
 La curva no tiene codo: la precisión se degrada suave y continuamente, así que no
 hay ningún valor «correcto» escondido en los datos. Hay un intercambio, y elegir
 dónde pararse es una decisión de producto. Que es exactamente lo que el método
@@ -10024,6 +10030,62 @@ La pauta de la cotutora para el capítulo 5 de la memoria, «Experimentación y 
 | Datos | los de `df07f15`: `data/splits/` y `data/external/` |
 | Código | las funciones de `df07f15` y el guion de `3d7117b`, que al ejecutarlo estaba sin commitear; después sólo cambió su cabecera, con los resultados |
 | Guion | `spikes/reparto_clases.py` |
+
+### El 0,3 de la incoherencia no era el umbral más preciso (2 nov 2026, PR #272)
+
+Preparando las preguntas de tribunal de 4.4 de la memoria (#255), salió una frase que el proyecto repetía desde #92 en tres sitios: que el umbral 0,3 de la incoherencia «es el punto de mayor precisión de toda la curva». La decían la sección de #92, el comentario de `THRESHOLD` en [`incoherence.py`](backend/integrations/nlp/incoherence.py) y la ficha inglesa de la señal en [`model_cards.py`](backend/integrations/nlp/model_cards.py), que se publica por `describe_models`, el catálogo y la pantalla de Sistema, y que el agente lee cuando le preguntan por los modelos. **No es cierta.** Es trabajo suelto, sin issue: cambian dos textos del código y este README, y el umbral sigue en 0,3.
+
+#### Cómo se comprobó
+
+Repitiendo el guion de #92 con las similitudes que guardó entonces, sin cargar ningún modelo:
+
+```bash
+NLP_BACKEND=local CUDA_VISIBLE_DEVICES= .venv/bin/python -m backend.evaluation.eval_incoherencia
+```
+
+| Condiciones | |
+|---|---|
+| Fecha | 2 nov 2026 |
+| Máquina | El PC de sobremesa del autor: WSL2 con Ubuntu 24.04.4, Python 3.12.3 y scikit-learn 1.9.0; en CPU |
+| Datos | Los 19.484 pares titular–cuerpo de `validation170630`, en dos mitades de 9.742 con la semilla de #92 (24). Las similitudes, de `var/similitudes_validation170630.json` (local y sin versionar, del 1 sep 2026), calculadas con `sentence-transformers/all-MiniLM-L6-v2` y el cuerpo entero, como en #92 |
+| Código | `d3c32fd`; el guion no ha cambiado desde que entró, en `85f0217` (PR #123) |
+| Guion | [`backend/evaluation/eval_incoherencia.py`](backend/evaluation/eval_incoherencia.py) |
+
+Las partes 1, 2 y 4 del guion sólo dependen de esas similitudes, y dan lo mismo que en #92: ROC-AUC 0,720 y, en la mitad de prueba, precisión 0,649 con 0,3. Las partes 5 y 6 usan el lineal de hoy, que cambió en #78 y #231, y ya no dan las cifras de entonces.
+
+#### Lo que dice la curva
+
+La parte 4 imprime la curva de la mitad de elección, y #92 no la copió:
+
+| Umbral | Marca | Precisión | Recall | F1 |
+|---|---|---|---|---|
+| 0,15 | 3,5 % | 0,771 | 0,112 | 0,196 |
+| 0,20 | 4,8 % | 0,750 | 0,149 | 0,249 |
+| 0,25 | 5,9 % | 0,723 | 0,175 | 0,282 |
+| **0,30** | **7,4 %** | **0,697** | **0,214** | **0,328** |
+| 0,35 | 9,5 % | 0,645 | 0,255 | 0,365 |
+| 0,40 | 12,9 % | 0,585 | 0,312 | 0,407 |
+| 0,46, el criterio | — | 0,502 | 0,397 | 0,444 |
+| 0,56, el mayor F1 | — | 0,407 | 0,615 | 0,490 |
+
+Las dos últimas filas son de la parte 2, que da el punto exacto de cada umbral elegido; las demás, de la tabla de la parte 4, que va de 0,05 en 0,05.
+
+- **La precisión sube sin parar al bajar el umbral.** Es la curva «sin codo» que ya describía #92. El 0,3 es el más preciso de los **tres umbrales que el guion compara en la mitad de prueba** (0,30, 0,46 y 0,56), no de la curva.
+- **El criterio fijado antes de medir —el mayor recall con precisión ≥ 0,50— daba 0,46, y se conservó el 0,3.** Lo que sostiene esa decisión, también con la mitad de elección sola, es que el 0,3 supera el suelo con holgura (0,697 frente a 0,502) en una señal en que pesa más la precisión, porque desempata el veredicto cuando la forma está dividida. Es una decisión tomada al ver la curva, y #92 no la declaró así; queda declarada aquí.
+- **No se ha vuelto a calibrar después de #124**, que cambió lo que cuesta un falso positivo de esta señal: desde entonces ya no contradice a una forma unánime en «no». Queda en #217.
+
+#### Qué cambia
+
+- **La ficha inglesa de la incoherencia** dice ahora que el criterio daba 0,46, que se conservó el 0,3 porque supera el suelo con holgura (0,649 en la mitad de prueba) y que no es el más preciso de la curva. Al redesplegar, la capa de modelos de la imagen se rehace, unos 2 minutos (#162). No es el docstring de una herramienta, así que no pide las 26 consultas.
+- **El comentario de `THRESHOLD`**, con lo mismo y las cifras de las dos mitades.
+- **De paso, el docstring de `model_cards.py`**, que seguía diciendo que la mitad de R3.9 de intercambiar los modelos por configuración «queda sin cumplir». Se cumple desde #119 (el id, en `NLP_MODELS`) y #159 (el modo y las etiquetas de `detect_clickbait`), y lo dice ya.
+- **Una nota en la sección de #92**, que se deja como se escribió.
+- **No se tocan los JSON de [`spikes/fidelidad/`](spikes/fidelidad/)**, que guardan la ficha vieja tal como la devolvieron las herramientas: son el registro de lo que se midió.
+
+#### Lo que deja
+
+- **Una frase que resume un resultado se coteja con la salida del guion, igual que una cifra.** Ésta pasó de la sección de #92 a dos sitios del código, y de ahí al material de la memoria, sin que nadie mirara la tabla de la mitad de elección que el propio guion imprimía.
+- **Si un criterio fijado antes de medir no es el que decide, se dice.** #92 se apartó del suyo sin decirlo.
 
 
 
