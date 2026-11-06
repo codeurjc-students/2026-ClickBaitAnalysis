@@ -316,9 +316,9 @@ class HistoryKind(
 class Origin(str, Enum):
     """Desde dónde se pidió la entrada en el historial. El prototipo distingue chat y formulario."""
 
-    FORM = "form"
-    CHAT = "chat"  # aún no existe: llega con el agente
-    API = "api"  # llamada directa, sin interfaz
+    FORM = "form"  # sin usar: el formulario llama a `POST /analyze` y queda como `API`
+    CHAT = "chat"  # sin usar: las conversaciones no van al historial (decidido en H5)
+    API = "api"  # lo que se escribe hoy, venga del formulario o de una llamada directa
 
 
 class HistoryEntry(BaseModel):

@@ -146,7 +146,9 @@ services:
     restart: unless-stopped
     # Sin `depends_on` en ningún servicio, a propósito: con una API caída, la web
     # sigue sirviendo la aplicación y el indicador de salud explica el 502
-    # (#147); con un MCP caído, sólo se degrada la pantalla de Sistema.
+    # (#147); con un MCP caído, se degradan la pantalla de Sistema y el asistente,
+    # que llama por él a las herramientas, y el análisis sigue, porque `/analyze`
+    # no pasa por él.
 
 volumes:
   historial:

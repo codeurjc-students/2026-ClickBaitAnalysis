@@ -106,6 +106,18 @@ def test_la_api_no_publica_ningun_puerto():
     assert "ports" not in _servicios()["api"]
 
 
+def test_el_mcp_no_publica_ningun_puerto():
+    """Lo que afirma el §10 de `docs/arquitectura.md`, que aquí sólo se
+    comprobaba para la API.
+
+    El servidor MCP no tiene autenticación: quien llegara a su puerto ejecutaría
+    las herramientas y gastaría las cuotas de las APIs de noticias sin pasar por
+    el límite de #169, que vive en la API. Sólo se llega a él desde la red de
+    compose.
+    """
+    assert "ports" not in _servicios()["mcp"]
+
+
 def test_la_api_se_fia_de_las_cabeceras_del_proxy():
     """Sin esto uvicorn IGNORA `X-Forwarded-For` —sólo se fía de `127.0.0.1`—
     y todas las peticiones parecen venir del contenedor de Caddy: el límite de
@@ -142,6 +154,12 @@ def test_la_variante_local_no_publica_la_api():
     """`test_la_api_no_publica_ningun_puerto`, para la variante: unos `ports`
     suyos se sumarían a los de `compose.yaml`, y la API quedaría publicada."""
     assert "ports" not in _servicios_locales().get("api", {})
+
+
+def test_la_variante_local_no_publica_el_mcp():
+    """`test_el_mcp_no_publica_ningun_puerto`, para la variante, por el mismo
+    motivo que la prueba de arriba."""
+    assert "ports" not in _servicios_locales().get("mcp", {})
 
 
 def test_la_variante_local_no_cambia_donde_corren_las_senales():

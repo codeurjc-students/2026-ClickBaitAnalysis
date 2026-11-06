@@ -10087,6 +10087,59 @@ Las dos últimas filas son de la parte 2, que da el punto exacto de cada umbral 
 - **Una frase que resume un resultado se coteja con la salida del guion, igual que una cifra.** Ésta pasó de la sección de #92 a dos sitios del código, y de ahí al material de la memoria, sin que nadie mirara la tabla de la mitad de elección que el propio guion imprimía.
 - **Si un criterio fijado antes de medir no es el que decide, se dice.** #92 se apartó del suyo sin decirlo.
 
+### Lo que destapó el cotejo de 4.3 (6 nov 2026, PR #273)
+
+Preparando las preguntas de tribunal de 4.3 de la memoria (#255), el material se cotejó con el código, y salieron cinco sitios en los que lo escrito decía algo que el código no cumple. Es trabajo suelto, sin issue: cuatro se resuelven con texto o con una prueba, y sólo uno cambia lo que se sirve, la tarjeta de señal.
+
+#### Lo que se encontró
+
+| | Lo que estaba escrito | Lo que hay | Qué se hace |
+|---|---|---|---|
+| 1 | La tarjeta enseña en crudo lo que no encaja ([`estructura.md`](docs/estructura.md) y §8 de [`arquitectura.md`](docs/arquitectura.md)) | Sólo en el `@default`: en las tres señales conocidas, la tarjeta se quedaba en la cabecera | Un `@else` en cada una, con su prueba |
+| 2 | `api` y `mcp` no publican puertos, y «lo vigila `tests/test_compose.py`» (§10) | La prueba sólo miraba `api` | Dos pruebas para `mcp`, en `compose.yaml` y en la variante local |
+| 3 | Con el MCP caído, «sólo se degrada la pantalla de Sistema» (§10 y `compose.yaml`) | Desde H5 también cae el asistente, que llama por él a las herramientas (`SIN_HERRAMIENTAS`, en [`agente.py`](backend/agent/agente.py)) | Corregidos los dos textos |
+| 4 | `Origin` declara `form`, `chat` y `api`, y `chat` «llega con el agente» | Sólo se escribe `api`, también desde el formulario | Corregidos los comentarios; el enum se queda |
+| 5 | `comoAnalisis` está en `senales/datos.ts` (material de 4.3) | Está en [`senales/formas.ts`](frontend/src/app/senales/formas.ts) desde #190 | Corregido fuera de esta PR, en el comentario de #255 |
+
+#### La tarjeta
+
+Cada señal conocida tiene su `@case` en [`senal-card.html`](frontend/src/app/senales/senal-card.html), y dentro un `@if` con su guardián. Ese `@if` no tenía `@else`: si el guardián rechazaba el `data`, por ejemplo en una entrada guardada por otra versión, no se pintaba nada. El JSON crudo sólo existía en el `@default`, y la prueba que lo fijaba usaba una señal desconocida, así que nada veía el hueco.
+
+El spec se escribió primero, con las tres señales y un `data` que no encaja: falló en las tres (3 de 22), y pasó con el cambio (22 de 22). `senal-card.ts` no cambia, porque `crudo()` ya existía.
+
+También se vio en la pantalla real: `/asistente`, con una conversación de prueba en `sessionStorage` (como en #263), y la API con el agente apagado. Las tres tarjetas enseñan el crudo y la consola no da errores. Es una comprobación a ojo, no una medida.
+
+#### Las pruebas de compose
+
+`mcp` no publica ningún puerto, así que las dos pruebas pasaban desde el primer momento, y eso no dice que vigilen algo. Se comprobó contra copias temporales de `compose.yaml` y `compose.local.yaml` con `ports` en `mcp`: las dos fallan. El motivo está en su docstring: el servidor MCP no tiene autenticación, y quien llegara a su puerto ejecutaría las herramientas sin pasar por el límite de #169, que vive en la API.
+
+#### `origin` no era un fallo
+
+Al cotejarlo, se leyó como una contradicción con R9, porque lo que analiza el asistente no llega al historial. No lo es: **que las conversaciones no vayan al historial se decidió al definir H5**, y lo dice el docstring de `POST /chat`. R9 ya se había ajustado para guardar análisis y no invocaciones ([`requisitos.md`](docs/requisitos.md)).
+
+Lo que queda es menor: una columna que hoy siempre dice `api`. `form` y `chat` se quedan en el enum, porque quitarlos cambiaría el contrato sin ninguna ganancia. El docstring de la clase tampoco se toca, porque va al OpenAPI: sólo cambian los comentarios de cada valor.
+
+#### Lo que no se toca
+
+- **Las frases iguales de las secciones de #164 y de H4**, que eran ciertas cuando se escribieron: el MCP no degradaba nada más hasta que llegó el agente.
+- **El contrato**: `frontend/openapi.json` sale idéntico al regenerarlo.
+- **Producción**: la tarjeta corregida llega con el próximo despliegue, y no se redespliega por esto.
+
+| Condiciones | |
+|---|---|
+| Fecha | 6 nov 2026 |
+| Máquina | El PC de sobremesa del autor: WSL2 con Ubuntu 24.04.4, Python 3.12.3 y Node 22.23.2 |
+| Código | `0d35c4e` más los cambios de esta rama |
+| Backend | 643 pruebas (641 antes), con `pytest -m "not integration"`; ruff y pyright, sin errores |
+| Frontend | 212 pruebas (209 antes), con `ng test`; ESLint sin avisos y `npm run build` correcto |
+
+#### Lo que deja
+
+- **Una frase que dice que algo está vigilado se coteja con la prueba.** «Lo vigila `tests/test_compose.py`» era cierto para la mitad de lo que afirmaba.
+- **Una regla con varios caminos se prueba en todos.** «Lo que no encaja se enseña en crudo» se fijó con una señal desconocida, que era el único camino donde se cumplía.
+- **Antes de llamar fallo a una ausencia, se busca si se decidió.** El motivo de `origin` estaba en un docstring a pocas líneas de lo que se estaba mirando.
+- **Una frase correcta caduca cuando llega otra pieza.** «Sólo se degrada Sistema» era cierta hasta H5, y nadie la revisó al añadir el agente.
+
 
 
 "Aplico Rudin donde puedo —incoherencia(A MEDIAS, YA QUE EL MODELO NO) y léxico son intrínsecamente interpretables— y reservo lo post-hoc (LIME/SHAP), con sus límites de fidelidad, solo para la parte que depende de un transformer preentrenado que no puedo abrir de otro modo." !!!IMPORTANTE (NO MODIFICAR, RECORDAR POSTURA DEFINIDA)
