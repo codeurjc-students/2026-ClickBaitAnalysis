@@ -946,10 +946,11 @@ Caddy lo lee de un directorio montado. Caduca el 2027-05-18, y renovarlo es
 sirviendo el viejo sin avisar.
 
 **Sin `depends_on`, a propósito.** Con la API caída, la web sigue sirviendo la
-aplicación y el indicador de salud explica el 502; con el MCP caído, sólo se
-degrada la pantalla de Sistema. Ningún servicio necesita a otro para arrancar, y
-por eso R7.4 —«en el orden correcto»— se cumple sin orden: `up --wait` los deja
-sanos a los tres.
+aplicación y el indicador de salud explica el 502; con el MCP caído, se degradan
+la pantalla de Sistema y el asistente, que llama por él a las herramientas, y el
+análisis sigue, porque `/analyze` no pasa por él. Ningún servicio necesita a otro
+para arrancar, y por eso R7.4 —«en el orden correcto»— se cumple sin orden:
+`up --wait` los deja sanos a los tres.
 
 **La máquina 1 no guarda ninguna llave de la 2.** La máquina 2 sólo acepta el
 puerto 22, así que el único camino es SSH, y el túnel lo abre ella, hacia la 1,
