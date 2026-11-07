@@ -796,6 +796,8 @@ Issue #65. Primer modelo **entrenado** del proyecto: una **regresión logística
 
 Los tres positivos = clickbait de manual → **valida** el white-box. Hallazgo clave: `all_caps` y `question` salen **negativos** — el modelo **corrige solo** suposiciones que las reglas tenían *al revés* (las contaban como +clickbait). Ejemplo de **medir > intuir**. Los pesos grandes son **estables entre semillas** (la explicación es fiable, no un artefacto del split). *(Caveat: pesos condicionales y dataset específico de titulares EN — no sobre-generalizar.)*
 
+*(Revisado en #256: `all_caps` sí, son siglas, y resta en los tres corpus. `question`, no: en Chakraborty `train` ninguno de los 9.599 clickbait acaba en `?`, y en Webis-17 y TA1C el `?` final va con más clickbait. No era el modelo corrigiendo a las reglas, sino el corpus. Ver «Por qué los patrones del lineal pesan como pesan».)*
+
 **Opción B — features por cue (F1 0.865):** una feature por **palabra/frase** (~390) en vez de por categoría. La granularidad **revela heterogeneidad dentro de las categorías hechas a mano**:
 
 - **TOP (clickbait):** `you` (+5.9, el nº1 → dirigirse al lector), `we`, `what`, `this`, `everyone`, `guys` (sujetos vagos) + `adorable`, `hilarious`, `funniest`, `amazing`, `literally` (hipérbole afectiva).
@@ -2136,6 +2138,8 @@ desajuste — con ~0,7 de F1 en su test.
 |---|---|---|
 | `elozano` | 99,7 % (Chakraborty) | **F1 0,185** (Webis) |
 | `Stremie` | F1 0,631 (Webis) | **F1 0,946** (Chakraborty) |
+
+*(Revisado en #256: ese 0,631 es de una muestra de 600 tuits de `train170331`, la de `eval_candidatos`, y no de los 2.459 que decía la ficha. Ver «Por qué los patrones del lineal pesan como pesan, y tres fichas al día».)*
 
 Alto **fuera** y más bajo **dentro**: eso es generalizar, no memorizar. Un modelo
 que hubiera memorizado rozaría el 1,0 en su propio material.
@@ -4758,6 +4762,8 @@ La rueda de CPU arranca **2,2× más rápido** y ocupa **444 MB menos de RAM**, 
 cambio de un análisis ~3× más lento. Para algo que precalienta al arrancar
 (#125), es el cambio bueno: 0,11 s no se nota, y 28 s menos de arranque sí, cada
 vez que se levanta un contenedor.
+
+*(Revisado en #256: este 0,11 s no tenía guion ni decía la máquina. Medido en la máquina 1, el análisis entero da 0,125 s en inglés y 0,084 s en español, y cada señal por separado. Ver «El coste de cada señal, en la CPU de producción».)*
 
 **Corrección de un número que estaba escrito mal**: se venía diciendo que la
 rueda CPU-only baja de «1,2 GB a ~300 MB». Son **769 MB instalados**; los ~300
@@ -8182,6 +8188,7 @@ Los pesos de F3, que lista el mismo guion:
 - **A favor**: `<leading_number>` (+12,12), `you` (+9,62), `this` (+8,14), `your` (+7,36), `these` (+5,36), `how` (+5,32) y `here's` (+4,97). La segunda persona y las referencias hacia delante («this», «these», «here's»), la misma familia que la categoría `forward_reference` del léxico, aprendidas con su peso.
 - **En contra**: `in` (−4,01), `wins` (−3,07), `says` (−2,73), `court` (−2,70), `dies` (−2,68), `uk` (−2,64), `dead` (−2,48), `obama` (−2,14) y `china` (−2,13). El vocabulario de la noticia dura, y el de la fuente: `wikinews` (−1,83), uno de los medios de los que Chakraborty sacó sus titulares no clickbait, dice de dónde viene un titular y no si es clickbait. Allí las etiquetas son por medio, y eso explica parte del 0,961. No se poda a mano: va como límite en la ficha.
 - **Tres de los cuatro patrones pesan EN CONTRA**: interrogación −1,59, mayúsculas −1,49 y puntos suspensivos −1,51; el número inicial, +12,12, y `<number>`, +1,79. Donde el léxico ve una pista de clickbait, el lineal puede restar. **No se ha medido por qué.** Las hipótesis, escritas como tales en la ficha, son que las palabras interrogativas (`why`, `how`) ya llevan el peso de la pregunta, y que en los tuits de Webis-17 los puntos suspensivos son de recorte —#76 ya lo vio en sus errores— y las mayúsculas, de «BREAKING».
+  *(Revisado en #256: medido. Las tres hipótesis caen o explican poco. Ver «Por qué los patrones del lineal pesan como pesan».)*
 - **Se desacopla del léxico**, que era el bug 2 de [`docs/estructura.md`](docs/estructura.md): ahora sólo comparten la manera de partir las palabras y los cuatro patrones. Con `eval_reentreno --ficha`:
 
 | Acuerdo con el léxico (umbral 1) | Antes | Ahora |
@@ -8334,6 +8341,7 @@ Sube el recall sin perder precisión: `factual` pierde 838 titulares y `ambiguou
   ```bash
   .venv/bin/python -c "from backend.integrations.nlp import linear; print(linear.predict('Top 5 Secrets Finally Revealed'))"
   ```
+  *(Revisado en #256: con el bilingüe y el umbral en 0,35 da 0,420 y vota clickbait. El léxico sigue sin ninguna pista.)*
 - **«¿Por qué es difícil detectar clickbait en español?»** falla con los tres docstrings: no es de éstos, y viene de #188.
 - **Sólo inglés.**
 
@@ -10139,6 +10147,133 @@ Lo que queda es menor: una columna que hoy siempre dice `api`. `form` y `chat` s
 - **Una regla con varios caminos se prueba en todos.** «Lo que no encaja se enseña en crudo» se fijó con una señal desconocida, que era el único camino donde se cumplía.
 - **Antes de llamar fallo a una ausencia, se busca si se decidió.** El motivo de `origin` estaba en un docstring a pocas líneas de lo que se estaba mirando.
 - **Una frase correcta caduca cuando llega otra pieza.** «Sólo se degrada Sistema» era cierta hasta H5, y nadie la revisó al añadir el agente.
+
+### El coste de cada señal, en la CPU de producción (#256, 7 nov 2026)
+
+La discusión de la memoria (5.4) tiene que poner al lado lo que acierta cada enfoque y lo que cuesta. Hasta aquí sólo se conocía el análisis entero, 0,11 s en caliente (#156: con tres modelos, antes del español, sin guion y sin decir en qué máquina), y BETO suelto, 0,076 s por titular (#242, en el PC). El plan del 30 oct dejaba esta medida para #215, después de la congelación. **Decidido por el autor el 7 nov: se mide antes de P1, en la máquina 1**, porque la memoria la necesita el 29 nov y ningún cambio previsto toca los modelos.
+
+No decide nada: es una medida descriptiva, para una tabla. Aun así, el protocolo se publicó en la issue antes de medir ([comentario](https://github.com/codeurjc-students/2026-ClickBaitAnalysis/issues/256#issuecomment-6705311026)).
+
+#### Cómo se midió
+
+- **Sobre la imagen que sirve la API**, en contenedores desechables sin red y sin redesplegar nada. El guion comprueba que la imagen es la de la API en marcha. Entre lo servido (`0f0d4fb`) y `dev` sólo cambian comentarios, las anotaciones `readOnlyHint` y el prompt por defecto: nada de la inferencia.
+- **Cada fila, en un proceso nuevo**, porque importar torch y la primera inferencia son costes globales (#125): en un mismo proceso se los llevaría la primera señal.
+- **Por el camino de producción**: `_Signal.run`, lo que llama `_run_signals`, y `analyze()` después de `precalentar()`. Una señal que falle aborta la fila.
+- **El protocolo de #232 y #242**: 3 titulares de calentamiento y 100 medidos, de uno en uno, en CPU. Los titulares son los 100 primeros de TA1C `validation`, los mismos de esas dos medidas, y los 100 primeros de `webis_dev` con su cuerpo, sin etiquetas. Ningún `test` se toca.
+- **Tres pasadas de las diez filas**, y la tabla es la mediana. Iban a ser dos: en la prueba en seco, en el PC, la misma fila cambió hasta cuatro veces de una pasada a otra (el tono en español, 115 y 28 ms), sin que la carga lo explicara. Se cambió antes de ver ninguna cifra de la máquina 1.
+
+```bash
+setsid nohup bash spikes/coste_senales.sh > /tmp/coste_senales.log 2>&1 < /dev/null & disown
+.venv/bin/python spikes/coste_senales.py resumen spikes/coste_senales/2026-11-07-maquina1.jsonl
+```
+
+#### Lo medido
+
+| Fila | Primera llamada (s) | Por titular (ms) | p95 (ms) | Memoria del proceso (MiB) | Propia + ficheros |
+|---|---|---|---|---|---|
+| Léxico | 0,01 | **0,15** | 0,18 | 51 | 36 + 15 |
+| Lineal, inglés | 0,06 | **0,23** | 0,27 | 54 | 39 + 15 |
+| Lineal, español | 0,04 | **0,19** | 0,25 | 53 | 38 + 15 |
+| Dedicada, inglés | 3,42 | **35,91** | 47,69 | 849 | 365 + 484 |
+| Dedicada, español (BETO) | 3,30 | **42,81** | 69,56 | 844 | 349 + 496 |
+| Tono, inglés | 3,37 | **34,57** | 40,43 | 828 | 344 + 484 |
+| Tono, español | 3,42 | **29,15** | 43,95 | 836 | 478 + 358 |
+| Incoherencia | 0,33 | **54,23** | 64,01 | 593 | 387 + 206 |
+| Análisis entero, inglés | 1,48 | **124,69** | 137,66 | 2.167 | 745 + 1.422 |
+| Análisis entero, español | 1,50 | **84,19** | 130,25 | 2.160 | 727 + 1.433 |
+
+La primera llamada es la carga del modelo y su primera inferencia; en el análisis entero, `precalentar()`, con los modelos de los dos idiomas. Aparte, importar el orquestador cuesta 0,45 s, y las librerías, 3,3 s con un modelo de `transformers` y 6,4 s si entra `sentence_transformers`.
+
+- **Lo interpretable cuesta unas 200 veces menos por titular** (0,2 ms frente a entre 29 y 54 ms) y unas 16 veces menos memoria (50 MiB frente a entre 590 y 850). Sin modelos, el proceso no importa torch.
+- **Buena parte de la memoria es de la pila, no del modelo**: con torch y `transformers` importados, antes de cargar nada, el proceso ya ocupa 258 MiB.
+- **El análisis en inglés es la suma de sus señales**: 35,9 + 34,6 + 54,2 + 0,4 son 125 ms. **En español no**: 42,8 + 29,2 + 0,2 son 72 ms, y da 84,2 ms. Observado, sin explicar.
+- **El 0,11 s de #156 era de este orden**: 0,125 s, ya con guion y con la máquina declarada.
+- **Con todos los modelos, 2,1 GiB, frente a los 1.813 MiB de la API en #234.** Este proceso analizó 100 titulares después de cargarlos; por qué crece, sin medir.
+- **La máquina 1 es mucho más estable que el PC.** En las filas con modelo, ninguna pasada se aparta más de un 16 % de la mediana, y en el análisis entero, un 1 %. En el PC, hasta un 61 %, así que sus cifras sirven de control y no se citan: BETO dio 72 y 52 ms, frente a los 76 de #242. Se apartan más de un 20 % el léxico y los dos lineales, por menos de 0,2 ms.
+
+#### Los límites
+
+- **No es el arranque en frío.** Antes de empezar, entre el 69 y el 100 % de los pesos estaba en la caché de disco (`mincore`), y en producción no se vacía. El frío de verdad sigue en #217.
+- **La máquina 1 es virtual**: lo que hagan otras máquinas del anfitrión no se ve. La API y el MCP siguieron en marcha, en reposo. La carga fue de 0,2 a 5,1, sobre todo la de estos mismos contenedores.
+- **El coste del agente no entra**: corre en la A40, y lo cuenta la sección de #188.
+
+| Condiciones | |
+|---|---|
+| Fecha | 7 nov 2026, en hora de Madrid: en el PC, de 10:47 a 10:52; en la máquina 1, de 10:56 a 11:02 |
+| Máquina 1 | AMD EPYC-Milan, 8 núcleos y 8 hilos de torch, 15 GiB; Ubuntu 24.04.4, Docker 29.8.1; Python 3.12.15, torch 2.14.0+cpu, transformers 5.12.0 y sentence-transformers 5.6.0 |
+| PC, la prueba en seco | El PC de sobremesa del autor: Ryzen 5 5600G, 6 hilos de torch, con la GPU oculta; WSL2 con Ubuntu 24.04.4, Python 3.12.3 y torch 2.12.1+cu130. Dos pasadas |
+| Imagen | `23de028871d4`, la de `0f0d4fb`, con los modelos en las revisiones de sus fichas |
+| Guiones | `spikes/coste_senales.py` y `spikes/coste_senales.sh`, sobre `9335657` |
+| Datos | `spikes/coste_senales/2026-11-07-maquina1.jsonl` y `-pc.jsonl`, con su `.log` |
+
+### Por qué los patrones del lineal pesan como pesan, y tres fichas al día (#256, 7 nov 2026)
+
+El lineal usa cuatro patrones de estructura: número inicial, interrogación, mayúsculas y puntos suspensivos. En el bilingüe, las mayúsculas y la elipsis restan (−1,60 y −0,87), y la interrogación casi no pesa (+0,43). #78 dio tres hipótesis sin medirlas: que las palabras interrogativas ya llevan el peso, que los puntos suspensivos de los tuits son de recorte y que las mayúsculas son de «BREAKING». Al leer el material de 5.4, el autor pidió buscarlo en vez de dejarlo como hueco.
+
+`spikes/lineal_patrones.py` no cambia el modelo ni toca `test`: cuenta en los `train`, entrena con la receta de producción por corpus y quita cada patrón para medir en los `dev`. Sus dos controles reproducen lo publicado: los pesos de #78, #231 y `eval_lineal_es`, y el F1 del bilingüe en los tres `dev`.
+
+```bash
+.venv/bin/python spikes/lineal_patrones.py
+```
+
+#### Las hipótesis, medidas
+
+| `train` | Patrón | Titulares con él | Clickbait con él | Sin él | Peso, sólo ese corpus |
+|---|---|---|---|---|---|
+| Chakraborty | número inicial | 3.837 | 93,7 % | 39,1 % | +11,71 |
+| Webis-17 | número inicial | 86 | 70,9 % | 29,6 % | +2,99 |
+| TA1C | número inicial | 18 | 66,7 % | 27,8 % | +1,18 |
+| Chakraborty | interrogación | 48 | **0,0 %** | 50,1 % | −3,79 |
+| Webis-17 | interrogación | 71 | 71,8 % | 29,8 % | +2,27 |
+| TA1C | interrogación | 48 | 95,8 % | 26,6 % | +3,71 |
+| Chakraborty | mayúsculas | 312 | 27,2 % | 50,4 % | −0,49 |
+| Webis-17 | mayúsculas | 281 | 20,6 % | 32,3 % | −0,91 |
+| TA1C | mayúsculas | 207 | 17,4 % | 29,3 % | −0,83 |
+| Chakraborty | elipsis | 9 | 77,8 % | 50,0 % | +0,12 |
+| Webis-17 | elipsis | 33 | 21,2 % | 31,1 % | −0,63 |
+| TA1C | elipsis | 39 | 41,0 % | 27,9 % | +0,69 |
+
+- **La interrogación casi no pesa porque los corpus se contradicen.** Ninguno de los 9.599 clickbait de Chakraborty `train` acaba en `?`, ni siquiera los 1.179 que empiezan por palabra interrogativa, como «How Well Do You Remember 2015» o «What Does Your Choice Of Spiral Say About You». Parece un artefacto del corpus, sin comprobar en su origen. Con esos dos tirando en contra, el peso se queda en +0,43.
+- **Las palabras interrogativas explican poco.** Sin ellas el peso sube de +0,43 a +1,29, y con `?` final hay el mismo clickbait con ellas y sin ellas: 74,2 y 70,0 % en Webis-17, y 96,9 y 93,8 % en TA1C.
+- **La elipsis no es de recorte.** En Webis-17 está al final en 16 de 33 tuits, y resta en los dos sitios (25,0 y 17,6 %, con una base del 31,0 %). Son muy pocos casos: 81 de 23.758 en el entrenamiento.
+- **Las mayúsculas no son «BREAKING»**: son 12 de las 315 apariciones en Webis-17. Lo que las dispara son siglas: NASA, NATO y FIFA en Chakraborty; VIDEO, ISIS y WATCH en Webis-17; COVID, ATENCIÓN y EEUU en TA1C. Es el único patrón que resta en los tres corpus: las siglas son de noticias. Lo apuntaba ya E5-06.
+- **Sin explicar**: con Chakraborty y Webis-17 juntos la elipsis pesa −1,51, más que cada corpus solo (+0,12 y −0,63). Un peso depende de los demás rasgos, y el recuento no lo cuenta todo.
+
+#### Cuánto aporta cada patrón
+
+Un peso no dice cuánto aporta un rasgo: lo dice quitarlo. Diferencia de F1 al quitar cada patrón del bilingüe, con umbral 0,35 y bootstrap emparejado (2.000 remuestreos):
+
+| Sin | Chakraborty `dev` | `webis_dev` | TA1C `validation` |
+|---|---|---|---|
+| número inicial | +0,0005 [−0,0024, +0,0034] | **−0,0102** [−0,0174, −0,0030] | **−0,0348** [−0,0701, −0,0003] |
+| interrogación | 0,0000 | −0,0004 [−0,0010, 0,0000] | −0,0022 [−0,0115, +0,0038] |
+| mayúsculas | −0,0002 [−0,0011, +0,0007] | +0,0007 [−0,0017, +0,0032] | +0,0072 [0,0000, +0,0173] |
+| elipsis | 0,0000 | +0,0005 [−0,0004, +0,0019] | +0,0017 [0,0000, +0,0053] |
+
+Sólo el número inicial aporta, y en tuits. Los otros tres no mueven el F1 por encima del ruido, así que explicar su peso importa más para leer el modelo que para su acierto. **No se ha quitado ninguno**: pediría reentrenar y abrir otra vez `test`, y `test` ya lleva sus aperturas.
+
+#### Las fichas
+
+- **El lineal**: la ficha decía «sin medir por qué», con las tres hipótesis. Pasa a decir lo medido.
+- **La dedicada inglesa**: decía «F1 0.631 en `train170331` (2459)», y lo medido son 600 tuits de ese extracto (`eval_candidatos`, `N_WEBIS = 600`). Se vio cotejando el material de 5.2 a 5.4.
+- **La incoherencia**: citaba `linear ∨ incoherencia` de 0.448 a 0.517, que era del lineal de pistas. Con el de hoy, 0.525 → 0.559 (`eval_incoherencia`).
+
+Se cambian tres frases de `model_cards.py`. Al redesplegar, la capa de modelos se rehace (#162). No son docstrings de herramientas, así que no piden las 26 consultas.
+
+#### Lo que deja
+
+- **Un peso interpretable no es una explicación correcta.** E5-06 leyó el −3,80 de la interrogación como que el modelo corregía una suposición de las reglas, y era el corpus. Lo interpretable permitió descubrirlo mirando: ésa es su ventaja, no que acierte siempre.
+- **Antes de explicar un peso, se mira qué hay en los datos.** Las tres hipótesis eran razonables, y un recuento las descartó en minutos.
+- **El léxico sigue contando `?` como pista**, y en Chakraborty `train` ningún clickbait la dispara. Sin medir aparte.
+
+| Condiciones | |
+|---|---|
+| Fecha | 7 nov 2026, unos 3 min |
+| Máquina | El PC de sobremesa del autor: WSL2 con Ubuntu 24.04.4, Python 3.12.3 y scikit-learn 1.9.0; en CPU |
+| Código | `9335657`, con el guion de esta rama |
+| Datos | Los `train` y los `dev` de los tres corpus, versionados en `data/splits/` |
+| Guion | `spikes/lineal_patrones.py`, con los resultados en su docstring |
+| Pruebas | La suite del CI, 643, las mismas; ruff y pyright, sin errores |
 
 
 
