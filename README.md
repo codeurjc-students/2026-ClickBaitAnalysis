@@ -10275,6 +10275,29 @@ Se cambian tres frases de `model_cards.py`. Al redesplegar, la capa de modelos s
 | Guion | `spikes/lineal_patrones.py`, con los resultados en su docstring |
 | Pruebas | La suite del CI, 643, las mismas; ruff y pyright, sin errores |
 
+### El léxico y la dedicada en `webis_dev` (#256, 8 nov 2026)
+
+La tabla de resultados en desarrollo del capítulo 5 de la memoria juntaba particiones: el lineal estaba medido en `webis_dev`, y el léxico y la dedicada, sobre los 19.484 tuits de `validation170630`, porque se midieron antes de partirlo (#78). Era el hueco I3 del [material de 5.2 a 5.4](https://github.com/codeurjc-students/2026-ClickBaitAnalysis/issues/256#issuecomment-6705679378), y el autor decidió cerrarlo el 8 nov, con el borrador ya en Overleaf.
+
+No hacía falta volver a medir. `eval_veredicto` guarda el voto de cada señal por tuit, y [`spikes/senales_webis_dev.py`](spikes/senales_webis_dev.py) se queda con los `id` de `webis_dev` y descarta lo demás antes de calcular nada. No carga ningún modelo y **no es una apertura de `webis_test`**: sus 15.588 tuits no llegan a ninguna cuenta. El lineal hace de control, porque su F1 en esta partición ya estaba publicado (#231): si la caché fuera de otro sistema, no saldría 0,535 y el guion se pararía.
+
+| Señal | Votan | P | R | F1 en `webis_dev` | Sobre los 19.484 |
+|---|---|---|---|---|---|
+| Léxico | 3.891 | 0,345 | 0,660 | **0,453** | 0,448 |
+| Dedicada | 3.891 | 0,713 | 0,820 | **0,763** | 0,758 |
+| Lineal bilingüe, 0,35 (control) | 3.894 | 0,410 | 0,770 | 0,535 | no se usa aquí |
+
+Las dos suben cinco milésimas, y ninguna conclusión cambia. Lo que se gana es que la tabla compare las tres en la misma partición. Los tuits que faltan hasta 3.896 son los que la puerta del idioma deja en `not_applicable` (#229): 5 en el léxico y la dedicada, y 2 en el lineal, que ya tenía ficha en español (la dedicada no la tuvo hasta #242, después de esta caché). Se cuentan sólo los que votan, como hace `eval_veredicto.comprobar`.
+
+La comparación con el veredicto de 5.4 y la tabla de coste siguen sobre los 19.484, y lo dicen: el veredicto está medido en ese corpus, y sacarlo de él para compararlo con las señales no aportaría nada que esta tabla no diga ya.
+
+| Condiciones | |
+|---|---|
+| Fecha | 8 nov 2026 |
+| Máquina | El PC de sobremesa del autor: WSL2 con Ubuntu 24.04.4, Python 3.12.3 y scikit-learn 1.9.0; sin cargar ningún modelo |
+| Datos | `data/splits/webis_dev.jsonl` (de `24e02ca`, igual en `dev`) y `var/veredicto_validation170630.json`, sin versionar, generada el 8 oct 2026 con el lineal de #231 |
+| Modelo | La dedicada, `Stremie/roberta-base-clickbait`. La caché es anterior a fijar su revisión (#234, `517de05db9ba`) |
+| Guion | `spikes/senales_webis_dev.py`, con los resultados en su docstring |
 
 
 "Aplico Rudin donde puedo —incoherencia(A MEDIAS, YA QUE EL MODELO NO) y léxico son intrínsecamente interpretables— y reservo lo post-hoc (LIME/SHAP), con sus límites de fidelidad, solo para la parte que depende de un transformer preentrenado que no puedo abrir de otro modo." !!!IMPORTANTE (NO MODIFICAR, RECORDAR POSTURA DEFINIDA)
