@@ -9,18 +9,24 @@ PyYAML no está en `requirements.in`: llega al lockfile como dependencia de
 ruidoso, no en silencio.
 """
 
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 
 import yaml
+
+from backend.config.settings import Settings
 
 COMPOSE = Path(__file__).resolve().parents[1] / "compose.yaml"
 COMPOSE_LOCAL = COMPOSE.with_name("compose.local.yaml")
 
 
-def _servicios() -> dict:
+def _compose() -> dict:
     # `safe_load` resuelve las anclas y los `<<:`, así que se lee lo mismo que
     # lee compose, no lo que está escrito en cada servicio.
-    return yaml.safe_load(COMPOSE.read_text(encoding="utf-8"))["services"]
+    return yaml.safe_load(COMPOSE.read_text(encoding="utf-8"))
+
+
+def _servicios() -> dict:
+    return _compose()["services"]
 
 
 class Sustituida(list):
@@ -144,6 +150,34 @@ def test_la_api_alcanza_el_tunel_del_agente():
     assert "host.docker.internal:host-gateway" in api.get("extra_hosts", [])
     assert api["environment"]["LLM_BACKEND"] == "ollama"
     assert api["environment"]["LLM_URL"].startswith("http://host.docker.internal:")
+
+
+def test_el_historial_vive_en_su_volumen():
+    """R7.6: lo que sostiene que el historial sobreviva a un despliegue.
+
+    `up --build` RECREA el contenedor, y recrear pierde lo que no esté en un
+    volumen (#163: el historial volvió a `total: 0`). Cualquiera de estas cosas
+    se rompe sin un error: el despliegue arranca igual, con el historial vacío.
+
+    Comprueba la configuración, no que los datos sobrevivan: eso se midió en
+    #164, con `down` y `up --build`, y el CI no levanta contenedores.
+    """
+    compose = _compose()
+    api = compose["services"]["api"]
+
+    assert "historial:/app/var" in api.get("volumes", [])
+    assert "historial" in compose.get("volumes", {})
+
+    # Sin nombre fijo, compose lo saca de la carpeta: en un clon con otro nombre
+    # el volumen sería otro, y el historial parecería borrado (#164).
+    assert compose.get("name") == "clickbait"
+
+    # Una ruta relativa se ancla en la raíz del repositorio, que en la imagen es
+    # `/app`. Se lee el valor POR DEFECTO de la clase: el de `settings` lo cambia
+    # `_historial_aislado` en cada prueba.
+    ruta_por_defecto = Settings.model_fields["history_db"].default
+    assert PurePosixPath("/app", ruta_por_defecto).is_relative_to("/app/var")
+    assert "HISTORY_DB" not in _nombres_del_entorno(api)
 
 
 # La variante para otra máquina (#251). Se SUMA a `compose.yaml` con `-f`, así
