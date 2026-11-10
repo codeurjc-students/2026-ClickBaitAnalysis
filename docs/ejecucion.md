@@ -264,7 +264,8 @@ con él la autoridad de Caddy: la siguiente vez firmará otra.
 ## En la máquina de la universidad
 
 Allí se usa `compose.yaml` solo, sin la variante. Sirve
-`gongarcia.tfg.etsii.urjc.es` con un certificado autofirmado que vive en la
-máquina, en `/etc/clickbait/tls` (`certificado.pem` y `clave.pem`), y publica los
-puertos 80 y 443 a internet. Cómo se despliega, se comprueba y se para, en
+`gongarcia.tfg.etsii.urjc.es` con un certificado de HARICA, emitido a mano
+(#213), que vive en la máquina, en `/etc/clickbait/tls` (`certificado.pem` y
+`clave.pem`), y publica los puertos 80 y 443 a internet. Cómo se despliega, se
+comprueba, se para y se renueva el certificado, en
 [`despliegue/README.md`](../despliegue/README.md).

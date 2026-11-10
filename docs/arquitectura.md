@@ -6,7 +6,8 @@
 > diagrama **«Hoy, en `v0.8`»** —delante en las cuatro primeras, y al final en
 > §12, que va en orden cronológico—, y los de antes se conservan. El 12 de
 > octubre, §8 sumó el diagrama de capas del cliente, que pide la plantilla de la
-> memoria (#251). Para los requisitos,
+> memoria (#251). El 10 de noviembre, §10 cambió el certificado autofirmado
+> por el de HARICA (#213). Para los requisitos,
 > ver [`requisitos.md`](requisitos.md); para dónde vive cada cosa y con qué
 > criterio, [`estructura.md`](estructura.md).
 >
@@ -788,7 +789,7 @@ flowchart TB
             AGT["agente · backend/agent/<br/>dentro del proceso de la API"]
         end
         TUN["172.17.0.1:11434<br/>boca del túnel<br/>escucha el usuario tunel"]
-        CERT[("/etc/clickbait/tls<br/>certificado autofirmado")]
+        CERT[("/etc/clickbait/tls<br/>certificado de HARICA<br/>a mano, hasta el 28 may 2027")]
         HIST[("volumen historial<br/>/app/var/history.db")]
     end
 
@@ -814,7 +815,7 @@ flowchart TB
     API -->|"GET /agent y POST /chat<br/>preguntan si el modelo está"| TUN
 
     classDef nuevo stroke:#2b8a3e,stroke-width:3px
-    class EXT,API,MCP nuevo
+    class EXT,API,MCP,CERT nuevo
     linkStyle 3,4 stroke:#2b8a3e,stroke-width:3px
 ```
 
@@ -826,7 +827,9 @@ afinado con TA1C (#242), y el tono en español (#233)—, horneados en la imagen
 en la revisión que fija su ficha (#234). Cada proceso del backend ocupa unos
 1,8 GiB residentes, casi todo páginas de los pesos, que se pueden compartir; la
 imagen, 6,02 GB (medido el 10 de octubre de 2026 con
-`spikes/memoria_maquina1.sh`).*
+`spikes/memoria_maquina1.sh`). Y el certificado, de HARICA desde el 10 de
+noviembre de 2026 (#213): no lo trajo ninguna versión, porque vive en la
+máquina, en las mismas rutas que el autofirmado.*
 
 ### En `v0.6` (30 sep 2026)
 
@@ -876,7 +879,9 @@ flowchart TB
     linkStyle 7,9,10,11,12,13,14 stroke:#d9822b,stroke-width:3px
 ```
 
-*En naranja, lo que el plano de debajo no tenía o dejaba sin decidir.*
+*En naranja, lo que el plano de debajo no tenía o dejaba sin decidir. (El
+certificado de éste y del plano es todavía el autofirmado de #165: se dejan
+como se dibujaron, por la regla de los diagramas desfasados.)*
 
 ### El plano del 23 sep 2026
 
@@ -941,9 +946,12 @@ cliente, y con ella el límite de velocidad ([§11](#11--el-camino-de-una-petici
 Lo vigila `tests/test_compose.py`.
 
 **El certificado vive fuera de la imagen y del repositorio**, en la máquina, y
-Caddy lo lee de un directorio montado. Caduca el 2027-05-18, y renovarlo es
-`caddy reload --force`: sin `--force`, Caddy ve la misma configuración y sigue
-sirviendo el viejo sin avisar.
+Caddy lo lee de un directorio montado. Desde el 10 de noviembre de 2026 lo
+emite HARICA, la única autoridad que autoriza el registro CAA de `urjc.es`, y a
+mano (issue 213): no se renueva solo, lo tramita la universidad y caduca el
+2027-05-28. Renovarlo es cambiar los ficheros y `caddy reload --force`: sin
+`--force`, Caddy ve la misma configuración y sigue sirviendo el viejo sin
+avisar. Hasta entonces fue un autofirmado, en las mismas rutas (issue 165).
 
 **Sin `depends_on`, a propósito.** Con la API caída, la web sigue sirviendo la
 aplicación y el indicador de salud explica el 502; con el MCP caído, se degradan
