@@ -8,17 +8,21 @@
 # que vive dentro del contenedor (`docs/ejecucion.md`). Sin ellas, fuera de la
 # máquina 1 Caddy no encuentra el certificado y la web no arranca.
 #
-# El de la máquina 1 es AUTOFIRMADO y se carga de dos ficheros que viven en la
-# máquina, fuera del repositorio y de la imagen. No es lo que se quería: el
-# registro CAA de `urjc.es` sólo autoriza a HARICA, así que Let's Encrypt
-# responde `403 urn:ietf:params:acme:error:caa — CAA record for urjc.es prevents
-# issuance` (medido contra su entorno de pruebas el 2026-09-20). Cifra el
-# tráfico, y los equipos donde se instale el certificado además detectan un
-# intermediario; el resto verá un aviso.
+# El de la máquina 1 lo emite HARICA, A MANO, desde el 10 nov 2026 (#213), y se
+# carga de dos ficheros que viven en la máquina, fuera del repositorio y de la
+# imagen. No se renueva solo: lo tramita la universidad, y renovarlo es cambiar
+# los dos ficheros y recargar con `--force` (`despliegue/README.md`). Hasta
+# entonces fue un autofirmado (#165), en las mismas rutas: por eso el cambio no
+# tocó este fichero.
 #
-# Pasar a una autoridad de verdad es cambiar SÓLO la línea `tls`: quitarla si
-# arreglan el CAA —Caddy usaría Let's Encrypt— o sustituirla por un bloque con
-# el ACME de HARICA.
+# No es Let's Encrypt porque no puede serlo: el registro CAA de `urjc.es` sólo
+# autoriza a HARICA, y Let's Encrypt responde `403 urn:ietf:params:acme:error:caa
+# — CAA record for urjc.es prevents issuance` (medido contra su entorno de
+# pruebas el 2026-09-20).
+#
+# Que se renueve solo es cambiar SÓLO la línea `tls`: quitarla si arreglan el
+# CAA —Caddy usaría Let's Encrypt— o sustituirla por un bloque con el ACME de
+# HARICA.
 {$SITIO:gongarcia.tfg.etsii.urjc.es} {
 	tls {$TLS:/certificados/certificado.pem /certificados/clave.pem}
 

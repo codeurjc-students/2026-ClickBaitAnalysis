@@ -126,12 +126,14 @@ services:
       - "443:443"
       - "443:443/udp"
     volumes:
-      # El certificado y su clave, generados en la máquina. En SÓLO LECTURA: el
-      # contenedor no tiene por qué poder tocarlos.
+      # El certificado y su clave, que emite HARICA a mano (#213; hasta el 10 nov
+      # 2026, el autofirmado de #165) y se instalan en la máquina. En SÓLO
+      # LECTURA: el contenedor no tiene por qué poder tocarlos.
       - /etc/clickbait/tls:/certificados:ro
       # Lo que Caddy guarda entre arranques. Con un certificado puesto a mano
-      # apenas usa nada, pero el día que lo saque una autoridad, sin esto pediría
-      # uno nuevo en cada recreación y se acercaría a sus límites semanales.
+      # apenas usa nada, pero el día que lo pida él mismo por ACME, sin esto
+      # pediría uno nuevo en cada recreación y se acercaría a los límites
+      # semanales de la autoridad.
       - caddy_datos:/data
     healthcheck:
       # A la API de administración de Caddy, que sólo escucha dentro del

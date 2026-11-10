@@ -25,14 +25,19 @@ Y desde #234, el español de `v0.8`:
 Las rutas caras admiten 10 peticiones por minuto y cliente (#169): ante un 429
 se espera lo que diga `Retry-After` y se repite, hasta tres veces. Con una sola
 vez no bastaba desde #234: con 14 herramientas y las peticiones en español la
-ventana deslizante seguía llena, y Guardian salió en 429 por el limitador. El certificado es
-autofirmado (#165), así que no se verifica.
+ventana deslizante seguía llena, y Guardian salió en 429 por el limitador.
 
 Desde #260, con `--local` prueba lo mismo contra la pila levantada en esta
 máquina con `compose.local.yaml` (`https://localhost/api`), y no entra por SSH
 a la máquina 1: dice qué commit tiene la copia local. Sirve para ver en vivo,
 con los modelos cargados, una imagen reconstruida tras subir dependencias,
 antes de desplegarla.
+
+Desde #213 verifica el certificado, que es de HARICA desde el 10 nov 2026 (el
+autofirmado de #165 no se verificaba): uno caducado, o que no sea el del sitio,
+hace fallar la comprobación, como le pasaría a cualquiera que entrara. Con
+`--local`, no: lo firma la autoridad interna de Caddy, que no es de confianza
+fuera del contenedor.
 
 Ejecutar desde la raíz:
 
@@ -135,7 +140,8 @@ def main() -> None:
         ).stdout.strip()
         print(f"== {ahora} · la máquina 1 sirve {servido}")
 
-    with httpx.Client(verify=False, timeout=120) as cliente:
+    # Sólo en local se acepta un certificado que no sea de confianza (#213).
+    with httpx.Client(verify=BASE != BASE_LOCAL, timeout=120) as cliente:
         catalogo = pedir(cliente, "GET", "/tools").json()
         nombres = sorted(herramienta["name"] for herramienta in catalogo["tools"])
         print(f"\n== catálogo: {len(nombres)} herramientas · degradado: {catalogo.get('degraded')}")

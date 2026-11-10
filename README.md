@@ -75,7 +75,8 @@ español, que cambia R3.4 y toca casi todas las señales. El autor prefirió dar
 un hito propio, `v0.8`, y etiquetar antes `v0.7.0`, para que quede publicada una
 versión sin él. La congelación del 15 de diciembre pasa a `v0.8`, y la memoria
 describe la versión de ese día. El certificado (#213) salió de `v0.7` sin hito:
-depende de la universidad, y puede entrar cuando responda.
+depende de la universidad, y puede entrar cuando responda. *(Respondió el 10 nov
+2026: ver «El certificado de HARICA».)*
 
 **`v0.8` se cerró el 11 de octubre, también antes de la congelación.** Sus
 nueve issues se hicieron del 7 al 11 de octubre, y `v0.8.0` se publicó ese
@@ -5832,6 +5833,9 @@ certificado lleva `CA:FALSE`, así que sólo vale para este nombre.
   mundo hoy mismo, a cambio de que la dirección no sea la de la universidad.
 
 Las cuatro desembocan en **cambiar una sola línea**: el `tls` del `Caddyfile`.
+*(Revisado en #213: la que llegó, el 10 nov 2026, fue la tercera, un
+certificado de HARICA emitido a mano. Se instaló en las mismas rutas que el
+autofirmado, así que no cambió ni esa línea. Ver «El certificado de HARICA».)*
 
 #### La configuración
 
@@ -5865,7 +5869,9 @@ mal**:
 Es exactamente cómo una renovación se convierte en una caída silenciosa: se
 copian los ficheros, se recarga, no hay ningún error… y el navegador sigue
 recibiendo el certificado caducado. Queda un recordatorio en el calendario para
-el 2027-05-03, con el procedimiento y esta trampa dentro.
+el 2027-05-03, con el procedimiento y esta trampa dentro. *(Ese recordatorio era
+para el autofirmado. El de HARICA, que se sirve desde #213, caduca el
+2027-05-28: ver «El certificado de HARICA».)*
 
 *(La primera medición de este reemplazo también fue defectuosa: las peticiones
 de control validaban contra el certificado **nuevo** mientras el servidor aún
@@ -9634,7 +9640,7 @@ Los 4 del backend los ve Trivy y no pip-audit: pip lleva dentro copias de otras 
 
 **Las reglas `S` de ruff** son las de Bandit: patrones que a menudo son peligrosos, como SQL montado con cadenas, `subprocess`, `yaml.load` o `random`. Miran líneas sueltas, y cada aviso es una pregunta, no un fallo. Sobre todo el repositorio dieron 1.273 avisos: **2 en lo servido**, los dos S608 de `api/history.py`, y 1.271 en lo que no se sirve (1.257 son `assert` de las pruebas). Los dos S608 son **falsos positivos**: lo que se compone son fragmentos literales escritos en el propio fichero (`"kind = ?"`), y los valores del usuario viajan aparte, como parámetros. El docstring de `_condiciones` ya lo razonaba. No se cambió el código ni `ruff.toml`: era una pasada, no una regla nueva del CI.
 
-**CodeQL** convierte el código en una base de datos consultable y sigue el **recorrido de los datos**: desde lo que llega de fuera hasta un sumidero peligroso. Sólo avisa si un camino los une sin sanear, y por eso en `history.py` no dijo nada. Se lanzó una vez, con un flujo nuevo, `.github/workflows/codeql.yml`, que sólo se lanza a mano y deja el informe como artefacto sin crear alertas permanentes, para que un aviso publicado hoy no ponga en rojo una pull request que no ha cambiado nada. Con el conjunto `security-extended`, más amplio que el de defecto: **0 hallazgos en lo servido**, en Python y en TypeScript. Los 8 de `spikes/` son 7 peticiones sin comprobar el certificado, contra el autofirmado de la máquina 1 (#165) o la autoridad interna de Caddy en local, aceptadas; y un falso positivo, una salida que pasa por una función que tapa las claves. Es el primer flujo del repositorio con las acciones **fijadas por commit** y no por etiqueta.
+**CodeQL** convierte el código en una base de datos consultable y sigue el **recorrido de los datos**: desde lo que llega de fuera hasta un sumidero peligroso. Sólo avisa si un camino los une sin sanear, y por eso en `history.py` no dijo nada. Se lanzó una vez, con un flujo nuevo, `.github/workflows/codeql.yml`, que sólo se lanza a mano y deja el informe como artefacto sin crear alertas permanentes, para que un aviso publicado hoy no ponga en rojo una pull request que no ha cambiado nada. Con el conjunto `security-extended`, más amplio que el de defecto: **0 hallazgos en lo servido**, en Python y en TypeScript. Los 8 de `spikes/` son 7 peticiones sin comprobar el certificado, contra el autofirmado de la máquina 1 (#165) o la autoridad interna de Caddy en local, aceptadas; y un falso positivo, una salida que pasa por una función que tapa las claves. *(Desde #213, los guiones que van contra la máquina 1 comprueban el certificado, y sólo dejan de hacerlo contra `https://localhost`. CodeQL no se ha vuelto a pasar.)* Es el primer flujo del repositorio con las acciones **fijadas por commit** y no por etiqueta.
 
 #### Secretos
 
@@ -10298,6 +10304,60 @@ La comparación con el veredicto de 5.4 y la tabla de coste siguen sobre los 19.
 | Datos | `data/splits/webis_dev.jsonl` (de `24e02ca`, igual en `dev`) y `var/veredicto_validation170630.json`, sin versionar, generada el 8 oct 2026 con el lineal de #231 |
 | Modelo | La dedicada, `Stremie/roberta-base-clickbait`. La caché es anterior a fijar su revisión (#234, `517de05db9ba`) |
 | Guion | `spikes/senales_webis_dev.py`, con los resultados en su docstring |
+
+### El certificado de HARICA (#213, 10 nov 2026)
+
+Desde #165 el sitio servía un certificado autofirmado, porque el registro CAA de `urjc.es` sólo autoriza a HARICA y Let's Encrypt se negaba a emitir. De las salidas que dejó abiertas aquella sección, la que llegó fue la tercera: **un certificado de HARICA emitido a mano**. El autor mandó la petición el 9 de noviembre al tutor, que la delegó en el administrador de las máquinas. Ese mismo día, el administrador generó la clave y la petición de firma (CSR) en la propia máquina 1, y el certificado llegó el 10. Desde entonces el sitio abre sin avisos para cualquiera, no sólo en los equipos donde se instaló el autofirmado.
+
+#### Lo que cambió en el repositorio: nada del despliegue
+
+Se instaló **en las mismas rutas que el autofirmado**, `/etc/clickbait/tls/certificado.pem` (644) y `clave.pem` (600), de root, y se recargó Caddy con `caddy reload --force`. Así que no cambió ni la línea `tls` del `Caddyfile`, que #165 señalaba como el único cambio necesario, ni `compose.yaml`. Lo que cambia es lo que daba el autofirmado por hecho:
+
+- Los comentarios del `Caddyfile` y de `compose.yaml`, y §10 de [`docs/arquitectura.md`](docs/arquitectura.md): el diagrama «Hoy» lleva el certificado nuevo en verde, y los anteriores se quedan como se dibujaron.
+- [`despliegue/README.md`](despliegue/README.md): la comprobación tras desplegar va sin `-k`, y una sección nueva dice dónde vive el certificado, cómo se pide, cómo se instala y cómo se comprueba.
+- [`docs/ejecucion.md`](docs/ejecucion.md), en lo que dice de la máquina de la universidad.
+- Los guiones que van contra la máquina 1 —`spikes/produccion_en_vivo.py`, `spikes/chat_maquina1.py` y `spikes/chat_maquina1.sh`— **verifican ahora el certificado**. Con el autofirmado no podían; ahora, uno caducado o que no sea el del sitio los hace fallar, como le pasaría a cualquiera que entrara. Contra `https://localhost` siguen sin verificarlo, porque ahí lo firma la autoridad interna de Caddy (`compose.local.yaml`).
+- Un guion nuevo, [`spikes/certificado_en_vivo.sh`](spikes/certificado_en_vivo.sh), con la comprobación de abajo, para repetirla tras cada renovación. Sólo lee: no cambia nada en la máquina 1.
+
+#### El certificado, y cómo se ve desde fuera
+
+| | Resultado |
+|---|---|
+| Sujeto | `CN=gongarcia.tfg.etsii.urjc.es` |
+| Emisor | GEANT TLS RSA 1, el intermedio de HARICA |
+| Raíz | HARICA TLS RSA Root CA 2021 |
+| Validez | del 10 nov 2026 a las 07:47 al 28 may 2027 a las 07:47 UTC: 198 días por delante |
+| Lo que se sirve | la cadena entera, tres certificados, porque el `.pem` los trae todos; `openssl` la verifica (`Verify return code: 0`) |
+| `curl` sin `-k`, desde WSL | 200 en `/`, `/api/health` y `/api/agent`, con `ssl_verify_result` 0 |
+| El `curl.exe` de Windows, con otro almacén de confianza | 200 |
+| `http://` | 308 a `https://` |
+| El `httpx` del `.venv`, el de los guiones | verifica y da 200 en `/api/agent`: su `certifi` trae la raíz de HARICA |
+| El navegador integrado de Claude Desktop, sin ningún certificado del sitio instalado | abre la aplicación sin aviso, como contexto seguro; con el autofirmado la rechazaba (#165) |
+| En la máquina 1 | los dos ficheros con 644 y 600, de root; la clave casa con el certificado, comparando el hash de la clave pública; los tres servicios `healthy` |
+
+La fila del navegador es el criterio de #213 que faltaba: «un navegador sin el certificado instalado».
+
+#### Lo que cambia frente a #165
+
+La tabla del intermediario de #165 se resolvía así: un autofirmado protege de quien se pone en medio sólo en los equipos donde se instala; uno de una autoridad, en todos. Ahora el sitio está en esa última fila, y el criterio que #165 rebajó —«abre sin avisos en los equipos donde se instala el certificado, y cifrada con aviso en los demás»— vuelve a ser el original: **abre sin avisos del navegador**. El autofirmado que se instaló como de confianza en esos equipos ya no hace falta.
+
+#### Renovarlo: a mano, y antes del 28 de mayo de 2027
+
+Al ser a mano, **no se renueva solo**. Lo tramita la universidad, y renovarlo es instalar los ficheros nuevos y recargar con `--force`, la trampa que se midió en #165: sin él, Caddy sigue sirviendo el viejo sin avisar. El procedimiento está en `despliegue/README.md`. La defensa, en febrero, queda cubierta. Dos cosas cambian frente a lo que dejó #165:
+
+- **El recordatorio del calendario del 3 de mayo de 2027 era para el autofirmado**, que caducaba el 18. El de HARICA caduca diez días después, y renovarlo depende de otros, así que el margen se cuenta desde el 28 de mayo.
+- **El autofirmado se guardó en `/etc/clickbait/tls.autofirmado`**, pero no sirve de repuesto si se olvida la renovación: caduca antes que el de HARICA. Sólo vale para volver atrás si éste diera problemas antes de esa fecha.
+
+#### Lo que no entra
+
+- **La renovación automática.** #213 pedía comprobarla «si es por ACME», y no lo es. Las dos salidas que la darían —un CAA que autorice a Let's Encrypt o el ACME de HARICA— siguen siendo cambiar sólo la línea `tls`.
+
+| Condiciones | |
+|---|---|
+| Fecha | 10 nov 2026: el certificado se instaló y se comprobó ese día; `spikes/certificado_en_vivo.sh`, a las 11:23, hora de Madrid |
+| Desde fuera | El PC de sobremesa del autor: WSL2 con Ubuntu 24.04.4, OpenSSL 3.0.13 y curl 8.5.0; el `curl.exe` de Windows 11; `httpx` 0.28.1 con `certifi` 2026.02.25, del `.venv`; y el navegador integrado de Claude Desktop |
+| Máquina 1 | Sirve `0f0d4fb`, en `dev`, con Caddy v2.11.7. El despliegue no se tocó: sólo los ficheros del certificado y la recarga |
+| Guion | `spikes/certificado_en_vivo.sh` (`490f035b0cdf`). La prueba con `httpx` y la del navegador se hicieron a mano |
 
 
 "Aplico Rudin donde puedo —incoherencia(A MEDIAS, YA QUE EL MODELO NO) y léxico son intrínsecamente interpretables— y reservo lo post-hoc (LIME/SHAP), con sus límites de fidelidad, solo para la parte que depende de un transformer preentrenado que no puedo abrir de otro modo." !!!IMPORTANTE (NO MODIFICAR, RECORDAR POSTURA DEFINIDA)

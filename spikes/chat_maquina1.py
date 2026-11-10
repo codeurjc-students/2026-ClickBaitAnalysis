@@ -26,8 +26,10 @@ alrededor de una sesión de GPU:
 De cada conversación: los estados que se vieron, cuántos sondeos, si alguno dio
 429, el final, las herramientas y el `prompt_tokens` de cada vuelta del modelo.
 
-El certificado es el autofirmado de #165, así que no se verifica: aquí se
-comprueba la aplicación, no el certificado.
+Desde #213 verifica el certificado, que es de HARICA desde el 10 nov 2026 (el
+autofirmado de #165 no se verificaba): si falla, no se llega a hablar con la
+aplicación. Con `CHAT_BASE` en `https://localhost`, no: lo firma la autoridad
+interna de Caddy, que no es de confianza fuera del contenedor.
 
 Ejecutar desde la raíz (normalmente lo lanza `spikes/chat_maquina1.sh`):
   .venv/bin/python spikes/chat_maquina1.py cerrada-antes|abierta|cerrada-despues
@@ -47,6 +49,8 @@ from typing import Any
 import httpx
 
 BASE = os.environ.get("CHAT_BASE", "https://gongarcia.tfg.etsii.urjc.es/api")
+# Sólo en local se acepta un certificado que no sea de confianza (#213).
+VERIFICAR = not BASE.startswith("https://localhost")
 SALIDA = Path(os.environ.get("CHAT_MAQUINA1_JSON", "/tmp/chat_maquina1.json"))
 SONDEO_S = 2.0  # el intervalo decidido para la pantalla de #191
 TOPE_HISTORIAL = 4000  # `chat_max_history_chars` del despliegue
@@ -292,8 +296,7 @@ async def espanol(cliente: httpx.AsyncClient) -> dict[str, Any]:
 
 async def main(parte: str) -> dict[str, Any]:
     print(f"== {parte} · {datetime.now(UTC).isoformat(timespec='seconds')} · {BASE}")
-    # Autofirmado (#165): se comprueba la aplicación, no el certificado.
-    async with httpx.AsyncClient(base_url=BASE, verify=False, timeout=30) as cliente:
+    async with httpx.AsyncClient(base_url=BASE, verify=VERIFICAR, timeout=30) as cliente:
         if parte == "abierta":
             return await abierta(cliente)
         if parte == "espanol":
