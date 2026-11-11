@@ -3,9 +3,8 @@
 # node_modules nunca llegan a ella: no se quitan, nunca estuvieron. Medido: la
 # etapa de compilación ocupa 261 MB de contenido y la imagen final, 24 MB.
 #
-# Versiones fijadas a lo que se descargó con `22-slim` y `2-alpine` el
-# 2026-09-17, como torch en el backend. Node es la misma del entorno de
-# desarrollo.
+# Versiones fijadas, como torch en el backend: Node, la misma del entorno de
+# desarrollo; Caddy, la que se explica en el paso 2.
 
 # 1 · Compilar. Debian slim y no alpine: esta etapa se tira, su tamaño no llega
 #     a la imagen, y así compila con la misma libc que el entorno de desarrollo.
@@ -31,11 +30,15 @@ RUN npm run build
 #     de la imagen base: arranca con /etc/caddy/Caddyfile y declara 80, 443
 #     (TCP, y UDP para HTTP/3) y 2019, su API de administración. `EXPOSE` sólo
 #     documenta: lo que se publica lo decide `-p` al arrancar.
-#     2.11.7 y no 2.11.4 (#260): el binario de la 2.11.4 estaba compilado con
-#     Go 1.26.3 y Trivy le encontró 21 avisos altos con arreglo (la biblioteca
-#     estándar, x/crypto, x/net, x/text, grpc), y Caddy es lo único expuesto a
-#     internet. Se sube dentro de la misma rama.
-FROM caddy:2.11.7-alpine
+#     Caddy es lo único expuesto a internet, así que se sube cuando trae
+#     arreglos. En #260, 2.11.7 y no 2.11.4: el binario de la 2.11.4, con
+#     Go 1.26.3, tenía 21 avisos altos con arreglo. En #280, 2.11.9: la 2.11.7
+#     se había reconstruido sobre Alpine 3.23.7, con un crítico en brotli-libs
+#     y altos en curl, y su binario (Go 1.26.8) tenía altos en la biblioteca
+#     estándar, go-jose y x/net. La 2.11.9 va sobre Alpine 3.24.4 y Go 1.27.3,
+#     y le queda uno de x/net/html, aceptado: el Caddyfile sólo hace
+#     reverse_proxy y file_server, sin templates ni markdown.
+FROM caddy:2.11.9-alpine
 
 COPY docker/Caddyfile /etc/caddy/Caddyfile
 

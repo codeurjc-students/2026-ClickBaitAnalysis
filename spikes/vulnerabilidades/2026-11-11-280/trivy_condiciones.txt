@@ -1,0 +1,11 @@
+fecha: 2026-11-11T19:42:01+01:00
+commit: 125eadc (chore/280-avisos-vulnerabilidad)
+  ⚠️ con cambios sin commitear en docker/, requirements.txt o el lockfile de npm
+Version: 0.75.0
+Vulnerability DB:
+  Version: 2
+  UpdatedAt: 2026-11-11 13:00:47.186797699 +0000 UTC
+  NextUpdate: 2026-11-12 13:00:47.186796988 +0000 UTC
+  DownloadedAt: 2026-11-11 16:12:23.761448584 +0000 UTC
+imagen: clickbait-backend sha256:bfc4d6105699e4dd104976393a337c24bdf21d4e1d4ea6cdcaea0bbfb41182a0 creada 2026-11-11T19:24:18.436537198+01:00
+imagen: clickbait-web sha256:f2f576f7bca2d29359517a71bef26336379e8a150899d1cab91be9fb5394a9ba creada 2026-11-11T19:21:10.953368049+01:00
