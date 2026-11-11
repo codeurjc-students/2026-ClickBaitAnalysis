@@ -22,7 +22,7 @@ attrs==25.4.0
     # via
     #   jsonschema
     #   referencing
-certifi==2026.2.25
+certifi==2026.10.23
     # via
     #   httpcore
     #   httpx
@@ -36,7 +36,7 @@ cryptography==50.0.2
     # via pyjwt
 fastapi==0.141.1
     # via -r requirements.in
-filelock==3.29.4
+filelock==4.2.10
     # via huggingface-hub
 fsspec==2026.9.0
     # via huggingface-hub

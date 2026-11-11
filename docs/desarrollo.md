@@ -266,6 +266,18 @@ parche de Python se ve en el `PYTHON_VERSION` de la etiqueta `python:3.12-slim`:
 docker pull -q python:3.12-slim && docker image inspect python:3.12-slim --format '{{range .Config.Env}}{{println .}}{{end}}' | grep PYTHON_VERSION
 ```
 
+**La imagen del backend, además, aplica al construirse los arreglos de
+seguridad de Debian** que la etiqueta aún no trae: un `apt-get upgrade` en el
+paso 0 de su Dockerfile, desde #280. Entonces fue `zlib1g`: su arreglo ya
+estaba en `trixie-security`, y la etiqueta, del 8 de noviembre, no lo tenía.
+Docker guarda esa capa en su caché y sólo la rehace si cambia la base o la
+línea, así que para recoger un arreglo publicado después se reconstruye sin
+caché, que rehace también las demás capas, modelos incluidos:
+
+```bash
+docker compose build --no-cache api
+```
+
 **Del frontend**: `npm install <paquete>` en `frontend/`, que actualiza
 `package.json` y `package-lock.json`. Se commitean los dos, porque el CI y la
 imagen instalan con `npm ci`, que falla si no coinciden.
@@ -355,10 +367,12 @@ probar (`tests/`, `spikes/`, `backend/evaluation/`, las dependencias de
 desarrollo de npm). Un crítico o un alto que llegue a lo servido se arregla o
 se justifica por escrito.
 
-Lo ya aceptado, con su motivo, está en la sección de #260 del README: pip y lo
-que lleva dentro (no hay versión que lo arregle), los avisos de Debian sin
-arreglo publicado, los de Caddy pendientes de su siguiente versión, los dos
-S608 de `api/history.py` y lo de `spikes/` en CodeQL. En gitleaks, lo ya
+Lo ya aceptado, con su motivo, está en las secciones de #260 y #280 del README:
+el `pkg_resources` que pip lleva dentro (de setuptools 70.3.0, y sólo corre al
+construir), el `setuptools` 83 de la imagen (su aviso es sólo de Windows), los
+avisos de Debian sin arreglo publicado, el de `x/net/html` en Caddy 2.11.9, los
+dos S608 de `api/history.py`, lo de `spikes/` en CodeQL y, en npm, `minimatch`
+(sólo ESLint) y `@vitest/mocker` (sólo las pruebas). En gitleaks, lo ya
 triado está en `.gitleaksignore` (por su huella) y en `.gitleaks.toml` (la
 ruta de estos informes), y por eso una pasada limpia da 0.
 
@@ -390,9 +404,16 @@ python3 -c "import json; ruta = 'package-lock.json'; bloqueo = json.load(open(ru
 rm -rf node_modules && npm install && npm audit fix
 ```
 
+Si `npm audit fix` cae con `Cannot read properties of null (reading
+'edgesOut')` —un fallo de npm 10.9.8 al resolver los *peers* de `vitest`
+(#280)—, lo que tenga arreglo dentro de su rango se sube paquete a paquete con
+`npm update <paquete>`, que tampoco toca `package.json`. A `vitest` no lo
+mueve ni eso.
+
 **La imagen base** (`pip` y `setuptools`, fijados en el paso 0 de
 `docker/backend.Dockerfile`) y **Caddy** (la etiqueta de `docker/web.Dockerfile`)
-se suben en su Dockerfile.
+se suben en su Dockerfile. Los paquetes de Debian con arreglo los trae el
+`apt-get upgrade` del mismo paso 0, al construir sin caché (§8).
 
 Después de cualquier cambio en lo servido, la pila entera en local y la prueba
 en vivo, que ejecuta cada herramienta con sus modelos cargados:
