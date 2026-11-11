@@ -204,7 +204,7 @@ Objetivo: validar la viabilidad de construir un servidor MCP en Python que expon
 #### 0.1 — Prototipo MCP con Weather.gov
 - Creación de `weather.py` como script monolítico de prueba.
 - Integración con la API pública de [NOAA Weather.gov](https://api.weather.gov) para obtener alertas meteorológicas por estado y previsiones a partir de coordenadas.
-- Añadidos `requirements.in` y `requirements.txt` con las dependencias base: `mcp`, `fastmcp`, `httpx`.
+- Añadidos `requirements.in` y `requirements.txt` con las dependencias base: `mcp`, `fastmcp`, `httpx`. *(Revisado en #278: nada llegó a importar `fastmcp` —el servidor usa el FastMCP del SDK `mcp`—, y salió de `requirements.in`.)*
 
 #### 0.2 — Estructura de paquete `backend/`
 - Extracción del prototipo a una arquitectura en capas: `backend/api/`, `backend/tools/`, `backend/main.py`.
@@ -5282,7 +5282,8 @@ dos.
 #### Detalles pequeños que romperían algo
 
 - **`python:3.12-slim`, no alpine**: alpine usa musl en vez de glibc, y torch no
-  publica ruedas para musl.
+  publica ruedas para musl. *(Revisado en #278: con el parche fijado,
+  `python:3.12.16-slim`.)*
 - **`--host 0.0.0.0`**: dentro de un contenedor, `127.0.0.1` es la interfaz local
   del propio contenedor, y el puerto publicado llega por su interfaz de red.
   Escuchando en `127.0.0.1` arranca sin errores y nadie puede hablarle.
@@ -9604,7 +9605,7 @@ Dos cifras de las herramientas engañan, y las del README son las recontadas:
 | Paquete | Avisos | ¿Alcanzaba? |
 |---|---|---|
 | `anyio` | crítico: suplantar un certificado con nombres de host internacionalizados (IDNA 2003) | no en la práctica: las APIs a las que se llama tienen nombres ASCII |
-| `fastmcp` | crítico: SSRF en su *OpenAPI Provider*; alto: el consentimiento de su proxy OAuth | no: no se usa ni el proveedor OpenAPI ni ninguna autenticación |
+| `fastmcp` | crítico: SSRF en su *OpenAPI Provider*; alto: el consentimiento de su proxy OAuth | no: no se usa ni el proveedor OpenAPI ni ninguna autenticación. *(Revisado en #278: `fastmcp` salió del lockfile, porque nada lo importaba.)* |
 | `pyjwt` | 1 crítico y 4 altos | no: nada nuestro usa JWT; lo trae `mcp` para una autenticación que no se usa |
 | `cryptography` | 3 altos: PKCS#7, la construcción de rutas de certificados y el OpenSSL que llevan sus ruedas | no: no se importa, y el TLS de Python usa el OpenSSL del sistema |
 | `mcp` | 3 altos: sus tareas experimentales, sesiones HTTP sin comprobar la autenticación, WebSocket sin comprobar el `Host` | no: ni tareas experimentales ni WebSocket, y el servidor MCP no sale de la red de Docker (sólo Caddy publica puertos) |
@@ -10358,6 +10359,101 @@ Al ser a mano, **no se renueva solo**. Lo tramita la universidad, y renovarlo es
 | Desde fuera | El PC de sobremesa del autor: WSL2 con Ubuntu 24.04.4, OpenSSL 3.0.13 y curl 8.5.0; el `curl.exe` de Windows 11; `httpx` 0.28.1 con `certifi` 2026.02.25, del `.venv`; y el navegador integrado de Claude Desktop |
 | Máquina 1 | Sirve `0f0d4fb`, en `dev`, con Caddy v2.11.7. El despliegue no se tocó: sólo los ficheros del certificado y la recarga |
 | Guion | `spikes/certificado_en_vivo.sh` (`490f035b0cdf`). La prueba con `httpx` y la del navegador se hicieron a mano |
+
+### Las versiones que flotaban, fijadas, y fuera el paquete `fastmcp` (#278, 11 nov 2026)
+
+Al preparar el material de 4.1 y 4.2 de la memoria salieron tres versiones sin fijar y un paquete que sobraba. La memoria va a afirmar que lo que se sirve es lo que se midió, y eso tenía excepciones:
+
+- **La imagen del backend** partía de `python:3.12-slim`: cada construcción podía traer otro 3.12.x. Node y Caddy sí iban fijados, en `docker/web.Dockerfile`.
+- **El CI** pedía `python-version: "3.12"` y `node-version: "22"`, es decir, la última de cada una el día que corre, no la que se sirve.
+- **Lo que entrena y mide**, `requirements-dev.txt`, sólo fijaba ruff y pyright. Las versiones de numpy, scikit-learn y sentence-transformers constaban sólo en las condiciones de cada sección (en la de #242, scikit-learn 1.9.0).
+- **`fastmcp` 3.4.8** estaba en `requirements.in` desde la Épica 0 y nada lo importaba: el servidor usa el FastMCP del SDK oficial (`from mcp.server.fastmcp import FastMCP`, en `backend/main.py`).
+
+#### Lo que queda fijado
+
+| Qué | Antes | Ahora |
+|---|---|---|
+| Python de la imagen del backend | `python:3.12-slim` | `python:3.12.16-slim` |
+| Python del CI | `"3.12"` | `"3.12.16"`, el de la imagen |
+| Node del CI | `"22"` | `"22.23.2"`, el de `docker/web.Dockerfile` |
+| `requirements-dev.txt` | numpy, scikit-learn y sentence-transformers sin versión | `==` en numpy 2.4.6, scipy 1.17.1, scikit-learn 1.9.0 y sentence-transformers 5.6.0, las del `.venv` con que se midió |
+
+Decidido con el autor al definir la issue: scipy entra aunque llega por scikit-learn, porque es la que entrena (`LogisticRegression` usa su optimizador, lbfgs). **torch sigue fuera, a propósito**: para entrenar se usa la de CUDA, y la imagen lleva la de CPU (2.14.0). El Python del entorno de desarrollo, el 3.12.3 de Ubuntu, se deja como está, y [`docs/desarrollo.md`](docs/desarrollo.md) lo dice. Las versiones que están en dos sitios se cambian en los dos, y esa guía dice cuáles (§8).
+
+#### El parche de Python: 3.12.16, y no el de producción
+
+La issue pedía el parche de producción, el 3.12.15 (el `PYTHON_VERSION` de la imagen que sirven `clickbait-api-1` y `clickbait-mcp-1`, leído en la máquina 1 sin tocar nada), para no cambiar lo servido. Y por etiqueta, no por *digest*, el resumen criptográfico que identifica una imagen exacta: el *digest* fijaría también los paquetes de Debian de debajo, y con ellos sus avisos.
+
+La pasada de vulnerabilidades destapó que las dos cosas no casan: **Docker sólo reconstruye la etiqueta del último parche**. En cuanto sale uno nuevo, la del anterior se queda como está, tan congelada como un *digest*. El 11 nov:
+
+| Imagen | Python, y cuándo se compiló | `apt` |
+|---|---|---|
+| `python:3.12.15-slim` | 3.12.15, el 21 oct | 3.0.3, con un aviso alto que tiene arreglo |
+| `python:3.12-slim` y `python:3.12.16-slim`, con el mismo *digest* | 3.12.16, el 5 nov | 3.0.4, arreglado |
+| La base de la imagen de producción | 3.12.15, el 6 oct | 3.0.3 |
+
+**El autor eligió 3.12.16.** La base vuelve a recibir las actualizaciones de Debian mientras sea el último parche, y que lo servido sea lo medido lo asegura #215, que mide la versión congelada. Cuando salga otro parche se sube en los dos sitios; `docs/desarrollo.md` (§8) dice cómo verlo. A Node le pasa lo mismo (ya existe la 22.23.4), pero en la imagen web sólo compila: lo que se sirve es Caddy.
+
+Con 3.12.16 la imagen da lo mismo que con 3.12.15: el mismo `pip freeze`, y en `produccion_en_vivo.py --local`, las mismas puntuaciones hasta el último decimal.
+
+#### Fuera `fastmcp`, y `pyyaml` declarada
+
+`requirements.in` pierde `fastmcp` y gana `pyyaml`, que `tests/test_compose.py` importa y llegaba de rebote: la misma regla que llevó a declarar `jsonschema`. El lockfile se regeneró con `pip-compile requirements.in`, **sin `-U`**, para que nada más se moviera:
+
+- Pasa de 94 entradas a 58. Se van 36 paquetes: `fastmcp`, `fastmcp-slim` y lo que sólo ellos necesitaban (`authlib`, `cyclopts`, `keyring`, `opentelemetry-api`, `websockets`, `watchfiles`…).
+- `pydantic[email]` pasa a `pydantic`, la misma 2.12.5: el extra `email` lo pedía `fastmcp-slim`, y con él se van `email-validator` y `dnspython`.
+- **Ninguna otra versión cambia**, comprobado comparando las dos listas con un guion.
+
+Nada de `backend/`, `tests/`, `spikes/` ni `docker/` importaba ninguno de los que se van. Sólo lo notó `spikes/catalogo_volcado.py`, que volcaba la versión de `fastmcp` y sin él fallaba; ya no la vuelca.
+
+**El catálogo que lee el agente, idéntico.** Se volcó antes, con el `.venv` de siempre (con `fastmcp`), y después, en un entorno nuevo sin él: las 14 herramientas, lo que se le manda al modelo (nombre, descripción y parámetros) y lo demás que publica el catálogo (`title`, `outputSchema` y `annotations`), iguales letra a letra. No hacen falta las 26 consultas del agente.
+
+#### Lo comprobado
+
+| Comprobación | Resultado |
+|---|---|
+| Un entorno nuevo, sólo con `requirements.txt` | sin `fastmcp`; `pip check`, sin conflictos |
+| Las pruebas (`pytest -m "not integration"`), ruff y pyright, como en el CI | 644 pasan; ruff, limpio; pyright, 0 errores |
+| torch 2.14.0 de CPU y `requirements-dev.txt`, en ese entorno | instala las cuatro versiones fijadas y sólo añade paquetes: ninguno del lockfile cambia de versión |
+| La imagen del backend | Python 3.12.16, sin `fastmcp`; pip 26.2.1, setuptools 83.0.0, torch 2.14.0+cpu y sentence-transformers 5.6.0, como antes |
+| La pila local (`compose.local.yaml`) y `produccion_en_vivo.py --local` | los tres servicios sanos; las 14 herramientas en `ok`, el caso de #124 en `ambiguous` y el `/analyze` en español en `stylistic_clickbait` |
+
+Que el CI instala 3.12.16 y 22.23.2 lo dice el paso de cada `setup-*` en la PR.
+
+#### Las vulnerabilidades: nada por #278, pero sí desde octubre
+
+La issue pedía comparar con `2026-10-13-final`, y esa carpeta sólo tiene código, secretos y CodeQL. Lo último de #260 en dependencias es `base-arreglada`, y en imágenes, `caddy-2.11.7`: se comparó con ellas. Hay dos pasadas, una por parche: `spikes/vulnerabilidades/2026-11-11-278` (3.12.15) y `2026-11-11-278-3.12.16`.
+
+**Nada lo trae #278.** El `pip freeze` de la imagen, frente al del 13 oct, sólo pierde los paquetes de `fastmcp`. Cambian, además, tres que pip resuelve al construir para torch y sentence-transformers, fuera de cualquier fichero fijado: `narwhals` (2.27.1 → 2.28.0), `networkx` (3.6.1 → 3.7) y `threadpoolctl` (3.7.0 → 3.8.0). Ninguno tiene avisos, pero es otra cosa que flota. Quitar `fastmcp` tampoco quita ningún aviso: #260 ya había arreglado los suyos subiéndolo a 3.4.8, y `base-arreglada` daba 0 en Python.
+
+**Pero desde el 13 oct se han publicado avisos sobre versiones que no han cambiado**, y algunos llegan a lo servido:
+
+| Dónde | Lo más grave |
+|---|---|
+| Python (pip-audit: 11 avisos, en el lockfile y en la imagen) | crítico en `certifi` 2026.2.25, el almacén de autoridades con que `httpx` verifica a las APIs, arreglado en 2026.10.18; alto en `filelock` 3.29.4, arreglado en la 4.2.1, otra versión principal |
+| npm (22 avisos) | uno sale en la pasada de lo servido: `zod` 4.6.5, alto; el resto son de compilación y de pruebas (`undici`, `vite`, `vitest`…) |
+| La imagen del backend (Trivy: 10 críticos y altos con arreglo) | además de los de arriba, `msgpack` 1.1.2 y otra copia de `certifi`, la 2026.6.17; y `zlib1g`, de Debian, con un arreglo publicado que la base todavía no trae |
+| La imagen web (Trivy: 10) | `caddy:2.11.7-alpine` se reconstruyó sobre Alpine 3.23.7 (era 3.23.6), con un crítico en `brotli-libs` y altos en `curl` y en las dependencias de Go de Caddy |
+| Código (las reglas S de ruff) | lo mismo que en `final`: en la imagen, los 2 S608 ya aceptados de `api/history.py` |
+| Secretos (gitleaks) | un falso positivo: `"clave-de-prueba-263"`, la clave inventada de `spikes/noticias_idioma_mcp.py` (#263) |
+
+Su triaje y su arreglo van aparte, antes de la congelación: arreglarlos mueve versiones, y #278 no podía mover ninguna.
+
+#### Lo que no entra
+
+- **Desplegarlo en la máquina 1**: va, a poder ser, en el mismo redespliegue que #265. Hasta entonces, producción sigue con 3.12.15 y con `fastmcp`.
+- **Sacar las herramientas de prueba de la imagen** (`pytest`, `respx`…, que entran por `requirements.txt`): cambia cómo instala el CI, y va a #217. Fijar las acciones de GitHub por commit, también.
+- **Lo que pip resuelve al construir la imagen** para torch y sentence-transformers, que ningún fichero fija: queda como observación.
+
+| Condiciones | |
+|---|---|
+| Fecha | 11 nov 2026, en hora de Madrid: el catálogo y las pruebas, de 16:46 a 16:53; con 3.12.15, la pila de 17:04 a 17:08 y las vulnerabilidades de 17:09 a 17:18; con 3.12.16, la pila de 17:52 a 17:56 y las vulnerabilidades de 17:56 a 18:03 |
+| Máquina | El PC de sobremesa del autor: WSL2 con Ubuntu 24.04.4, Docker 29.1.3 y Compose 2.40.3. El «antes» del catálogo, con el `.venv` de siempre (Python 3.12.3, mcp 1.30.0, fastmcp 3.4.8 y starlette 1.8.0); el «después» y las pruebas, en un entorno nuevo (Python 3.12.3, pip 24.0). `pip-compile` 7.5.3 |
+| Producción | La máquina 1, sólo leída: la imagen `clickbait-backend` `23de028871d4`, del 15 oct, con `PYTHON_VERSION=3.12.15` |
+| Imágenes | Del backend, `93ec8dc94143` (3.12.15) y `a2cd6e49d60e` (3.12.16, sobre `python:3.12.16-slim@sha256:5e2bdb1b0d54`); de la web, `bb0270f4a45e` y `4dfc283696ea` |
+| Herramientas | pip-audit 2.10.1 con OSV, Trivy 0.75.0 (con su base de datos del 11 nov, de las 13:00 UTC), ruff 0.16.1 y gitleaks 8.30.1 |
+| Código | `ef228e6`, con los cambios de esta PR sin commitear |
+| Guiones | `spikes/catalogo_volcado.py`, `spikes/produccion_en_vivo.py --local` y `spikes/vulnerabilidades.sh`. En la pasada de 3.12.15, el resumen se relanzó contra `base-arreglada` (contra `final` falla: no tiene los JSON de pip y npm), y el código y los secretos, tras enlazar en la copia el `.venv`, donde los busca el guion del código |
 
 
 "Aplico Rudin donde puedo —incoherencia(A MEDIAS, YA QUE EL MODELO NO) y léxico son intrínsecamente interpretables— y reservo lo post-hoc (LIME/SHAP), con sus límites de fidelidad, solo para la parte que depende de un transformer preentrenado que no puedo abrir de otro modo." !!!IMPORTANTE (NO MODIFICAR, RECORDAR POSTURA DEFINIDA)

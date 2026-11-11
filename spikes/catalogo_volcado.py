@@ -18,6 +18,11 @@ Pide el catálogo al `mcp` de `backend.main` en proceso, sin red, como
 `catalogo_peso.py`. Escribe JSON ordenado, para que `diff` sólo enseñe cambios
 de verdad.
 
+Desde #278 no vuelca la versión de `fastmcp`: el paquete salió del lockfile,
+porque nada lo importa (el servidor usa el FastMCP del SDK,
+`mcp.server.fastmcp`), y sin él `version()` fallaría. Se volcó antes y después
+de quitarlo.
+
 Ejecutar desde la raíz:
     NLP_BACKEND=local .venv/bin/python spikes/catalogo_volcado.py <salida.json>
 """
@@ -63,7 +68,7 @@ def main() -> None:
     catalogo = asyncio.run(_catalogo())
 
     volcado = {
-        "versiones": {paquete: version(paquete) for paquete in ("mcp", "fastmcp", "starlette")},
+        "versiones": {paquete: version(paquete) for paquete in ("mcp", "starlette")},
         "agente": {
             herramienta.name: {
                 "name": herramienta.name,

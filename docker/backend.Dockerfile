@@ -1,4 +1,12 @@
-FROM python:3.12-slim
+# El parche de Python, fijado (#278): con `3.12-slim`, cada construcción podía
+# traer otro 3.12.x. Por etiqueta y no por digest, como Node y Caddy en
+# web.Dockerfile, para que la base siga recibiendo las actualizaciones de
+# Debian: el digest las congelaría, y con ellas sus avisos. Pero Docker sólo
+# reconstruye la etiqueta del ÚLTIMO parche: la de uno anterior se congela
+# igual que un digest. Por eso es el último publicado y no el que servía
+# producción (3.12.15, cuya etiqueta se quedó en la del 21 oct), y se sube
+# cuando salga otro. El CI pide el mismo.
+FROM python:3.12.16-slim
 
 WORKDIR /app
 

@@ -2,21 +2,34 @@
 # NO van en requirements.txt (lo que instala el CI): son pesadas y/o dependientes
 # del hardware, y los tests de CI las mockean o no las necesitan.
 #
-# Instalar aparte:  pip install -r requirements-dev.txt
+# Instalar aparte, DESPUÉS de requirements.txt:  pip install -r requirements-dev.txt
+#
+# Todo va fijado con `==` (#278). Aquí no hay lockfile, y lo que se fija es con
+# qué se entrenó y se midió: son las versiones de las condiciones del README.
+# Lo que comparten con la aplicación (transformers, huggingface-hub…) lo fija ya
+# requirements.txt, y por eso se instala antes. numpy está en los dos, con la
+# misma versión: si cambia en uno, cambia en el otro.
 #
 # --- Evaluación (backend/evaluation/): métricas, matriz de confusión, sweep ---
-numpy
-scikit-learn
+numpy==2.4.6
+# scipy llega por scikit-learn, pero se fija aparte porque es la que entrena:
+# `LogisticRegression` usa su optimizador (lbfgs). Otra versión podría dar otros
+# pesos con los mismos datos.
+scipy==1.17.1
+scikit-learn==1.9.0
 #
 # --- Inferencia NLP local: backend local (E5-01) e incoherencia (E5-03) ---
 # sentence-transformers arrastra torch + wheels CUDA (varios GB, hardware-specific).
 # En una máquina sin GPU, instala antes el torch de CPU:
 #   pip install torch --index-url https://download.pytorch.org/whl/cpu
-sentence-transformers
+# torch no se fija aquí, a propósito: para entrenar se usa la de CUDA, y la
+# imagen lleva la de CPU (docker/backend.Dockerfile). sentence-transformers,
+# en cambio, sí: en la misma versión que instala la imagen.
+sentence-transformers==5.6.0
 #
 # --- Estilo: linter + formateador (configuración en ruff.toml) ---
-# Pineado a propósito, al contrario que el resto de este fichero: ruff añade
-# reglas entre versiones, y sin fijar la versión una actualización haría fallar
+# Fijado como todo el fichero, y aquí con un motivo más: ruff añade reglas
+# entre versiones, y sin fijar la versión una actualización haría fallar
 # el CI sin que cambiara una línea de código. El CI lo instala por separado
 # (`pip install ruff==...`) para no meter tooling en las deps de ejecución.
 ruff==0.16.1

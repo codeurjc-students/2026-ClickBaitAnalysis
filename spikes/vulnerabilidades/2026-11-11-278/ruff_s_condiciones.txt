@@ -1,0 +1,4 @@
+fecha: 2026-11-11T17:17:47+01:00
+commit: ef228e6 (chore/278-versiones-fijadas)
+  ⚠️ con cambios sin commitear en ficheros .py
+ruff 0.16.1, reglas S, --force-exclude
