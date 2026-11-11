@@ -1,5 +1,4 @@
 mcp
-fastmcp
 httpx
 pydantic-settings
 
@@ -21,3 +20,7 @@ transformers
 # Validación de argumentos de tool contra su inputSchema. Ya entraba
 # como transitiva de MCP; se declara porque el código la usa directamente.
 jsonschema
+# Lectura de compose.yaml en tests/test_compose.py. Llegaba como transitiva
+# (por fastmcp, huggingface-hub y transformers); se declara por lo mismo que
+# jsonschema (#278).
+pyyaml

@@ -16,9 +16,11 @@ Para orientarse en el código:
 
 - **git**.
 - **Python 3.12**, con su módulo `venv`. En Ubuntu viene aparte, en el paquete
-  `python3.12-venv`.
-- **Node 22**, la versión que pide el CI; la imagen de la web fija la 22.23.2.
-  Con [nvm](https://github.com/nvm-sh/nvm), `nvm install 22`.
+  `python3.12-venv`. Aquí el parche no se fija: se ha desarrollado con el de
+  Ubuntu 24.04, el 3.12.3. La imagen del backend y el CI sí lo fijan, al
+  3.12.16 (#278).
+- **Node 22.23.2**, la que fija la imagen de la web y la que pide el CI. Con
+  [nvm](https://github.com/nvm-sh/nvm), `nvm install 22.23.2`.
 
 Se ha desarrollado y comprobado en Ubuntu 24.04 dentro de WSL. Los comandos son
 de bash y se ejecutan desde la raíz del repositorio, salvo los que empiezan con
@@ -69,8 +71,9 @@ demás:
 ```
 
 La versión de `torch` es la de la imagen (`docker/backend.Dockerfile`).
-`requirements-dev.txt` trae además `numpy` y `scikit-learn`, que usan los
-guiones de `backend/evaluation/` para entrenar y medir. La primera vez que una
+`requirements-dev.txt` trae además `numpy`, `scipy` y `scikit-learn`, que usan
+los guiones de `backend/evaluation/` para entrenar y medir, fijados a las
+versiones con que se entrenó y se midió. La primera vez que una
 señal carga su modelo, lo descarga del Hub de Hugging Face a
 `~/.cache/huggingface`.
 
@@ -241,8 +244,27 @@ que los genera.
 ```
 
 Lo pesado y lo que sólo sirve para medir va a `requirements-dev.txt`, que el CI
-no instala. Las herramientas del CI (`ruff`, `pyright`) van fijadas allí y en
-`ci.yml`, y se cambian en los dos.
+no instala. No tiene lockfile, así que cada línea lleva su `==`: lo que fija es
+con qué se entrenó y se midió. Las herramientas del CI (`ruff`, `pyright`) van
+fijadas allí y en `ci.yml`, y se cambian en los dos.
+
+**Las versiones de Python y Node** también están en dos sitios, y se cambian
+juntas: el parche de Python, en `docker/backend.Dockerfile` y en `ci.yml`; Node,
+en `docker/web.Dockerfile` y en `ci.yml`. En los Dockerfiles, por etiqueta y no
+por *digest*: el *digest* fijaría también los paquetes del sistema de debajo, y
+con ellos sus avisos.
+
+Pero la etiqueta sólo recibe las actualizaciones de esos paquetes mientras sea
+**el último parche**: Docker deja
+de reconstruir la de uno anterior, que desde entonces está tan congelada como un
+*digest*. Así que, cuando sale un parche nuevo de Python 3.12, se sube en los dos
+sitios. Con Node pasa lo mismo, pero en la imagen web sólo compila: lo que se
+sirve es Caddy, y su etiqueta congelada no llega a la imagen final. El último
+parche de Python se ve en el `PYTHON_VERSION` de la etiqueta `python:3.12-slim`:
+
+```bash
+docker pull -q python:3.12-slim && docker image inspect python:3.12-slim --format '{{range .Config.Env}}{{println .}}{{end}}' | grep PYTHON_VERSION
+```
 
 **Del frontend**: `npm install <paquete>` en `frontend/`, que actualiza
 `package.json` y `package-lock.json`. Se commitean los dos, porque el CI y la
@@ -352,8 +374,8 @@ la 2:
 .venv/bin/python -m pip install -r requirements.txt
 ```
 
-Sin `-o`: con él, la cabecera del lockfile cambia. Si se suben `mcp` o
-`fastmcp`, el catálogo que lee el agente se vuelca antes y después
+Sin `-o`: con él, la cabecera del lockfile cambia. Si se sube `mcp`, que trae
+el FastMCP del servidor, el catálogo que lee el agente se vuelca antes y después
 (`spikes/catalogo_volcado.py`): si sale idéntico, no hace falta repetir el
 examen del agente.
 

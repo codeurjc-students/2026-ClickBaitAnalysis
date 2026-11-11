@@ -1,0 +1,2 @@
+1 hallazgos
+   2026-10-14 03c4f1f generic-api-key              spikes/noticias_idioma_mcp.py:35 · sigue en HEAD

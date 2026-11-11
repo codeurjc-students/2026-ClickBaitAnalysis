@@ -4,9 +4,10 @@ El CI no levanta contenedores, así que un error de configuración del despliegu
 sólo aparece desplegando. Estos dos ya costaron algo, y se fijan leyendo el
 fichero.
 
-PyYAML no está en `requirements.in`: llega al lockfile como dependencia de
-`fastmcp` y de `huggingface-hub`. Si un día desaparece, esto falla al importar —
-ruidoso, no en silencio.
+PyYAML está declarada en `requirements.in` porque este fichero la importa
+(#278). Hasta entonces llegaba de rebote, como dependencia de `fastmcp` y de
+`huggingface-hub`, y quitar `fastmcp` dependía de que la otra la siguiera
+trayendo.
 """
 
 from pathlib import Path, PurePosixPath

@@ -1,0 +1,8 @@
+fecha: 2026-11-11T17:56:31+01:00
+commit: ef228e6 (chore/278-versiones-fijadas)
+  ⚠️ con cambios sin commitear en requirements.txt, el Dockerfile o el lockfile de npm
+pip-audit 2.10.1, servicio de avisos: osv
+node: v22.23.2, npm: 10.9.8
+imagen: clickbait-backend sha256:a2cd6e49d60e786f44d83b49de256bd4ea1ab41460c5f14052496cb181a1e381 creada 2026-11-11T17:46:57.719596153+01:00
+fuera del lockfile (de docker/backend.Dockerfile): torch==2.14.0 sentence-transformers==5.6.0
+en el freeze de la imagen: torch==2.14.0+cpu (se audita sin el sufijo local)
