@@ -16,8 +16,15 @@ ambiguo» y «en español». Que cada botón dé lo que promete su etiqueta lo v
 
 El titular B es el de «caso ambiguo» desde que #282 lo cambió. Hasta entonces el
 guion llevaba «Is the Federal Reserve About to Cut Interest Rates?», en el que
-el lineal quedaba seis milésimas por encima de su umbral (0,356 con 0,35). Por
-eso se imprime el margen del lineal, y el guion conserva un repuesto, el C.
+el lineal quedaba seis milésimas por encima de su umbral (0,356 con 0,35). El
+veredicto no dependía de eso, como se creyó al escribirlo: a la forma le basta
+un desacuerdo para quedar sin resolver, y la dedicada y el léxico ya
+discrepaban. El margen del lineal se imprime igual, porque dice cuánto le falta
+a esa señal para cambiar de voto, y el guion conserva un repuesto, el C.
+
+Los modelos se cargan por su nombre, sin revisión: con red, `transformers` trae
+lo que haya en el Hub. Que sean los de las fichas no lo comprueba este guion;
+`spikes/ejemplos_formulario.py` (#282) sí, para los que mide.
 
 Ejecutar desde la raíz. En WSL, `transformers` pone los modelos en la GPU si la
 ve; con `CUDA_VISIBLE_DEVICES=` van en CPU, como en producción:
