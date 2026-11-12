@@ -1,0 +1,101 @@
+{
+  "condiciones": {
+    "fecha": "2026-11-12",
+    "commit": "15ae202",
+    "backend_con_cambios": false,
+    "dispositivo": "cpu",
+    "torch": "2.12.1+cu130",
+    "transformers": "5.12.0",
+    "ajustes": {
+      "NLP_MODELS": {
+        "detect_clickbait": {
+          "id": "facebook/bart-large-mnli",
+          "task": "zero-shot-classification",
+          "labels": null
+        }
+      }
+    },
+    "modelos": []
+  },
+  "titulares": [
+    {
+      "headline": "17 Things Nobody Tells You About Moving Abroad",
+      "language": "en",
+      "verdict": "ambiguous",
+      "dedicated": {
+        "status": "ok",
+        "is_clickbait": false,
+        "label": "factual news",
+        "score": 0.6560497879981995
+      },
+      "lexical": {
+        "status": "ok",
+        "is_clickbait": true,
+        "score": 4,
+        "cues": [
+          "things",
+          "you",
+          "moving",
+          "17"
+        ]
+      },
+      "linear": {
+        "status": "ok",
+        "is_clickbait": true,
+        "probability": 0.9850939302890164,
+        "threshold": 0.35
+      }
+    },
+    {
+      "headline": "10 Amazing Things You Won't Believe",
+      "language": "en",
+      "verdict": "stylistic_clickbait",
+      "dedicated": {
+        "status": "ok",
+        "is_clickbait": true,
+        "label": "clickbait",
+        "score": 0.700633704662323
+      },
+      "lexical": {
+        "status": "ok",
+        "is_clickbait": true,
+        "score": 4,
+        "cues": [
+          "amazing",
+          "things",
+          "you",
+          "10"
+        ]
+      },
+      "linear": {
+        "status": "ok",
+        "is_clickbait": true,
+        "probability": 0.9972702739134334,
+        "threshold": 0.35
+      }
+    },
+    {
+      "headline": "Federal Reserve Holds Interest Rates Steady",
+      "language": "en",
+      "verdict": "factual",
+      "dedicated": {
+        "status": "ok",
+        "is_clickbait": false,
+        "label": "factual news",
+        "score": 0.8341407775878906
+      },
+      "lexical": {
+        "status": "ok",
+        "is_clickbait": false,
+        "score": 0,
+        "cues": []
+      },
+      "linear": {
+        "status": "ok",
+        "is_clickbait": false,
+        "probability": 0.08597082373101117,
+        "threshold": 0.35
+      }
+    }
+  ]
+}

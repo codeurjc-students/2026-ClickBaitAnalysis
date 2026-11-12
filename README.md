@@ -1142,6 +1142,8 @@ Los 20 s **no son una limitación, son una consecuencia**: `IncoherenceDetector`
 
 El segundo caso merece atención: **es el escenario de discrepancia que se había trazado sobre el papel al diseñar el contrato, apareciendo por sí solo en la primera prueba real**. Un listicle dispara las pistas de superficie y la lectura semántica no lo acompaña. El sistema lo declara `ambiguo` en vez de resolverlo por mayoría — que es exactamente lo que el principio 3 pretendía.
 
+*(Revisado en #282, 12 nov 2026: ese titular dejó de ser ambiguo el 25 de agosto, cuando el zero-shot dejó de votar (#109), y con la señal dedicada de #115 da `stylistic_clickbait`. Lo de arriba era cierto con el zero-shot, y se reprodujo: puesto por configuración, hoy vuelve a dar `ambiguous`. Ver «El ejemplo de caso ambiguo que no lo era, y una prueba que vigila los cuatro».)*
+
 **Límites.** Sigue sin haber `/tools`, `/history` ni `/chat`. Los 12 tests nuevos cubren la capa HTTP (validación, delegación, CORS, OpenAPI) y **no repiten la orquestación**, que ya cubre `test_analyze.py`. Y `analyze.py` mantiene un efecto de importación conocido —`_api = get_nlp_backend()` a nivel de módulo— que congela el backend NLP al importar, igual que hace `tool.py`.
 
 ### Análisis estático: adopción de ruff (4 ago 2026, PR #94)
@@ -10548,6 +10550,100 @@ La sospecha, sin demostrar, es la caché de disco en frío: el primer arranque f
 | Herramientas | pip-audit 2.10.1 con OSV, Trivy 0.75.0 (con su base del 11 nov, de las 13:00 UTC), ruff 0.16.1 y gitleaks 8.30.1 |
 | Código | `125eadc`, con los cambios de esta PR sin commitear |
 | Guiones | `spikes/vulnerabilidades.sh` y `spikes/produccion_en_vivo.py --local`; el precalentado aislado, la orden de arriba |
+
+### El ejemplo de caso ambiguo que no lo era, y una prueba que vigila los cuatro (#282, 12 nov 2026)
+
+El formulario de Analizar tiene cuatro botones de ejemplo, y el etiquetado «caso ambiguo» rellenaba `17 Things Nobody Tells You About Moving Abroad`. Al preparar el guion de la demostración (#214) se pasó por el análisis y dio `stylistic_clickbait`, con las tres señales de forma de acuerdo: la dedicada, «clickbait» con 0,957; el léxico, 4 pistas; y el lineal, 0,985. El botón enseñaba lo contrario de lo que decía su etiqueta.
+
+#### Dejó de serlo antes de existir el botón
+
+| Fecha | Commit | Qué pasaba con ese titular |
+|---|---|---|
+| 4 ago (#86, PR #88) | `900a7fb` | `ambiguo`: el zero-shot `facebook/bart-large-mnli` votaba «factual news», y el léxico y el lineal, «sí». Es la tabla de «App REST: primer análisis por HTTP» |
+| 25 ago (#109, PR #117) | `7ab1284` | El zero-shot deja de votar. Quedan dos «sí», y el titular ya no es ambiguo |
+| 26 ago (#115, PR #120) | `c0786db` | Entra `Stremie/roberta-base-clickbait`, que vuelve a votar, y vota «clickbait» |
+| 3 sep (#127, PR #135) | `0718c4e` | Se crea el botón «caso ambiguo» con ese titular, nueve días después |
+
+Las fechas salen de leer el código de cada commit —`git log -S` del titular y la entrada de `detect_clickbait` en la tabla de señales del orquestador—, no de ejecutarlo. Lo que sí se midió es la causa: con el código de hoy y el zero-shot puesto por configuración (`NLP_MODELS`, #159), el titular vuelve a dar `ambiguous`.
+
+| `17 Things Nobody Tells You About Moving Abroad` | Veredicto | Dedicada | Léxico | Lineal |
+|---|---|---|---|---|
+| Con los modelos de hoy | `stylistic_clickbait` | sí, «clickbait» 0,957 | sí, 4 pistas | sí, 0,985 |
+| Con el zero-shot que votaba hasta #109 | `ambiguous` | no, «factual news» 0,656 | sí, 4 pistas | sí, 0,985 |
+
+La etiqueta ya estaba en el prototipo (#73) y el titular, en la tabla de #86; al construir la pantalla no se volvió a pasar por el análisis. Y después **nada comprobaba que un ejemplo diera lo que dice su etiqueta**: el único spec que mira los botones (`analisis-page.spec.ts`, «el ejemplo en español rellena el titular») comprueba la cadena, no el veredicto.
+
+#### El sustituto, entre 72 candidatos
+
+Sin cuerpo no hay dimensión de engaño, así que un titular sólo sale ambiguo si las tres señales de forma discrepan (`_overall`). Se escribieron 72 titulares para la ocasión —preguntas sobre un hecho, noticias con un número al principio, explicativos, titulares sobrios con una sola pista y variantes del ejemplo factual con un gancho— y se pasaron por `analyze()`: 36 dan `ambiguous`, 30 `stylistic_clickbait` y 6 `factual`.
+
+Para que un ejemplo ambiguo deje de serlo tienen que cambiar **todos** los votos de uno de los dos bandos. Por eso no se buscó el que tuviera una cifra más lejos de su corte, sino el que tuviera un voto firme a cada lado. Entre paréntesis va la holgura: en la dedicada, lo que le falta a su probabilidad para cruzar 0,5; en el lineal, para cruzar su corte de 0,35. El léxico son reglas, y su voto cambia sólo si cambian sus listas.
+
+| Titular | Dedicada | Léxico | Lineal |
+|---|---|---|---|
+| **`The Federal Reserve Just Held Interest Rates Steady. Here's Why`** | sí, «clickbait» 0,859 (a 0,359) | no, 0 pistas | sí, 0,760 (a 0,410) |
+| `Here's Why the Federal Reserve Held Interest Rates Steady` | sí, «clickbait» 0,864 (a 0,364) | no, 0 pistas | sí, 0,593 (a 0,243) |
+| `Federal Reserve Holds Interest Rates Steady. Here's Why` | sí, «clickbait» 0,812 (a 0,312) | no, 0 pistas | sí, 0,458 (a 0,108) |
+| `How to Move Abroad Without Losing Your Savings` | sí, «clickbait» 0,903 (a 0,403) | no, 0 pistas | sí, 0,609 (a 0,259) |
+| `NASA Finds Something Unexpected on Mars` | sí, «clickbait» 0,836 (a 0,336) | sí, 2 pistas (`something`, `NASA`) | no, 0,060 (a 0,290) |
+| `12 Countries Sign Trade Agreement at Geneva Summit` | no, «factual news» 0,965 (a 0,465) | sí, 1 pista (el número) | no, 0,307 (a 0,043) |
+| `Is the Federal Reserve About to Cut Interest Rates?` | no, «factual news» 0,677 (a 0,177) | sí, 1 pista (`?`) | sí, 0,356 (a 0,006) |
+
+Se eligió el primero por tres motivos:
+
+- **Dos «sí» lejos del corte, contra un léxico que no encuentra ninguna pista.** Es además el reparto más frecuente entre los 36 ambiguos: en 12 votan «sí» la dedicada y el lineal y «no» el léxico.
+- **Se explica en pantalla.** La tarjeta del lineal enseña `here's`, `why` y `just` como lo que más pesa, y la del léxico no resalta nada: sus listas traen `here`, pero no `here's`, ni `why`, ni `just`. Que una coletilla así sobre un hecho cierto sea clickbait es discutible, y por eso sirve de ejemplo: las señales discrepan donde también lo harían dos lectores.
+- **Hace pareja con el ejemplo factual.** `Federal Reserve Holds Interest Rates Steady` da `factual`, y la misma frase del elegido sin la coletilla, `The Federal Reserve Just Held Interest Rates Steady`, también: dedicada «factual news» 0,943, léxico 0 pistas y lineal 0,289. La coletilla sola mueve dos señales.
+
+De los demás: el tercero es el titular factual del formulario más dos palabras, que se cuenta mejor, pero su lineal queda a 0,108 del corte. En el de la NASA, una de las dos pistas del léxico es la sigla, contada como palabra en mayúsculas. En el de los doce países, el único «sí» es el número inicial de una noticia, un falso positivo del léxico. Y en el último la dedicada duda.
+
+Ese último era el candidato de partida, y se creía que dependía de los 0,006 del lineal. No depende: el léxico corta con **una** pista (`THRESHOLD = 1`) y la interrogación final ya es un «sí», así que seguiría ambiguo aunque el lineal bajara. Su punto débil es la dedicada. Se vio al leer `lexical.py`; la cifra del lineal, sola, llevaba a la conclusión contraria.
+
+#### La prueba, en dos mitades
+
+Comprobar que un botón da lo que promete pide los modelos, y el CI no los carga: instala `requirements.txt`, sin torch. Así que va en dos mitades.
+
+- **`spikes/ejemplos_formulario.py` mide y graba.** Lee los botones de la plantilla, pasa cada titular por `analyze()` sin cuerpo y guarda el análisis entero en `spikes/ejemplos_formulario/medida.json`, con el id y la revisión de cada modelo que respondió. Con `--candidatos` mide una lista cualquiera: así salen las tablas de arriba.
+- **`tests/test_ejemplos_formulario.py` juzga, en el CI y sin modelos.** Llama a `analyze()` con un backend doble que responde lo que la medida grabó de los modelos opacos, la dedicada y el tono. El idioma, el léxico, el lineal y la regla del veredicto son los de verdad, porque no necesitan modelo. Son siete pruebas, y tardan una décima de segundo.
+
+Lo que promete cada etiqueta vive sólo en la prueba: «clickbait claro», `stylistic_clickbait`; «titular factual», `factual`; «caso ambiguo», `ambiguous`; y «en español», que el idioma detectado sea el español y el veredicto no sea `no_data`, porque ese botón existe para enseñar que el español recibe veredicto (#234), no cuál.
+
+Se vio fallar de las tres formas para las que está escrita:
+
+| Situación | Prueba que falla |
+|---|---|
+| El titular anterior en el botón, con su medida | `test_cada_ejemplo_da_lo_que_promete_su_etiqueta[caso ambiguo]`: `stylistic_clickbait` en vez de `ambiguous` |
+| El botón cambiado sin volver a medir | `test_los_botones_de_la_plantilla_son_los_que_se_midieron` |
+| Otra revisión de la dedicada en la medida | `test_la_medida_es_de_los_modelos_de_las_fichas` |
+
+Las dos últimas fallan con un mensaje que dice qué lanzar. La tercera se simuló cambiando la revisión en `medida.json` y restaurándolo después; es lo que pasaría, al revés, si la ficha cambiara de modelo o de revisión, como en #115.
+
+Cuatro decisiones que no se ven en el resultado:
+
+- **El doble despacha por titular y por modelo**, como el backend de verdad. Si el orquestador pide un modelo que no se midió, no inventa la respuesta: lo apunta, y la prueba falla pidiendo volver a medir.
+- **Se compara el voto de cada señal con el grabado, no sólo el veredicto.** Si el lineal se reentrenara y cambiara un voto sin cambiar el veredicto, la medida y las tablas de esta sección describirían otro sistema.
+- **La prueba lee la plantilla con una expresión regular**, y otra prueba exige que encuentre exactamente las cuatro etiquetas: si la plantilla cambiara de forma, fallaría en vez de pasar sin comprobar nada.
+- **El guion fija sus condiciones.** `LocalNLPClient` pide cada modelo por su nombre, sin revisión, así que con red cargaría lo que hubiera ese día en el Hub. El guion se lanza sin red, comprueba que el `refs/main` de la caché es el commit que fija la ficha y se para si torch ve una GPU. Con `NLP_MODELS`, `NLP_THRESHOLDS` o los demás ajustes puestos no graba la medida: sólo mide candidatos, y lo anota.
+
+Se descartaron tres alternativas. **Sólo el guion**, lanzado a mano antes de congelar: es menos código, pero no avisa, que es justo lo que faltó. **Una prueba con los modelos bajo un marcador**: no correría en el CI, y en local alargaría la suite con la carga de los modelos. Y **sacar los ejemplos a un JSON** que leyeran la plantilla y la prueba: cambia cómo se escribe la plantilla para servir a la prueba.
+
+#### Límites y lo que no entra
+
+- **La prueba no ejecuta los modelos opacos: confía en la medida.** La atan a lo que se sirve el id y la revisión de la ficha, que es lo que hornea la imagen (#234). Una versión nueva de torch o de transformers que moviera una cifra no la haría fallar; las dos van en las condiciones de la medida.
+- **El ejemplo se apoya en que `here's` no está en las listas del léxico.** Si se añadiera, el léxico votaría «sí» y el titular dejaría de ser ambiguo. La prueba fallaría con ese mismo cambio, porque el léxico se ejecuta de verdad.
+- **Lo que la medida de los candidatos deja ver de las señales, y no se arregla aquí**: el léxico cuenta `moving` como hipérbole en «Moving Abroad» —está en la lista, y la traen 10 de los 72 titulares—, y la sigla `NASA`, como palabra en mayúsculas.
+- **Los ejemplos con cuerpo**: los cuatro botones rellenan sólo el titular.
+- **Producción sigue con el botón anterior** hasta el redespliegue, que va con #265, #278 y #280.
+- **`docs/demostracion.md`**, que es de #214.
+
+| Condiciones | |
+|---|---|
+| Fecha | 12 nov 2026. La medida de los botones, la de los candidatos y las dos del titular anterior, de 18:18 a 18:23, en hora de Madrid |
+| Máquina | El PC de sobremesa del autor: WSL2 con Ubuntu 24.04.4, Python 3.12.3, torch 2.12.1+cu130 y transformers 5.12.0. En CPU, con la GPU oculta (`CUDA_VISIBLE_DEVICES` vacío), y sin red (`HF_HUB_OFFLINE=1`). Para el frontend, Node 22.23.2 y npm 10.9.8 |
+| Modelos | Los de las fichas, con su revisión comprobada contra la caché: `Stremie/roberta-base-clickbait` (`517de05db9ba`), `ggcastle/beto-clickbait-es` (`03c31ac0c288`), `cardiffnlp/twitter-roberta-base-sentiment-latest` (`3216a57f2a0d`) y `lxyuan/distilbert-base-multilingual-cased-sentiments-student` (`cf991100d706`). El zero-shot, `facebook/bart-large-mnli` (`d7645e127eaf`, el `refs/main` de la caché) |
+| Código | `15ae202` (`dev`), con `backend/` sin cambios y los de esta PR sin commitear |
+| Guiones | `spikes/ejemplos_formulario.py`, con los resultados en su docstring y los datos en `spikes/ejemplos_formulario/`: `medida.json`, `candidatos.txt` y `candidatos.json`, y `titular_anterior.txt`, `titular_anterior.json` y `titular_anterior.zero_shot.json`. La prueba, `tests/test_ejemplos_formulario.py` |
+| Comprobado | `pytest -m "not integration"`, 651 pruebas: las 644 de antes y las 7 nuevas. `npm test`, las 212 de antes; `npm run lint` y `npm run build`, limpios. ruff y pyright, sin avisos |
 
 
 "Aplico Rudin donde puedo —incoherencia(A MEDIAS, YA QUE EL MODELO NO) y léxico son intrínsecamente interpretables— y reservo lo post-hoc (LIME/SHAP), con sus límites de fidelidad, solo para la parte que depende de un transformer preentrenado que no puedo abrir de otro modo." !!!IMPORTANTE (NO MODIFICAR, RECORDAR POSTURA DEFINIDA)
