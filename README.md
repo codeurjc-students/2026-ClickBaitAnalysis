@@ -2,7 +2,7 @@
 
 Version de Python: 3.12.3
 
-**Documentación:** [Requisitos](docs/requisitos.md) · [Arquitectura](docs/arquitectura.md) · [Estructura](docs/estructura.md) · [Ejecución](docs/ejecucion.md) · [Guía de desarrollo](docs/desarrollo.md)
+**Documentación:** [Requisitos](docs/requisitos.md) · [Arquitectura](docs/arquitectura.md) · [Estructura](docs/estructura.md) · [Ejecución](docs/ejecucion.md) · [Guía de desarrollo](docs/desarrollo.md) · [Demostración](docs/demostracion.md)
 
 ---
 
@@ -10548,6 +10548,77 @@ La sospecha, sin demostrar, es la caché de disco en frío: el primer arranque f
 | Herramientas | pip-audit 2.10.1 con OSV, Trivy 0.75.0 (con su base del 11 nov, de las 13:00 UTC), ruff 0.16.1 y gitleaks 8.30.1 |
 | Código | `125eadc`, con los cambios de esta PR sin commitear |
 | Guiones | `spikes/vulnerabilidades.sh` y `spikes/produccion_en_vivo.py --local`; el precalentado aislado, la orden de arriba |
+
+### El guion de la demostración (#214, 12 nov 2026)
+
+La defensa enseñará el sistema en directo, y el asistente depende de una máquina que el autor no controla: la GPU es compartida, arrancar cuesta, y la universidad ya bloqueó una vez la IP de casa (#193). #214 pedía un guion con plan B. Entran el guion, [`docs/demostracion.md`](docs/demostracion.md), enlazado desde la cabecera de este README y nombrado en `docs/estructura.md`, y un guion de comprobación, [`spikes/demostracion_titulares.py`](spikes/demostracion_titulares.py). **No entran el ensayo ni las grabaciones**, que esperan a #265 y a la congelación: la issue sigue abierta.
+
+#### Lo que cambió desde que se escribió la issue
+
+La issue es del 2 de octubre, y tres cosas ya no eran como decía:
+
+- **El plan B ya no es el vídeo.** Desde #265 (14 oct) es el asistente con respuestas grabadas del 27B, en directo, y el vídeo pasa a plan C. La guía deja los dos como pendientes, con lo que ya está decidido de cada uno.
+- **El calentamiento no es una pregunta suelta.** La issue pedía «una pregunta de calentamiento», para no pagar el arranque delante del tribunal. Pero el arranque son dos cargas: la del modelo en la GPU, y la de los modelos de las señales en el servidor MCP, que es por donde el asistente llama a las herramientas y que no se precalienta (`PREHEAT_MODELS` sólo está en el servicio `api` de `compose.yaml`; es el pendiente que dejó #267). Una pregunta que no analice un titular en cada idioma deja esa segunda carga para la demostración. Se calienta con la conversación fija entera, que pasa por el inglés y por el español.
+- **No hace falta otra pregunta tras una pausa.** El modelo se descarga de la GPU a los 10 minutos sin uso (`llm_keep_alive`), y la issue pedía otra pregunta antes de enseñarlo. Con la exposición por delante no hay cuándo hacerla, y no compensa: el 15 de octubre, cargar el modelo con el fichero ya en la caché de disco costó de 7,6 a 7,9 s, frente a los 105 s de la primera carga tras el reinicio de la máquina 2. **No se ha medido una recarga dentro de la misma sesión**: se supone igual a ésas, y el ensayo lo comprobará.
+
+#### El orden, y por qué
+
+Analizar, Historial, Sistema y, al final, el asistente. Es lo único que depende de la máquina 2: si ese día no se puede usar, lo anterior ya se ha enseñado, y el análisis funciona sin ella. Son siete pasos y unos ocho minutos, con dos recortables (la discrepancia y el historial). **Los tiempos son previstos, no medidos**, y se fijaron sin saber cuántos minutos da la defensa a la demostración.
+
+#### El asistente: una conversación fija y una noticia en vivo
+
+La issue pedía una sola conversación «que traiga una noticia y la analice». Se partió en dos (decidido por el autor), porque chocan dos hechos: #265 no puede grabar noticias, que cambian cada día, y traer una noticia y analizarla es lo que más falla (el asistente se inventó el análisis en 1 de 3 en producción el 15 de octubre, y en 1 de 2 en #234).
+
+- **La conversación fija**, de tres turnos: el análisis completo de un titular en inglés, los pesos de ese mismo titular y un titular en español. Devuelve siempre lo mismo, así que es la que grabará #265, y el plan B la reproduce igual. La primera y la tercera son conversaciones del examen del agente (`analisis-completo` y `es-generica`, en `spikes/agente_a40.py`).
+- **La noticia**, la última y sólo con el modelo de verdad: con el plan B, la demostración termina un paso antes. Va con el New York Times: de las dos conversaciones con noticias que midió #208, es la más rápida (mediana de 28,5 s, frente a 69,2 s con Guardian).
+
+Tres decisiones más, dentro de eso:
+
+- **Cada pregunta nombra su titular.** A un «¿por qué?» a secas, el asistente no llamó a ninguna herramienta en 6 de 20 (#208).
+- **El segundo turno pregunta por los pesos, no por la caja negra.** Enseña al asistente eligiendo la señal interpretable cuando se le pregunta por qué, que es el eje del trabajo. Su redacción es la de una consulta de contraste del examen (`spikes/tool_calling_descripciones_contraste.py`), pero con otro titular: **con éste no se ha probado**, porque pide la A40.
+- **Qué delata un análisis inventado.** La pantalla avisa cuando una respuesta no se apoya en ninguna herramienta, pero aquí no salta: el asistente sí llamó a la de noticias. Lo que se ve es la lista de noticias y, debajo, cifras sin ninguna tarjeta de señal. La guía pide decirlo tal cual —es un límite medido, y está en la ficha del modelo— y cotejar ese titular en Analizar.
+
+#### Los titulares, y el guion que los vigila
+
+La guía cita el veredicto y las cifras de cinco titulares. Son deterministas, pero cambian si cambia un modelo, un umbral o la jerarquía del veredicto, y entonces la guía diría una cosa y la pantalla otra, delante del tribunal. `spikes/demostracion_titulares.py` los pasa por `analyze()`, el camino de producción, y termina con error si un veredicto no es el esperado. Se añadió a petición del autor, para que cada cifra de la guía tenga su guion.
+
+| Caso | Paso | Veredicto | Dedicada | Léxico | Lineal | Incoherencia | Tono |
+|---|---|---|---|---|---|---|---|
+| A, con cuerpo | 1 | `deceptive` | clickbait 0,970 | 5 pistas | 0,991 | 0,078 | neutral 0,758 |
+| B | 2 | `ambiguous` | factual news 0,677 | 1 pista | 0,356 | — | neutral 0,922 |
+| C, con cuerpo | 2, de repuesto | `ambiguous` | factual news 0,971 | 0 pistas | 0,036 | −0,055 | neutral 0,831 |
+| En español | 3 y 6 | `stylistic_clickbait` | clickbait 0,994 | — | 0,429 | — | negative 0,514 |
+| El del asistente | 6 | `stylistic_clickbait` | clickbait 0,950 | 4 pistas | 0,994 | — | negative 0,764 |
+
+«—» es una señal que no se aplica. Los umbrales: una pista en el léxico, 0,35 en el lineal y 0,3 en la incoherencia. Los titulares están en la guía y en el guion.
+
+- **El titular B depende de seis milésimas**: el lineal da 0,356 con el umbral en 0,35. Es el caso que se buscaba, una discrepancia entre las señales de forma en un titular que podría ser real, pero un reentrenamiento del lineal lo movería. Por eso el guion imprime el margen y la guía lleva un repuesto, el caso de #124 (el C), que es artificial.
+- **El guion comprueba además que la guía y él nombran los mismos textos**, y que el titular en español sigue siendo el del botón «en español» del formulario. Sin eso podría seguir en verde vigilando titulares que ya no son los de la guía.
+- **Se vio fallar**: con un veredicto esperado cambiado y un titular que no está en la guía, cuenta 2 fallos. Fue una prueba de usar y tirar, que cambia los casos en memoria.
+- **Vive en `spikes/`** aunque se vaya a repetir la víspera, como `produccion_en_vivo.py` y `certificado_en_vivo.sh`.
+
+#### Lo que se descartó
+
+- **«17 Things Nobody Tells You About Moving Abroad»**, el ejemplo de discrepancia de #86 y el que rellena el botón «caso ambiguo» del formulario: hoy da Clickbait de forma, con las tres señales de forma de acuerdo (probado a mano con la herramienta `analyze_headline`). Que el botón ya no enseñe lo que dice **queda fuera de esta PR**: se arregla aparte, antes de la congelación.
+- **La noticia en español** para el último paso: es donde el asistente se inventó el análisis el 15 de octubre.
+- **Claude Desktop** (#267) como paso extra: depende del PC del autor, y preguntar antes de que el servidor salude falla en silencio.
+- **Copiar los comandos de las máquinas**: la guía remite a «El día a día» de `despliegue/README.md`, y sólo repite el de abrir la sesión, con otro tope.
+
+#### Lo que queda
+
+- **El ensayo**, sobre el despliegue que lleve #265: lo que tarda cada parte, la recarga del modelo tras diez minutos, el segundo turno con el 27B y la GPU a 0 MiB al acabar.
+- **El plan B**, cuando #265 esté en `dev`: cómo se enciende y cuánto tarda el cambio.
+- **El plan C**, el vídeo y las capturas, tras la congelación.
+- **Cuántos minutos tiene la demostración**, que decidirá qué se recorta.
+
+| Condiciones | |
+|---|---|
+| Fecha | 12 nov 2026; `spikes/demostracion_titulares.py`, a las 18:06, hora de Madrid |
+| Máquina | El PC de sobremesa del autor: WSL2 con Ubuntu 24.04.4, Python 3.12.3, torch 2.12.1, transformers 5.12.0 y sentence-transformers 5.6.0. En CPU (`CUDA_VISIBLE_DEVICES=`), como producción |
+| Modelos | Los de las fichas, con su revisión fijada: `Stremie/roberta-base-clickbait` (`517de05db9ba`), `ggcastle/beto-clickbait-es` (`03c31ac0c288`), `cardiffnlp/twitter-roberta-base-sentiment-latest` (`3216a57f2a0d`), `lxyuan/distilbert-base-multilingual-cased-sentiments-student` (`cf991100d706`) y `sentence-transformers/all-MiniLM-L6-v2` (`1110a243fdf4`) |
+| Código | `15ae202`, con los cambios de esta PR sin commitear |
+| Guion | `spikes/demostracion_titulares.py` |
+| Sin medir | Nada con el modelo del asistente: no se abrió ninguna sesión de GPU |
 
 
 "Aplico Rudin donde puedo —incoherencia(A MEDIAS, YA QUE EL MODELO NO) y léxico son intrínsecamente interpretables— y reservo lo post-hoc (LIME/SHAP), con sus límites de fidelidad, solo para la parte que depende de un transformer preentrenado que no puedo abrir de otro modo." !!!IMPORTANTE (NO MODIFICAR, RECORDAR POSTURA DEFINIDA)
