@@ -48,6 +48,9 @@
       </p>
     }
 
+    <!-- Los cuatro titulares están medidos (#282): `tests/test_ejemplos_formulario.py`
+         falla si uno deja de dar lo que dice su etiqueta, o si se cambia sin
+         volver a lanzar `spikes/ejemplos_formulario.py`. -->
     <p class="ejemplos">
       <span>Ejemplos:</span>
       <button type="button" (click)="ejemplo('10 Amazing Things You Won\'t Believe')">
@@ -56,7 +59,10 @@
       <button type="button" (click)="ejemplo('Federal Reserve Holds Interest Rates Steady')">
         titular factual
       </button>
-      <button type="button" (click)="ejemplo('17 Things Nobody Tells You About Moving Abroad')">
+      <!-- Ambiguo porque las señales de forma discrepan: la dedicada y el lineal
+           ven el gancho del final y el léxico no encuentra ninguna pista. El
+           titular anterior dejó de serlo en #109, antes de existir el botón. -->
+      <button type="button" (click)="ejemplo('The Federal Reserve Just Held Interest Rates Steady. Here\'s Why')">
         caso ambiguo
       </button>
       <!-- Desde v0.8 un titular en español también recibe veredicto (#234). -->

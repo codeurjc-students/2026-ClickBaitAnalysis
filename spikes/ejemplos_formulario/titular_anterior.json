@@ -1,0 +1,106 @@
+{
+  "condiciones": {
+    "fecha": "2026-11-12",
+    "commit": "15ae202",
+    "backend_con_cambios": false,
+    "dispositivo": "cpu",
+    "torch": "2.12.1+cu130",
+    "transformers": "5.12.0",
+    "ajustes": {},
+    "modelos": [
+      {
+        "signal": "analyze_sentiment",
+        "language": "en",
+        "model_id": "cardiffnlp/twitter-roberta-base-sentiment-latest",
+        "revision": "3216a57f2a0d9c45a2e6c20157c20c49fb4bf9c7"
+      },
+      {
+        "signal": "detect_clickbait",
+        "language": "en",
+        "model_id": "Stremie/roberta-base-clickbait",
+        "revision": "517de05db9ba2bf977c6c653d2f03265b74317a8"
+      }
+    ]
+  },
+  "titulares": [
+    {
+      "headline": "17 Things Nobody Tells You About Moving Abroad",
+      "language": "en",
+      "verdict": "stylistic_clickbait",
+      "dedicated": {
+        "status": "ok",
+        "is_clickbait": true,
+        "label": "clickbait",
+        "score": 0.9567244648933411
+      },
+      "lexical": {
+        "status": "ok",
+        "is_clickbait": true,
+        "score": 4,
+        "cues": [
+          "things",
+          "you",
+          "moving",
+          "17"
+        ]
+      },
+      "linear": {
+        "status": "ok",
+        "is_clickbait": true,
+        "probability": 0.9850939302890164,
+        "threshold": 0.35
+      }
+    },
+    {
+      "headline": "10 Amazing Things You Won't Believe",
+      "language": "en",
+      "verdict": "stylistic_clickbait",
+      "dedicated": {
+        "status": "ok",
+        "is_clickbait": true,
+        "label": "clickbait",
+        "score": 0.9667009115219116
+      },
+      "lexical": {
+        "status": "ok",
+        "is_clickbait": true,
+        "score": 4,
+        "cues": [
+          "amazing",
+          "things",
+          "you",
+          "10"
+        ]
+      },
+      "linear": {
+        "status": "ok",
+        "is_clickbait": true,
+        "probability": 0.9972702739134334,
+        "threshold": 0.35
+      }
+    },
+    {
+      "headline": "Federal Reserve Holds Interest Rates Steady",
+      "language": "en",
+      "verdict": "factual",
+      "dedicated": {
+        "status": "ok",
+        "is_clickbait": false,
+        "label": "factual news",
+        "score": 0.9678516387939453
+      },
+      "lexical": {
+        "status": "ok",
+        "is_clickbait": false,
+        "score": 0,
+        "cues": []
+      },
+      "linear": {
+        "status": "ok",
+        "is_clickbait": false,
+        "probability": 0.08597082373101117,
+        "threshold": 0.35
+      }
+    }
+  ]
+}
