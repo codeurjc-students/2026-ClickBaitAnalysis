@@ -1,0 +1,1797 @@
+{
+  "condiciones": {
+    "fecha": "2026-11-12",
+    "commit": "15ae202",
+    "backend_con_cambios": false,
+    "dispositivo": "cpu",
+    "torch": "2.12.1+cu130",
+    "transformers": "5.12.0",
+    "ajustes": {},
+    "modelos": [
+      {
+        "signal": "analyze_sentiment",
+        "language": "en",
+        "model_id": "cardiffnlp/twitter-roberta-base-sentiment-latest",
+        "revision": "3216a57f2a0d9c45a2e6c20157c20c49fb4bf9c7"
+      },
+      {
+        "signal": "detect_clickbait",
+        "language": "en",
+        "model_id": "Stremie/roberta-base-clickbait",
+        "revision": "517de05db9ba2bf977c6c653d2f03265b74317a8"
+      }
+    ]
+  },
+  "titulares": [
+    {
+      "headline": "Is the Federal Reserve About to Cut Interest Rates?",
+      "language": "en",
+      "verdict": "ambiguous",
+      "dedicated": {
+        "status": "ok",
+        "is_clickbait": false,
+        "label": "factual news",
+        "score": 0.6768394112586975
+      },
+      "lexical": {
+        "status": "ok",
+        "is_clickbait": true,
+        "score": 1,
+        "cues": [
+          "?"
+        ]
+      },
+      "linear": {
+        "status": "ok",
+        "is_clickbait": true,
+        "probability": 0.3559105336625669,
+        "threshold": 0.35
+      }
+    },
+    {
+      "headline": "Will the Federal Reserve Cut Interest Rates This Year?",
+      "language": "en",
+      "verdict": "ambiguous",
+      "dedicated": {
+        "status": "ok",
+        "is_clickbait": false,
+        "label": "factual news",
+        "score": 0.7354309558868408
+      },
+      "lexical": {
+        "status": "ok",
+        "is_clickbait": true,
+        "score": 2,
+        "cues": [
+          "this",
+          "?"
+        ]
+      },
+      "linear": {
+        "status": "ok",
+        "is_clickbait": true,
+        "probability": 0.4917235668851199,
+        "threshold": 0.35
+      }
+    },
+    {
+      "headline": "Why Did the Federal Reserve Hold Interest Rates Steady?",
+      "language": "en",
+      "verdict": "stylistic_clickbait",
+      "dedicated": {
+        "status": "ok",
+        "is_clickbait": true,
+        "label": "clickbait",
+        "score": 0.712059736251831
+      },
+      "lexical": {
+        "status": "ok",
+        "is_clickbait": true,
+        "score": 1,
+        "cues": [
+          "?"
+        ]
+      },
+      "linear": {
+        "status": "ok",
+        "is_clickbait": true,
+        "probability": 0.4185200813191689,
+        "threshold": 0.35
+      }
+    },
+    {
+      "headline": "What Does the Federal Reserve's Rate Decision Mean for Mortgages?",
+      "language": "en",
+      "verdict": "stylistic_clickbait",
+      "dedicated": {
+        "status": "ok",
+        "is_clickbait": true,
+        "label": "clickbait",
+        "score": 0.5827533006668091
+      },
+      "lexical": {
+        "status": "ok",
+        "is_clickbait": true,
+        "score": 2,
+        "cues": [
+          "what",
+          "?"
+        ]
+      },
+      "linear": {
+        "status": "ok",
+        "is_clickbait": true,
+        "probability": 0.43228146668395495,
+        "threshold": 0.35
+      }
+    },
+    {
+      "headline": "Can the European Central Bank Avoid a Recession?",
+      "language": "en",
+      "verdict": "ambiguous",
+      "dedicated": {
+        "status": "ok",
+        "is_clickbait": false,
+        "label": "factual news",
+        "score": 0.6255898475646973
+      },
+      "lexical": {
+        "status": "ok",
+        "is_clickbait": true,
+        "score": 1,
+        "cues": [
+          "?"
+        ]
+      },
+      "linear": {
+        "status": "ok",
+        "is_clickbait": false,
+        "probability": 0.1221906417918397,
+        "threshold": 0.35
+      }
+    },
+    {
+      "headline": "Who Will Lead the Federal Reserve Next Year?",
+      "language": "en",
+      "verdict": "stylistic_clickbait",
+      "dedicated": {
+        "status": "ok",
+        "is_clickbait": true,
+        "label": "clickbait",
+        "score": 0.7119246125221252
+      },
+      "lexical": {
+        "status": "ok",
+        "is_clickbait": true,
+        "score": 2,
+        "cues": [
+          "who",
+          "?"
+        ]
+      },
+      "linear": {
+        "status": "ok",
+        "is_clickbait": true,
+        "probability": 0.46789030539949233,
+        "threshold": 0.35
+      }
+    },
+    {
+      "headline": "Why Is Inflation Still So High?",
+      "language": "en",
+      "verdict": "stylistic_clickbait",
+      "dedicated": {
+        "status": "ok",
+        "is_clickbait": true,
+        "label": "clickbait",
+        "score": 0.8276854157447815
+      },
+      "lexical": {
+        "status": "ok",
+        "is_clickbait": true,
+        "score": 1,
+        "cues": [
+          "?"
+        ]
+      },
+      "linear": {
+        "status": "ok",
+        "is_clickbait": true,
+        "probability": 0.7816751850919473,
+        "threshold": 0.35
+      }
+    },
+    {
+      "headline": "What Is a Recession, and Are We in One?",
+      "language": "en",
+      "verdict": "stylistic_clickbait",
+      "dedicated": {
+        "status": "ok",
+        "is_clickbait": true,
+        "label": "clickbait",
+        "score": 0.8010609149932861
+      },
+      "lexical": {
+        "status": "ok",
+        "is_clickbait": true,
+        "score": 4,
+        "cues": [
+          "what",
+          "we",
+          "one",
+          "?"
+        ]
+      },
+      "linear": {
+        "status": "ok",
+        "is_clickbait": true,
+        "probability": 0.9172844012302366,
+        "threshold": 0.35
+      }
+    },
+    {
+      "headline": "Is Coffee Good for You? Here's What the Science Says",
+      "language": "en",
+      "verdict": "stylistic_clickbait",
+      "dedicated": {
+        "status": "ok",
+        "is_clickbait": true,
+        "label": "clickbait",
+        "score": 0.923146665096283
+      },
+      "lexical": {
+        "status": "ok",
+        "is_clickbait": true,
+        "score": 2,
+        "cues": [
+          "you",
+          "what"
+        ]
+      },
+      "linear": {
+        "status": "ok",
+        "is_clickbait": true,
+        "probability": 0.9771118922744418,
+        "threshold": 0.35
+      }
+    },
+    {
+      "headline": "3 Astronauts Return to Earth After Six Months on the Space Station",
+      "language": "en",
+      "verdict": "ambiguous",
+      "dedicated": {
+        "status": "ok",
+        "is_clickbait": false,
+        "label": "factual news",
+        "score": 0.6320476531982422
+      },
+      "lexical": {
+        "status": "ok",
+        "is_clickbait": true,
+        "score": 1,
+        "cues": [
+          "3"
+        ]
+      },
+      "linear": {
+        "status": "ok",
+        "is_clickbait": false,
+        "probability": 0.2968664405613864,
+        "threshold": 0.35
+      }
+    },
+    {
+      "headline": "12 Countries Sign Trade Agreement at Geneva Summit",
+      "language": "en",
+      "verdict": "ambiguous",
+      "dedicated": {
+        "status": "ok",
+        "is_clickbait": false,
+        "label": "factual news",
+        "score": 0.9647010564804077
+      },
+      "lexical": {
+        "status": "ok",
+        "is_clickbait": true,
+        "score": 1,
+        "cues": [
+          "12"
+        ]
+      },
+      "linear": {
+        "status": "ok",
+        "is_clickbait": false,
+        "probability": 0.30658152041033565,
+        "threshold": 0.35
+      }
+    },
+    {
+      "headline": "5 Takeaways From the Federal Reserve's March Meeting",
+      "language": "en",
+      "verdict": "stylistic_clickbait",
+      "dedicated": {
+        "status": "ok",
+        "is_clickbait": true,
+        "label": "clickbait",
+        "score": 0.8038557767868042
+      },
+      "lexical": {
+        "status": "ok",
+        "is_clickbait": true,
+        "score": 1,
+        "cues": [
+          "5"
+        ]
+      },
+      "linear": {
+        "status": "ok",
+        "is_clickbait": true,
+        "probability": 0.74746494834311,
+        "threshold": 0.35
+      }
+    },
+    {
+      "headline": "4 Charts That Explain the Federal Reserve's Rate Decision",
+      "language": "en",
+      "verdict": "stylistic_clickbait",
+      "dedicated": {
+        "status": "ok",
+        "is_clickbait": true,
+        "label": "clickbait",
+        "score": 0.9133270978927612
+      },
+      "lexical": {
+        "status": "ok",
+        "is_clickbait": true,
+        "score": 2,
+        "cues": [
+          "that",
+          "4"
+        ]
+      },
+      "linear": {
+        "status": "ok",
+        "is_clickbait": true,
+        "probability": 0.8782951665498849,
+        "threshold": 0.35
+      }
+    },
+    {
+      "headline": "2 Senators Propose Bill to Limit Interest Rates on Credit Cards",
+      "language": "en",
+      "verdict": "ambiguous",
+      "dedicated": {
+        "status": "ok",
+        "is_clickbait": false,
+        "label": "factual news",
+        "score": 0.9478442072868347
+      },
+      "lexical": {
+        "status": "ok",
+        "is_clickbait": true,
+        "score": 1,
+        "cues": [
+          "2"
+        ]
+      },
+      "linear": {
+        "status": "ok",
+        "is_clickbait": false,
+        "probability": 0.24584496688983987,
+        "threshold": 0.35
+      }
+    },
+    {
+      "headline": "6 Things to Know About the New Interest Rates",
+      "language": "en",
+      "verdict": "stylistic_clickbait",
+      "dedicated": {
+        "status": "ok",
+        "is_clickbait": true,
+        "label": "clickbait",
+        "score": 0.9010714888572693
+      },
+      "lexical": {
+        "status": "ok",
+        "is_clickbait": true,
+        "score": 2,
+        "cues": [
+          "things",
+          "6"
+        ]
+      },
+      "linear": {
+        "status": "ok",
+        "is_clickbait": true,
+        "probability": 0.973942939945543,
+        "threshold": 0.35
+      }
+    },
+    {
+      "headline": "20 Countries Sign Climate Agreement at Geneva Summit",
+      "language": "en",
+      "verdict": "ambiguous",
+      "dedicated": {
+        "status": "ok",
+        "is_clickbait": false,
+        "label": "factual news",
+        "score": 0.9744166731834412
+      },
+      "lexical": {
+        "status": "ok",
+        "is_clickbait": true,
+        "score": 1,
+        "cues": [
+          "20"
+        ]
+      },
+      "linear": {
+        "status": "ok",
+        "is_clickbait": true,
+        "probability": 0.35602573939723414,
+        "threshold": 0.35
+      }
+    },
+    {
+      "headline": "How the Federal Reserve Sets Interest Rates",
+      "language": "en",
+      "verdict": "ambiguous",
+      "dedicated": {
+        "status": "ok",
+        "is_clickbait": true,
+        "label": "clickbait",
+        "score": 0.5480339527130127
+      },
+      "lexical": {
+        "status": "ok",
+        "is_clickbait": false,
+        "score": 0,
+        "cues": []
+      },
+      "linear": {
+        "status": "ok",
+        "is_clickbait": true,
+        "probability": 0.3918018166714286,
+        "threshold": 0.35
+      }
+    },
+    {
+      "headline": "What the Federal Reserve's Rate Decision Means for You",
+      "language": "en",
+      "verdict": "stylistic_clickbait",
+      "dedicated": {
+        "status": "ok",
+        "is_clickbait": true,
+        "label": "clickbait",
+        "score": 0.7482047080993652
+      },
+      "lexical": {
+        "status": "ok",
+        "is_clickbait": true,
+        "score": 2,
+        "cues": [
+          "what",
+          "you"
+        ]
+      },
+      "linear": {
+        "status": "ok",
+        "is_clickbait": true,
+        "probability": 0.7806248023255281,
+        "threshold": 0.35
+      }
+    },
+    {
+      "headline": "Why Interest Rates Matter More Than You Think",
+      "language": "en",
+      "verdict": "stylistic_clickbait",
+      "dedicated": {
+        "status": "ok",
+        "is_clickbait": true,
+        "label": "clickbait",
+        "score": 0.8986214399337769
+      },
+      "lexical": {
+        "status": "ok",
+        "is_clickbait": true,
+        "score": 1,
+        "cues": [
+          "you"
+        ]
+      },
+      "linear": {
+        "status": "ok",
+        "is_clickbait": true,
+        "probability": 0.6826545683081634,
+        "threshold": 0.35
+      }
+    },
+    {
+      "headline": "Here Is What the Federal Reserve Decided on Interest Rates",
+      "language": "en",
+      "verdict": "stylistic_clickbait",
+      "dedicated": {
+        "status": "ok",
+        "is_clickbait": true,
+        "label": "clickbait",
+        "score": 0.8863643407821655
+      },
+      "lexical": {
+        "status": "ok",
+        "is_clickbait": true,
+        "score": 2,
+        "cues": [
+          "here",
+          "what"
+        ]
+      },
+      "linear": {
+        "status": "ok",
+        "is_clickbait": true,
+        "probability": 0.515100534618076,
+        "threshold": 0.35
+      }
+    },
+    {
+      "headline": "Everything You Need to Know About the Federal Reserve's Decision",
+      "language": "en",
+      "verdict": "stylistic_clickbait",
+      "dedicated": {
+        "status": "ok",
+        "is_clickbait": true,
+        "label": "clickbait",
+        "score": 0.8525110483169556
+      },
+      "lexical": {
+        "status": "ok",
+        "is_clickbait": true,
+        "score": 1,
+        "cues": [
+          "you"
+        ]
+      },
+      "linear": {
+        "status": "ok",
+        "is_clickbait": true,
+        "probability": 0.9735335834272512,
+        "threshold": 0.35
+      }
+    },
+    {
+      "headline": "The Real Reason the Federal Reserve Is Holding Interest Rates Steady",
+      "language": "en",
+      "verdict": "ambiguous",
+      "dedicated": {
+        "status": "ok",
+        "is_clickbait": true,
+        "label": "clickbait",
+        "score": 0.755812406539917
+      },
+      "lexical": {
+        "status": "ok",
+        "is_clickbait": false,
+        "score": 0,
+        "cues": []
+      },
+      "linear": {
+        "status": "ok",
+        "is_clickbait": true,
+        "probability": 0.47325273802614604,
+        "threshold": 0.35
+      }
+    },
+    {
+      "headline": "What Happens to Your Savings When Interest Rates Fall",
+      "language": "en",
+      "verdict": "stylistic_clickbait",
+      "dedicated": {
+        "status": "ok",
+        "is_clickbait": true,
+        "label": "clickbait",
+        "score": 0.8790450096130371
+      },
+      "lexical": {
+        "status": "ok",
+        "is_clickbait": true,
+        "score": 1,
+        "cues": [
+          "what"
+        ]
+      },
+      "linear": {
+        "status": "ok",
+        "is_clickbait": true,
+        "probability": 0.7691453678863182,
+        "threshold": 0.35
+      }
+    },
+    {
+      "headline": "This Is Why the Federal Reserve Held Interest Rates Steady",
+      "language": "en",
+      "verdict": "stylistic_clickbait",
+      "dedicated": {
+        "status": "ok",
+        "is_clickbait": true,
+        "label": "clickbait",
+        "score": 0.9164621233940125
+      },
+      "lexical": {
+        "status": "ok",
+        "is_clickbait": true,
+        "score": 1,
+        "cues": [
+          "this"
+        ]
+      },
+      "linear": {
+        "status": "ok",
+        "is_clickbait": true,
+        "probability": 0.7597147615315867,
+        "threshold": 0.35
+      }
+    },
+    {
+      "headline": "Federal Reserve Makes Surprising Decision on Interest Rates",
+      "language": "en",
+      "verdict": "factual",
+      "dedicated": {
+        "status": "ok",
+        "is_clickbait": false,
+        "label": "factual news",
+        "score": 0.9362260699272156
+      },
+      "lexical": {
+        "status": "ok",
+        "is_clickbait": false,
+        "score": 0,
+        "cues": []
+      },
+      "linear": {
+        "status": "ok",
+        "is_clickbait": false,
+        "probability": 0.07708326789397336,
+        "threshold": 0.35
+      }
+    },
+    {
+      "headline": "Federal Reserve Holds Interest Rates Steady, and Markets Can't Believe It",
+      "language": "en",
+      "verdict": "ambiguous",
+      "dedicated": {
+        "status": "ok",
+        "is_clickbait": false,
+        "label": "factual news",
+        "score": 0.9074041843414307
+      },
+      "lexical": {
+        "status": "ok",
+        "is_clickbait": true,
+        "score": 1,
+        "cues": [
+          "it"
+        ]
+      },
+      "linear": {
+        "status": "ok",
+        "is_clickbait": false,
+        "probability": 0.1898846432527791,
+        "threshold": 0.35
+      }
+    },
+    {
+      "headline": "Scientists Discover Surprising Link Between Sleep and Memory",
+      "language": "en",
+      "verdict": "factual",
+      "dedicated": {
+        "status": "ok",
+        "is_clickbait": false,
+        "label": "factual news",
+        "score": 0.6933764815330505
+      },
+      "lexical": {
+        "status": "ok",
+        "is_clickbait": false,
+        "score": 0,
+        "cues": []
+      },
+      "linear": {
+        "status": "ok",
+        "is_clickbait": false,
+        "probability": 0.2251786608699735,
+        "threshold": 0.35
+      }
+    },
+    {
+      "headline": "The Federal Reserve Just Held Interest Rates Steady. Here's Why",
+      "language": "en",
+      "verdict": "ambiguous",
+      "dedicated": {
+        "status": "ok",
+        "is_clickbait": true,
+        "label": "clickbait",
+        "score": 0.85857093334198
+      },
+      "lexical": {
+        "status": "ok",
+        "is_clickbait": false,
+        "score": 0,
+        "cues": []
+      },
+      "linear": {
+        "status": "ok",
+        "is_clickbait": true,
+        "probability": 0.760336850760472,
+        "threshold": 0.35
+      }
+    },
+    {
+      "headline": "Economists Reveal When Interest Rates Could Finally Fall",
+      "language": "en",
+      "verdict": "ambiguous",
+      "dedicated": {
+        "status": "ok",
+        "is_clickbait": false,
+        "label": "factual news",
+        "score": 0.685714602470398
+      },
+      "lexical": {
+        "status": "ok",
+        "is_clickbait": false,
+        "score": 0,
+        "cues": []
+      },
+      "linear": {
+        "status": "ok",
+        "is_clickbait": true,
+        "probability": 0.4624474735189664,
+        "threshold": 0.35
+      }
+    },
+    {
+      "headline": "Study Finds Coffee Drinkers Live Longer",
+      "language": "en",
+      "verdict": "factual",
+      "dedicated": {
+        "status": "ok",
+        "is_clickbait": false,
+        "label": "factual news",
+        "score": 0.911431610584259
+      },
+      "lexical": {
+        "status": "ok",
+        "is_clickbait": false,
+        "score": 0,
+        "cues": []
+      },
+      "linear": {
+        "status": "ok",
+        "is_clickbait": false,
+        "probability": 0.10133889886892535,
+        "threshold": 0.35
+      }
+    },
+    {
+      "headline": "Scientists Say This Common Habit May Shorten Your Life",
+      "language": "en",
+      "verdict": "stylistic_clickbait",
+      "dedicated": {
+        "status": "ok",
+        "is_clickbait": true,
+        "label": "clickbait",
+        "score": 0.9486739635467529
+      },
+      "lexical": {
+        "status": "ok",
+        "is_clickbait": true,
+        "score": 1,
+        "cues": [
+          "this"
+        ]
+      },
+      "linear": {
+        "status": "ok",
+        "is_clickbait": true,
+        "probability": 0.6462212324432506,
+        "threshold": 0.35
+      }
+    },
+    {
+      "headline": "NASA Finds Something Unexpected on Mars",
+      "language": "en",
+      "verdict": "ambiguous",
+      "dedicated": {
+        "status": "ok",
+        "is_clickbait": true,
+        "label": "clickbait",
+        "score": 0.8356209993362427
+      },
+      "lexical": {
+        "status": "ok",
+        "is_clickbait": true,
+        "score": 2,
+        "cues": [
+          "something",
+          "NASA"
+        ]
+      },
+      "linear": {
+        "status": "ok",
+        "is_clickbait": false,
+        "probability": 0.06016927798744758,
+        "threshold": 0.35
+      }
+    },
+    {
+      "headline": "Researchers Find a Simple Trick to Improve Memory",
+      "language": "en",
+      "verdict": "ambiguous",
+      "dedicated": {
+        "status": "ok",
+        "is_clickbait": true,
+        "label": "clickbait",
+        "score": 0.866010844707489
+      },
+      "lexical": {
+        "status": "ok",
+        "is_clickbait": false,
+        "score": 0,
+        "cues": []
+      },
+      "linear": {
+        "status": "ok",
+        "is_clickbait": false,
+        "probability": 0.2106834183600756,
+        "threshold": 0.35
+      }
+    },
+    {
+      "headline": "Federal Reserve Chair Explains What Comes Next for Interest Rates",
+      "language": "en",
+      "verdict": "ambiguous",
+      "dedicated": {
+        "status": "ok",
+        "is_clickbait": false,
+        "label": "factual news",
+        "score": 0.8208662867546082
+      },
+      "lexical": {
+        "status": "ok",
+        "is_clickbait": true,
+        "score": 1,
+        "cues": [
+          "what"
+        ]
+      },
+      "linear": {
+        "status": "ok",
+        "is_clickbait": false,
+        "probability": 0.3022620962370191,
+        "threshold": 0.35
+      }
+    },
+    {
+      "headline": "Scientists Finally Know Why Cats Purr",
+      "language": "en",
+      "verdict": "ambiguous",
+      "dedicated": {
+        "status": "ok",
+        "is_clickbait": true,
+        "label": "clickbait",
+        "score": 0.7081869840621948
+      },
+      "lexical": {
+        "status": "ok",
+        "is_clickbait": false,
+        "score": 0,
+        "cues": []
+      },
+      "linear": {
+        "status": "ok",
+        "is_clickbait": true,
+        "probability": 0.7188659833230466,
+        "threshold": 0.35
+      }
+    },
+    {
+      "headline": "Apple Unveils New iPhone With Longer Battery Life",
+      "language": "en",
+      "verdict": "factual",
+      "dedicated": {
+        "status": "ok",
+        "is_clickbait": false,
+        "label": "factual news",
+        "score": 0.9532091021537781
+      },
+      "lexical": {
+        "status": "ok",
+        "is_clickbait": false,
+        "score": 0,
+        "cues": []
+      },
+      "linear": {
+        "status": "ok",
+        "is_clickbait": false,
+        "probability": 0.13231154297092917,
+        "threshold": 0.35
+      }
+    },
+    {
+      "headline": "You Can Now Renew Your Passport Online",
+      "language": "en",
+      "verdict": "ambiguous",
+      "dedicated": {
+        "status": "ok",
+        "is_clickbait": false,
+        "label": "factual news",
+        "score": 0.6875689029693604
+      },
+      "lexical": {
+        "status": "ok",
+        "is_clickbait": true,
+        "score": 1,
+        "cues": [
+          "you"
+        ]
+      },
+      "linear": {
+        "status": "ok",
+        "is_clickbait": true,
+        "probability": 0.9230701240024051,
+        "threshold": 0.35
+      }
+    },
+    {
+      "headline": "Here's How Much Rent Rose in Every Major City This Year",
+      "language": "en",
+      "verdict": "stylistic_clickbait",
+      "dedicated": {
+        "status": "ok",
+        "is_clickbait": true,
+        "label": "clickbait",
+        "score": 0.908081591129303
+      },
+      "lexical": {
+        "status": "ok",
+        "is_clickbait": true,
+        "score": 1,
+        "cues": [
+          "this"
+        ]
+      },
+      "linear": {
+        "status": "ok",
+        "is_clickbait": true,
+        "probability": 0.9535554549329482,
+        "threshold": 0.35
+      }
+    },
+    {
+      "headline": "7 Tips for Moving Abroad",
+      "language": "en",
+      "verdict": "stylistic_clickbait",
+      "dedicated": {
+        "status": "ok",
+        "is_clickbait": true,
+        "label": "clickbait",
+        "score": 0.9564431309700012
+      },
+      "lexical": {
+        "status": "ok",
+        "is_clickbait": true,
+        "score": 2,
+        "cues": [
+          "moving",
+          "7"
+        ]
+      },
+      "linear": {
+        "status": "ok",
+        "is_clickbait": true,
+        "probability": 0.7560745480154081,
+        "threshold": 0.35
+      }
+    },
+    {
+      "headline": "A Guide to Moving Abroad: What to Know Before You Go",
+      "language": "en",
+      "verdict": "stylistic_clickbait",
+      "dedicated": {
+        "status": "ok",
+        "is_clickbait": true,
+        "label": "clickbait",
+        "score": 0.8865941166877747
+      },
+      "lexical": {
+        "status": "ok",
+        "is_clickbait": true,
+        "score": 3,
+        "cues": [
+          "moving",
+          "what",
+          "you"
+        ]
+      },
+      "linear": {
+        "status": "ok",
+        "is_clickbait": true,
+        "probability": 0.777097716023088,
+        "threshold": 0.35
+      }
+    },
+    {
+      "headline": "What to Know Before Moving Abroad",
+      "language": "en",
+      "verdict": "stylistic_clickbait",
+      "dedicated": {
+        "status": "ok",
+        "is_clickbait": true,
+        "label": "clickbait",
+        "score": 0.9239510297775269
+      },
+      "lexical": {
+        "status": "ok",
+        "is_clickbait": true,
+        "score": 2,
+        "cues": [
+          "what",
+          "moving"
+        ]
+      },
+      "linear": {
+        "status": "ok",
+        "is_clickbait": true,
+        "probability": 0.42562406410280457,
+        "threshold": 0.35
+      }
+    },
+    {
+      "headline": "Moving Abroad: 5 Questions to Ask First",
+      "language": "en",
+      "verdict": "ambiguous",
+      "dedicated": {
+        "status": "ok",
+        "is_clickbait": true,
+        "label": "clickbait",
+        "score": 0.9356117844581604
+      },
+      "lexical": {
+        "status": "ok",
+        "is_clickbait": true,
+        "score": 1,
+        "cues": [
+          "moving"
+        ]
+      },
+      "linear": {
+        "status": "ok",
+        "is_clickbait": false,
+        "probability": 0.24934140594835305,
+        "threshold": 0.35
+      }
+    },
+    {
+      "headline": "How to Move Abroad Without Losing Your Savings",
+      "language": "en",
+      "verdict": "ambiguous",
+      "dedicated": {
+        "status": "ok",
+        "is_clickbait": true,
+        "label": "clickbait",
+        "score": 0.9025593996047974
+      },
+      "lexical": {
+        "status": "ok",
+        "is_clickbait": false,
+        "score": 0,
+        "cues": []
+      },
+      "linear": {
+        "status": "ok",
+        "is_clickbait": true,
+        "probability": 0.6093362237435032,
+        "threshold": 0.35
+      }
+    },
+    {
+      "headline": "The 10 Best Countries for Moving Abroad, Ranked",
+      "language": "en",
+      "verdict": "stylistic_clickbait",
+      "dedicated": {
+        "status": "ok",
+        "is_clickbait": true,
+        "label": "clickbait",
+        "score": 0.9313845634460449
+      },
+      "lexical": {
+        "status": "ok",
+        "is_clickbait": true,
+        "score": 1,
+        "cues": [
+          "moving"
+        ]
+      },
+      "linear": {
+        "status": "ok",
+        "is_clickbait": true,
+        "probability": 0.5809714840740192,
+        "threshold": 0.35
+      }
+    },
+    {
+      "headline": "Thinking of Moving Abroad? Read This First",
+      "language": "en",
+      "verdict": "stylistic_clickbait",
+      "dedicated": {
+        "status": "ok",
+        "is_clickbait": true,
+        "label": "clickbait",
+        "score": 0.925387978553772
+      },
+      "lexical": {
+        "status": "ok",
+        "is_clickbait": true,
+        "score": 2,
+        "cues": [
+          "moving",
+          "this"
+        ]
+      },
+      "linear": {
+        "status": "ok",
+        "is_clickbait": true,
+        "probability": 0.629515157723734,
+        "threshold": 0.35
+      }
+    },
+    {
+      "headline": "What I Learned From Moving Abroad",
+      "language": "en",
+      "verdict": "stylistic_clickbait",
+      "dedicated": {
+        "status": "ok",
+        "is_clickbait": true,
+        "label": "clickbait",
+        "score": 0.8975762724876404
+      },
+      "lexical": {
+        "status": "ok",
+        "is_clickbait": true,
+        "score": 2,
+        "cues": [
+          "what",
+          "moving"
+        ]
+      },
+      "linear": {
+        "status": "ok",
+        "is_clickbait": true,
+        "probability": 0.574703203468122,
+        "threshold": 0.35
+      }
+    },
+    {
+      "headline": "Is Moving Abroad Worth It?",
+      "language": "en",
+      "verdict": "stylistic_clickbait",
+      "dedicated": {
+        "status": "ok",
+        "is_clickbait": true,
+        "label": "clickbait",
+        "score": 0.823559045791626
+      },
+      "lexical": {
+        "status": "ok",
+        "is_clickbait": true,
+        "score": 3,
+        "cues": [
+          "moving",
+          "it",
+          "?"
+        ]
+      },
+      "linear": {
+        "status": "ok",
+        "is_clickbait": true,
+        "probability": 0.3977185855507906,
+        "threshold": 0.35
+      }
+    },
+    {
+      "headline": "How Much Does It Cost to Move Abroad?",
+      "language": "en",
+      "verdict": "stylistic_clickbait",
+      "dedicated": {
+        "status": "ok",
+        "is_clickbait": true,
+        "label": "clickbait",
+        "score": 0.8537668585777283
+      },
+      "lexical": {
+        "status": "ok",
+        "is_clickbait": true,
+        "score": 2,
+        "cues": [
+          "it",
+          "?"
+        ]
+      },
+      "linear": {
+        "status": "ok",
+        "is_clickbait": true,
+        "probability": 0.5850060659898132,
+        "threshold": 0.35
+      }
+    },
+    {
+      "headline": "The Truth About Moving Abroad",
+      "language": "en",
+      "verdict": "stylistic_clickbait",
+      "dedicated": {
+        "status": "ok",
+        "is_clickbait": true,
+        "label": "clickbait",
+        "score": 0.8887778520584106
+      },
+      "lexical": {
+        "status": "ok",
+        "is_clickbait": true,
+        "score": 1,
+        "cues": [
+          "moving"
+        ]
+      },
+      "linear": {
+        "status": "ok",
+        "is_clickbait": true,
+        "probability": 0.5940181381558416,
+        "threshold": 0.35
+      }
+    },
+    {
+      "headline": "Moving Abroad Changed My Life",
+      "language": "en",
+      "verdict": "stylistic_clickbait",
+      "dedicated": {
+        "status": "ok",
+        "is_clickbait": true,
+        "label": "clickbait",
+        "score": 0.7800896167755127
+      },
+      "lexical": {
+        "status": "ok",
+        "is_clickbait": true,
+        "score": 1,
+        "cues": [
+          "moving"
+        ]
+      },
+      "linear": {
+        "status": "ok",
+        "is_clickbait": true,
+        "probability": 0.5030137674292305,
+        "threshold": 0.35
+      }
+    },
+    {
+      "headline": "How to Move Abroad Without Going Broke",
+      "language": "en",
+      "verdict": "ambiguous",
+      "dedicated": {
+        "status": "ok",
+        "is_clickbait": true,
+        "label": "clickbait",
+        "score": 0.8917536735534668
+      },
+      "lexical": {
+        "status": "ok",
+        "is_clickbait": false,
+        "score": 0,
+        "cues": []
+      },
+      "linear": {
+        "status": "ok",
+        "is_clickbait": true,
+        "probability": 0.546022238222493,
+        "threshold": 0.35
+      }
+    },
+    {
+      "headline": "How to Move Abroad on a Budget",
+      "language": "en",
+      "verdict": "ambiguous",
+      "dedicated": {
+        "status": "ok",
+        "is_clickbait": true,
+        "label": "clickbait",
+        "score": 0.8570756912231445
+      },
+      "lexical": {
+        "status": "ok",
+        "is_clickbait": false,
+        "score": 0,
+        "cues": []
+      },
+      "linear": {
+        "status": "ok",
+        "is_clickbait": false,
+        "probability": 0.2736194353775543,
+        "threshold": 0.35
+      }
+    },
+    {
+      "headline": "Federal Reserve Holds Interest Rates Steady. Here's Why",
+      "language": "en",
+      "verdict": "ambiguous",
+      "dedicated": {
+        "status": "ok",
+        "is_clickbait": true,
+        "label": "clickbait",
+        "score": 0.8120916485786438
+      },
+      "lexical": {
+        "status": "ok",
+        "is_clickbait": false,
+        "score": 0,
+        "cues": []
+      },
+      "linear": {
+        "status": "ok",
+        "is_clickbait": true,
+        "probability": 0.4581610471414838,
+        "threshold": 0.35
+      }
+    },
+    {
+      "headline": "Federal Reserve Holds Interest Rates Steady, Here's Why",
+      "language": "en",
+      "verdict": "ambiguous",
+      "dedicated": {
+        "status": "ok",
+        "is_clickbait": true,
+        "label": "clickbait",
+        "score": 0.7919644713401794
+      },
+      "lexical": {
+        "status": "ok",
+        "is_clickbait": false,
+        "score": 0,
+        "cues": []
+      },
+      "linear": {
+        "status": "ok",
+        "is_clickbait": true,
+        "probability": 0.4581610471414838,
+        "threshold": 0.35
+      }
+    },
+    {
+      "headline": "Federal Reserve Holds Interest Rates Steady. Here Is Why",
+      "language": "en",
+      "verdict": "ambiguous",
+      "dedicated": {
+        "status": "ok",
+        "is_clickbait": true,
+        "label": "clickbait",
+        "score": 0.8307414054870605
+      },
+      "lexical": {
+        "status": "ok",
+        "is_clickbait": true,
+        "score": 1,
+        "cues": [
+          "here"
+        ]
+      },
+      "linear": {
+        "status": "ok",
+        "is_clickbait": false,
+        "probability": 0.3386263137566455,
+        "threshold": 0.35
+      }
+    },
+    {
+      "headline": "Federal Reserve Holds Interest Rates Steady. Here's Why It Matters",
+      "language": "en",
+      "verdict": "stylistic_clickbait",
+      "dedicated": {
+        "status": "ok",
+        "is_clickbait": true,
+        "label": "clickbait",
+        "score": 0.8143439292907715
+      },
+      "lexical": {
+        "status": "ok",
+        "is_clickbait": true,
+        "score": 1,
+        "cues": [
+          "it"
+        ]
+      },
+      "linear": {
+        "status": "ok",
+        "is_clickbait": true,
+        "probability": 0.5623443563588305,
+        "threshold": 0.35
+      }
+    },
+    {
+      "headline": "Federal Reserve Holds Interest Rates Steady. Here's What It Means",
+      "language": "en",
+      "verdict": "stylistic_clickbait",
+      "dedicated": {
+        "status": "ok",
+        "is_clickbait": true,
+        "label": "clickbait",
+        "score": 0.671393096446991
+      },
+      "lexical": {
+        "status": "ok",
+        "is_clickbait": true,
+        "score": 2,
+        "cues": [
+          "what",
+          "it"
+        ]
+      },
+      "linear": {
+        "status": "ok",
+        "is_clickbait": true,
+        "probability": 0.5171660626618938,
+        "threshold": 0.35
+      }
+    },
+    {
+      "headline": "Federal Reserve Holds Interest Rates Steady. The Reason May Surprise You",
+      "language": "en",
+      "verdict": "stylistic_clickbait",
+      "dedicated": {
+        "status": "ok",
+        "is_clickbait": true,
+        "label": "clickbait",
+        "score": 0.8324881792068481
+      },
+      "lexical": {
+        "status": "ok",
+        "is_clickbait": true,
+        "score": 1,
+        "cues": [
+          "you"
+        ]
+      },
+      "linear": {
+        "status": "ok",
+        "is_clickbait": true,
+        "probability": 0.39764878477340104,
+        "threshold": 0.35
+      }
+    },
+    {
+      "headline": "Federal Reserve Holds Interest Rates Steady for a Surprising Reason",
+      "language": "en",
+      "verdict": "factual",
+      "dedicated": {
+        "status": "ok",
+        "is_clickbait": false,
+        "label": "factual news",
+        "score": 0.7793645858764648
+      },
+      "lexical": {
+        "status": "ok",
+        "is_clickbait": false,
+        "score": 0,
+        "cues": []
+      },
+      "linear": {
+        "status": "ok",
+        "is_clickbait": false,
+        "probability": 0.1115722988526405,
+        "threshold": 0.35
+      }
+    },
+    {
+      "headline": "Here's Why the Federal Reserve Held Interest Rates Steady",
+      "language": "en",
+      "verdict": "ambiguous",
+      "dedicated": {
+        "status": "ok",
+        "is_clickbait": true,
+        "label": "clickbait",
+        "score": 0.8639532923698425
+      },
+      "lexical": {
+        "status": "ok",
+        "is_clickbait": false,
+        "score": 0,
+        "cues": []
+      },
+      "linear": {
+        "status": "ok",
+        "is_clickbait": true,
+        "probability": 0.5927688421881611,
+        "threshold": 0.35
+      }
+    },
+    {
+      "headline": "Why the Federal Reserve Held Interest Rates Steady",
+      "language": "en",
+      "verdict": "ambiguous",
+      "dedicated": {
+        "status": "ok",
+        "is_clickbait": true,
+        "label": "clickbait",
+        "score": 0.5974081158638
+      },
+      "lexical": {
+        "status": "ok",
+        "is_clickbait": false,
+        "score": 0,
+        "cues": []
+      },
+      "linear": {
+        "status": "ok",
+        "is_clickbait": false,
+        "probability": 0.3145803374442716,
+        "threshold": 0.35
+      }
+    },
+    {
+      "headline": "Why the Federal Reserve Is Holding Interest Rates Steady",
+      "language": "en",
+      "verdict": "ambiguous",
+      "dedicated": {
+        "status": "ok",
+        "is_clickbait": true,
+        "label": "clickbait",
+        "score": 0.5938564538955688
+      },
+      "lexical": {
+        "status": "ok",
+        "is_clickbait": false,
+        "score": 0,
+        "cues": []
+      },
+      "linear": {
+        "status": "ok",
+        "is_clickbait": true,
+        "probability": 0.46491051196168504,
+        "threshold": 0.35
+      }
+    },
+    {
+      "headline": "The Federal Reserve Just Held Interest Rates Steady",
+      "language": "en",
+      "verdict": "factual",
+      "dedicated": {
+        "status": "ok",
+        "is_clickbait": false,
+        "label": "factual news",
+        "score": 0.9433251023292542
+      },
+      "lexical": {
+        "status": "ok",
+        "is_clickbait": false,
+        "score": 0,
+        "cues": []
+      },
+      "linear": {
+        "status": "ok",
+        "is_clickbait": false,
+        "probability": 0.2894031189068604,
+        "threshold": 0.35
+      }
+    },
+    {
+      "headline": "The Federal Reserve Held Interest Rates Steady Again. Here's Why",
+      "language": "en",
+      "verdict": "ambiguous",
+      "dedicated": {
+        "status": "ok",
+        "is_clickbait": true,
+        "label": "clickbait",
+        "score": 0.8169231414794922
+      },
+      "lexical": {
+        "status": "ok",
+        "is_clickbait": false,
+        "score": 0,
+        "cues": []
+      },
+      "linear": {
+        "status": "ok",
+        "is_clickbait": true,
+        "probability": 0.5010985727853505,
+        "threshold": 0.35
+      }
+    },
+    {
+      "headline": "The Reason the Federal Reserve Held Interest Rates Steady",
+      "language": "en",
+      "verdict": "ambiguous",
+      "dedicated": {
+        "status": "ok",
+        "is_clickbait": true,
+        "label": "clickbait",
+        "score": 0.79256272315979
+      },
+      "lexical": {
+        "status": "ok",
+        "is_clickbait": false,
+        "score": 0,
+        "cues": []
+      },
+      "linear": {
+        "status": "ok",
+        "is_clickbait": false,
+        "probability": 0.266496905071775,
+        "threshold": 0.35
+      }
+    },
+    {
+      "headline": "How the Federal Reserve Decided to Hold Interest Rates Steady",
+      "language": "en",
+      "verdict": "ambiguous",
+      "dedicated": {
+        "status": "ok",
+        "is_clickbait": true,
+        "label": "clickbait",
+        "score": 0.5961304903030396
+      },
+      "lexical": {
+        "status": "ok",
+        "is_clickbait": false,
+        "score": 0,
+        "cues": []
+      },
+      "linear": {
+        "status": "ok",
+        "is_clickbait": false,
+        "probability": 0.312752098901819,
+        "threshold": 0.35
+      }
+    },
+    {
+      "headline": "Scientists Find a Simple Trick to Fall Asleep Faster",
+      "language": "en",
+      "verdict": "ambiguous",
+      "dedicated": {
+        "status": "ok",
+        "is_clickbait": true,
+        "label": "clickbait",
+        "score": 0.9016318917274475
+      },
+      "lexical": {
+        "status": "ok",
+        "is_clickbait": false,
+        "score": 0,
+        "cues": []
+      },
+      "linear": {
+        "status": "ok",
+        "is_clickbait": false,
+        "probability": 0.19139368078589464,
+        "threshold": 0.35
+      }
+    },
+    {
+      "headline": "Doctors Find a Simple Trick to Lower Blood Pressure",
+      "language": "en",
+      "verdict": "ambiguous",
+      "dedicated": {
+        "status": "ok",
+        "is_clickbait": true,
+        "label": "clickbait",
+        "score": 0.8550235033035278
+      },
+      "lexical": {
+        "status": "ok",
+        "is_clickbait": false,
+        "score": 0,
+        "cues": []
+      },
+      "linear": {
+        "status": "ok",
+        "is_clickbait": false,
+        "probability": 0.1509642788828892,
+        "threshold": 0.35
+      }
+    },
+    {
+      "headline": "Astronomers Find Something Unexpected on Mars",
+      "language": "en",
+      "verdict": "ambiguous",
+      "dedicated": {
+        "status": "ok",
+        "is_clickbait": true,
+        "label": "clickbait",
+        "score": 0.8461454510688782
+      },
+      "lexical": {
+        "status": "ok",
+        "is_clickbait": true,
+        "score": 1,
+        "cues": [
+          "something"
+        ]
+      },
+      "linear": {
+        "status": "ok",
+        "is_clickbait": false,
+        "probability": 0.12747234860270262,
+        "threshold": 0.35
+      }
+    },
+    {
+      "headline": "Astronomers Spot Something Strange Near Jupiter",
+      "language": "en",
+      "verdict": "ambiguous",
+      "dedicated": {
+        "status": "ok",
+        "is_clickbait": true,
+        "label": "clickbait",
+        "score": 0.6464766263961792
+      },
+      "lexical": {
+        "status": "ok",
+        "is_clickbait": true,
+        "score": 1,
+        "cues": [
+          "something"
+        ]
+      },
+      "linear": {
+        "status": "ok",
+        "is_clickbait": false,
+        "probability": 0.1471924732027864,
+        "threshold": 0.35
+      }
+    },
+    {
+      "headline": "Scientists Find Something Unexpected Under Antarctic Ice",
+      "language": "en",
+      "verdict": "ambiguous",
+      "dedicated": {
+        "status": "ok",
+        "is_clickbait": true,
+        "label": "clickbait",
+        "score": 0.8000586032867432
+      },
+      "lexical": {
+        "status": "ok",
+        "is_clickbait": true,
+        "score": 1,
+        "cues": [
+          "something"
+        ]
+      },
+      "linear": {
+        "status": "ok",
+        "is_clickbait": false,
+        "probability": 0.08980206831796708,
+        "threshold": 0.35
+      }
+    },
+    {
+      "headline": "Scientists Finally Explain Why Cats Purr",
+      "language": "en",
+      "verdict": "ambiguous",
+      "dedicated": {
+        "status": "ok",
+        "is_clickbait": true,
+        "label": "clickbait",
+        "score": 0.722339391708374
+      },
+      "lexical": {
+        "status": "ok",
+        "is_clickbait": false,
+        "score": 0,
+        "cues": []
+      },
+      "linear": {
+        "status": "ok",
+        "is_clickbait": true,
+        "probability": 0.6558124342418651,
+        "threshold": 0.35
+      }
+    }
+  ]
+}
