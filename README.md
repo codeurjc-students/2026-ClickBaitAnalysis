@@ -10681,21 +10681,21 @@ La guía cita el veredicto y las cifras de cinco titulares. Son deterministas, p
 | Caso | Paso | Veredicto | Dedicada | Léxico | Lineal | Incoherencia | Tono |
 |---|---|---|---|---|---|---|---|
 | A, con cuerpo | 1 | `deceptive` | clickbait 0,970 | 5 pistas | 0,991 | 0,078 | neutral 0,758 |
-| B | 2 | `ambiguous` | factual news 0,677 | 1 pista | 0,356 | — | neutral 0,922 |
+| B, el del botón «caso ambiguo» | 2 | `ambiguous` | clickbait 0,859 | 0 pistas | 0,760 | — | neutral 0,821 |
 | C, con cuerpo | 2, de repuesto | `ambiguous` | factual news 0,971 | 0 pistas | 0,036 | −0,055 | neutral 0,831 |
 | En español | 3 y 6 | `stylistic_clickbait` | clickbait 0,994 | — | 0,429 | — | negative 0,514 |
 | El del asistente | 6 | `stylistic_clickbait` | clickbait 0,950 | 4 pistas | 0,994 | — | negative 0,764 |
 
 «—» es una señal que no se aplica. Los umbrales: una pista en el léxico, 0,35 en el lineal y 0,3 en la incoherencia. Los titulares están en la guía y en el guion.
 
-- **El titular B depende de seis milésimas**: el lineal da 0,356 con el umbral en 0,35. Es el caso que se buscaba, una discrepancia entre las señales de forma en un titular que podría ser real, pero un reentrenamiento del lineal lo movería. Por eso el guion imprime el margen y la guía lleva un repuesto, el caso de #124 (el C), que es artificial.
-- **El guion comprueba además que la guía y él nombran los mismos textos**, y que el titular en español sigue siendo el del botón «en español» del formulario. Sin eso podría seguir en verde vigilando titulares que ya no son los de la guía.
-- **Se vio fallar**: con un veredicto esperado cambiado y un titular que no está en la guía, cuenta 2 fallos. Fue una prueba de usar y tirar, que cambia los casos en memoria.
+- **El titular B es el del botón «caso ambiguo» del formulario**, que #282 cambió ese mismo día (la sección anterior). La primera versión de la guía llevaba otro, «Is the Federal Reserve About to Cut Interest Rates?», que daba Ambiguo por seis milésimas: el lineal, 0,356 con el umbral en 0,35. Con #283 ya en `dev`, el paso 2 pasó al botón (decidido por el autor): el lineal queda en 0,760, y una prueba del CI vigila que ese ejemplo siga dando Ambiguo (`tests/test_ejemplos_formulario.py`). El guion sigue imprimiendo el margen del lineal, y la guía conserva un repuesto, el caso de #124 (el C), que es artificial.
+- **El guion comprueba además que la guía y él nombran los mismos textos**, y que los titulares de los pasos 2 y 3 siguen en el formulario, porque se introducen con sus botones de ejemplo. Sin eso podría seguir en verde vigilando titulares que ya no son los de la guía.
+- **Se vio fallar**: con un veredicto esperado cambiado, un titular que no está en la guía y un botón que no está en el formulario, cuenta 3 fallos. Fue una prueba de usar y tirar, que cambia los casos en memoria.
 - **Vive en `spikes/`** aunque se vaya a repetir la víspera, como `produccion_en_vivo.py` y `certificado_en_vivo.sh`.
 
 #### Lo que se descartó
 
-- **«17 Things Nobody Tells You About Moving Abroad»**, el ejemplo de discrepancia de #86 y el que rellena el botón «caso ambiguo» del formulario: hoy da Clickbait de forma, con las tres señales de forma de acuerdo (probado a mano con la herramienta `analyze_headline`). Que el botón ya no enseñe lo que dice **queda fuera de esta PR**: se arregla aparte, antes de la congelación.
+- **«17 Things Nobody Tells You About Moving Abroad»**, el ejemplo de discrepancia de #86 y el que rellenaba el botón «caso ambiguo» del formulario: da Clickbait de forma, con las tres señales de forma de acuerdo. Se vio al probar los titulares para esta guía, y de ahí salió #282, la sección anterior, que cambió el botón y le puso una prueba.
 - **La noticia en español** para el último paso: es donde el asistente se inventó el análisis el 15 de octubre.
 - **Claude Desktop** (#267) como paso extra: depende del PC del autor, y preguntar antes de que el servidor salude falla en silencio.
 - **Copiar los comandos de las máquinas**: la guía remite a «El día a día» de `despliegue/README.md`, y sólo repite el de abrir la sesión, con otro tope.
@@ -10709,10 +10709,10 @@ La guía cita el veredicto y las cifras de cinco titulares. Son deterministas, p
 
 | Condiciones | |
 |---|---|
-| Fecha | 12 nov 2026; `spikes/demostracion_titulares.py`, a las 18:06, hora de Madrid |
+| Fecha | 12 nov 2026; `spikes/demostracion_titulares.py`, a las 18:56, hora de Madrid, ya con `dev` y #283 en la rama. La primera pasada, a las 18:06 sobre `15ae202`, fue con el titular B anterior |
 | Máquina | El PC de sobremesa del autor: WSL2 con Ubuntu 24.04.4, Python 3.12.3, torch 2.12.1, transformers 5.12.0 y sentence-transformers 5.6.0. En CPU (`CUDA_VISIBLE_DEVICES=`), como producción |
 | Modelos | Los de las fichas, con su revisión fijada: `Stremie/roberta-base-clickbait` (`517de05db9ba`), `ggcastle/beto-clickbait-es` (`03c31ac0c288`), `cardiffnlp/twitter-roberta-base-sentiment-latest` (`3216a57f2a0d`), `lxyuan/distilbert-base-multilingual-cased-sentiments-student` (`cf991100d706`) y `sentence-transformers/all-MiniLM-L6-v2` (`1110a243fdf4`) |
-| Código | `15ae202`, con los cambios de esta PR sin commitear |
+| Código | `2aabb7c` (`dev`, con #283), sin cambios en `backend/` ni en `frontend/`, y con los de esta PR sin commitear |
 | Guion | `spikes/demostracion_titulares.py` |
 | Sin medir | Nada con el modelo del asistente: no se abrió ninguna sesión de GPU |
 

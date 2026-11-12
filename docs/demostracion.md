@@ -119,7 +119,7 @@ ellos, siete. **Los tiempos son previstos**; los medidos, en «El ensayo».
 
 Los veredictos y las cifras de los titulares salen de
 `spikes/demostracion_titulares.py`, que falla si alguno deja de ser el de aquí
-(12 de noviembre de 2026, sobre `15ae202`, en CPU). «Se dice» son las ideas de
+(12 de noviembre de 2026, sobre `2aabb7c`, en CPU). «Se dice» son las ideas de
 cada paso, no frases para leer.
 
 ### 1 · Analizar: las cinco señales
@@ -149,17 +149,20 @@ cada paso, no frases para leer.
 
 ### 2 · Analizar: cuando las señales discrepan *(recortable)*
 
-- **Se hace**: «Nuevo análisis», pegar el titular B, sin cuerpo, y «Analizar».
-- **Se ve**: el veredicto, **Ambiguo**. La dedicada dice noticia factual (0,68);
-  el léxico encuentra una pista, la interrogación; y el lineal da 0,356, justo
-  por encima de su umbral, 0,35. Sin cuerpo, la incoherencia no se aplica.
+- **Se hace**: «Nuevo análisis», el ejemplo «caso ambiguo» del formulario y
+  «Analizar».
+- **Se ve**: el veredicto, **Ambiguo**. La dedicada dice clickbait (0,86) y el
+  lineal da 0,76, muy por encima de su umbral, 0,35; el léxico no encuentra
+  ninguna pista. Sin cuerpo, la incoherencia no se aplica.
 - **Se dice**:
   - el sistema declara la discrepancia en vez de esconderla en una media;
-  - se ve por qué discrepan: una interrogación y seis milésimas. Con un modelo
-    de caja negra solo, este titular tendría un «no» al 68 % y nada más.
+  - se ve por qué discrepan: el gancho está al final, «Here's Why». Las listas
+    del léxico no lo recogen, y el lineal sí lo aprendió: sus tres palabras con
+    más peso son *here's*, *why* y *just*. Con un modelo de caja negra solo,
+    este titular tendría un «sí» al 86 % y nada más.
 
-  *De repuesto, si el lineal cambiara: el titular C con el cuerpo C, que también
-  da Ambiguo, con la forma unánime en «no» y la incoherencia en «sí».*
+  *De repuesto, si el ejemplo cambiara: el titular C con el cuerpo C, que
+  también da Ambiguo, con la forma unánime en «no» y la incoherencia en «sí».*
 
 ### 3 · Analizar: un titular en español
 
@@ -249,10 +252,11 @@ Titular A y cuerpo A (paso 1):
 A small study in mice found modest effects of the diet after eight weeks.
 ```
 
-Titular B (paso 2):
+Titular B (paso 2), por si hubiera que pegarlo: es el del ejemplo «caso
+ambiguo».
 
 ```text
-Is the Federal Reserve About to Cut Interest Rates?
+The Federal Reserve Just Held Interest Rates Steady. Here's Why
 ```
 
 Titular C y cuerpo C (el repuesto del paso 2):
