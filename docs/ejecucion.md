@@ -197,9 +197,7 @@ docker compose -f compose.yaml -f compose.local.yaml up -d --wait api
 ```
 
 La grabación va dentro de la imagen, en `backend/integrations/llm/grabaciones/`,
-y la escribe `spikes/grabar_demostracion.py`. *(Hasta que esté la de la
-demostración, que se graba en la segunda parte de #265, la pantalla dice que el
-asistente no se puede usar.)*
+y la escribe `spikes/grabar_demostracion.py`.
 
 ## Desde Claude Desktop
 
