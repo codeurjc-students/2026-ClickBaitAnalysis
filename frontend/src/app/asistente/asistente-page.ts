@@ -20,7 +20,7 @@ import { RouterLink } from '@angular/router';
 
 import { ChatService } from '../api/chat.service';
 import { SIN_RESPUESTA, mensajeDeLimite } from '../api/errores';
-import type { AgentInfo } from '../api/models';
+import type { AgentInfo, InfoGrabacion } from '../api/models';
 import { ResultadoAnalisis } from '../senales/resultado-analisis';
 import { SenalCard } from '../senales/senal-card';
 import {
@@ -199,6 +199,20 @@ export class AsistentePage {
   /** La condición se usa dos veces: el mensaje y el `aria-invalid`. */
   errorEnMensaje(): boolean {
     return this.mensaje.touched && this.mensaje.invalid;
+  }
+
+  /**
+   * El día de una grabación como se lee: «2 de diciembre de 2026» (#265). Es
+   * un día sin hora, que `Date` toma como medianoche en UTC: se escribe en UTC
+   * para que no salga el día anterior en un navegador al oeste de Greenwich.
+   */
+  fechaDeGrabacion(grabacion: InfoGrabacion): string {
+    return new Date(grabacion.recorded_at).toLocaleDateString('es-ES', {
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric',
+      timeZone: 'UTC',
+    });
   }
 
   /** Sondea una conversación hasta que termina, y va pintando lo que llega. */

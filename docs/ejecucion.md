@@ -114,7 +114,7 @@ ya no existe, hace fallar el CI.
 
 | Variable | Por defecto | En el compose | Qué decide |
 |---|---|---|---|
-| `LLM_BACKEND` | ninguno: sin asistente | `ollama`, en `api` | Si hay asistente, y con qué servidor de modelos |
+| `LLM_BACKEND` | ninguno: sin asistente | `ollama`, en `api` | Si hay asistente, y con qué servidor de modelos; `grabado`, con respuestas grabadas |
 | `LLM_URL` | `http://127.0.0.1:11434` | `http://host.docker.internal:11434`, en `api` | Dónde está ese servidor |
 | `LLM_MODEL` | `qwen3.5:27b` | — | El modelo |
 | `LLM_NUM_CTX` | `16384` | — | Su ventana de contexto, en tokens |
@@ -124,6 +124,7 @@ ya no existe, hace fallar el CI.
 | `LLM_KEEP_ALIVE` | `10m` | — | Cuánto sigue el modelo en memoria tras la última petición |
 | `LLM_TIMEOUT` | `300.0` | — | Segundos por llamada al modelo |
 | `LLM_PROMPT` | `06-dato` | — | El prompt de sistema, de los de `backend/agent/prompts/` |
+| `LLM_GRABACION` | `demostracion` | — | Con `grabado`, qué grabación reproduce, de las de `backend/integrations/llm/grabaciones/` |
 | `CHAT_QUEUE_SIZE` | `2` | — | Conversaciones en espera; con la cola llena, 503 |
 | `CHAT_JOB_TTL_S` | `900.0` | — | Cuánto se guarda una conversación terminada |
 | `CHAT_MAX_JOBS` | `20` | — | Cuántas como mucho |
@@ -176,6 +177,29 @@ En otra máquina, hace falta un Ollama que escuche donde lo alcanza el
 contenedor —la puerta de enlace de Docker, `172.17.0.1`, y no el `127.0.0.1` del
 equipo— y, en el `.env`, `LLM_MODEL` con un modelo que tenga descargado. Esto no
 se ha comprobado fuera de las máquinas de la universidad.
+
+**Con respuestas grabadas**, sin ningún servidor de modelos (#265): la API
+reproduce lo que escribió el modelo al grabar la conversación de la
+demostración (`docs/demostracion.md`), las herramientas se ejecutan de verdad, y
+la pantalla avisa siempre de que son grabadas. Sólo responde a las preguntas
+grabadas; a cualquier otra, que no está grabada. Se suma
+`compose.grabado.yaml`, que sólo cambia `LLM_BACKEND` de la API, y se recrea la
+API:
+
+```bash
+docker compose -f compose.yaml -f compose.local.yaml -f compose.grabado.yaml up -d --wait api
+```
+
+Se vuelve a Ollama recreándola sin él:
+
+```bash
+docker compose -f compose.yaml -f compose.local.yaml up -d --wait api
+```
+
+La grabación va dentro de la imagen, en `backend/integrations/llm/grabaciones/`,
+y la escribe `spikes/grabar_demostracion.py`. *(Hasta que esté la de la
+demostración, que se graba en la segunda parte de #265, la pantalla dice que el
+asistente no se puede usar.)*
 
 ## Desde Claude Desktop
 

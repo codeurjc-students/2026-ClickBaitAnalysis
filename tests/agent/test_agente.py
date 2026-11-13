@@ -12,6 +12,10 @@ también que el agente usa bien `core/mcp/`.
 **El servidor se abre dentro de cada test**, con un gestor de contexto y no con
 una fixture asíncrona: el *lifespan* abre un ámbito de cancelación de anyio que
 tiene que cerrarse en la misma tarea que lo abrió (ver `test_catalog.py`).
+
+Al final, el mismo bucle con `ReproductorGrabado` (#265), que no es un doble:
+es el backend que se sirve en la demostración cuando no hay modelo. Allí se
+prueba que lo que pide una vuelta grabada se ejecuta de verdad.
 """
 
 import copy
@@ -46,6 +50,7 @@ from backend.integrations.llm.base import (
     LLMBackend,
     Mensaje,
 )
+from backend.integrations.llm.grabado import HA_CAMBIADO, ReproductorGrabado
 
 # El Host lleva puerto: la protección anti DNS-rebinding de FastMCP acepta
 # `127.0.0.1:*` y rechazaría con 421 un Host sin él.
@@ -790,3 +795,90 @@ async def test_sin_ninguna_herramienta_no_se_llama_al_modelo(monkeypatch):
     assert resultado["status"] == "failed"
     assert resultado["detail"] == SIN_HERRAMIENTAS
     assert modelo.conversaciones == []
+
+
+# ----- Con respuestas grabadas (#265) -----
+
+# El prompt de `_config`: la grabación lo compara letra a letra.
+PROMPT_DE_PRUEBA = _config(ModeloGuionado()).prompt
+
+
+def _grabado(tmp_path, consulta: str, *vueltas: dict) -> ReproductorGrabado:
+    """Un `ReproductorGrabado` de verdad, con una grabación de un turno."""
+    grabacion = {
+        "model": "qwen3.5:27b",
+        "model_digest": "7653528ba5cb",
+        "recorded_at": "2026-11-13",
+        "commit": "abc1234",
+        "prompt": {"name": "prueba", "text": PROMPT_DE_PRUEBA},
+        "takes": {"recorded": 1, "chosen": 1},
+        "conditions": {},
+        "turns": [{"query": consulta, "rounds": list(vueltas)}],
+    }
+    ruta = tmp_path / "grabacion.json"
+    ruta.write_text(json.dumps(grabacion, ensure_ascii=False), encoding="utf-8")
+    return ReproductorGrabado(ruta)
+
+
+def _grabada(vuelta: ToolResult, *resultados: tuple[str, dict]) -> dict:
+    """Una vuelta grabada: los resultados que leyó el modelo antes de darla,
+    escritos como los escribe el agente, y lo que respondió."""
+    return {
+        "tool_results": [
+            {"tool_name": nombre, "content": json.dumps(datos, ensure_ascii=False)}
+            for nombre, datos in resultados
+        ],
+        "response": vuelta.unwrap(),
+    }
+
+
+@pytest.mark.asyncio
+async def test_con_una_grabacion_las_herramientas_se_ejecutan_de_verdad(
+    monkeypatch, tmp_path
+):
+    """Lo grabado es lo que escribió el modelo; las herramientas, no: se
+    ejecutan ahora, por MCP, y la traza lleva su resultado de ahora."""
+    grabado = _grabado(
+        tmp_path,
+        "Repite hola",
+        _grabada(_pide(("eco", {"texto": "hola"}))),
+        _grabada(
+            _responde("El eco dice hola."), ("eco", {"texto": "hola", "longitud": 4})
+        ),
+    )
+
+    async with mcp_en_proceso(monkeypatch):
+        resultado = await responder("Repite hola", [], _config(grabado))
+
+    assert resultado["status"] == "answered"
+    assert resultado["answer"] == "El eco dice hola."
+    (paso,) = _herramientas(resultado)
+    assert paso["arguments"] == {"texto": "hola"}
+    assert paso["data"] == {"texto": "hola", "longitud": 4}
+    assert paso["server"] == "servidor-de-prueba"
+
+
+@pytest.mark.asyncio
+async def test_si_la_herramienta_devuelve_otra_cosa_no_se_narra_lo_grabado(
+    monkeypatch, tmp_path
+):
+    """R13.4: la narración grabada contaba una longitud de 5, y la herramienta
+    de ahora da 4, que es lo que pintan las tarjetas. La traza lleva el 4."""
+    grabado = _grabado(
+        tmp_path,
+        "Repite hola",
+        _grabada(_pide(("eco", {"texto": "hola"}))),
+        _grabada(
+            _responde("El eco dice hola, con 5 letras."),
+            ("eco", {"texto": "hola", "longitud": 5}),
+        ),
+    )
+
+    async with mcp_en_proceso(monkeypatch):
+        resultado = await responder("Repite hola", [], _config(grabado))
+
+    assert resultado["status"] == "answered"
+    assert resultado["answer"] == HA_CAMBIADO.format(fecha="13 de noviembre de 2026")
+    assert "5 letras" not in resultado["answer"]
+    (paso,) = _herramientas(resultado)
+    assert paso["data"] == {"texto": "hola", "longitud": 4}

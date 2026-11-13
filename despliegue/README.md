@@ -154,6 +154,39 @@ ssh gongarcia@gserver2.tfg.etsii.urjc.es "pkill -u gongarcia -f '[o]llama serve'
 quiera citar de una se lee antes de abrir la siguiente, con
 `bash spikes/ollama_registro.sh` desde WSL.
 
+### Máquina 1: el asistente con respuestas grabadas
+
+El plan B de la defensa (#265), cuando no se puede abrir la sesión de GPU. La
+API reproduce lo que escribió el modelo al grabar la conversación de la
+demostración (`docs/demostracion.md`), las herramientas se ejecutan de verdad, y
+la pantalla avisa siempre de que son respuestas grabadas. No hace falta la
+máquina 2.
+
+Se suma `compose.grabado.yaml`, que sólo cambia `LLM_BACKEND` de la API, y se
+recrea sólo la API: mientras arranca, unos segundos, tampoco responde el
+análisis. En la pila local, el cambio tardó 20 s y la vuelta, 21 s
+(`spikes/grabado_pila_local.sh`); en la máquina 1, sin medir todavía.
+
+```bash
+ssh vmuser@gongarcia.tfg.etsii.urjc.es 'cd ~/2026-ClickBaitAnalysis && sudo docker compose -f compose.yaml -f compose.grabado.yaml up -d --wait api'
+```
+
+`availability.status` pasa a `available`, y `recording` dice de qué modelo, de
+qué día y sobre qué commit es la grabación (la comprobación de «Máquina 1:
+desplegar»). Que se reproduce entera, sin modelo y como la vería la pantalla,
+desde WSL:
+
+```bash
+.venv/bin/python spikes/grabar_demostracion.py --reproducir-en https://gongarcia.tfg.etsii.urjc.es/api
+```
+
+Para volver al modelo de verdad, se recrea la API sin la variante. Un
+despliegue (`up --build`) también la devuelve a Ollama, porque no la lleva.
+
+```bash
+ssh vmuser@gongarcia.tfg.etsii.urjc.es 'cd ~/2026-ClickBaitAnalysis && sudo docker compose up -d --wait api'
+```
+
 ## El certificado: dónde vive y cómo se renueva
 
 El sitio sirve un certificado de **HARICA** (lo firma su intermedio GEANT TLS

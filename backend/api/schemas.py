@@ -43,6 +43,7 @@ from backend.analysis.domain import (
 from backend.config.settings import settings
 from backend.core.idioma import Idioma
 from backend.integrations.llm.base import Disponibilidad
+from backend.integrations.llm.grabado import InfoGrabacion
 from backend.integrations.llm.model_card import FichaLLM
 
 # --------------------------------------------------------------------------
@@ -573,10 +574,22 @@ class AgentInfo(BaseModel):
     funcionar), qué modelo es y sus límites medidos (R13.7), y qué
     instrucciones recibe (R13.5). No es `describe_models`: ésa la sirve el MCP,
     que no conoce la configuración del agente.
+
+    Y si sus respuestas son grabadas (#265), que la interfaz tiene que decir
+    siempre, sin que haya que abrir la ficha.
     """
 
     availability: Disponibilidad
     model_card: FichaLLM
+    recording: InfoGrabacion | None = Field(
+        description=(
+            "Si las respuestas del asistente son GRABADAS (#265): de qué modelo, "
+            "de qué día y sobre qué commit. `null` si es el modelo respondiendo "
+            "ahora, o si no hay asistente. La interfaz avisa siempre que no sea "
+            "`null`, y lo lee de aquí: nunca del nombre del modelo ni del texto "
+            "de `availability`."
+        )
+    )
     prompt: AgentPrompt
     max_history_chars: int = Field(
         description=(

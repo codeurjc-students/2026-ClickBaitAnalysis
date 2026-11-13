@@ -18,6 +18,7 @@ from backend.config.settings import Settings
 
 COMPOSE = Path(__file__).resolve().parents[1] / "compose.yaml"
 COMPOSE_LOCAL = COMPOSE.with_name("compose.local.yaml")
+COMPOSE_GRABADO = COMPOSE.with_name("compose.grabado.yaml")
 
 
 def _compose() -> dict:
@@ -216,3 +217,28 @@ def test_la_variante_local_sustituye_los_puertos_y_el_certificado():
     assert all(puerto.startswith("127.0.0.1:") for puerto in web["ports"])
     assert isinstance(web["volumes"], Sustituida)
     assert all("/certificados" not in volumen for volumen in web["volumes"])
+
+
+# La variante con respuestas grabadas (#265), el plan B de la defensa. También
+# se SUMA con `-f`, y además en la máquina 1, sobre el despliegue de verdad.
+
+
+def _servicios_grabados() -> dict:
+    return yaml.safe_load(COMPOSE_GRABADO.read_text(encoding="utf-8"))["services"]
+
+
+def test_la_variante_grabada_solo_cambia_quien_escribe_el_texto_del_asistente():
+    """Lo único que cambia es el backend del asistente. Con ella delante, el
+    despliegue tiene que seguir siendo el que vigilan las pruebas de arriba: la
+    API sin puertos, las señales en local, el historial en su volumen. Exigir
+    que no traiga nada más es lo que lo garantiza, sin repetirlas."""
+    assert _servicios_grabados() == {"api": {"environment": {"LLM_BACKEND": "grabado"}}}
+
+
+def test_la_variante_grabada_pide_un_backend_que_existe():
+    """Un valor que los ajustes no aceptan no falla aquí, sino al arrancar: la
+    API no levantaría, y con ella se caería también el análisis, en mitad de la
+    defensa."""
+    valor = _servicios_grabados()["api"]["environment"]["LLM_BACKEND"]
+
+    assert Settings(llm_backend=valor).llm_backend == valor

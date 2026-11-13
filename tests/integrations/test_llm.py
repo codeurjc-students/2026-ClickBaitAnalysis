@@ -7,6 +7,7 @@ el modelo. Contra la A40 se comprueba aparte, con `spikes/llm_disponibilidad.sh`
 
 import json
 import socket
+from datetime import date
 
 import httpx
 import pytest
@@ -16,6 +17,7 @@ from structlog.testing import capture_logs
 
 from backend.config.settings import settings
 from backend.integrations.llm import factory
+from backend.integrations.llm.grabado import ReproductorGrabado
 from backend.integrations.llm.model_card import FICHA
 from backend.integrations.llm.ollama import OllamaClient
 
@@ -441,6 +443,9 @@ def test_la_factoria_da_el_tope_de_la_configuracion(monkeypatch):
 
 
 def test_la_ficha_declarada_se_publica_con_su_modelo(monkeypatch):
+    # El backend, fijado: con `grabado` la ficha es otra (#265), y sin fijarlo
+    # dependería del `.env` de quien ejecute la prueba.
+    monkeypatch.setattr(settings, "llm_backend", "ollama")
     monkeypatch.setattr(settings, "llm_model", FICHA["model_id"])
 
     assert factory.ficha_efectiva() == FICHA
@@ -448,6 +453,7 @@ def test_la_ficha_declarada_se_publica_con_su_modelo(monkeypatch):
 
 def test_con_otro_modelo_las_medidas_dejan_de_publicarse(monkeypatch):
     """#119: las limitaciones medidas eran de otro modelo."""
+    monkeypatch.setattr(settings, "llm_backend", "ollama")
     monkeypatch.setattr(settings, "llm_model", "otro:7b")
 
     ficha = factory.ficha_efectiva()
@@ -457,3 +463,81 @@ def test_con_otro_modelo_las_medidas_dejan_de_publicarse(monkeypatch):
     assert ficha["task"] == FICHA["task"]
     assert len(ficha["limitations"]) == 1
     assert ficha["limitations"][0].startswith("SIN EVALUAR")
+
+
+# ----- La factoría, con respuestas grabadas (#265) -----
+
+
+def test_con_grabado_el_backend_es_el_reproductor_de_su_grabacion(
+    grabacion_de_prueba,
+):
+    backend = factory.get_llm_backend()
+
+    assert isinstance(backend, ReproductorGrabado)
+    assert backend.ruta.name == "prueba.json"
+    assert factory.get_llm_backend() is backend
+
+
+def test_con_grabado_solo_otra_grabacion_da_otro_reproductor(
+    grabacion_de_prueba, monkeypatch
+):
+    """De la configuración sólo le importa el nombre: cambiar la URL de Ollama
+    no vuelve a leer la grabación."""
+    primero = factory.get_llm_backend()
+
+    monkeypatch.setattr(settings, "llm_url", "http://otra.prueba:11434")
+    assert factory.get_llm_backend() is primero
+
+    monkeypatch.setattr(settings, "llm_grabacion", "otra")
+    assert factory.get_llm_backend() is not primero
+
+
+@pytest.mark.asyncio
+async def test_con_grabado_esta_disponible_y_dice_de_cuando(grabacion_de_prueba):
+    estado = await factory.disponibilidad()
+
+    assert estado.status == "available"
+    assert estado.model == "qwen3.5:27b"
+    assert "13 de noviembre de 2026" in estado.detail
+
+
+def test_con_grabado_la_ficha_es_la_de_la_grabacion(grabacion_de_prueba, monkeypatch):
+    """`llm_model` no se usa: el texto lo escribió el modelo grabado. Con otro
+    configurado, la ficha no dice «SIN EVALUAR», que sería de ése."""
+    monkeypatch.setattr(settings, "llm_model", "otro:7b")
+
+    ficha = factory.ficha_efectiva()
+
+    assert ficha["model_id"] == "qwen3.5:27b"
+    assert ficha["name"] == "Respuestas grabadas de qwen3.5:27b"
+    assert ficha["type"] == "opaque"
+    assert not any(
+        limitacion.startswith("SIN EVALUAR") for limitacion in ficha["limitations"]
+    )
+
+
+def test_con_grabado_se_publica_que_es_una_grabacion(grabacion_de_prueba):
+    assert factory.grabacion() == {
+        "model": "qwen3.5:27b",
+        "recorded_at": date(2026, 11, 13),
+        "commit": "abc1234",
+    }
+
+
+@pytest.mark.parametrize("backend", [None, "ollama"])
+def test_sin_grabado_no_se_publica_ninguna_grabacion(monkeypatch, backend):
+    monkeypatch.setattr(settings, "llm_backend", backend)
+
+    assert factory.grabacion() is None
+
+
+@pytest.mark.asyncio
+async def test_con_grabado_y_sin_su_fichero_no_esta_disponible(
+    grabacion_de_prueba, monkeypatch
+):
+    monkeypatch.setattr(settings, "llm_grabacion", "no-existe")
+
+    estado = await factory.disponibilidad()
+
+    assert estado.status == "model_missing"
+    assert factory.grabacion() is None

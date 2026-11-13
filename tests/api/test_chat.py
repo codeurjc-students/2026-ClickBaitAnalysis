@@ -430,6 +430,8 @@ async def test_el_agente_dice_si_esta_disponible_su_ficha_y_su_prompt(
     }
     assert info["model_card"]["model_id"] == settings.llm_model
     assert info["model_card"]["type"] == "opaque"
+    # Con el modelo de verdad no hay grabación que avisar (#265).
+    assert info["recording"] is None
     assert info["prompt"] == {
         "name": settings.llm_prompt,
         "text": prompts.cargar(settings.llm_prompt),
@@ -479,3 +481,21 @@ async def test_sin_configurar_el_agente_lo_dice(monkeypatch):
     async with _cliente() as cliente:
         info = (await cliente.get("/agent")).json()
     assert info["availability"]["status"] == "not_configured"
+    assert info["recording"] is None
+
+
+@pytest.mark.asyncio
+async def test_con_respuestas_grabadas_el_agente_lo_dice(grabacion_de_prueba):
+    """#265: la interfaz lo avisa leyéndolo de `recording`, nunca del nombre
+    del modelo ni del texto de `availability`. Con la factoría de verdad, sin
+    simular la disponibilidad."""
+    async with _cliente() as cliente:
+        info = (await cliente.get("/agent")).json()
+
+    assert info["recording"] == {
+        "model": "qwen3.5:27b",
+        "recorded_at": "2026-11-13",
+        "commit": "abc1234",
+    }
+    assert info["availability"]["status"] == "available"
+    assert info["model_card"]["name"] == "Respuestas grabadas de qwen3.5:27b"

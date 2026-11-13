@@ -59,7 +59,11 @@ from backend.core.logging import avisar_si_faltan_claves, configure_logging
 # Las tres excepciones son vocabulario del MECANISMO, no de la fachada: viven
 # donde se lanzan (#137). Importarlas de `api.execute` las haría parecer suyas.
 from backend.core.mcp.tools import InvalidArguments, ToolNotFound, ToolTimeout
-from backend.integrations.llm.factory import disponibilidad, ficha_efectiva
+from backend.integrations.llm.factory import (
+    disponibilidad,
+    ficha_efectiva,
+    grabacion,
+)
 
 log = structlog.get_logger()
 
@@ -525,6 +529,9 @@ async def get_agent() -> AgentInfo:
       apagado se detecta en 0,2 ms (#181).
     - `model_card`: la ficha del modelo, con sus límites medidos (R13.7). Si se
       configuró otro modelo, se publica ése y sin las medidas, que eran de otro.
+      Con respuestas grabadas, la de la grabación.
+    - `recording`: si las respuestas son grabadas (#265), de qué modelo, de qué
+      día y sobre qué commit; `null` si no. La interfaz lo avisa siempre.
     - `prompt`: el prompt de sistema en uso, entero (R13.5).
     - `max_history_chars`: el tope del historial de `POST /chat`, para que la
       interfaz recorte antes de enviar en vez de recibir un 422 (#191).
@@ -532,6 +539,7 @@ async def get_agent() -> AgentInfo:
     return AgentInfo(
         availability=await disponibilidad(),
         model_card=ficha_efectiva(),
+        recording=grabacion(),
         prompt=AgentPrompt(
             name=settings.llm_prompt, text=prompts.cargar(settings.llm_prompt)
         ),

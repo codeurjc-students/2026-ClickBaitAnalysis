@@ -41,6 +41,19 @@
     </section>
   }
 
+  <!-- Las respuestas grabadas se dicen SIEMPRE, sin abrir la ficha (#265): el
+       texto no lo está escribiendo el modelo ahora. Se lee de `recording`,
+       nunca del nombre del modelo ni del `detail`. Informa, no interrumpe. -->
+  @if (informacion.recording; as grabacion) {
+    <p class="aviso aviso--grabado" role="status">
+      <strong>Respuestas grabadas.</strong> Lo que escribe el asistente lo
+      escribió <code>{{ grabacion.model }}</code> el
+      {{ fechaDeGrabacion(grabacion) }}: el modelo no está en marcha ahora, y
+      sólo hay respuesta para las preguntas grabadas. Las herramientas sí se
+      ejecutan ahora: las tarjetas son de este momento.
+    </p>
+  }
+
   @if (intercambios().length) {
     <!-- Si algo de lo que se ve no está guardado, se dice: la pantalla lo enseña
          todo hasta que se recarga o se cambia de sección (#209). Informa, no
