@@ -10720,6 +10720,8 @@ La guía cita el veredicto y las cifras de cinco titulares. Son deterministas, p
 
 *(Corregido el 12 nov 2026, tras el merge, #214: «con su revisión fijada» vale para la imagen, que hornea esa revisión, y no para esta medida. El cliente local pide cada modelo por su nombre, sin revisión, y con red carga lo que haya en el Hub: lo anotó #282, cuyo guion mide sin red y se para si la caché no es la de la ficha. Esta medida se hizo con red. Después de ella, el `refs/main` de la caché local de los cinco modelos era el de su ficha, mirado a mano, lo que indica que se cargaron ésas.)*
 
+*(Revisado el 13 nov 2026, PR #290: desde entonces el guion mide sin red, en CPU y con los modelos de las fichas, y se para si la caché no tiene la revisión de alguna. Dio las mismas cifras que esta tabla. Sección «El guion de los titulares mide lo que se sirve».)*
+
 ### El asistente con respuestas grabadas: el mecanismo (#265, 13 nov 2026)
 
 El asistente depende de la máquina 2, que el autor no controla: la GPU es compartida, `gpu-sesion` no abre si otra persona la usa, y la universidad ya bloqueó una vez la IP de casa (#193). Para la defensa hace falta un asistente que funcione sin ella y que no engañe a nadie sobre lo que es. #265 añade un tercer estado, además de «sin configurar» y del modelo de verdad: **configurado con respuestas grabadas del 27B**. Las herramientas se ejecutan de verdad por MCP, y sólo el texto del modelo sale de la grabación. Es el plan B en directo de [`docs/demostracion.md`](docs/demostracion.md), y el vídeo pasa a plan C (comentario en #214).
@@ -10907,6 +10909,53 @@ El ensayo, que ya estaba pendiente, mide además el plan B en la máquina 1.
 | Código | `147d1df`, sin cambios en `backend/`: lo comprueba `agente_a40.sh` antes de abrir la sesión |
 | Guiones | `spikes/agente_a40.sh` con `AGENTE_A40_GUION=spikes/grabar_demostracion.py`; `--en-seco`, `--elegir` y `--reproducir` del mismo guion; y `spikes/grabado_pila_local.sh`. Los datos, en `spikes/grabacion_demostracion/2026-11-13-27b/`: `tomas.json`, con las tres tomas enteras; `sesion.log`; y `pila_local.txt` |
 | Comprobado | `pytest -m "not integration"`, 691 pruebas: las 688 de antes y 3 nuevas. ruff y pyright, sin avisos |
+
+### El guion de los titulares mide lo que se sirve (13 nov 2026, PR #290)
+
+`spikes/demostracion_titulares.py` (#214) comprueba que los cinco titulares de [`docs/demostracion.md`](docs/demostracion.md) dan el veredicto y las cifras que cita la guía, y se lanza la víspera de la defensa. Medía con red, y así no comprobaba lo que se sirve: `LocalNLPClient` pide cada modelo por su nombre, sin revisión, y con red carga lo que haya ese día en el Hub de Hugging Face, mientras que la imagen hornea la revisión de la ficha y arranca sin red (#234). El porqué lo dejó escrito #282, y la sección de #214 lo anotó en una nota de corrección. Era un pendiente, ofrecido al autor el 12 de noviembre.
+
+#### Lo que cambia
+
+El guion pasa a fijar las condiciones de `spikes/ejemplos_formulario.py` (#282) y a usar sus dos comprobaciones, importadas y no copiadas (decidido por el autor): así, los dos guiones que pasan titulares por `analyze()` siguen una sola regla. `spikes/grabar_demostracion.py` (#265) conserva la suya, que mira todas las fichas antes de cargar nada.
+
+- **En CPU.** El guion vacía `CUDA_VISIBLE_DEVICES` antes de importar torch, y se para si torch ve una GPU igualmente.
+- **Sin red.** Con `HF_HUB_OFFLINE=1`, como en la imagen, se carga el `refs/main` de la caché. Al acabar, `modelos_que_respondieron` comprueba que es el commit que fija la ficha de cada modelo que respondió, y si no lo es, se para.
+- **Con los modelos y los umbrales de las fichas.** Con `NLP_MODELS`, `NLP_THRESHOLDS` o los demás ajustes que cambian el modelo o el umbral puestos, o con `NLP_BACKEND` distinto de `local`, se para antes de cargar nada (`ajustes_puestos`). Producción sólo fija `NLP_BACKEND=local`.
+- **Una señal caída cuenta como fallo.** Sin red, un modelo que falta en la caché ya no se descarga: su señal da `error`, no vota, y el veredicto se calcula sin ella. `ejemplos_formulario.py` ya se paraba en ese caso.
+
+La cabecera de la salida dice «CPU y sin red», con las versiones de torch y transformers, y al final se imprime cada modelo con su revisión. **La guía no cambia**: su comando lleva `CUDA_VISIBLE_DEVICES=` delante, que ahora sobra pero no estorba, y sus cifras siguen siendo las de hoy.
+
+#### El resultado
+
+Las cifras de los cinco titulares son las mismas que con red el 12 de noviembre: los veredictos, la dedicada, las pistas del léxico, el lineal con sus tres rasgos de más peso, la incoherencia y el tono. La tabla de la sección de #214 sigue valiendo. Los cinco modelos que respondieron tenían en la caché la revisión de su ficha, así que las cifras de la guía son las de las revisiones que se sirven. La nota de #214 lo daba por indicio, mirado a mano después de medir; ahora lo comprueba el guion cada vez que se lanza.
+
+Se lanzó dos veces: sobre `835568e`, y sobre `d007451` tras el merge de #288, que cambió la guía, porque el guion comprueba también que sus textos sigan en ella.
+
+#### Se vio fallar
+
+Tres pruebas de usar y tirar, sin tocar el fichero:
+
+| Prueba | Qué hizo |
+|---|---|
+| Con `NLP_BACKEND=remote` | Se para antes de cargar nada |
+| Con la caché de Hugging Face vacía (`HF_HOME` en una carpeta nueva) | 12 señales caídas y 2 veredictos distintos: 14 fallos. La carpeta seguía con 0 ficheros al acabar: sin red de verdad |
+| Con la ficha de Stremie en otra revisión, cambiada en memoria | Analiza y se para: «en la caché está 517de05db9ba y la ficha fija 000000000000» |
+
+**La caché vacía enseñó por qué hacía falta contar las señales caídas.** Sin la dedicada, el tono y la incoherencia, 3 de los 5 veredictos seguían siendo los de la guía: el B, el español y el del asistente, porque el léxico y el lineal bastan para darlos. Sin red y comparando sólo veredictos, como hacía el guion hasta ahora, habría contado 2 fallos con los cinco titulares mal medidos.
+
+#### Lo que no cubre
+
+- **Mide en el PC, no en la máquina 1.** Son los mismos modelos con la misma revisión, pero otra CPU puede mover una cifra en el tercer decimal: por eso #265 compara con un margen de ±0,001. Lo que da la máquina 1 lo comprueba el mismo paso 3 de «La víspera», que pide después los tres titulares de Analizar a mano, en la web.
+- **Sin prueba del CI**: el guion necesita los modelos, y se lanza a mano.
+
+| Condiciones | |
+|---|---|
+| Fecha | 13 nov 2026, hora de Madrid: el guion, a las 16:46 sobre `835568e` y a las 16:51 sobre `d007451`; las tres pruebas de fallo, a las 16:48 |
+| Máquina | El PC de sobremesa del autor: WSL2 con Ubuntu 24.04.4, Python 3.12.3, torch 2.12.1+cu130, transformers 5.12.0, sentence-transformers 5.6.0 y huggingface_hub 1.16.1. En CPU y sin red, puestos por el guion |
+| Modelos | Los de las fichas, con la revisión comprobada contra la caché: `Stremie/roberta-base-clickbait` (`517de05db9ba`), `ggcastle/beto-clickbait-es` (`03c31ac0c288`), `cardiffnlp/twitter-roberta-base-sentiment-latest` (`3216a57f2a0d`), `lxyuan/distilbert-base-multilingual-cased-sentiments-student` (`cf991100d706`) y `sentence-transformers/all-MiniLM-L6-v2` (`1110a243fdf4`) |
+| Código | `d007451` (`dev`, con #288), sin cambios en `backend/`, y con los de esta PR sin commitear |
+| Guion | `spikes/demostracion_titulares.py`. Las pruebas de fallo cambian el entorno o la ficha en memoria y no se versionan, como la de #214 |
+| Comprobado | `pytest -m "not integration"`, 691 pruebas, las mismas. ruff y pyright, sin avisos; pyright no mira `spikes/`, y el guion se revisó con `ruff check` y `ruff format --diff` |
 
 ### Los tres avisos de Dependabot: `vitest` 4.1.12 con npm 11, y `minimatch`, no aplicable (#289, 13 nov 2026)
 

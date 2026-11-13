@@ -22,16 +22,28 @@ un desacuerdo para quedar sin resolver, y la dedicada y el léxico ya
 discrepaban. El margen del lineal se imprime igual, porque dice cuánto le falta
 a esa señal para cambiar de voto, y el guion conserva un repuesto, el C.
 
-Los modelos se cargan por su nombre, sin revisión: con red, `transformers` trae
-lo que haya en el Hub. Que sean los de las fichas no lo comprueba este guion;
-`spikes/ejemplos_formulario.py` (#282) sí, para los que mide.
+Mide lo que se sirve, y no lo que haya ese día en el Hub de Hugging Face (desde
+el 13 nov 2026; hasta entonces medía con red): `LocalNLPClient` pide cada
+modelo por su nombre, sin revisión, y con red cargaría la última. Tres
+condiciones las fija el propio guion, con las comprobaciones de
+`spikes/ejemplos_formulario.py` (#282):
 
-Ejecutar desde la raíz. En WSL, `transformers` pone los modelos en la GPU si la
-ve; con `CUDA_VISIBLE_DEVICES=` van en CPU, como en producción:
+- CPU (`CUDA_VISIBLE_DEVICES` vacío): en WSL `transformers` usaría la GTX, y
+  producción no tiene GPU. Si torch la ve igual, se para.
+- Sin red (`HF_HUB_OFFLINE=1`), como la imagen: carga el `refs/main` de la
+  caché, y al final se comprueba que es el commit que fija la ficha de cada
+  modelo que respondió; si no lo es, se para. Una señal caída cuenta como
+  fallo: sin red, es lo que pasa si falta un modelo en la caché, y el veredicto
+  sin ella puede coincidir por casualidad con el de la guía.
+- Los modelos y los umbrales de las fichas, que son los de producción: con
+  `NLP_MODELS`, `NLP_THRESHOLDS` o los demás ajustes puestos, se para.
 
-    CUDA_VISIBLE_DEVICES= .venv/bin/python spikes/demostracion_titulares.py
+Ejecutar desde la raíz:
 
-Resultados (2026-11-12, sobre `2aabb7c`, en CPU): 5 titulares, 0 fallos.
+    .venv/bin/python spikes/demostracion_titulares.py
+
+Resultados (2026-11-13, `dev` en `d007451`, torch 2.12.1 y transformers 5.12.0):
+5 titulares, 0 fallos, y las mismas cifras que con red el 12 nov.
 
 | Caso | Veredicto | Dedicada | Léxico | Lineal | Incoherencia | Tono |
 |---|---|---|---|---|---|---|
@@ -44,10 +56,17 @@ Resultados (2026-11-12, sobre `2aabb7c`, en CPU): 5 titulares, 0 fallos.
 El léxico, en pistas; «—», la señal no se aplica. Los umbrales: el lineal, 0,35,
 y la incoherencia, 0,3. En el titular del asistente, los tres rasgos que más
 pesan en el lineal son «this» (+1,90), «you» (+1,75) y «what» (+1,14).
+
+Los modelos, con la revisión de su ficha: `Stremie/roberta-base-clickbait`
+(`517de05db9ba`), `ggcastle/beto-clickbait-es` (`03c31ac0c288`),
+`cardiffnlp/twitter-roberta-base-sentiment-latest` (`3216a57f2a0d`),
+`lxyuan/distilbert-base-multilingual-cased-sentiments-student`
+(`cf991100d706`) y `sentence-transformers/all-MiniLM-L6-v2` (`1110a243fdf4`).
 """
 
 import asyncio
 import logging
+import os
 import subprocess
 import sys
 from dataclasses import dataclass
@@ -56,11 +75,23 @@ from pathlib import Path
 
 import structlog
 
+# Antes de importar nada de `backend`: torch y `huggingface_hub` las leen al
+# importarse. Son las condiciones de `ejemplos_formulario.py` (#282).
+os.environ["CUDA_VISIBLE_DEVICES"] = ""
+os.environ["HF_HUB_OFFLINE"] = "1"
+
 RAIZ = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(RAIZ))
 
 from backend.analysis.domain import AnalyzeRequest, SignalResult  # noqa: E402
 from backend.analysis.orchestrator import analyze  # noqa: E402
+
+# Las comprobaciones de que lo medido es lo que se sirve: una sola regla para
+# los dos guiones que pasan titulares por `analyze()`.
+from spikes.ejemplos_formulario import (  # noqa: E402
+    ajustes_puestos,
+    modelos_que_respondieron,
+)
 
 # Sólo avisos: lo que interesa es lo que se imprime aquí.
 structlog.configure(
@@ -148,13 +179,15 @@ def cabecera() -> str:
         ["git", "diff", "--quiet", "HEAD"], check=False, cwd=RAIZ
     ).returncode
     aviso = " (con cambios sin commitear)" if sucio else ""
-    try:
-        import torch
+    import torch
+    import transformers
 
-        dispositivo = "GPU" if torch.cuda.is_available() else "CPU"
-    except ImportError:
-        dispositivo = "sin torch"
-    return f"== {ahora} · {commit}{aviso} · {dispositivo}"
+    if torch.cuda.is_available():
+        raise SystemExit("torch ve una GPU: la medida tiene que ser en CPU")
+    return (
+        f"== {ahora} · {commit}{aviso} · CPU y sin red · "
+        f"torch {torch.__version__} · transformers {transformers.__version__}"
+    )
 
 
 def textos_fuera_del_guion() -> list[str]:
@@ -177,6 +210,12 @@ def botones_cambiados() -> list[str]:
 
 async def comprobar() -> int:
     """Analiza cada caso y devuelve cuántas comprobaciones fallan."""
+    puestos = ajustes_puestos()
+    if puestos:
+        raise SystemExit(
+            f"con {sorted(puestos)} puestos no se mide lo que se sirve: la guía "
+            "cita los modelos y los umbrales de las fichas"
+        )
     print(cabecera())
     fallos = 0
 
@@ -189,10 +228,12 @@ async def comprobar() -> int:
         )
         fallos += 1
 
+    todos = []
     for caso in CASOS:
         analisis = await analyze(
             AnalyzeRequest(headline=caso.titular, content=caso.cuerpo)
         )
+        todos.append(analisis.model_dump(mode="json"))
         veredicto = analisis.verdict.value
         acierta = veredicto == caso.veredicto
         fallos += 0 if acierta else 1
@@ -202,6 +243,20 @@ async def comprobar() -> int:
         print(f"   veredicto {veredicto} · idioma {analisis.language} · {marca}")
         for senal in analisis.signals:
             print(f"   {senal.name:30} {resumen(senal)}")
+            # Sin red, un modelo que no está en la caché falla, y el veredicto
+            # se calcula sin su señal: podría coincidir con el de la guía por
+            # casualidad.
+            if senal.status.value == "error":
+                print("   !! una señal caída no vota: el veredicto no es el servido")
+                fallos += 1
+
+    # Se para si en la caché no está la revisión de la ficha.
+    print("\n== los modelos que respondieron, con la revisión de su ficha")
+    for modelo in modelos_que_respondieron(todos):
+        print(
+            f"   {modelo['language']} · {modelo['signal']:30} "
+            f"{modelo['model_id']} · {modelo['revision'][:12]}"
+        )
 
     print(f"\n== {len(CASOS)} titulares · {fallos} fallos")
     return fallos
