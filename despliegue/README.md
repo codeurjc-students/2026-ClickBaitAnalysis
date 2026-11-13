@@ -166,8 +166,9 @@ Se suma `compose.grabado.yaml`, que sólo cambia `LLM_BACKEND` de la API, y se
 recrea sólo la API: mientras arranca, unos segundos, tampoco responde el
 análisis. En la pila local, el cambio tardó de 19 a 20 s y la vuelta, de 18
 a 21 s, en las dos veces que se midió: con la grabación del 2B y con la del 27B
-(`spikes/grabado_pila_local.sh`, 13 nov 2026). En la máquina 1, sin medir
-todavía.
+(`spikes/grabado_pila_local.sh`, 13 nov 2026). En la máquina 1, de 13 a 14 s
+el cambio y 14 s la vuelta (`spikes/grabado_maquina1.sh`, dos veces el 13 nov
+2026, con `835568e`).
 
 ```bash
 ssh vmuser@gongarcia.tfg.etsii.urjc.es 'cd ~/2026-ClickBaitAnalysis && sudo docker compose -f compose.yaml -f compose.grabado.yaml up -d --wait api'

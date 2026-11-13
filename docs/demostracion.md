@@ -12,7 +12,7 @@ principal, en la sección de #214.
 
 | Qué | Espera a |
 |---|---|
-| El ensayo completo, con lo que tarda cada parte, también el plan B en la máquina 1 | el despliegue que lleve la grabación de #265 |
+| El ensayo completo, con lo que tarda cada parte | nada: la máquina 1 sirve la grabación desde el 13 nov |
 | El plan C: la grabación en vídeo y las capturas | la congelación |
 
 ## Lo que se enseña
@@ -331,12 +331,13 @@ en #265 antes de grabar.
 - **Se enciende** desde WSL, con el comando de
   [«Máquina 1: el asistente con respuestas grabadas»](../despliegue/README.md#máquina-1-el-asistente-con-respuestas-grabadas)
   de `despliegue/README.md`. Recrea sólo la API, y mientras arranca tampoco
-  responde el análisis: en la pila local, el cambio tardó 19 s. En la máquina 1,
-  sin medir todavía (lo mide «El ensayo»).
+  responde el análisis: en la máquina 1, el cambio tardó 13 o 14 s, y la
+  vuelta, 14 (dos veces, el 13 nov 2026; en la pila local, 19 y 18).
 - **Se calienta como con el modelo**: la conversación del paso 6 entera, y
   «Empezar una conversación nueva». No hay modelo que cargar, pero el servidor
-  MCP carga los de las señales en su primera llamada: en la pila local, el
-  turno 1 tardó 8 s, y los otros dos, 2.
+  MCP carga los de las señales en su primera llamada: en la máquina 1, con el
+  servidor MCP recién arrancado, el turno 1 tardó 8 s y los otros dos, 2; ya
+  caliente, los tres tardaron 2.
 - **Se ve**, en Asistente, un aviso fijo de que son respuestas grabadas, de qué
   modelo y de qué día, y «Sobre el asistente» enseña la ficha de la grabación.
 - **Se hace** el paso 6, con las mismas tres preguntas, pegadas de «Los
@@ -371,8 +372,8 @@ las dos máquinas. El enlace, aquí, cuando esté hecha.
 ## El ensayo
 
 **Pendiente.** Un ensayo completo, siguiendo este guion al pie de la letra,
-sobre el despliegue que lleve la grabación de #265, y después el plan B en la
-máquina 1. Se apunta lo que tarda cada parte y, al acabar, la GPU a 0 MiB.
+sobre la máquina 1, y después el plan B. Se apunta lo que tarda cada parte y,
+al acabar, la GPU a 0 MiB.
 
 | Parte | Previsto | Medido |
 |---|---|---|
@@ -386,6 +387,6 @@ máquina 1. Se apunta lo que tarda cada parte y, al acabar, la GPU a 0 MiB.
 | Paso 6 | 150 s | |
 | Paso 7 | 75 s | |
 | Al terminar, hasta 0 MiB | — | |
-| Plan B: el cambio, hasta `available` | 19 s, en la pila local | |
+| Plan B: el cambio, hasta `available` | 13–14 s | |
 | Plan B: el paso 6, reproducido | — | |
-| Plan B: la vuelta al modelo | 18 s, en la pila local | |
+| Plan B: la vuelta al modelo | 14 s | |
