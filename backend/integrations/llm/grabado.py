@@ -287,6 +287,8 @@ class ReproductorGrabado(LLMBackend):
             }
 
         modelo = grabacion["model"]
+        # La ficha se lee en castellano: el margen, con coma decimal.
+        margen = f"{MARGEN:.3f}".replace(".", ",")
         consultas = "; ".join(f"«{grabado['query']}»" for grabado in grabacion["turns"])
         tomas = grabacion["takes"]
         return {
@@ -298,7 +300,7 @@ class ReproductorGrabado(LLMBackend):
                 f"No es el modelo respondiendo ahora: es lo que escribió `{modelo}` el {_fecha(grabacion['recorded_at'])}, sobre el commit `{grabacion['commit']}` y con el prompt `{grabacion['prompt']['name']}`.",
                 f"Sólo responde a las consultas grabadas: {consultas}. A cualquier otra contesta que no está grabada.",
                 f"Se grabaron {tomas['recorded']} tomas de la conversación y se reproduce la {tomas['chosen']}.ª, elegida con una regla publicada antes de grabar (#265): cada turno llama a la herramienta esperada, ninguno acaba vacío ni cortado, y el autor dio cada narración por fiel a su traza.",
-                f"Antes de cada vuelta comprueba que el prompt y los resultados de las herramientas son los grabados, con un margen de {MARGEN} en las cifras. Si no lo son, no reproduce lo grabado y lo dice.",
+                f"Antes de cada vuelta comprueba que el prompt y los resultados de las herramientas son los grabados, con un margen de ±{margen} en las cifras. Si no lo son, no reproduce lo grabado y lo dice.",
                 f"Lo escribió `{modelo}`, de tipo opaco: no explica por qué eligió cada herramienta ni por qué redactó lo que redactó. Sus limitaciones medidas son las de su ficha, que se publica cuando el asistente usa el modelo de verdad.",
             ],
         }

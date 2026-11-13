@@ -488,7 +488,7 @@
           "asistente"
         ],
         "summary": "Get Agent",
-        "description": "Si el asistente se puede usar ahora, qué modelo es y qué instrucciones\nrecibe.\n\n- `availability`: uno de los cuatro estados, con una frase que explica por\n  qué no, si no se puede (R6.14: la interfaz no debe ofrecer controles que\n  no puedan funcionar). Se pregunta en el momento, sin caché: un servidor\n  apagado se detecta en 0,2 ms (#181).\n- `model_card`: la ficha del modelo, con sus límites medidos (R13.7). Si se\n  configuró otro modelo, se publica ése y sin las medidas, que eran de otro.\n- `prompt`: el prompt de sistema en uso, entero (R13.5).\n- `max_history_chars`: el tope del historial de `POST /chat`, para que la\n  interfaz recorte antes de enviar en vez de recibir un 422 (#191).",
+        "description": "Si el asistente se puede usar ahora, qué modelo es y qué instrucciones\nrecibe.\n\n- `availability`: uno de los cuatro estados, con una frase que explica por\n  qué no, si no se puede (R6.14: la interfaz no debe ofrecer controles que\n  no puedan funcionar). Se pregunta en el momento, sin caché: un servidor\n  apagado se detecta en 0,2 ms (#181).\n- `model_card`: la ficha del modelo, con sus límites medidos (R13.7). Si se\n  configuró otro modelo, se publica ése y sin las medidas, que eran de otro.\n  Con respuestas grabadas, la de la grabación.\n- `recording`: si las respuestas son grabadas (#265), de qué modelo, de qué\n  día y sobre qué commit; `null` si no. La interfaz lo avisa siempre.\n- `prompt`: el prompt de sistema en uso, entero (R13.5).\n- `max_history_chars`: el tope del historial de `POST /chat`, para que la\n  interfaz recorte antes de enviar en vez de recibir un 422 (#191).",
         "operationId": "get_agent_agent_get",
         "responses": {
           "200": {
@@ -518,6 +518,17 @@
           "model_card": {
             "$ref": "#/components/schemas/FichaLLM"
           },
+          "recording": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/InfoGrabacion"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Si las respuestas del asistente son GRABADAS (#265): de qué modelo, de qué día y sobre qué commit. `null` si es el modelo respondiendo ahora, o si no hay asistente. La interfaz avisa siempre que no sea `null`, y lo lee de aquí: nunca del nombre del modelo ni del texto de `availability`."
+          },
           "prompt": {
             "$ref": "#/components/schemas/AgentPrompt"
           },
@@ -531,11 +542,12 @@
         "required": [
           "availability",
           "model_card",
+          "recording",
           "prompt",
           "max_history_chars"
         ],
         "title": "AgentInfo",
-        "description": "Todo lo que la interfaz necesita saber del asistente antes de usarlo.\n\nSi se puede usar ahora y por qué no (R6.14: sin controles que no puedan\nfuncionar), qué modelo es y sus límites medidos (R13.7), y qué\ninstrucciones recibe (R13.5). No es `describe_models`: ésa la sirve el MCP,\nque no conoce la configuración del agente."
+        "description": "Todo lo que la interfaz necesita saber del asistente antes de usarlo.\n\nSi se puede usar ahora y por qué no (R6.14: sin controles que no puedan\nfuncionar), qué modelo es y sus límites medidos (R13.7), y qué\ninstrucciones recibe (R13.5). No es `describe_models`: ésa la sirve el MCP,\nque no conoce la configuración del agente.\n\nY si sus respuestas son grabadas (#265), que la interfaz tiene que decir\nsiempre, sin que haya que abrir la ficha."
       },
       "AgentPrompt": {
         "properties": {
@@ -1169,6 +1181,31 @@
         ],
         "title": "HistoryPage",
         "description": "Una página del historial, en orden cronológico inverso."
+      },
+      "InfoGrabacion": {
+        "properties": {
+          "model": {
+            "type": "string",
+            "title": "Model"
+          },
+          "recorded_at": {
+            "type": "string",
+            "format": "date",
+            "title": "Recorded At"
+          },
+          "commit": {
+            "type": "string",
+            "title": "Commit"
+          }
+        },
+        "type": "object",
+        "required": [
+          "model",
+          "recorded_at",
+          "commit"
+        ],
+        "title": "InfoGrabacion",
+        "description": "Lo que la pantalla necesita para decir que las respuestas son grabadas.\n\nVa al contrato de `GET /agent`, así que las claves van en inglés."
       },
       "Medidas": {
         "properties": {

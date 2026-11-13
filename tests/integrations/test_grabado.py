@@ -60,7 +60,7 @@ def _vuelta(resultados: list[tuple[str, dict]], **respuesta) -> dict:
 GRABACION = {
     "model": "qwen3.5:27b",
     "model_digest": "7653528ba5cb",
-    "recorded_at": "2026-12-02",
+    "recorded_at": "2026-11-13",
     "commit": "abc1234",
     "prompt": {"name": "06-dato", "text": PROMPT},
     "takes": {"recorded": 3, "chosen": 2},
@@ -299,7 +299,7 @@ async def test_con_un_resultado_distinto_del_grabado_no_lo_narra(reproductor, ca
         _mensajes(CONSULTA_1, PIDE_ANALISIS, _devuelve("analyze_headline", distinto)),
     )
 
-    assert respuesta["content"] == HA_CAMBIADO.format(fecha="2 de diciembre de 2026")
+    assert respuesta["content"] == HA_CAMBIADO.format(fecha="13 de noviembre de 2026")
     assert "0,951" not in respuesta["content"]
     assert respuesta["tool_calls"] == []
     assert respuesta["metrics"]["output_tokens"] is None
@@ -390,7 +390,7 @@ async def test_esta_disponible_y_dice_que_son_respuestas_grabadas(reproductor):
 
     assert disponibilidad.status == "available"
     assert disponibilidad.model == "qwen3.5:27b"
-    assert "2 de diciembre de 2026" in disponibilidad.detail
+    assert "13 de noviembre de 2026" in disponibilidad.detail
     assert "consultas grabadas" in disponibilidad.detail
 
 
@@ -399,7 +399,7 @@ def test_publica_el_modelo_la_fecha_y_el_commit(reproductor):
 
     assert informacion is not None
     assert informacion["model"] == "qwen3.5:27b"
-    assert informacion["recorded_at"].isoformat() == "2026-12-02"
+    assert informacion["recorded_at"].isoformat() == "2026-11-13"
     assert informacion["commit"] == "abc1234"
 
 
@@ -410,8 +410,11 @@ def test_la_ficha_es_opaca_y_dice_de_donde_sale(reproductor):
     assert ficha["model_id"] == "qwen3.5:27b"
     assert ficha["name"] == "Respuestas grabadas de qwen3.5:27b"
     limitaciones = " ".join(ficha["limitations"])
-    for dato in ("`abc1234`", "`06-dato`", "2 de diciembre de 2026", "la 2.ª"):
+    for dato in ("`abc1234`", "`06-dato`", "13 de noviembre de 2026", "la 2.ª"):
         assert dato in limitaciones
+    # Se lee en castellano: el margen, con coma decimal.
+    assert "±0,001" in limitaciones
+    assert "0.001" not in limitaciones
     assert f"«{CONSULTA_2}»" in limitaciones
 
 

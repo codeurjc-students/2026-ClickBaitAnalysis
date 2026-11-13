@@ -21,6 +21,7 @@ function agente(status: Disponibilidad['status'], detalle = 'Motivo publicable.'
       type: 'opaque',
       limitations: ['Lento.'],
     },
+    recording: null,
     prompt: { name: '04-preciso', text: 'Eres el asistente…' },
     max_history_chars: 4000,
   };
@@ -245,6 +246,33 @@ describe('AsistentePage', () => {
     expect(sobre.textContent).toContain('Lento.');
     expect(sobre.textContent).toContain('04-preciso');
     expect(sobre.textContent).toContain('Eres el asistente…');
+  });
+
+  // ----- Respuestas grabadas (#265) -----
+
+  it('con respuestas grabadas lo dice siempre, sin abrir la ficha', async () => {
+    http.expectOne('/api/agent').flush({
+      ...agente('available'),
+      recording: { model: 'qwen3.5:27b', recorded_at: '2026-11-13', commit: 'abc1234' },
+    });
+    await fixture.whenStable();
+
+    const aviso = html().querySelector('.aviso--grabado');
+    expect(aviso).not.toBeNull();
+    expect(aviso!.getAttribute('role')).toBe('status');
+    expect(aviso!.closest('details')).toBeNull();
+    expect(aviso!.textContent).toContain('Respuestas grabadas');
+    expect(aviso!.textContent).toContain('qwen3.5:27b');
+    expect(aviso!.textContent).toContain('13 de noviembre de 2026');
+    // Es un asistente disponible: se le puede preguntar.
+    expect(html().querySelector('textarea')).not.toBeNull();
+  });
+
+  it('con el modelo respondiendo de verdad no hay aviso de grabación', async () => {
+    await conAgente('available');
+
+    expect(html().querySelector('.aviso--grabado')).toBeNull();
+    expect(texto()).not.toContain('grabad');
   });
 
   // ----- La conversación -----

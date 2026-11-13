@@ -1,0 +1,16 @@
+== 2026-11-13T11:57:10+01:00 commit 637affd, grabación 2a4a9e1bb1b8
+== pila arriba, con Ollama: 133 s
+  agent: unreachable · recording: None
+== cambio a grabado
+== cambio: 20 s
+  agent: available · recording: {'model': 'qwen3.5:2b', 'recorded_at': '2026-11-13', 'commit': '637affd'}
+== https://localhost/api: sirve la grabación de backend/integrations/llm/grabaciones/demostracion.json
+  turno 1: entero · 2 de 2 vueltas · answered · 8.0 s
+  turno 2: entero · 2 de 2 vueltas · answered · 2.0 s
+  turno 3: entero · 6 de 6 vueltas · max_rounds · 2.0 s
+Se reproduce entera.
+   reproducir-en: 0
+== vuelta a Ollama
+== vuelta: 21 s
+  agent: unreachable · recording: None
+FIN

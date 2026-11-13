@@ -808,7 +808,7 @@ def _grabado(tmp_path, consulta: str, *vueltas: dict) -> ReproductorGrabado:
     grabacion = {
         "model": "qwen3.5:27b",
         "model_digest": "7653528ba5cb",
-        "recorded_at": "2026-12-02",
+        "recorded_at": "2026-11-13",
         "commit": "abc1234",
         "prompt": {"name": "prueba", "text": PROMPT_DE_PRUEBA},
         "takes": {"recorded": 1, "chosen": 1},
@@ -878,7 +878,7 @@ async def test_si_la_herramienta_devuelve_otra_cosa_no_se_narra_lo_grabado(
         resultado = await responder("Repite hola", [], _config(grabado))
 
     assert resultado["status"] == "answered"
-    assert resultado["answer"] == HA_CAMBIADO.format(fecha="2 de diciembre de 2026")
+    assert resultado["answer"] == HA_CAMBIADO.format(fecha="13 de noviembre de 2026")
     assert "5 letras" not in resultado["answer"]
     (paso,) = _herramientas(resultado)
     assert paso["data"] == {"texto": "hola", "longitud": 4}

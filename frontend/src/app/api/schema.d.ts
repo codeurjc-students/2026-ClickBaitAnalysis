@@ -298,6 +298,9 @@ export interface paths {
          *       apagado se detecta en 0,2 ms (#181).
          *     - `model_card`: la ficha del modelo, con sus límites medidos (R13.7). Si se
          *       configuró otro modelo, se publica ése y sin las medidas, que eran de otro.
+         *       Con respuestas grabadas, la de la grabación.
+         *     - `recording`: si las respuestas son grabadas (#265), de qué modelo, de qué
+         *       día y sobre qué commit; `null` si no. La interfaz lo avisa siempre.
          *     - `prompt`: el prompt de sistema en uso, entero (R13.5).
          *     - `max_history_chars`: el tope del historial de `POST /chat`, para que la
          *       interfaz recorte antes de enviar en vez de recibir un 422 (#191).
@@ -323,10 +326,15 @@ export interface components {
          *     funcionar), qué modelo es y sus límites medidos (R13.7), y qué
          *     instrucciones recibe (R13.5). No es `describe_models`: ésa la sirve el MCP,
          *     que no conoce la configuración del agente.
+         *
+         *     Y si sus respuestas son grabadas (#265), que la interfaz tiene que decir
+         *     siempre, sin que haya que abrir la ficha.
          */
         AgentInfo: {
             availability: components["schemas"]["Disponibilidad"];
             model_card: components["schemas"]["FichaLLM"];
+            /** @description Si las respuestas del asistente son GRABADAS (#265): de qué modelo, de qué día y sobre qué commit. `null` si es el modelo respondiendo ahora, o si no hay asistente. La interfaz avisa siempre que no sea `null`, y lo lee de aquí: nunca del nombre del modelo ni del texto de `availability`. */
+            recording: components["schemas"]["InfoGrabacion"] | null;
             prompt: components["schemas"]["AgentPrompt"];
             /**
              * Max History Chars
@@ -716,6 +724,23 @@ export interface components {
             /** Offset */
             offset: number;
             retention: components["schemas"]["RetentionPolicy"];
+        };
+        /**
+         * InfoGrabacion
+         * @description Lo que la pantalla necesita para decir que las respuestas son grabadas.
+         *
+         *     Va al contrato de `GET /agent`, así que las claves van en inglés.
+         */
+        InfoGrabacion: {
+            /** Model */
+            model: string;
+            /**
+             * Recorded At
+             * Format: date
+             */
+            recorded_at: string;
+            /** Commit */
+            commit: string;
         };
         /**
          * Medidas

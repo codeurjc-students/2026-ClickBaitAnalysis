@@ -165,6 +165,8 @@ export type ChatJob = ChatLectura['responses'][200]['content']['application/json
 
 type Agente = paths['/agent']['get'];
 export type AgentInfo = Agente['responses'][200]['content']['application/json'];
+/** De qué modelo, de qué día y sobre qué commit son las respuestas grabadas (#265). */
+export type InfoGrabacion = NonNullable<AgentInfo['recording']>;
 
 // Piezas de dentro. Los pasos son una unión con discriminante (`kind`), así
 // que se distinguen sin guardián: el contrato ya dice qué forma tiene cada uno.

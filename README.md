@@ -10718,6 +10718,85 @@ La guía cita el veredicto y las cifras de cinco titulares. Son deterministas, p
 
 *(Corregido el 12 nov 2026, tras el merge, #214: «con su revisión fijada» vale para la imagen, que hornea esa revisión, y no para esta medida. El cliente local pide cada modelo por su nombre, sin revisión, y con red carga lo que haya en el Hub: lo anotó #282, cuyo guion mide sin red y se para si la caché no es la de la ficha. Esta medida se hizo con red. Después de ella, el `refs/main` de la caché local de los cinco modelos era el de su ficha, mirado a mano, lo que indica que se cargaron ésas.)*
 
+### El asistente con respuestas grabadas: el mecanismo (#265, 13 nov 2026)
+
+El asistente depende de la máquina 2, que el autor no controla: la GPU es compartida, `gpu-sesion` no abre si otra persona la usa, y la universidad ya bloqueó una vez la IP de casa (#193). Para la defensa hace falta un asistente que funcione sin ella y que no engañe a nadie sobre lo que es. #265 añade un tercer estado, además de «sin configurar» y del modelo de verdad: **configurado con respuestas grabadas del 27B**. Las herramientas se ejecutan de verdad por MCP, y sólo el texto del modelo sale de la grabación. Es el plan B en directo de [`docs/demostracion.md`](docs/demostracion.md), y el vídeo pasa a plan C (comentario en #214).
+
+Va en dos partes, como #234. Ésta es la primera, **el mecanismo**, probado en local con el 2B. La segunda es la grabación con el 27B, que pide la A40, y con ella el plan B de la guía: la issue sigue abierta.
+
+#### Lo que entra
+
+- **`backend/integrations/llm/grabado.py`**, `ReproductorGrabado`: un `LLMBackend` más, al lado de `ollama.py`. Ocupa el sitio del servidor de modelos, no el del bucle, así que el agente no sabe que habla con una grabación. Como el resto de `llm/`, no lee `settings`.
+- **La factoría y los ajustes**: `LLM_BACKEND=grabado`, y `LLM_GRABACION`, el nombre de un fichero de `grabaciones/` (por defecto, `demostracion`). Con `grabado`, la ficha que se publica es la de la grabación, y `grabacion()` dice de qué modelo, de qué día y sobre qué commit son las respuestas. `LEEN_CONFIGURACION` no cambia.
+- **`GET /agent`** lo publica en un campo nuevo, `recording`, nulo si no hay grabación, y **la pantalla del asistente** lo avisa siempre, fuera del desplegable de la ficha y con `role="status"`. Lo lee del contrato, nunca del nombre del modelo ni del texto de `availability`.
+- **`compose.grabado.yaml`**, que sólo cambia `LLM_BACKEND` de la API, y cómo se enciende y se apaga, en `docs/ejecucion.md` y en «El día a día» de `despliegue/README.md`.
+- **`spikes/grabar_demostracion.py`**, que graba, elige la toma y comprueba que se reproduce, y **`spikes/grabado_pila_local.sh`**, la prueba en la pila de Docker.
+
+#### Cuándo reproduce, y cuándo se niega
+
+- **La consulta se busca por el último turno del usuario**, sin distinguir mayúsculas, espacios ni comillas tipográficas, y la vuelta, por las respuestas del modelo desde ese turno. Cuentan también una vuelta cortada y la que pide el agente después (#208), así que se reproduce como se grabó.
+- **Antes de cada vuelta comprueba que lo que recibe el modelo es lo grabado**: el prompt de sistema, letra a letra, y el resultado de cada herramienta del turno tal como lo leyó el modelo, con las cifras ya redondeadas a tres decimales por el agente. Si algo difiere, no reproduce lo grabado y devuelve una frase fija que lo dice. Las tarjetas salen del resultado de ahora, y el texto contaría otra cosa (R13.4).
+- **Las cifras, con un margen de ±0,001**, una unidad en la tercera cifra decimal; lo demás, exacto. Un veredicto o una etiqueta que cambian no pasan, y un booleano no cuenta como cifra. El margen es por la máquina 1, cuya CPU es otra que la del PC donde se graba: con otro juego de instrucciones, los últimos decimales de un modelo pueden moverse y, con ellos, un redondeo. No se ha visto pasar: en la pila de Docker del PC, la grabación hecha en WSL se reprodujo entera. Lleva una holgura de 10⁻⁹, porque en coma flotante 0,951 − 0,950 da 0,0010000000000000009, y se quedaría fuera.
+- **A una consulta que no está grabada** contesta con otra frase fija, que enumera las que sí.
+- **Las medidas de cada vuelta son las de la grabación**, lo que costó el día que se grabó. Las frases fijas no llevan medidas: no las escribió ningún modelo.
+- **Si falta el fichero o no se puede leer**, el asistente sale como no disponible (`model_missing`), y la API arranca igual: un ajuste que fallara al arrancar, como un `llm_prompt` mal escrito, tumbaría también el análisis. El texto del validador va al registro, no a la pantalla (#163).
+
+#### Que no engañe
+
+La ficha de la grabación es propia, de tipo opaco —el texto lo escribió el 27B—, y con sus limitaciones: que no es el modelo respondiendo ahora, sino lo que escribió un día, sobre un commit y con un prompt; que sólo responde a las consultas grabadas; cuántas tomas se grabaron y con qué regla se eligió la que se reproduce; y qué comprueba antes de narrar. Al verla en el navegador salió un fallo: escribía «un margen de 0.001», con el punto del `float` de Python. Ahora dice «±0,001», y la prueba de la ficha lo comprueba.
+
+#### Cómo se graba
+
+`spikes/grabar_demostracion.py` pasa la conversación del paso 6 por el agente de producción —el `mcp` de `backend.main` en proceso, `06-dato`, `num_ctx` 16.384, el muestreo, el tope de salida y razonando— con un backend que envuelve al de Ollama y apunta cada vuelta: lo que respondió el modelo, con los argumentos de cada herramienta, y lo que leyó antes. Las preguntas las lee de la guía, para que las dos no puedan decir cosas distintas, y los turnos 2 y 3 llevan el historial que mandaría la pantalla, recortado igual (`historialQueCabe`).
+
+Graba tres tomas, y se queda la primera que cumpla la regla que se publicó en #265 antes de grabar: cada turno llama a la herramienta que espera la guía; ninguno acaba vacío, cortado, por agotar las vueltas o con un fallo; y el autor da cada narración por fiel a su traza. El guion comprueba las dos primeras condiciones, y la tercera es lectura. La pregunta del turno 2 no se ha probado nunca con el 27B y ese titular: si en ninguna toma llama al lineal, se graba también la conversación con dos redacciones de repuesto (`REPUESTOS_TURNO_2`). Antes de llamar al modelo, comprueba que los modelos de las señales en la caché son los de sus fichas, y los carga sin red, como el guion de #282: la grabación se reproduce donde la imagen los lleva horneados.
+
+`--elegir` pasa una toma a `grabaciones/`. `--reproducir` comprueba sin modelo que se reproduce entera por el agente, y `--reproducir-en`, por la API de un despliegue, como la vería la pantalla. Esos dos sirven también la víspera de la defensa.
+
+#### Lo que se corrigió de la issue al empezarla
+
+La issue es del 14 de octubre. Se revisó el 13 de noviembre, antes de escribir código, y se corrigió en ella misma:
+
+- **El prompt es `06-dato`**, el de por defecto desde #269, y no `05-llano`.
+- **Las consultas ya estaban decididas**: las tres del paso 6 de la guía de #214, como una conversación. La noticia del paso 7 no se graba.
+- **La traza pública sí guarda los argumentos** de cada herramienta, en sus pasos. La issue decía que no, y que por eso la grabación no podía salir de `GET /chat/{id}`. Lo que no guarda es si una vuelta salió cortada ni el texto que leyó el modelo. El guion propio se queda por eso, y porque deja grabar varias tomas en una sesión.
+- **La búsqueda por el último turno, la comprobación del prompt y el margen**, de arriba, sustituyen a «buscar por los turnos del usuario» y comparar los resultados sin más.
+
+#### Probado con el 2B
+
+El 27B no cabe en el PC del autor, cuya GTX tiene 4 GB, y gastar una sesión de la GPU compartida para encontrar un fallo del guion ya pasó en #269. Con el 2B se probó todo el camino, con una toma:
+
+| Paso | Resultado |
+|---|---|
+| Grabar (`grabar_demostracion.py`) | Turno 1, `analyze_headline`, 215,2 s, que incluyen cargar en frío el 2B y los modelos de las señales. Turno 2, `detect_clickbait_linear`, 26,3 s. Turno 3: pidió señales sin argumentos hasta agotar las seis vueltas, 36,5 s. La toma no cumple la regla, y no hacía falta: era para probar el mecanismo |
+| Reproducir en proceso (`--reproducir`) | Los tres turnos, enteros: 2, 2 y 6 vueltas |
+| Lo mismo, con un resultado estropeado a propósito en el turno 1 | Ese turno devuelve la frase de que lo recibido ha cambiado; los turnos 2 y 3, enteros; el guion termina con error |
+| La pila de Docker (`grabado_pila_local.sh`) | Arriba con Ollama en 133 s, reconstruyendo las imágenes. **El cambio a `grabado`, 20 s.** Por la API, los tres turnos enteros, en 8,0, 2,0 y 2,0 s. **La vuelta a Ollama, 21 s** |
+
+La última fila es lo que más importaba saber antes de gastar la sesión del 27B: **una grabación hecha en WSL se reproduce en la imagen**, que lleva los modelos horneados. Cada cambio recrea sólo la API, y es casi todo su arranque: el precalentado de los modelos y el healthcheck. En el turno 1 por la API, los 8 s son sobre todo el servidor MCP cargando en frío los modelos de las señales, porque no los precalienta, igual que en producción; en los otros dos, el primer sondeo, que es cada 2 s.
+
+#### Lo que se descartó
+
+- **Buscar por la conversación entera**, como decía la issue: con el recorte del historial o una conversación nueva, un turno grabado dejaría de reproducirse sin que su narración dependiera de lo que falta.
+- **Comparar las cifras exactas**: una diferencia en el último decimal de otra CPU dejaría el plan B sin narración en la sala, sin que hubiera cambiado nada de lo que se ve.
+- **Encenderlo con una variable del `.env`**: no bastaría, porque `LLM_BACKEND` está en el `environment` de `compose.yaml`, que manda sobre el `.env`. Y lo que define un despliegue va a la vista, como en `compose.local.yaml`.
+- **Que una grabación que falta impida arrancar**, como un `llm_prompt` mal escrito: tumbaría también el análisis.
+
+#### Lo que queda
+
+- **La grabación con el 27B**, en la A40, sobre `dev` con esta parte mergeada, y elegida con la regla publicada. Antes, las dos redacciones de repuesto del turno 2, en la issue.
+- **El plan B de `docs/demostracion.md`**: cómo se enciende y cuánto tarda el cambio en la máquina 1, que no se ha medido. Y la fila de `grabaciones/` en `docs/estructura.md`, cuando exista la carpeta.
+- **Comprobarlo en la máquina 1** al redesplegar, con `--reproducir-en`. El redespliegue lleva también #278, #280 y #282.
+
+| Condiciones | |
+|---|---|
+| Fecha | 13 nov 2026, hora de Madrid: la grabación, de 11:33 a 11:38; las reproducciones en proceso, entre las 11:40 y las 12:09 (la última, sin red); la pila de Docker, de 11:57 a 12:00 |
+| Máquina | El PC de sobremesa del autor: WSL2 con Ubuntu 24.04.4, Python 3.12.3, torch 2.12.1+cu130, transformers 5.12.0 y sentence-transformers 5.6.0, con las señales en CPU (`CUDA_VISIBLE_DEVICES=`). Ollama 0.32.5, levantado a mano en el 11435 con `OLLAMA_MODELS=/mnt/b/ollama-models`, en la GTX 1650 SUPER. Docker 29.1.3 y Compose 2.40.3. Node 22.23.2 |
+| Modelos | `qwen3.5:2b` (`324d162be6ca`). Las señales, con la revisión de su ficha comprobada contra la caché: `Stremie/roberta-base-clickbait` (`517de05db9ba`), `cardiffnlp/twitter-roberta-base-sentiment-latest` (`3216a57f2a0d`), `sentence-transformers/all-MiniLM-L6-v2` (`1110a243fdf4`), `ggcastle/beto-clickbait-es` (`03c31ac0c288`) y `lxyuan/distilbert-base-multilingual-cased-sentiments-student` (`cf991100d706`) |
+| Código | `637affd` (el reproductor y sus pruebas), con el resto de esta parte sin commitear |
+| Guiones | `spikes/grabar_demostracion.py` y `spikes/grabado_pila_local.sh`; los datos, en `spikes/grabacion_demostracion/2026-11-13-2b/` (`tomas.json` y `pila_local.txt`) |
+| Comprobado | `pytest -m "not integration"`, 688 pruebas: las 651 de antes y 37 nuevas. `npm test`, 214 (212 antes); `npm run lint` y `npm run build`, limpios. ruff y pyright, sin avisos |
+
 
 "Aplico Rudin donde puedo —incoherencia(A MEDIAS, YA QUE EL MODELO NO) y léxico son intrínsecamente interpretables— y reservo lo post-hoc (LIME/SHAP), con sus límites de fidelidad, solo para la parte que depende de un transformer preentrenado que no puedo abrir de otro modo." !!!IMPORTANTE (NO MODIFICAR, RECORDAR POSTURA DEFINIDA)
 

@@ -367,7 +367,13 @@ class Settings(BaseSettings):
     # R6.14, y el de cualquier entorno que no lo pida; el compose lo enciende en
     # despliegue. No confundirlo con «apagado»: configurado, pero sin nadie con
     # una sesión abierta en la máquina de la GPU, que es lo normal (#181).
-    llm_backend: Literal["ollama"] | None = None
+    #
+    # `grabado` no es un servidor: reproduce lo que escribió el modelo al grabar
+    # la conversación de la demostración, con las herramientas ejecutándose de
+    # verdad (#265). Es el plan B de la defensa cuando no se puede usar la
+    # máquina 2, y no es el defecto en ningún despliegue: se enciende a mano,
+    # con `compose.grabado.yaml`.
+    llm_backend: Literal["ollama", "grabado"] | None = None
     # En despliegue, `http://host.docker.internal:11434`: el túnel inverso de
     # #181 escucha en 172.17.0.1:11434 del host, que es lo que ve el contenedor.
     llm_url: str = "http://127.0.0.1:11434"
@@ -428,6 +434,13 @@ class Settings(BaseSettings):
     # misma sesión). Que reduzca la inyección no se puede afirmar: 0 de 16
     # frente a 1 de 16.
     llm_prompt: Literal["03-estricto", "04-preciso", "05-llano", "06-dato"] = "06-dato"
+    # Qué grabación reproduce `llm_backend=grabado` (#265): el nombre de un
+    # fichero de `backend/integrations/llm/grabaciones/`, sin la extensión, como
+    # `llm_prompt` con los prompts. No es un `Literal`, y no falla al arrancar,
+    # porque la grabación llega después del código —se graba en la A40 sobre el
+    # commit que se sirve— y un asistente sin ella no debe tumbar el análisis:
+    # si falta, `GET /agent` lo dice como un estado.
+    llm_grabacion: str = "demostracion"
 
     # Los trabajos del chat, en memoria del proceso (#189).
     #
