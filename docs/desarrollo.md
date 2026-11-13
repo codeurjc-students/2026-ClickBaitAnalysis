@@ -367,12 +367,13 @@ probar (`tests/`, `spikes/`, `backend/evaluation/`, las dependencias de
 desarrollo de npm). Un crítico o un alto que llegue a lo servido se arregla o
 se justifica por escrito.
 
-Lo ya aceptado, con su motivo, está en las secciones de #260 y #280 del README:
-el `pkg_resources` que pip lleva dentro (de setuptools 70.3.0, y sólo corre al
-construir), el `setuptools` 83 de la imagen (su aviso es sólo de Windows), los
-avisos de Debian sin arreglo publicado, el de `x/net/html` en Caddy 2.11.9, los
-dos S608 de `api/history.py`, lo de `spikes/` en CodeQL y, en npm, `minimatch`
-(sólo ESLint) y `@vitest/mocker` (sólo las pruebas). En gitleaks, lo ya
+Lo ya aceptado, con su motivo, está en las secciones de #260, #280 y #289 del
+README: el `pkg_resources` que pip lleva dentro (de setuptools 70.3.0, y sólo
+corre al construir), el `setuptools` 83 de la imagen (su aviso es sólo de
+Windows), los avisos de Debian sin arreglo publicado, el de `x/net/html` en
+Caddy 2.11.9, los dos S608 de `api/history.py`, lo de `spikes/` en CodeQL y, en
+npm, `minimatch` (su aviso sólo corre con `optimizationLevel >= 2`, que ni
+ESLint ni typescript-eslint activan). En gitleaks, lo ya
 triado está en `.gitleaksignore` (por su huella) y en `.gitleaks.toml` (la
 ruta de estos informes), y por eso una pasada limpia da 0.
 
@@ -405,10 +406,20 @@ rm -rf node_modules && npm install && npm audit fix
 ```
 
 Si `npm audit fix` cae con `Cannot read properties of null (reading
-'edgesOut')` —un fallo de npm 10.9.8 al resolver los *peers* de `vitest`
-(#280)—, lo que tenga arreglo dentro de su rango se sube paquete a paquete con
-`npm update <paquete>`, que tampoco toca `package.json`. A `vitest` no lo
-mueve ni eso.
+'edgesOut')` —un fallo de npm 10 al resolver los *peers* de `vitest` (#280),
+también en la 10.9.10 (#289)—, lo que tenga arreglo dentro de su rango se sube
+paquete a paquete con `npm update <paquete>`, que tampoco toca `package.json`.
+A `vitest` no lo mueve ni eso, y sí npm 11, usado una vez y sólo para escribir
+el lockfile: el proyecto sigue con el npm de `packageManager`, que lo instala
+(#289).
+
+```bash
+cd frontend
+npx -y npm@11.21.2 update vitest --package-lock-only --ignore-scripts
+npm ci
+```
+
+Después, el paso 6, y mirar en el diff que sólo cambie la familia de `vitest`.
 
 **La imagen base** (`pip` y `setuptools`, fijados en el paso 0 de
 `docker/backend.Dockerfile`) y **Caddy** (la etiqueta de `docker/web.Dockerfile`)

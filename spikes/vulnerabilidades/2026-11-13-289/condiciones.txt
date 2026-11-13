@@ -1,0 +1,8 @@
+fecha: 2026-11-13T17:02:10+01:00
+commit: d007451 (chore/289-avisos-dependabot)
+  ⚠️ con cambios sin commitear en requirements.txt, el Dockerfile o el lockfile de npm
+pip-audit 2.10.1, servicio de avisos: osv
+node: v22.23.2, npm: 10.9.8
+imagen: clickbait-backend sha256:f87aeb7bd3ab65477719b969b75b07541b3d89df929e6f250aa3733fe4d3d52e creada 2026-11-13T14:50:44.840286113+01:00
+fuera del lockfile (de docker/backend.Dockerfile): torch==2.14.0 sentence-transformers==5.6.0
+en el freeze de la imagen: torch==2.14.0+cpu (se audita sin el sufijo local)

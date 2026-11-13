@@ -1,0 +1,11 @@
+fecha: 2026-11-13T17:03:26+01:00
+commit: d007451 (chore/289-avisos-dependabot)
+  ⚠️ con cambios sin commitear en docker/, requirements.txt o el lockfile de npm
+Version: 0.75.0
+Vulnerability DB:
+  Version: 2
+  UpdatedAt: 2026-11-13 12:56:33.451543713 +0000 UTC
+  NextUpdate: 2026-11-14 12:56:33.451543367 +0000 UTC
+  DownloadedAt: 2026-11-13 16:03:26.703660007 +0000 UTC
+imagen: clickbait-backend sha256:f87aeb7bd3ab65477719b969b75b07541b3d89df929e6f250aa3733fe4d3d52e creada 2026-11-13T14:50:44.840286113+01:00
+imagen: clickbait-web sha256:a78d9bef2c641346677c2e6035e9fe15764122565099648fda800c94d83e44ba creada 2026-11-13T11:58:05.24839414+01:00

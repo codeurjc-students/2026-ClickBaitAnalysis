@@ -10488,6 +10488,8 @@ Con el autor, el 11 de noviembre, a la vista del triaje:
 | npm: `minimatch` 10.2.6, moderado | no: sólo ESLint | **aceptado**: afecta a todo `minimatch` hasta la 11, `eslint` 10 pide `^10.2.5`, y npm sólo lo arregla bajando a `eslint` 9 |
 | gitleaks: `"clave-de-prueba-263"`, en `spikes/noticias_idioma_mcp.py` | no: es inventada (#263), y no coincide con ninguna del `.env` | **no aplicable**: su huella, a `.gitleaksignore` |
 
+*(Revisado en #289, 13 nov 2026: `@vitest/mocker` se arregló con un lockfile escrito por npm 11, porque la 10.9.10 cae igual que la 10.9.8; y `minimatch` pasó a **no aplicable**: su aviso sólo corre con `optimizationLevel >= 2`, que ni ESLint ni typescript-eslint activan.)*
+
 #### Lo que cambia
 
 - **`requirements.txt`**: sólo `certifi` y `filelock`. `mcp` no se mueve, así que el catálogo del agente no hacía falta volcarlo.
@@ -10954,6 +10956,95 @@ Tres pruebas de usar y tirar, sin tocar el fichero:
 | Código | `d007451` (`dev`, con #288), sin cambios en `backend/`, y con los de esta PR sin commitear |
 | Guion | `spikes/demostracion_titulares.py`. Las pruebas de fallo cambian el entorno o la ficha en memoria y no se versionan, como la de #214 |
 | Comprobado | `pytest -m "not integration"`, 691 pruebas, las mismas. ruff y pyright, sin avisos; pyright no mira `spikes/`, y el guion se revisó con `ruff check` y `ruff format --diff` |
+
+### Los tres avisos de Dependabot: `vitest` 4.1.12 con npm 11, y `minimatch`, no aplicable (#289, 13 nov 2026)
+
+Al subir la rama de #214, el 12 de noviembre, GitHub avisó de tres vulnerabilidades moderadas en «la rama por defecto». Quedaron apuntadas sin mirar, con la duda de si eran de `main`, que sigue en `v0.8.0`. No lo eran: la rama por defecto del repositorio es `dev`, la única que lee Dependabot, y las tres eran las que #280 había triado y **aceptado** el día antes, todas en `frontend/package-lock.json`, de desarrollo y transitivas. Aquí se arregla una y la otra cambia de casilla, con el método de #260 (`docs/desarrollo.md`, §9). `main` tiene las mismas versiones y, además, todo lo que arreglaron #260 y #280, porque es anterior a los dos: eso lo pone al día la próxima release.
+
+#### Lo que se decidió al definir la issue
+
+Con el autor, el 13 de noviembre, a la vista de lo que había cambiado desde #280:
+
+- **npm 11, una vez y sólo para escribir el lockfile.** `packageManager`, el CI y la imagen web siguen con npm 10.9.8, que instala ese lockfile con `npm ci`. Pasar el proyecto a npm 11 tocaba `package.json`, `ci.yml` y `docker/web.Dockerfile`, y ningún aviso lo pide.
+- **`vitest` 4.1.12, y no la 5**, que `@angular/build` 22.2.6 también admite: es otra versión principal, contra la regla de #260, y el arreglo está en la 4.
+- **`minimatch` pasa de aceptado a no aplicable**, por lo que se cuenta abajo: la misma casilla que el `setuptools` 83 de #280, cuyo aviso es sólo de Windows.
+- **Su alerta, descartada en GitHub después del merge**, como «el código vulnerable no se usa» y con un enlace a esta sección. Las otras dos se cierran solas cuando GitHub lee `dev`.
+
+#### El triaje
+
+| Alerta y aviso | ¿Llega a lo servido? | Casilla |
+|---|---|---|
+| 82 · `@vitest/mocker` 4.1.11, GHSA-xp26-3454-mjgp: una redirección con `..\` lee fuera de la raíz, sólo en Windows | no: sólo las pruebas, que corren en WSL y en el CI de Linux | **arreglado**: 4.1.12 |
+| 84 · `@vitest/mocker` 4.1.11, GHSA-qxg6-89mg-rqv8: inyección de código por el WebSocket del servidor de desarrollo de Vite, el que usa el modo navegador de Vitest | no: las pruebas corren sobre jsdom (`@angular/build:unit-test`), y no hay `@vitest/browser` en el lockfile | **arreglado**: 4.1.12 |
+| 115 · `minimatch` 10.2.6, siete copias, GHSA-g3hv-75wg-m249: un patrón glob del atacante multiplica las entradas de `firstPhasePreProcess()`, que después se comparan por pares | no: sólo ESLint (`eslint`, `@eslint/config-array` y `typescript-eslint`) | **no aplicable**: ese código sólo corre con `optimizationLevel >= 2`, y nadie lo activa |
+
+Ninguno llegaba a producción: la imagen web sólo copia `dist/clickbait-web/browser` a Caddy.
+
+#### `vitest`: npm 10 sigue cayendo, y npm 11 no
+
+#280 dejó `@vitest/mocker` aceptado porque npm 10.9.8 cae al resolver `vitest` con `Cannot read properties of null (reading 'edgesOut')`, y apuntó que existía la 10.9.10, sin probar. Probado ahora sobre una copia de `frontend/package.json` y `package-lock.json` de `dev`, fuera del repositorio, con `--package-lock-only --ignore-scripts` (con `npx -y npm@<versión>` para las que no son la del proyecto):
+
+| npm | `npm update vitest` | `npm install -D vitest@4.1.12` |
+|---|---|---|
+| 10.9.8 | cae (`edgesOut`) | cae |
+| 10.9.10 | cae | cae |
+| 11.21.2 | **pasa a 4.1.12** | no se probó |
+
+Las notas de la 10.9.9 y la 10.9.10 sólo suben dependencias suyas (`tar`, `semver`, `pacote`…), ninguna del resolutor. Con npm 11 cambian **10 entradas** del lockfile —`vitest` y siete paquetes `@vitest/*` de 4.1.11 a 4.1.12, `chai` de 6.2.2 a 6.3.0 y `tinyrainbow` de 3.1.1 a 3.2.0— y nada más: ni el formato (`lockfileVersion` 3) ni `package.json`, porque la 4.1.12 ya cabía en `^4.0.8`. Es lo que queda en §9:
+
+```bash
+cd frontend
+npx -y npm@11.21.2 update vitest --package-lock-only --ignore-scripts
+npm ci
+```
+
+#### `minimatch`: el código del aviso no se ejecuta
+
+El aviso está en `firstPhasePreProcess()`, y `preprocess()` sólo la llama con `optimizationLevel >= 2`; si no se pasa, vale 1 (`minimatch/dist/commonjs/index.js`, l. 341–342 de la 10.2.6). Buscado `optimizationLevel` en todo `frontend/node_modules` fuera de las copias de `minimatch`, sólo aparece en `prettier/index.mjs`, que lleva otra copia de la biblioteca dentro, con el mismo 1 por defecto. Quienes cargan `minimatch` —ESLint y typescript-eslint— no lo activan. Y aunque lo hicieran, los patrones que les llegan son los de `eslint.config.js`, no de un atacante.
+
+Arreglo no hay sin forzarlo. No hay 10.x con él (la última, la 10.2.6, es de julio), y la 11, publicada el 27 de octubre, no la acepta nadie: `eslint` 10.14.0 pide `^10.2.6`, `@eslint/config-array` 0.23.5 `^10.2.4` y `@typescript-eslint/typescript-estree` 8.72.2 `^10.2.2`. Un `overrides` contra esos rangos sería saltar de versión principal sin la razón que tuvo `filelock` en #280.
+
+#### Lo que cambia
+
+- **`frontend/package-lock.json`**: las 10 entradas. `package.json` no cambia.
+- **`docs/desarrollo.md`, §9**: en lo ya aceptado, sale `@vitest/mocker` y `minimatch` lleva su motivo nuevo; y, donde decía que a `vitest` no lo movía nada, el método de npm 11.
+- **Una nota en la sección de #280**, que remite a ésta.
+
+#### Lo comprobado
+
+En el frontend, con npm 10.9.8: `npm ci` sin errores, `gen:api` sin diferencias, la compilación, las 214 pruebas de sus 17 ficheros y el lint. La suite de Python no se pasó en local, porque no cambia nada de `backend/`: la pasa el CI.
+
+Y una pasada nueva, `bash spikes/vulnerabilidades.sh 289 --anterior spikes/vulnerabilidades/2026-11-11-280`, con las imágenes construidas desde la rama:
+
+| | Antes (`2026-11-11-280`) | Después (`2026-11-13-289`) |
+|---|---|---|
+| pip-audit · el lockfile y lo de fuera | 0 | 0 |
+| pip-audit · la imagen | 1: el `setuptools` 83, no aplicable | el mismo |
+| npm · todo | 3 avisos en 2 paquetes, moderados y aceptados | **1**: `minimatch`, no aplicable |
+| npm · lo servido (`--omit=dev`) | 0 | 0 |
+| Trivy · el backend, críticos y altos con arreglo | 1: el `pkg_resources` de dentro de pip | el mismo |
+| Trivy · la web, críticos y altos con arreglo | 1: `x/net/html` | el mismo |
+| Reglas S de ruff, en la imagen | los 2 S608 de `api/history.py` | los mismos |
+| gitleaks | 0 | 0 |
+
+Ningún aviso nuevo que triar. Dos cifras que se mueven sin ser de esta issue: Trivy cuenta en el backend 94 avisos distintos, frente a 92, todos de Debian sin arreglo publicado, que sólo se cuentan (los medios pasan de 74 a 89 y los desconocidos, de 15 a 4); observado sin aislar, con una base de avisos del 13 de noviembre, y la de #280 era del 11. Y las reglas S dan 1.399 avisos fuera de la imagen, frente a 1.297, todos en `tests/` y `backend/evaluation/`: las pruebas que han entrado desde entonces.
+
+#### Lo que no entra
+
+- **Redesplegar en la máquina 1**: no cambia nada de lo servido.
+- **Pasar el proyecto a npm 11**, ni `vitest` 5.
+- **Forzar `minimatch` 11 con `overrides`, ni bajar a `eslint` 9.**
+- **`main`**: con la próxima release.
+- **CodeQL**: no cambia código nuestro.
+
+| Condiciones | |
+|---|---|
+| Fecha | 13 nov 2026, en hora de Madrid: las sondas de npm, a las 16:26 y las 16:27; el lockfile y el frontend, hacia las 16:53; las imágenes, de 16:59 a 17:01; y la pasada, de 17:02 a 17:05 |
+| Máquina | El PC de sobremesa del autor: WSL2 con Ubuntu 24.04.4, Docker 29.1.3 y Compose 2.40.3, Node 22.23.2 y npm 10.9.8; npm 10.9.10 y 11.21.2, con `npx` |
+| Imágenes | Del backend, `f87aeb7bd3ab`; de la web, `a78d9bef2c64`. Casi todo, desde la caché: la web recompiló el frontend con el lockfile nuevo, y la capa de `/srv` salió igual |
+| Herramientas | pip-audit 2.10.1 con OSV, Trivy 0.75.0 (con su base del 13 nov, de las 12:56 UTC), ruff 0.16.1 y gitleaks 8.30.1 |
+| Código | `d007451`, con los cambios de esta PR sin commitear. Las sondas de npm, sobre `frontend/package.json` y `package-lock.json` de `835568e` |
+| Guiones | `spikes/vulnerabilidades.sh`, con los datos en `spikes/vulnerabilidades/2026-11-13-289/`; las sondas de npm, las órdenes de arriba |
 
 
 "Aplico Rudin donde puedo —incoherencia(A MEDIAS, YA QUE EL MODELO NO) y léxico son intrínsecamente interpretables— y reservo lo post-hoc (LIME/SHAP), con sus límites de fidelidad, solo para la parte que depende de un transformer preentrenado que no puedo abrir de otro modo." !!!IMPORTANTE (NO MODIFICAR, RECORDAR POSTURA DEFINIDA)
