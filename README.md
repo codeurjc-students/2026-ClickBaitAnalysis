@@ -10788,6 +10788,8 @@ La última fila es lo que más importaba saber antes de gastar la sesión del 27
 - **El plan B de `docs/demostracion.md`**: cómo se enciende y cuánto tarda el cambio en la máquina 1, que no se ha medido. Y la fila de `grabaciones/` en `docs/estructura.md`, cuando exista la carpeta.
 - **Comprobarlo en la máquina 1** al redesplegar, con `--reproducir-en`. El redespliegue lleva también #278, #280 y #282.
 
+*(13 nov 2026: la grabación con el 27B y el plan B de la guía, hechos en «El asistente con respuestas grabadas: la grabación del 27B (#265, 13 nov 2026)». La máquina 1 se redesplegó ese mismo día con esta parte, `147d1df`, pero todavía sin grabación: comprobarlo allí espera al despliegue que la lleve.)*
+
 | Condiciones | |
 |---|---|
 | Fecha | 13 nov 2026, hora de Madrid: la grabación, de 11:33 a 11:38; las reproducciones en proceso, entre las 11:40 y las 12:09 (la última, sin red); la pila de Docker, de 11:57 a 12:00 |
@@ -10796,6 +10798,111 @@ La última fila es lo que más importaba saber antes de gastar la sesión del 27
 | Código | `637affd` (el reproductor y sus pruebas), con el resto de esta parte sin commitear |
 | Guiones | `spikes/grabar_demostracion.py` y `spikes/grabado_pila_local.sh`; los datos, en `spikes/grabacion_demostracion/2026-11-13-2b/` (`tomas.json` y `pila_local.txt`) |
 | Comprobado | `pytest -m "not integration"`, 688 pruebas: las 651 de antes y 37 nuevas. `npm test`, 214 (212 antes); `npm run lint` y `npm run build`, limpios. ruff y pyright, sin avisos |
+
+### El asistente con respuestas grabadas: la grabación del 27B (#265, 13 nov 2026)
+
+Es la segunda parte de #265. La primera dejó el mecanismo, probado con el 2B: un backend que reproduce lo que escribió el modelo mientras las herramientas se ejecutan de verdad. Ésta graba con el 27B la conversación del paso 6 de [`docs/demostracion.md`](docs/demostracion.md), elige la toma con la regla que se publicó en la issue antes de grabar, comprueba que se reproduce, añade una prueba que vigila que la grabación siga valiendo y escribe el plan B en la guía. Con ella se cierra la issue. Sólo queda comprobarlo en la máquina 1, y para eso hace falta un despliegue que lleve la grabación.
+
+#### Lo que entra
+
+- **`backend/integrations/llm/grabaciones/demostracion.json`**: la toma elegida, con el modelo y su id, la fecha, el commit, el prompt entero, cuántas tomas se grabaron y cuál se eligió, y las condiciones. Es la que reproduce `compose.grabado.yaml`, porque `LLM_GRABACION` vale `demostracion` por defecto.
+- **`tests/test_grabacion_demostracion.py`**: que la grabación siga siendo la de la guía, con el prompt de hoy.
+- **El plan B en `docs/demostracion.md`**, la fila de `grabaciones/` en `docs/estructura.md`, los tiempos del cambio en `despliegue/README.md`, y fuera la nota de `docs/ejecucion.md` que avisaba de que aún no había grabación.
+- **Los datos de la sesión**, en `spikes/grabacion_demostracion/2026-11-13-27b/`: las tres tomas enteras, el registro y la prueba en la pila de Docker.
+
+#### Cómo se grabó
+
+Con `spikes/grabar_demostracion.py`, lanzado por `spikes/agente_a40.sh`: abre la sesión de GPU, deja el 27B cargado, ejecuta el guion en WSL por un túnel propio y la cierra. Antes, `--en-seco`, sin modelo, comprobó lo que se podía comprobar sin gastar la sesión: las tres preguntas y los dos repuestos, leídos de la guía; los modelos de las señales en la revisión de su ficha; el catálogo, con sus 14 herramientas; y `06-dato`.
+
+**Se grabó sobre `147d1df`, que es el código que se servirá.** `agente_a40.sh` se niega a grabar si `backend/` tiene cambios sin commitear, y esta PR no toca nada de lo que se ejecuta: sólo añade el JSON. Por eso la grabación fue lo primero de la rama.
+
+**La sesión duró 6 minutos**, de las 14:22 a las 14:28, con un tope de 60. El tope se calculó para el peor caso: si en ninguna toma el turno 2 llamaba al modelo de pesos, había que grabar también las dos redacciones de repuesto, 27 turnos en total, y con el turno más largo medido (117 s, #208) eran unos 53 minutos. No hizo falta. La GPU estaba libre al abrir (0 MiB, sin procesos) y quedó igual al cerrar, sin ningún Ollama propio.
+
+#### Las tres tomas
+
+| Toma | Turno 1 | Turno 2 | Turno 3 |
+|---|---|---|---|
+| 1 | `analyze_headline`, 140,8 s, 3 vueltas | `detect_clickbait_linear`, 20,7 s | `analyze_headline`, 27,6 s |
+| 2 | `analyze_headline`, 24,5 s | `detect_clickbait_linear`, 53,4 s | `analyze_headline`, 20,3 s |
+| 3 | `analyze_headline`, 13,5 s | `detect_clickbait_linear`, 16,3 s | `analyze_headline` y `detect_clickbait_linear`, 23,2 s |
+
+Salvo el primero, todos los turnos tienen dos vueltas: una que pide la herramienta y otra que narra lo que devolvió. **La pregunta del turno 2, que nunca se había probado con el 27B, llevó al modelo de pesos en las tres tomas**, así que los repuestos no se grabaron.
+
+El primer turno de la toma 1 es el caro, por tres cosas que no se repiten en los demás:
+
+- la primera vuelta recargó el 27B (12,8 s), porque la sesión lo deja cargado con una ventana de 8.192 y el guion pide 16.384, la de producción;
+- la segunda llegó al tope de salida, 1.500 tokens, en 50,5 s, razonando, y salió cortada: el agente le pidió la respuesta (#208), y la dio en una tercera vuelta;
+- y el resto, unos 53 s, son las herramientas cargando en frío los modelos de las señales en la CPU. Reproducido sin modelo, el mismo turno tardó 57,4 s.
+
+#### La elección, con la regla publicada
+
+Se queda la primera toma que cumpla las tres condiciones de la regla. El guion comprueba las dos primeras, y la tercera es lectura del autor.
+
+| Condición | Tomas que la cumplen |
+|---|---|
+| 1. Cada turno llama a la herramienta que espera el paso 6 | 3 de 3 |
+| 2. Ningún turno acaba vacío, cortado, por agotar las vueltas o con un fallo | 3 de 3 |
+| 3. El autor da cada narración por fiel a su traza | la 1, no; la 2, sí; la 3, sin juzgar |
+
+La vuelta cortada de la toma 1 no incumple la condición 2: el turno acabó con respuesta.
+
+**La toma 1 no se dio por fiel** por la última frase del turno 2: «El sistema detecta que la combinación de estas palabras es característica de titulares diseñados para atraer clics». No la devolvió ninguna herramienta. Además describe mal el modelo de pesos, que suma la aportación de cada palabra por separado y no mira combinaciones, y la intención de quien escribe el titular no la mide nada. El prompt lo prohíbe con dos reglas: «no completes» y «no expliques el efecto de una pista en el lector». Las cifras de sus tres turnos sí eran las de las herramientas. Importa porque con el plan B ese texto sale igual cada vez, delante del tribunal, en el paso en que se dice que el veredicto no lo escribe el modelo.
+
+**Se eligió la toma 2.** Sus tres narraciones cuentan lo que devolvieron las herramientas y nada más. En el turno 1 explica que el engaño no se pudo evaluar porque falta el cuerpo, y en el 3 nombra también las palabras que empujan en contra. De forma, escribe los pesos con punto decimal («1.899»), y su turno 1 pasa de las cuatro frases que pide el prompt. La toma 3 no se juzgó, porque la regla se detiene en la primera que cumple.
+
+El recuento se publicó en la issue (comentario 6854847929), porque es también un dato para el plan A, que hace las mismas preguntas en directo: el turno 2 eligió el modelo de pesos en las tres tomas, y de las seis narraciones juzgadas, una añadía una frase que no salía de las herramientas. En la toma 3, sin juzgar, el turno 3 dice que el detector de pistas y el comparador «solo funcionan con inglés», cuando el motivo que da la herramienta para el comparador es una medida.
+
+#### Comprobado: se reproduce entera
+
+| Dónde | Resultado |
+|---|---|
+| En proceso y sin modelo (`--reproducir`) | Los tres turnos, enteros, con 2 de 2 vueltas cada uno, en 57,4, 0,0 y 10,3 s. El primero y el tercero son las señales cargando en frío, en inglés y en español |
+| La pila de Docker (`grabado_pila_local.sh`), reconstruyendo las imágenes con la grabación dentro | Arriba con Ollama en 95 s. **El cambio a `grabado`, 19 s**, y `GET /agent` publica la grabación: `qwen3.5:27b`, 2026-11-13, `147d1df`. Por la API, como lo haría la pantalla, los tres turnos enteros, en 8,0, 2,0 y 2,0 s. **La vuelta a Ollama, 18 s** |
+
+Con la grabación del 2B, el cambio fue de 20 s y la vuelta de 21 s: en los dos casos es casi todo el arranque de la API, que no depende de qué se reproduzca.
+
+#### La prueba del CI
+
+`tests/test_grabacion_demostracion.py` comprueba, sin modelos, lo que puede dejar de valer sin que nada falle hasta la sala:
+
+- que la grabación se lee como `Grabacion`; si no, el asistente saldría como no disponible;
+- que sus consultas son, letra a letra y en orden, las tres preguntas del paso 6 de la guía, leídas tras la misma marca que usa el guion al grabar. Si se cambia una pregunta en la guía, la que se pega ya no está grabada;
+- y que su prompt es el de por defecto de `Settings`, con el texto de hoy en `prompts/`. Si cambia, el reproductor se niega a narrar. Es el de por defecto, y no el del `.env` de quien ejecuta la prueba, porque `compose.yaml` no fija `LLM_PROMPT`.
+
+Va en la raíz de `tests/` y no en `tests/integrations/` porque prueba el repositorio en sí —la guía, el prompt y la grabación juntos—, como `test_ejemplos_formulario.py` (#282). Se vio fallar en cuatro casos, cambiando cada vez una sola cosa en una copia o en memoria: una palabra de la pregunta 2 de la guía, una línea de más en el prompt, otro prompt por defecto y una grabación mal formada.
+
+Lo que no comprueba son los resultados de las herramientas, porque piden los modelos. Eso lo hace `--reproducir`, que la guía pide al congelar y la víspera.
+
+#### El plan B en la guía
+
+`docs/demostracion.md` dice ahora cuándo se usa —si `gpu-sesion` no abre o el asistente no llega a estar disponible—, cómo se enciende, con el enlace al comando de `despliegue/README.md`, cuánto tarda el cambio, qué se ve, qué se dice y qué hacer si responde que lo recibido ha cambiado. Al escribirlo salieron tres cosas:
+
+- **Se calienta igual que con el modelo.** No hay modelo que cargar, pero el servidor MCP carga los de las señales en su primera llamada: por eso el turno 1 tarda 8 s en la pila, y los otros, 2.
+- **El paso 7 no entra.** Las noticias cambian cada día y no se graban, así que con el plan B la demostración termina en el paso 6.
+- **La comprobación de la víspera conviene hacerla ya al congelar**, el 15 de diciembre. Si una herramienta cambiara de aquí a entonces, la grabación dejaría de reproducirse, y grabar otra pide una sesión de GPU.
+
+El ensayo, que ya estaba pendiente, mide además el plan B en la máquina 1.
+
+#### Lo que se descartó
+
+- **Quitar la frase de la toma 1 y quedarse con ella**: la grabación dejaría de ser lo que escribió el 27B, y la issue descarta precisamente un texto redactado a mano.
+- **Grabar más tomas hasta tener una mejor**: la regla sólo lo prevé si ninguna de las tres cumple, y hacerlo porque no gusta el resultado sería elegir después de ver los datos.
+- **Que el CI compruebe también los resultados de las herramientas**: el léxico y el lineal se podrían ejecutar sin modelos, como en #282, pero el análisis entero lleva los modelos opacos, y la comprobación completa ya existe en `--reproducir`.
+
+#### Lo que queda
+
+- **La máquina 1**, en el despliegue que lleve la grabación: encender `compose.grabado.yaml`, medir el cambio y la vuelta, y comprobar con `--reproducir-en https://gongarcia.tfg.etsii.urjc.es/api` que se reproduce entera allí, con otra CPU. Las cifras, a `docs/demostracion.md` y a `despliegue/README.md`.
+- **El ensayo** de #214, con el plan B.
+- **Observado, sin arreglar**: el glosario de `06-dato` traduce `stylistic_clickbait` por «clickbait por la forma, sin engaño detectado» también cuando el comparador no se pudo aplicar, y la frase sugiere que se buscó el engaño y no se encontró. La toma 1 lo repite tal cual, y la 2 lo explica. Cambiarlo es cambiar el prompt, que pide las 26 consultas y una grabación nueva.
+
+| Condiciones | |
+|---|---|
+| Fecha | 13 nov 2026, hora de Madrid: la sesión de GPU, de 14:22 a 14:28; la elección y la reproducción en proceso, de 14:45 a 14:46; la pila de Docker, de 14:50 a 14:53 |
+| Máquinas | El 27B, en la A40 de la máquina 2: Ollama 0.34.2 de `~/.local/ollama`, abierto con `gpu-sesion` (`6ad6a751d636`), y por un túnel propio desde WSL en el puerto 11500. El agente, el servidor MCP y las señales, en el PC de sobremesa del autor: WSL2 con Ubuntu 24.04.4, Python 3.12.3, torch 2.12.1+cu130, transformers 5.12.0 y sentence-transformers 5.6.0, con las señales en CPU (`CUDA_VISIBLE_DEVICES=`) y sin red para Hugging Face. Docker 29.1.3 y Compose 2.40.3 |
+| Modelos | `qwen3.5:27b` (`7653528ba5cb`), con `06-dato`, `num_ctx` 16.384, temperatura 0,6, sin penalización de presencia, tope de salida de 1.500 tokens y razonando. Las señales, con la revisión de su ficha comprobada contra la caché: `Stremie/roberta-base-clickbait` (`517de05db9ba`), `cardiffnlp/twitter-roberta-base-sentiment-latest` (`3216a57f2a0d`), `sentence-transformers/all-MiniLM-L6-v2` (`1110a243fdf4`), `ggcastle/beto-clickbait-es` (`03c31ac0c288`) y `lxyuan/distilbert-base-multilingual-cased-sentiments-student` (`cf991100d706`) |
+| Código | `147d1df`, sin cambios en `backend/`: lo comprueba `agente_a40.sh` antes de abrir la sesión |
+| Guiones | `spikes/agente_a40.sh` con `AGENTE_A40_GUION=spikes/grabar_demostracion.py`; `--en-seco`, `--elegir` y `--reproducir` del mismo guion; y `spikes/grabado_pila_local.sh`. Los datos, en `spikes/grabacion_demostracion/2026-11-13-27b/`: `tomas.json`, con las tres tomas enteras; `sesion.log`; y `pila_local.txt` |
+| Comprobado | `pytest -m "not integration"`, 691 pruebas: las 688 de antes y 3 nuevas. ruff y pyright, sin avisos |
 
 
 "Aplico Rudin donde puedo —incoherencia(A MEDIAS, YA QUE EL MODELO NO) y léxico son intrínsecamente interpretables— y reservo lo post-hoc (LIME/SHAP), con sus límites de fidelidad, solo para la parte que depende de un transformer preentrenado que no puedo abrir de otro modo." !!!IMPORTANTE (NO MODIFICAR, RECORDAR POSTURA DEFINIDA)
