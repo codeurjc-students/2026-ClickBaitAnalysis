@@ -1,0 +1,3 @@
+fecha: 2026-11-13T17:05:25+01:00
+commit: d007451 (chore/289-avisos-dependabot)
+ruff 0.16.1, reglas S, --force-exclude
