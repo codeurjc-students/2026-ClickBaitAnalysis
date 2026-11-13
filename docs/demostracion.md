@@ -12,8 +12,7 @@ principal, en la sección de #214.
 
 | Qué | Espera a |
 |---|---|
-| El plan B: el asistente con respuestas grabadas | #265 |
-| El ensayo completo, con lo que tarda cada parte | el despliegue que lleve #265 |
+| El ensayo completo, con lo que tarda cada parte, también el plan B en la máquina 1 | el despliegue que lleve la grabación de #265 |
 | El plan C: la grabación en vídeo y las capturas | la congelación |
 
 ## Lo que se enseña
@@ -52,9 +51,23 @@ enseñado, y el análisis funciona sin ella.
 4. **El asistente, entero**: una sesión de GPU corta, la conversación del paso 6
    y la noticia del paso 7, cerrar la sesión y comprobar la GPU a 0 MiB
    («Máquina 2: apagar el asistente»).
-5. **Los planes B y C, a mano**: el vídeo y las capturas, en el equipo de la
-   presentación y en una memoria USB. *(Pendiente: lo que haya que preparar del
-   plan B lo dirá #265.)*
+5. **Los planes B y C, a mano.**
+   - **El plan B se reproduce entero sobre el commit congelado.** Sin modelo:
+     las tres preguntas del paso 6 pasan por el agente con las herramientas de
+     verdad, y el guion falla si algún turno no narraría lo grabado.
+
+     ```bash
+     CUDA_VISIBLE_DEVICES= .venv/bin/python spikes/grabar_demostracion.py --reproducir
+     ```
+
+     Y en la máquina 1, como lo vería la pantalla: encenderlo, comprobarlo con
+     `--reproducir-en` y volver al modelo («Máquina 1: el asistente con
+     respuestas grabadas»). Si algún turno no se reproduce, alguna herramienta
+     ya no da lo que se grabó y la grabación no vale para la versión
+     congelada: hay que grabar otra (#265), y eso pide una sesión de GPU. Por
+     eso conviene comprobarlo ya al congelar, y no sólo la víspera.
+   - **El plan C**: el vídeo y las capturas, en el equipo de la presentación y
+     en una memoria USB.
 6. **Una segunda red**: el móvil, como punto de acceso. El 30 de septiembre la
    universidad bloqueó la IP de casa, y la web seguía respondiendo desde otra
    red (#193).
@@ -305,15 +318,40 @@ Busca una noticia del New York Times sobre inteligencia artificial y dime si su 
 
 ### Plan B: el asistente con respuestas grabadas
 
-**Pendiente de #265.** Lo que ya está decidido allí:
+Cuando no hay modelo: `gpu-sesion` no abre, o `/api/agent` no llega a
+`available` (las filas de arriba que dicen «Plan B»). La API reproduce lo que
+escribió el 27B al grabar la conversación del paso 6, y las herramientas se
+ejecutan de verdad: las tarjetas son de ese momento, y sólo el texto del modelo
+es grabado (#265). No necesita la máquina 2.
 
-- reproduce respuestas del mismo modelo, grabadas, para la conversación del
-  paso 6; las herramientas se ejecutan de verdad;
-- la pantalla dice siempre que es una grabación;
-- el paso 7 no entra: con el plan B, la demostración termina en el paso 6.
+La grabación es la toma 2 de tres, del 13 de noviembre de 2026, con
+`qwen3.5:27b` sobre `147d1df` y `06-dato`, elegida con la regla que se publicó
+en #265 antes de grabar.
 
-Cómo se enciende, y cuánto tarda el cambio, se escribe aquí cuando #265 esté en
-`dev`.
+- **Se enciende** desde WSL, con el comando de
+  [«Máquina 1: el asistente con respuestas grabadas»](../despliegue/README.md#máquina-1-el-asistente-con-respuestas-grabadas)
+  de `despliegue/README.md`. Recrea sólo la API, y mientras arranca tampoco
+  responde el análisis: en la pila local, el cambio tardó 19 s. En la máquina 1,
+  sin medir todavía (lo mide «El ensayo»).
+- **Se calienta como con el modelo**: la conversación del paso 6 entera, y
+  «Empezar una conversación nueva». No hay modelo que cargar, pero el servidor
+  MCP carga los de las señales en su primera llamada: en la pila local, el
+  turno 1 tardó 8 s, y los otros dos, 2.
+- **Se ve**, en Asistente, un aviso fijo de que son respuestas grabadas, de qué
+  modelo y de qué día, y «Sobre el asistente» enseña la ficha de la grabación.
+- **Se hace** el paso 6, con las mismas tres preguntas, pegadas de «Los
+  textos». A cualquier otra pregunta contesta que no está grabada, y dice
+  cuáles lo están.
+- **Se dice** que es el mismo modelo, grabado, y que las tarjetas no lo son: si
+  una herramienta no diera lo que se grabó, el asistente no narraría lo
+  grabado, y lo diría.
+- **El paso 7 no se hace**: las noticias cambian cada día y no se graban. Con
+  el plan B, la demostración termina en el paso 6.
+- **Si responde que «lo que recibe el modelo ha cambiado»**, alguna herramienta
+  ha dado otra cosa que al grabar. Las tarjetas siguen siendo las de verdad: se
+  enseñan, y se dice tal cual. Es lo que descarta la víspera (paso 5).
+
+Al terminar, se vuelve al modelo con el comando de la misma sección.
 
 ### Plan C: el vídeo
 
@@ -333,8 +371,8 @@ las dos máquinas. El enlace, aquí, cuando esté hecha.
 ## El ensayo
 
 **Pendiente.** Un ensayo completo, siguiendo este guion al pie de la letra,
-sobre el despliegue que lleve #265. Se apunta lo que tarda cada parte y, al
-acabar, la GPU a 0 MiB.
+sobre el despliegue que lleve la grabación de #265, y después el plan B en la
+máquina 1. Se apunta lo que tarda cada parte y, al acabar, la GPU a 0 MiB.
 
 | Parte | Previsto | Medido |
 |---|---|---|
@@ -348,3 +386,6 @@ acabar, la GPU a 0 MiB.
 | Paso 6 | 150 s | |
 | Paso 7 | 75 s | |
 | Al terminar, hasta 0 MiB | — | |
+| Plan B: el cambio, hasta `available` | 19 s, en la pila local | |
+| Plan B: el paso 6, reproducido | — | |
+| Plan B: la vuelta al modelo | 18 s, en la pila local | |
