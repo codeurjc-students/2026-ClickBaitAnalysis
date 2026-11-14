@@ -954,6 +954,27 @@ async def test_una_señal_que_no_carga_no_impide_arrancar(señales, monkeypatch)
 
 
 @pytest.mark.asyncio
+async def test_una_señal_que_no_carga_deja_su_traza(señales, monkeypatch):
+    """R10.2 (#292): el fallo no se propaga, a propósito (la prueba de arriba),
+    así que su traza sólo puede quedar en el registro. Un modelo que no carga
+    es justo el caso en que hace falta saber dónde."""
+    dobles = señales()
+    monkeypatch.setattr(settings, "nlp_backend", "remote")
+
+    async def revienta(headline, content):
+        raise RuntimeError("el modelo no está")
+
+    monkeypatch.setattr(dobles.detector, "detect", revienta)
+
+    with capture_logs() as registrado:
+        await orchestrator.precalentar()
+
+    fallo = next(linea for linea in registrado if linea["event"] == "preheat.failed")
+    assert "Traceback (most recent call last)" in fallo.get("traza", "")
+    assert "RuntimeError: el modelo no está" in fallo.get("traza", "")
+
+
+@pytest.mark.asyncio
 async def test_el_data_de_cada_senal_dice_en_que_idioma_se_analizo(señales):
     """#230: el orquestador añade `language` a la salida de cada señal, como
     cada herramienta suelta. El contrato publica la misma forma para las dos."""

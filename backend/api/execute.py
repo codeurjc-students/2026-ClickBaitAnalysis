@@ -1,15 +1,17 @@
 """Ejecución de una herramienta concreta — ``POST /tools/{name}/execute``.
 
-Sus dos consumidores son ejecutar **una señal suelta** —sólo el sentimiento, sin
-lanzar las cuatro— y **traer una noticia** desde la pantalla de análisis. No un
-catálogo que haga de lanzador.
+Su consumidor es la pantalla de Sistema, que ejecuta desde el catálogo cualquier
+herramienta con su formulario: **una señal suelta** —sólo el sentimiento, sin
+lanzar las cuatro— o una fuente de noticias. No un catálogo que haga de
+lanzador. *(Se pensó también para traer una noticia desde la pantalla de
+análisis, y eso no llegó a hacerse: corregido en #216 en R4.3.)*
 
 Desde #137 aquí sólo queda la **traducción**: localizar, validar e invocar vive
 en ``core/mcp/tools.py``, porque el agente de R13 necesita ese mecanismo y no
 puede importarlo de una fachada. Lo que se queda es lo que sólo tiene sentido
-por HTTP — los cuatro finales y su código de estado.
+por HTTP — los cinco finales y su código de estado.
 
-**Cuatro finales, cuatro categorías distintas:**
+**Cinco finales, cinco categorías distintas:**
 
 - La herramienta no existe → **404**. La petición pide algo que no hay.
 - Los argumentos no encajan en su esquema → **422**. La petición está mal
@@ -18,11 +20,16 @@ por HTTP — los cuatro finales y su código de estado.
   petición era correcta y el servidor la atendió; lo que falló es el análisis.
   Mismo criterio que en ``/analyze``, donde una señal caída no tumba la
   respuesta.
+- El servidor que la podría tener no responde → **503** (#292). Ver
+  ``ServerUnavailable``.
 - El servidor tarda más de la cuenta → **504**. Ver ``ToolTimeout``.
 
-Los tres primeros los distingue quien llama por el tipo de excepción; el cuarto
-llega como un resultado fallido. Esa separación es del mecanismo, no de aquí:
+El 200 con error llega como un resultado fallido; los demás los distingue quien
+llama por el tipo de excepción. Esa separación es del mecanismo, no de aquí:
 una excepción interrumpe, un resultado fallido es una respuesta.
+
+La respuesta lleva los argumentos con que se ejecutó (R9.2, #292): el historial
+la guarda entera, y así queda qué se pidió.
 """
 
 from backend.api.schemas import ExecuteResponse, ExecuteStatus
@@ -45,16 +52,23 @@ async def execute_tool(name: str, arguments: dict) -> ExecuteResponse:
         servers=settings.mcp_servers,
         timeout=settings.mcp_execute_timeout,
     )
-    return _envolver(invocacion, name)
+    return _envolver(invocacion, name, arguments)
 
 
-def _envolver(invocacion: tools.Invocation, name: str) -> ExecuteResponse:
-    """Traduce el resultado neutro al contrato del endpoint."""
+def _envolver(
+    invocacion: tools.Invocation, name: str, arguments: dict
+) -> ExecuteResponse:
+    """Traduce el resultado neutro al contrato del endpoint.
+
+    Los argumentos van también cuando falla, que es cuando más hacen falta para
+    entender qué pasó (R9.2, #292).
+    """
     if not invocacion.result.success:
         return ExecuteResponse(
             tool=name,
             server=invocacion.server,
             status=ExecuteStatus.ERROR,
+            arguments=arguments,
             detail=invocacion.result.error,
         )
 
@@ -62,5 +76,6 @@ def _envolver(invocacion: tools.Invocation, name: str) -> ExecuteResponse:
         tool=name,
         server=invocacion.server,
         status=ExecuteStatus.OK,
+        arguments=arguments,
         data=invocacion.result.data,
     )

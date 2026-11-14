@@ -15,7 +15,7 @@ from mcp.server.fastmcp.exceptions import ToolError
 
 from backend.core.idioma import INGLES, Idioma, detectar
 from backend.core.observability import log_tool_invocation
-from backend.core.texto import es_ausente
+from backend.core.texto import es_ausente, motivo_si_vacio
 from backend.integrations.metadata import SOLO_LECTURA, tool_meta
 from backend.integrations.nlp import dedicated, lexical, linear, model_cards
 from backend.integrations.nlp.factory import (
@@ -144,6 +144,10 @@ def register(mcp: FastMCP):
             Si el modelo falla: no se puede cargar o, por la vía remota, no
             responde (timeout, caída del proveedor o falta de crédito).
         """
+        # Antes que el idioma: el detector da por inglés un texto vacío, y el
+        # modelo clasificaba la nada (R3.5, #292).
+        if motivo := motivo_si_vacio(text, "El texto"):
+            raise ToolError(motivo)
         idioma = _idioma_si_se_analiza("analyze_sentiment", text)
         response = await get_nlp_backend().classify(
             text, get_model_id("analyze_sentiment", idioma)
@@ -181,6 +185,10 @@ def register(mcp: FastMCP):
         Raises:
             Si el cálculo de los embeddings falla.
         """
+        # Un titular vacío, antes que nada: el detector de idioma lo daría por
+        # inglés, y se medía su similitud con el cuerpo (R3.5, #292).
+        if motivo := motivo_si_vacio(headline, "El titular"):
+            raise ToolError(motivo)
         # El idioma antes que el cuerpo, como en `_run_signals`: con un titular
         # que no se analiza, pedir el cuerpo sería una pista falsa (#229).
         idioma = _idioma_si_se_analiza("detect_clickbait_incoherence", headline)

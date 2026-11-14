@@ -1,0 +1,20 @@
+ Container clickbait-api-1  Waiting
+ Container clickbait-mcp-1  Waiting
+ Container clickbait-web-1  Healthy
+ Container clickbait-mcp-1  Healthy
+ Container clickbait-api-1  Healthy
+== con mcp en marcha (2026-11-14 14:40:42 CET, 667d957, con cambios sin commitear)
+POST /tools/detect_clickbait_lexical/execute -> HTTP 200
+{"tool":"detect_clickbait_lexical","server":"tfg-mcp-server","status":"ok","arguments":{"headline":"You Will Not Believe What Happened Next"},"data":{"score":3,"is_clickbait":true,"threshold":1.0,"matches":[{"category":"forward_reference","cue":"you","span":[0,3]},{"category":"forward_reference","cue":"what","span":[21,25]},{"category":"curiosity_gap","cue":"what happened next","span":[21,39]}],"headline":"You Will Not Believe What Happened Next","language":"en"},"detail":null}
+POST /tools/analyze_headline/execute -> HTTP 200
+{"tool":"analyze_headline","server":"tfg-mcp-server","status":"error","arguments":{"headline":"   "},"data":null,"detail":"El titular está vacío o no es válido"}
+ Container clickbait-mcp-1  Stopping
+ Container clickbait-mcp-1  Stopped
+== con mcp parado (2026-11-14 14:41:05 CET, 667d957, con cambios sin commitear)
+POST /tools/detect_clickbait_lexical/execute -> HTTP 503
+{"detail":"El servidor de herramientas no responde: no se pudo ejecutar 'detect_clickbait_lexical'. Vuelve a intentarlo en un momento."}
+== el historial: las dos últimas ejecuciones sueltas (2026-11-14 14:41:23 CET, 667d957, con cambios sin commitear)
+analyze_headline error {"headline": "   "}
+detect_clickbait_lexical ok {"headline": "You Will Not Believe What Happened Next"}
+== el registro de la API, antes de bajar (2026-11-14 14:41:23 CET, 667d957, con cambios sin commitear)
+api-1  | 2026-11-14T13:41:05.691297Z [warning  ] tool.execute.unreachable       motivo=ConnectError tool=detect_clickbait_lexical url=http://mcp:8765/mcp

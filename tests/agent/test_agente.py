@@ -28,7 +28,6 @@ import httpx
 import pytest
 from mcp.server.fastmcp import FastMCP
 from mcp.server.fastmcp.exceptions import ToolError
-from mcp.shared.exceptions import McpError
 from structlog.testing import capture_logs
 
 from backend.agent.agente import (
@@ -716,6 +715,25 @@ async def test_una_herramienta_que_tarda_demasiado_vuelve_al_modelo(monkeypatch)
 
 
 @pytest.mark.asyncio
+async def test_un_servidor_que_deja_de_responder_lo_dice(monkeypatch):
+    """Si el servidor que publicó la herramienta cae entre el catálogo y la
+    llamada, `execute_tool` lanza `ServerUnavailable` desde #292 (R1.8). El
+    modelo y la traza tienen que leer eso, y no «un motivo no previsto»."""
+
+    async def no_responde(name, arguments, *, servers, timeout):
+        raise mcp_tools.ServerUnavailable(name)
+
+    modelo = ModeloGuionado(_pide(("eco", {"texto": "hola"})), _responde("Caído."))
+
+    async with mcp_en_proceso(monkeypatch):
+        monkeypatch.setattr(mcp_tools, "execute_tool", no_responde)
+        resultado = await responder("Prueba", [], _config(modelo))
+
+    (paso,) = _herramientas(resultado)
+    assert paso["error"] == "«eco»: el servidor que la publicó no responde."
+
+
+@pytest.mark.asyncio
 async def test_un_fallo_imprevisto_se_registra_entero_y_no_se_publica(monkeypatch):
     """La traza y lo que lee el modelo son salidas públicas (#163, #89).
 
@@ -770,19 +788,21 @@ async def test_un_servidor_caido_no_tumba_el_catalogo(monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_por_que_cada_herramienta_se_ejecuta_solo_en_su_servidor(monkeypatch):
-    """`execute_tool` recorre los servidores en orden, y uno caído delante lo
-    hace fallar antes de llegar al que tiene la herramienta. Por eso el agente
-    le pasa sólo la URL del servidor que la publicó."""
-    async with mcp_en_proceso(monkeypatch):
-        with pytest.raises(ExceptionGroup) as fallo:
-            await mcp_tools.execute_tool(
-                "eco", {"texto": "hola"}, servers=[_CAIDO, _URL], timeout=5.0
-            )
+async def test_execute_tool_ya_salta_el_servidor_caido(monkeypatch):
+    """Hasta #292, `execute_tool` recorría los servidores en orden y uno caído
+    delante lo hacía fallar —con el `McpError` del saludo dentro de dos grupos
+    de anyio— antes de llegar al que tiene la herramienta. Era el motivo por el
+    que el agente le pasa sólo la URL del servidor que la publicó.
 
-    # Dos grupos, uno por cada task group de anyio, con el fallo del saludo
-    # dentro: el servidor bueno ni se llega a consultar.
-    assert fallo.group_contains(McpError, depth=None)
+    Desde #292 lo salta (R1.8). El agente sigue pasándole una sola URL: ya sabe
+    dónde está cada herramienta, y preguntar a los demás costaría una conexión
+    por servidor en cada llamada."""
+    async with mcp_en_proceso(monkeypatch):
+        invocacion = await mcp_tools.execute_tool(
+            "eco", {"texto": "hola"}, servers=[_CAIDO, _URL], timeout=5.0
+        )
+
+    assert invocacion.result.success
 
 
 @pytest.mark.asyncio

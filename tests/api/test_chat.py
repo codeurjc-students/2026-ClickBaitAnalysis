@@ -22,6 +22,7 @@ from backend.agent import prompts
 from backend.api import app as modulo_app
 from backend.api import chat
 from backend.api.app import app
+from backend.api.schemas import MAX_HERRAMIENTAS_POR_TURNO
 from backend.config.settings import settings
 from backend.integrations.llm import factory
 from backend.integrations.llm.base import Disponibilidad, Estado
@@ -381,7 +382,13 @@ async def test_los_nombres_de_las_herramientas_cuentan_para_el_tope(
         },
         {
             "message": "Hola",
-            "history": [{"role": "assistant", "content": "x", "tools": ["eco"] * 13}],
+            "history": [
+                {
+                    "role": "assistant",
+                    "content": "x",
+                    "tools": ["eco"] * (MAX_HERRAMIENTAS_POR_TURNO + 1),
+                }
+            ],
         },
         {
             "message": "Hola",
@@ -408,6 +415,22 @@ async def test_un_mensaje_mal_formado_se_rechaza(agente, cuerpo):
         respuesta = await cliente.post("/chat", json=cuerpo)
     assert respuesta.status_code == 422
     assert agente.llamadas == []
+
+
+@pytest.mark.asyncio
+async def test_el_tope_de_herramientas_por_turno_cabe_el_catalogo_entero():
+    """R13.2 (#292): un turno del asistente puede haber usado todas las
+    herramientas, y la pantalla manda sus nombres en el turno siguiente. El tope
+    se fijó en 12, el catálogo de #188, y el catálogo creció a 14 sin que nada
+    avisara: un turno con 13 habría dado un 422 al preguntar lo siguiente.
+
+    Con el `mcp` de `main.py`, el objeto que se sirve (#188), para que una
+    herramienta nueva haga fallar esta prueba en vez de caducar el tope."""
+    from backend.main import mcp
+
+    herramientas = await mcp.list_tools()
+
+    assert len(herramientas) <= MAX_HERRAMIENTAS_POR_TURNO
 
 
 @pytest.mark.asyncio

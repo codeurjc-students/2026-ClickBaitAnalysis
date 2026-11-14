@@ -13,6 +13,7 @@ y el umbral los RECIBE, con la ficha y `THRESHOLD` como defecto (#119, #93).
 
 import asyncio
 import threading
+import traceback
 
 import structlog
 
@@ -185,5 +186,6 @@ class IncoherenceDetector:
                 modelo=self.model_id,
                 tipo=type(error).__name__,
                 detalle=str(error),
+                traza="".join(traceback.format_exception(error)),
             )
             return ToolResult.fail(f"La incoherencia {mensaje_publico(error)}.")

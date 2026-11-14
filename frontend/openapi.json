@@ -82,7 +82,7 @@
           "catálogo"
         ],
         "summary": "Post Execute",
-        "description": "Ejecuta una herramienta concreta con los argumentos indicados.\n\nPara cuando no se quieren las cuatro señales —sólo el sentimiento, por\nejemplo— o para traer una noticia con la que luego analizar.\n\nLos argumentos se validan contra el `input_schema` que publica `/tools`\n**antes** de invocar, así que un campo mal escrito devuelve un 422 diciendo\ncuál, en vez de llegar como un fallo de ejecución indistinguible de un\nanálisis que salió mal.\n\nDevuelve **404** si la herramienta no existe, **422** si los argumentos no\nencajan, y **200 con `status` en `error`** si la herramienta se ejecutó y\nfalló: eso último no es un error HTTP, porque la petición era correcta.\n\nY **504** si el servidor MCP tarda más de `mcp_execute_timeout`. Es una\ncategoría aparte del `status: error` a propósito: al agotarse la espera la\nherramienta **puede haber terminado bien** —medido en #113, acabó con éxito a\nlos 151 s mientras la API ya había desistido—, así que decir que el análisis\nfalló sería falso. Lo que falló es la espera.",
+        "description": "Ejecuta una herramienta concreta con los argumentos indicados.\n\nPara cuando no se quieren las cuatro señales —sólo el sentimiento, por\nejemplo— o para traer una noticia con la que luego analizar.\n\nLos argumentos se validan contra el `input_schema` que publica `/tools`\n**antes** de invocar, así que un campo mal escrito devuelve un 422 diciendo\ncuál, en vez de llegar como un fallo de ejecución indistinguible de un\nanálisis que salió mal.\n\nDevuelve **404** si la herramienta no existe, **422** si los argumentos no\nencajan, y **200 con `status` en `error`** si la herramienta se ejecutó y\nfalló: eso último no es un error HTTP, porque la petición era correcta.\n\nY **504** si el servidor MCP tarda más de `mcp_execute_timeout`. Es una\ncategoría aparte del `status: error` a propósito: al agotarse la espera la\nherramienta **puede haber terminado bien** —medido en #113, acabó con éxito a\nlos 151 s mientras la API ya había desistido—, así que decir que el análisis\nfalló sería falso. Lo que falló es la espera.\n\nY **503** si un servidor MCP no responde y la herramienta no estaba en los\nque sí (R1.8, #292). Hasta #292 era un 500 en texto plano: el error de\nconexión llegaba dentro de un `ExceptionGroup` y nadie lo capturaba.",
         "operationId": "post_execute_tools__name__execute_post",
         "parameters": [
           {
@@ -121,6 +121,9 @@
           },
           "404": {
             "description": "No hay ninguna herramienta con ese nombre."
+          },
+          "503": {
+            "description": "El servidor MCP no responde, y la herramienta puede estar en él."
           },
           "504": {
             "description": "Se agotó la espera; la herramienta puede haber terminado."
@@ -841,7 +844,7 @@
             },
             "type": "array",
             "title": "History",
-            "description": "Los turnos anteriores, del más antiguo al más reciente, sólo con su texto. El rol es `user` o `assistant`: el de sistema lo pone el servidor, y un cliente no puede colar otro. Los del asistente pueden llevar en `tools` los nombres de las herramientas que usaron (como mucho 12), sin sus resultados. Tiene un tope en caracteres, texto y nombres, que da la configuración; por encima, 422, y hay que quitar los turnos más antiguos."
+            "description": "Los turnos anteriores, del más antiguo al más reciente, sólo con su texto. El rol es `user` o `assistant`: el de sistema lo pone el servidor, y un cliente no puede colar otro. Los del asistente pueden llevar en `tools` los nombres de las herramientas que usaron (como mucho 14), sin sus resultados. Tiene un tope en caracteres, texto y nombres, que da la configuración; por encima, 422, y hay que quitar los turnos más antiguos."
           }
         },
         "type": "object",
@@ -965,6 +968,12 @@
           "status": {
             "$ref": "#/components/schemas/ExecuteStatus"
           },
+          "arguments": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Arguments",
+            "description": "Los argumentos con que se ejecutó, tal como llegaron. El historial guarda la respuesta, y con ella quedan (R9.2): sin ellos, una búsqueda de noticias no dice qué se buscó. Lo guardado antes de #292 no los trae."
+          },
           "data": {
             "anyOf": [
               {
@@ -995,7 +1004,8 @@
         "required": [
           "tool",
           "server",
-          "status"
+          "status",
+          "arguments"
         ],
         "title": "ExecuteResponse",
         "description": "Resultado de ejecutar una herramienta.\n\nQue la herramienta falle **no es un error HTTP**: la petición era válida y\nel servidor la atendió: lo que falló es el análisis. Por eso se responde 200\ncon ``status`` en ``error``, igual que una señal caída en ``/analyze`` no\ntumba la respuesta. Los códigos de error se reservan para lo que sí es\nculpa de la petición: 404 si la herramienta no existe, 422 si los argumentos\nno encajan en su esquema."

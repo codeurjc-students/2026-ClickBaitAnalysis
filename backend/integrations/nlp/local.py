@@ -12,6 +12,7 @@ se registra entero y sale con la frase pública de `core/errores.py` (#89).
 
 import asyncio
 import threading
+import traceback
 from collections.abc import Callable
 from typing import Any
 
@@ -50,6 +51,7 @@ def _fallo(tarea: str, model: str, error: Exception) -> ToolResult:
         modelo=model,
         tipo=type(error).__name__,
         detalle=str(error),
+        traza="".join(traceback.format_exception(error)),
     )
     return ToolResult.fail(f"El modelo `{model}` {mensaje_publico(error)}.")
 
