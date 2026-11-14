@@ -20,6 +20,7 @@ de la excepción) va al log (#89).
 """
 
 import asyncio
+import traceback
 
 import httpx
 import structlog
@@ -171,6 +172,7 @@ class BaseAPI:
                         endpoint=endpoint,
                         tipo=type(error).__name__,
                         detalle=str(error),
+                        traza="".join(traceback.format_exception(error)),
                     )
                     return ToolResult.fail(
                         f"La llamada a la API externa {mensaje_publico(error)}."

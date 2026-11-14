@@ -146,6 +146,8 @@ async def test_una_respuesta_inesperada_de_hf_no_se_publica(llamar):
     fallo = next(linea for linea in registrado if linea["event"] == "nlp.remoto.fallo")
     assert fallo["modelo"] == modelo
     assert MARCA_DEL_PROVEEDOR in fallo["respuesta"]
+    # Con su traza (R10.2, #292): el tipo y el mensaje no dicen dónde falló.
+    assert "Traceback (most recent call last)" in fallo.get("traza", "")
 
 
 @pytest.mark.asyncio
@@ -317,6 +319,25 @@ async def test_classify_error_returns_fail(monkeypatch):
 
     assert not result.success
     assert "modelo-malo" in result.error
+
+
+@pytest.mark.asyncio
+async def test_un_fallo_del_modelo_local_deja_su_traza(monkeypatch):
+    """R10.2 (#292): el fallo se devuelve como valor, saneado (#89), así que no
+    escapa de la herramienta y su traza no la registra nadie más. Hasta #292
+    quedaban el tipo y el mensaje, que no dicen dónde falló."""
+
+    def boom(task, model):
+        raise RuntimeError("modelo no encontrado")
+
+    client = LocalNLPClient()
+    monkeypatch.setattr(client, "_get_pipeline", boom)
+    with capture_logs() as registrado:
+        await client.classify("texto", "modelo-malo")
+
+    fallo = next(linea for linea in registrado if linea["event"] == "nlp.local.fallo")
+    assert "Traceback (most recent call last)" in fallo.get("traza", "")
+    assert "RuntimeError: modelo no encontrado" in fallo.get("traza", "")
 
 
 def test_get_pipeline_caches(monkeypatch):
@@ -533,6 +554,26 @@ async def test_detector_error_returns_fail(monkeypatch):
         == "La incoherencia falló por un motivo no previsto; el detalle técnico queda en el log del servidor."
     )
     assert "modelo no encontrado" not in result.error
+
+
+@pytest.mark.asyncio
+async def test_un_fallo_de_la_incoherencia_deja_su_traza(monkeypatch):
+    """R10.2 (#292), como el del modelo local: fuera sale la frase pública, y al
+    registro, la traza entera."""
+
+    def boom():
+        raise RuntimeError("modelo no encontrado")
+
+    detector = IncoherenceDetector()
+    monkeypatch.setattr(detector, "_get_model", boom)
+    with capture_logs() as registrado:
+        await detector.detect("error", "no movie")
+
+    fallo = next(
+        linea for linea in registrado if linea["event"] == "nlp.incoherencia.fallo"
+    )
+    assert "Traceback (most recent call last)" in fallo.get("traza", "")
+    assert "RuntimeError: modelo no encontrado" in fallo.get("traza", "")
 
 
 # --Léxico

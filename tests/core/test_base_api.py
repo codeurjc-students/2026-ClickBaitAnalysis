@@ -9,6 +9,7 @@ que ningún método —tampoco uno nuevo— pueda olvidarla.
 import pytest
 import respx
 from httpx import Response
+from structlog.testing import capture_logs
 
 from backend.core.base_api import BaseAPI
 
@@ -57,3 +58,20 @@ async def test_una_api_que_no_pide_clave_pide_sin_ella():
 
     assert ruta.called
     assert result.success
+
+
+@pytest.mark.asyncio
+async def test_un_fallo_imprevisto_deja_su_traza():
+    """R10.2 (#292): un 200 que no es JSON no es un error HTTP ni de conexión,
+    así que cae en el `except` genérico. Fuera sale la frase pública; al
+    registro, hasta #292, sólo el tipo y el mensaje, sin la traza."""
+    with respx.mock(assert_all_called=False) as router:
+        router.get(f"{URL}datos").mock(return_value=Response(200, text="no es json"))
+        with capture_logs() as registrado:
+            result = await SinClave().make_request("datos", "get")
+
+    assert not result.success
+    assert "no previsto" in result.error
+    fallo = next(linea for linea in registrado if linea["event"] == "api.error")
+    assert "Traceback (most recent call last)" in fallo.get("traza", "")
+    assert "JSONDecodeError" in fallo.get("traza", "")

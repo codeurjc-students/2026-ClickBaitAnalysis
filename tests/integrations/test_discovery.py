@@ -14,6 +14,7 @@ import sys
 
 import pytest
 from mcp.server.fastmcp import FastMCP
+from structlog.testing import capture_logs
 
 from backend import integrations
 from backend.integrations import discovery
@@ -138,6 +139,20 @@ def test_una_integracion_que_revienta_no_tumba_a_las_demas(integracion_falsa):
     # Las otras cuatro se registran igualmente. Un paquete roto
     # no puede dejar al sistema sin las herramientas restantes.
     assert set(INTEGRACIONES_REALES) <= set(resultado.registered)
+
+
+def test_una_integracion_que_revienta_deja_su_traza(integracion_falsa):
+    """R10.2 (#292): el fallo no se propaga, para no tumbar a las demás, así que
+    su traza sólo puede quedar en el registro. Hasta #292 quedaba el mensaje,
+    que no dice en qué línea del `register` falló."""
+    integracion_falsa("integracion_rota", _TOOL_QUE_REVIENTA)
+
+    with capture_logs() as registrado:
+        discovery.discover_and_register(FastMCP("test"))
+
+    fallo = next(linea for linea in registrado if linea["event"] == "integracion.fallo")
+    assert "Traceback (most recent call last)" in fallo.get("traza", "")
+    assert "RuntimeError" in fallo.get("traza", "")
 
 
 def test_un_paquete_sin_register_se_omite_sin_romper(integracion_falsa):

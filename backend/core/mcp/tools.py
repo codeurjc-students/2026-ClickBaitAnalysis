@@ -23,10 +23,13 @@ import asyncio
 from collections.abc import Sequence
 from dataclasses import dataclass
 
+import httpx
 import structlog
 from jsonschema import Draft7Validator
+from mcp.shared.exceptions import McpError
 from mcp.types import CallToolResult, TextContent, Tool
 
+from backend.core.errores import describir_error
 from backend.core.mcp.session import open_session
 from backend.core.models import ToolResult
 
@@ -51,6 +54,24 @@ class ToolTimeout(Exception):
     Lo que ha fallado es la espera, no el trabajo. Quien traduzca esto a HTTP
     debe distinguirlo: decir «el análisis falló» sería mentir.
     """
+
+
+class ServerUnavailable(Exception):
+    """Algún servidor MCP no respondió, y la herramienta no estaba en los que sí.
+
+    No es ``ToolNotFound``: la herramienta puede estar justo en el que no
+    respondió, así que decir que no existe sería falso (R1.8, #292). Tampoco es
+    un timeout: no se llegó a esperar a nada, porque no hubo con quién hablar.
+    """
+
+
+# Lo que dice que un servidor no responde, y no que la herramienta haya fallado.
+# Son las familias que ve el catálogo con un servidor caído (`core/errores.py`):
+# la conexión rechazada o un nombre que no existe (`TransportError`), un servicio
+# que la rechaza (`HTTPStatusError`, el 421) y una ruta que no es MCP
+# (`McpError`). Cualquier otra excepción sigue subiendo: sería un fallo nuestro,
+# y esconderlo como una caída lo taparía.
+_NO_RESPONDE = (httpx.TransportError, httpx.HTTPStatusError, McpError)
 
 
 @dataclass(frozen=True)
@@ -97,8 +118,16 @@ async def execute_tool(
     ahí dentro: un ``except InvalidArguments`` de quien llame no lo capturaría.
     Por eso ``_intentar`` **devuelve** lo que ha pasado y es aquí, ya fuera,
     donde se decide qué excepción sale.
+
+    **Un servidor que no responde se salta** (R1.8, #292): se registra y se
+    sigue con el siguiente, como hace el catálogo. Hasta #292 su error de
+    conexión cortaba la búsqueda, y la API lo devolvía como un 500. Si al final
+    la herramienta no estaba en ninguno de los que respondieron y alguno no
+    respondió, sale ``ServerUnavailable``, no ``ToolNotFound``.
     """
+    no_respondieron: list[str] = []
     for url in servers:
+        intento = None
         try:
             intento = await _intentar(url, name, arguments, timeout)
 
@@ -124,10 +153,28 @@ async def execute_tool(
         # `ToolTimeout` dentro y quien llame vería un fallo genérico en lugar de
         # un timeout. Se asume: un timeout más un fallo independiente no es
         # realmente «no respondió a tiempo».
-        except* TimeoutError:
+        #
+        # El corte de httpx también es un timeout (#292): mide inactividad entre
+        # bytes, y salta con un servidor que acepta la conexión y deja de
+        # enviar, así que la herramienta puede haber terminado igual. Va en esta
+        # cláusula y no en la siguiente aunque herede de `TransportError`:
+        # `except*` da cada excepción a la PRIMERA cláusula que casa.
+        except* (TimeoutError, httpx.TimeoutException):
             log.warning("tool.execute.timeout", tool=name, url=url)
             raise ToolTimeout(name) from None
+        # Un servidor que no responde no es el final de la búsqueda (R1.8). El
+        # `continue` va fuera: Python no lo admite dentro de un `except*`.
+        except* _NO_RESPONDE as grupo:
+            log.warning(
+                "tool.execute.unreachable",
+                tool=name,
+                url=url,
+                motivo=describir_error(grupo),
+            )
+            no_respondieron.append(url)
 
+        if url in no_respondieron:
+            continue
         if intento is None:
             continue  # esta herramienta no está en este servidor
 
@@ -142,6 +189,8 @@ async def execute_tool(
 
         return _leer(resultado, name, servidor)
 
+    if no_respondieron:
+        raise ServerUnavailable(name)
     raise ToolNotFound(name)
 
 

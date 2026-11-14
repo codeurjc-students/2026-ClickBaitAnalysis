@@ -28,6 +28,8 @@ por `/analyze`, por `/tools/.../execute` y por MCP. Era una quinta puerta de #89
 que se escapó al tapar las cuatro de entonces.
 """
 
+import traceback
+
 import structlog
 
 from backend.config.settings import settings
@@ -54,6 +56,7 @@ def _fallo(tarea: str, model: str, error: Exception, respuesta: object) -> ToolR
         tipo=type(error).__name__,
         detalle=str(error),
         respuesta=str(respuesta)[:1000],
+        traza="".join(traceback.format_exception(error)),
     )
     return ToolResult.fail(f"El modelo `{model}` {mensaje_publico(error)}.")
 

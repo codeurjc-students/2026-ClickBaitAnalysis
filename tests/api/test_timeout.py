@@ -20,6 +20,7 @@ escenario. Cada uno cubre lo que el otro no.
 
 import asyncio
 
+import httpx
 import pytest
 from fastapi.testclient import TestClient
 
@@ -105,6 +106,27 @@ def test_se_reconoce_a_cualquier_profundidad(sesion_lenta, capas):
         asyncio.run(execute_tool("detect_clickbait", {}))
 
 
+@pytest.mark.parametrize("capas", [0, 2])
+def test_un_timeout_de_httpx_tambien_es_un_timeout(monkeypatch, capas):
+    """El corte de httpx mide inactividad entre bytes: salta con un servidor que
+    acepta la conexión y deja de enviar (ver `_intentar`). Es un timeout como el
+    de `asyncio`, y la herramienta puede haber terminado igual, así que es un
+    504. Hasta #292 salía como un 500: `httpx.TimeoutException` no hereda de
+    `TimeoutError`, y con R1.8 habría caído en «el servidor no responde»,
+    porque sí hereda de `httpx.TransportError`."""
+
+    async def httpx_se_cansa(url, name, arguments, timeout):
+        exc: BaseException = httpx.ReadTimeout("sin datos")
+        for _ in range(capas):
+            exc = ExceptionGroup("unhandled errors in a TaskGroup", [exc])
+        raise exc
+
+    monkeypatch.setattr(mcp_tools, "_intentar", httpx_se_cansa)
+
+    with pytest.raises(ToolTimeout):
+        asyncio.run(execute_tool("detect_clickbait", {}))
+
+
 def test_otros_fallos_siguen_su_camino(monkeypatch):
     """El desenvuelto no puede tragarse cualquier cosa: un fallo que no sea de
     tiempo tiene que seguir subiendo tal cual."""
@@ -136,15 +158,15 @@ def test_las_otras_categorias_no_cambian(monkeypatch):
     )
 
 
-def test_el_contrato_declara_los_tres_finales(monkeypatch):
+def test_el_contrato_declara_los_cuatro_finales(monkeypatch):
     """Que ocurran no basta: tienen que estar PUBLICADOS (#129).
 
     El cliente de Angular se genera del contrato, así que un código que sólo
-    vive en el `raise` obliga a leer `app.py`. Aquí son tres y significan cosas
-    distintas: el 404 es que la herramienta no existe, el 422 que los argumentos
-    no encajan en su esquema, y el 504 que se agotó la espera — que **no** es
-    que la herramienta fallara: en #113 terminó bien a los 151 s con la API ya
-    desistida.
+    vive en el `raise` obliga a leer `app.py`. Aquí son cuatro y significan
+    cosas distintas: el 404 es que la herramienta no existe, el 422 que los
+    argumentos no encajan en su esquema, el 503 que el servidor MCP no responde
+    (#292), y el 504 que se agotó la espera — que **no** es que la herramienta
+    fallara: en #113 terminó bien a los 151 s con la API ya desistida.
 
     (El 200 con `status: error` no aparece aquí porque no es un final aparte:
     la petición fue correcta y la respuesta es un `ExecuteResponse` normal.)
@@ -153,5 +175,6 @@ def test_el_contrato_declara_los_tres_finales(monkeypatch):
         "post"
     ]["responses"]
 
-    assert {"404", "422", "504"} <= set(respuestas)
+    assert {"404", "422", "503", "504"} <= set(respuestas)
+    assert "no responde" in respuestas["503"]["description"]
     assert "espera" in respuestas["504"]["description"]

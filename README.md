@@ -6867,7 +6867,7 @@ La segunda issue de H5, y el núcleo de R13: [`backend/agent/`](backend/agent/),
 
 - **[`agente.py`](backend/agent/agente.py)**, con `responder(consulta, historial, config, al_paso)`:
   - **Recibe su configuración** —backend, servidores, prompt, dos cortes, seis vueltas y `think`— y no lee `settings`, por la regla de #119. `tests/test_arquitectura.py` lo vigila: la regla pasa a ir por ruta, con `agent` sin ninguna excepción. La montará la API en #189, y con ella llegará el ajuste que elige el prompt; añadirlo ahora habría sido un ajuste sin nadie que lo leyera.
-  - **Descubre el catálogo una vez por consulta y ejecuta cada herramienta en el servidor que la publicó.** Buscarla en todos no sirve: `execute_tool` los recorre en orden, y un servidor caído delante lo hace fallar antes de llegar al bueno. Está comprobado —sale un `ExceptionGroup` con `McpError` dentro— y un test lo deja escrito.
+  - **Descubre el catálogo una vez por consulta y ejecuta cada herramienta en el servidor que la publicó.** Buscarla en todos no sirve: `execute_tool` los recorre en orden, y un servidor caído delante lo hace fallar antes de llegar al bueno. Está comprobado —sale un `ExceptionGroup` con `McpError` dentro— y un test lo deja escrito. *(Revisado en #292: `execute_tool` ya salta el servidor que no responde (R1.8), y el test comprueba ahora eso. El agente sigue pasándole una sola URL, porque el catálogo ya dice dónde está cada herramienta y preguntar a los demás costaría una conexión por servidor. Ver «Los huecos de código del repaso de requisitos».)*
   - **Un error de una herramienta vuelve al modelo** como resultado, para que corrija los argumentos o lo cuente, y va a la traza como mensaje público. Lo imprevisto se registra entero antes de publicar la frase (#89), y un test afirma que el texto de la excepción no está ni en la traza ni en lo que lee el modelo.
   - **Como mucho seis vueltas**, como el spike. Agotadas, termina con la traza entera y sin narración, y las tarjetas salen igual (R6.13).
 - **[`traza.py`](backend/agent/traza.py)**: cada vuelta del modelo, con sus medidas, y cada llamada, con su resultado **entero**, que es de donde salen las tarjetas y no del texto del modelo (R13.4). `al_paso` avisa de cada paso según ocurre y no sabe quién escucha: la API lo usará para que la traza crezca mientras la interfaz sondea.
@@ -11102,6 +11102,8 @@ Lo que falla en el código y no se puede matizar sin faltar a la verdad va a **#
 | **R13.2**, de paso | `MAX_HERRAMIENTAS_POR_TURNO` sigue en 12, el catálogo de #188, y hoy hay 14: un turno que usara 13 herramientas distintas daría un 422 al preguntar lo siguiente |
 | **R10.2** | Los fallos de los modelos se registran con el tipo y el mensaje, sin la traza |
 
+*(Hecho en #292, con las tres decisiones como se recomendaban, y R10.2 en seis sitios y no en dos; ver «Los huecos de código del repaso de requisitos».)*
+
 Lo que queda por decidir en #292 lleva su recomendación en la issue: los argumentos, en un campo de `ExecuteResponse`; el servidor caído, con un 503; y el tope, atado al catálogo con una prueba en vez de con otro número.
 
 Fuera de #292, a **#217**: **R6.14**. Desde #259, una herramienta sin su clave sigue ofreciendo «Ejecutar» en Sistema, y su único resultado posible es la frase de `falta_clave`. Arreglarlo es medio día (estimado) entre el backend y la pantalla, y en producción no se ve, porque las claves están puestas. Se vería en una instalación hecha con la guía del anexo B.
@@ -11185,6 +11187,77 @@ Los rulesets del repositorio no exigen que el CI esté en verde para mergear: el
 | Cómo | Tres subagentes de Claude Code, uno por grupo de requisitos, con la ruta y la línea de cada evidencia. Cada «no se cumple» y cada matiz desfasado, comprobado después por Claude en el código; las líneas que cita #292, con `grep` |
 | Fuentes | El RFC 9110 (§15.5.1, §15.5.21 y apéndice B.3), leído en `rfc-editor.org` el 14 de noviembre; los rulesets, con `gh api` |
 | Guion | Ninguno: no hay medida. Las cifras de R3.6 son las de #256 |
+
+### Los huecos de código del repaso de requisitos (#292, 14 nov 2026)
+
+El repaso preliminar de #216 encontró seis cosas que fallaban en el código y no se podían matizar sin faltar a la verdad. Se abrieron en #292 para arreglarlas antes de la congelación del 15 de diciembre. Cada arreglo empezó por una prueba que se vio fallar contra el código de antes, por el motivo que tocaba.
+
+#### Lo que se arregló
+
+| Criterio | Antes | Ahora |
+|---|---|---|
+| **R12.7** | Una excepción que no fuera un `ToolError`, lanzada dentro de una herramienta, salía entera: FastMCP la envuelve como `Error executing tool <nombre>: <texto>` y sólo se quitaba el prefijo. `analyze_headline` con un titular en blanco publicaba el error de validación de Pydantic, con el nombre del modelo y la dirección de su documentación | `log_tool_invocation` deja pasar los `ToolError`, que la herramienta redacta para publicarse, y relanza lo demás como `ToolError` con la frase de `mensaje_publico`: «La herramienta falló por un motivo no previsto; el detalle técnico queda en el log del servidor». El texto queda en la traza del registro |
+| **R1.8** | Con el servidor MCP caído, `POST /tools/{name}/execute` daba un 500 en texto plano: el error de conexión llega dentro de un `ExceptionGroup`, y `execute_tool` sólo capturaba el timeout. Uno caído delante cortaba la búsqueda antes de llegar al que tiene la herramienta | `execute_tool` salta el servidor que no responde y lo registra. Si la herramienta no estaba en los que respondieron y alguno no respondió, sale `ServerUnavailable`, que la API da como **503** con una frase pública; Sistema lo explica, y el agente también |
+| **R3.5** | `analyze_sentiment("")` clasificaba la cadena vacía (el detector de idioma la da por inglés), y la incoherencia medía la similitud de un titular vacío | Las dos, y `analyze_headline`, rechazan el texto vacío o en blanco antes de detectar el idioma, con la frase que ya daban el léxico, el lineal y la dedicada: «El titular está vacío o no es válido» (en el tono, «El texto…») |
+| **R9.2** | Una ejecución suelta guardaba la respuesta y el titular, si lo había: una búsqueda de noticias no decía qué se buscó | `ExecuteResponse` lleva `arguments`, y el historial guarda la respuesta entera, así que quedan. Lo guardado antes se sigue leyendo igual |
+| **R13.2**, de paso | `MAX_HERRAMIENTAS_POR_TURNO` seguía en 12, el catálogo de #188, con 14 herramientas: un turno que usara 13 habría dado un 422 al preguntar lo siguiente | 14, y una prueba que falla si el catálogo de `backend.main.mcp` pasa del tope |
+| **R10.2** | Seis sitios registraban un fallo que se devuelve como valor con el tipo y el mensaje, sin la traza: el modelo local, el remoto, la incoherencia, el precalentado, el registro de una integración y el `except` genérico de `BaseAPI` | Los seis añaden un campo `traza`, como ya hacía el agente con lo imprevisto |
+
+#### Lo que se decidió
+
+Las tres decisiones que la issue dejó abiertas, con el autor, el 14 de noviembre, y con la recomendación que llevaban:
+
+- **`arguments` es un campo obligatorio de `ExecuteResponse`**, y no algo que se mete sólo en el `payload` del historial. Así el `payload` sigue siendo «la respuesta completa» que dice su descripción, y la API los devuelve también a quien ejecuta. Cambia el contrato: `openapi.json`, `schema.d.ts` y un doble tipado del frontend.
+- **503**, «el servicio no está disponible ahora», para el servidor que no responde. No es un 404, porque la herramienta puede estar justo en él, ni un 504, porque no se llegó a esperar a nada.
+- **El tope, atado al catálogo con una prueba**, y no con un número holgado que vuelva a caducar en silencio.
+
+Y tres más, al plantear el trabajo o al escribir las pruebas:
+
+- **R10.2 en los seis sitios, y no en los dos de la issue.** El repaso los había encontrado todos, y el repaso final los habría vuelto a marcar.
+- **Qué cuenta como «no responde».** Sólo las familias que ve el catálogo con un servidor caído (`core/errores.py`): `httpx.TransportError`, `httpx.HTTPStatusError` y `McpError`. Cualquier otra excepción sigue subiendo, como ya exigía `test_otros_fallos_siguen_su_camino`: un fallo nuestro no se esconde como una caída.
+- **Un timeout de httpx es un 504** (decidido por el autor). `httpx.TimeoutException` hereda de `TransportError`, así que habría caído en «no responde». Pero es el corte por inactividad de un servidor que aceptó la conexión y dejó de enviar, y la herramienta puede haber terminado, que es lo que dice el 504. Hasta #292 salía como un 500.
+
+#### Lo que salió al hacerlo
+
+- **El agente también usa `execute_tool`**, con el servidor que publicó cada herramienta. Un servidor que cae entre el catálogo y la llamada le llegaría como `ServerUnavailable`, y su `except` genérico lo habría contado como «un motivo no previsto», cuando antes decía «no pudo contactar». Tiene su propio caso: «el servidor que la publicó no responde».
+- **Una prueba fijaba el fallo como justificación.** `test_por_que_cada_herramienta_se_ejecuta_solo_en_su_servidor` exigía que un servidor caído delante hiciera fallar `execute_tool`: era el motivo escrito por el que el agente pasa una sola URL. Ahora comprueba que lo salta, y el docstring del agente da el motivo que queda: el catálogo ya dice dónde está cada herramienta, y preguntar a los demás costaría una conexión por servidor.
+- **El arreglo de R12.7 habría tapado el de R3.5.** El error de Pydantic de `analyze_headline` dejaba de filtrarse, pero salía como «no previsto», y no lo es. Por eso la herramienta rechaza antes el titular en blanco con su frase.
+- **El docstring de `api/execute.py` repetía lo falso de R4.3** («traer una noticia desde la pantalla de análisis», corregido en #216) y contaba cuatro finales. Ahora son cinco.
+- **Las pruebas de R1.8 usan una conexión rechazada de verdad**, contra un puerto cerrado, con un transporte que manda la dirección del servidor en proceso a él y las demás a la red. Así el error llega envuelto por el cliente MCP como en producción, y no fabricado: la trampa de #187.
+- **`except*` no admite `continue`**: el servidor que no responde se anota dentro de la cláusula, y se salta fuera.
+
+#### Lo que no se arregla
+
+- **Dos textos de FastMCP siguen saliendo**: «Input validation error» y «Output validation error». Los genera el servidor de bajo nivel de MCP fuera del decorador, antes y después de llamar a la herramienta. No son textos de una librería sobre nuestras tripas: son los mensajes de `jsonschema` sobre los esquemas de entrada y de salida, que ya son públicos, y el de salida sólo saldría con un fallo de nuestro propio esquema.
+- **La traza lleva los marcos y los mensajes, no los valores de las variables.** En `BaseAPI` la lleva sólo el `except` genérico; la rama del error HTTP, cuyo mensaje trae la URL con la clave de Guardian o de NYT, sigue sin ella.
+- **R6.14**, las herramientas sin clave que siguen ofreciendo «Ejecutar», está en #217 desde #216.
+- **Ningún docstring de herramienta cambió**: el volcado del catálogo sale idéntico antes y después, así que el modelo del agente recibe lo mismo y no hacen falta las 26 consultas.
+
+#### Comprobado
+
+- **Las pruebas.** 715 en la suite del CI, frente a 691: 24 nuevas, y cada una se vio fallar contra el código de antes por su motivo, salvo dos que vigilan que el arreglo no se pase de largo y ya pasaban: que un `ToolError` sale intacto, y que una entrada del historial sin `arguments` se sigue leyendo. Cuatro de las que ya había cambian porque fijaban lo de antes: el decorador relanzando el `RuntimeError` tal cual, el contrato con tres finales, el turno de 13 herramientas como «demasiadas» (ahora, el tope más uno) y la prueba del agente que fijaba el fallo como justificación. ruff y pyright, sin avisos.
+- **El frontend.** 215 pruebas (214 antes), el lint y la compilación; `openapi.json` y `schema.d.ts`, regenerados.
+- **El catálogo**, volcado con `spikes/catalogo_volcado.py` sobre `667d957` y sobre la rama: idéntico.
+- **La pila local, con `mcp` parado** (`spikes/mcp_parado_pila_local.sh`), con las imágenes construidas desde la rama:
+
+| Fase | Petición | Resultado |
+|---|---|---|
+| `mcp` en marcha | `detect_clickbait_lexical` con un titular | 200, con `arguments` en la respuesta |
+| | `analyze_headline` con `"   "` | 200 con `status: error` y «El titular está vacío o no es válido» |
+| `mcp` parado | `detect_clickbait_lexical` con un titular | **503**: «El servidor de herramientas no responde: no se pudo ejecutar 'detect_clickbait_lexical'. Vuelve a intentarlo en un momento.» |
+| Antes de bajarla | `GET /history?kind=tool` | las dos ejecuciones, cada una con sus argumentos, también la que falló |
+
+  El registro de la API anota `tool.execute.unreachable` con `motivo=ConnectError` y la URL interna, `http://mcp:8765/mcp`: con `mcp` parado su nombre deja de resolverse en la red de Compose. Eso va al registro, no a la respuesta.
+
+**Sin comprobar.** La pantalla de Sistema con un 503 de verdad, en un navegador: el integrado rechaza el certificado de la pila local, emitido por la autoridad interna de Caddy. La cubre su prueba. Y el agente con el 27B, que no hace falta para lo que cambia: sus herramientas no cambiaron, y los mensajes nuevos sólo salen con un fallo.
+
+| Condiciones | |
+|---|---|
+| Fecha | 14 nov 2026; la pila local, de las 14:40 a las 14:41, hora de Madrid |
+| Máquina | El PC de sobremesa del autor: WSL2 con Ubuntu 24.04.4, Python 3.12.3 en el `.venv`, Docker 29.1.3 y Compose 2.40.3, Node 22.23.2 y npm 10.9.8 |
+| Imágenes | `clickbait-backend` `6d84b2fcffec` (Python 3.12.16) y `clickbait-web` `4c953371b8a1`, construidas desde la rama |
+| Código | `667d957` (`dev`, con #293), con los cambios de esta PR sin commitear |
+| Guiones | `spikes/mcp_parado_pila_local.sh` (`subir`, `parar` y `bajar`), con su salida en `spikes/mcp_parado_pila_local/salida.txt`; `spikes/catalogo_volcado.py`, sobre `667d957` sacado con `git archive` y sobre la rama |
 
 
 "Aplico Rudin donde puedo —incoherencia(A MEDIAS, YA QUE EL MODELO NO) y léxico son intrínsecamente interpretables— y reservo lo post-hoc (LIME/SHAP), con sus límites de fidelidad, solo para la parte que depende de un transformer preentrenado que no puedo abrir de otro modo." !!!IMPORTANTE (NO MODIFICAR, RECORDAR POSTURA DEFINIDA)

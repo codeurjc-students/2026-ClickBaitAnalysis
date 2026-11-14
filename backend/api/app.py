@@ -58,7 +58,12 @@ from backend.core.logging import avisar_si_faltan_claves, configure_logging
 
 # Las tres excepciones son vocabulario del MECANISMO, no de la fachada: viven
 # donde se lanzan (#137). Importarlas de `api.execute` las haría parecer suyas.
-from backend.core.mcp.tools import InvalidArguments, ToolNotFound, ToolTimeout
+from backend.core.mcp.tools import (
+    InvalidArguments,
+    ServerUnavailable,
+    ToolNotFound,
+    ToolTimeout,
+)
 from backend.integrations.llm.factory import (
     disponibilidad,
     ficha_efectiva,
@@ -222,6 +227,11 @@ async def get_tools() -> CatalogResponse:
     # desistida). La pantalla de Sistema los distingue desde #128.
     responses={
         404: {"description": "No hay ninguna herramienta con ese nombre."},
+        503: {
+            "description": (
+                "El servidor MCP no responde, y la herramienta puede estar en él."
+            )
+        },
         504: {
             "description": "Se agotó la espera; la herramienta puede haber terminado."
         },
@@ -247,12 +257,24 @@ async def post_execute(name: str, request: ExecuteRequest) -> ExecuteResponse:
     herramienta **puede haber terminado bien** —medido en #113, acabó con éxito a
     los 151 s mientras la API ya había desistido—, así que decir que el análisis
     falló sería falso. Lo que falló es la espera.
+
+    Y **503** si un servidor MCP no responde y la herramienta no estaba en los
+    que sí (R1.8, #292). Hasta #292 era un 500 en texto plano: el error de
+    conexión llegaba dentro de un `ExceptionGroup` y nadie lo capturaba.
     """
     try:
         respuesta = await execute_tool(name, request.arguments)
     except ToolNotFound:
         raise HTTPException(
             status_code=404, detail=f"No hay ninguna herramienta llamada '{name}'."
+        ) from None
+    except ServerUnavailable:
+        raise HTTPException(
+            status_code=503,
+            detail=(
+                f"El servidor de herramientas no responde: no se pudo ejecutar "
+                f"'{name}'. Vuelve a intentarlo en un momento."
+            ),
         ) from None
     except InvalidArguments as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from None

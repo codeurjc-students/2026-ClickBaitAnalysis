@@ -101,6 +101,10 @@ export interface paths {
          *     herramienta **puede haber terminado bien** —medido en #113, acabó con éxito a
          *     los 151 s mientras la API ya había desistido—, así que decir que el análisis
          *     falló sería falso. Lo que falló es la espera.
+         *
+         *     Y **503** si un servidor MCP no responde y la herramienta no estaba en los
+         *     que sí (R1.8, #292). Hasta #292 era un 500 en texto plano: el error de
+         *     conexión llegaba dentro de un `ExceptionGroup` y nadie lo capturaba.
          */
         post: operations["post_execute_tools__name__execute_post"];
         delete?: never;
@@ -517,7 +521,7 @@ export interface components {
             message: string;
             /**
              * History
-             * @description Los turnos anteriores, del más antiguo al más reciente, sólo con su texto. El rol es `user` o `assistant`: el de sistema lo pone el servidor, y un cliente no puede colar otro. Los del asistente pueden llevar en `tools` los nombres de las herramientas que usaron (como mucho 12), sin sus resultados. Tiene un tope en caracteres, texto y nombres, que da la configuración; por encima, 422, y hay que quitar los turnos más antiguos.
+             * @description Los turnos anteriores, del más antiguo al más reciente, sólo con su texto. El rol es `user` o `assistant`: el de sistema lo pone el servidor, y un cliente no puede colar otro. Los del asistente pueden llevar en `tools` los nombres de las herramientas que usaron (como mucho 14), sin sus resultados. Tiene un tope en caracteres, texto y nombres, que da la configuración; por encima, 422, y hay que quitar los turnos más antiguos.
              */
             history?: components["schemas"]["Turno"][];
         };
@@ -603,6 +607,13 @@ export interface components {
             /** Server */
             server: string;
             status: components["schemas"]["ExecuteStatus"];
+            /**
+             * Arguments
+             * @description Los argumentos con que se ejecutó, tal como llegaron. El historial guarda la respuesta, y con ella quedan (R9.2): sin ellos, una búsqueda de noticias no dice qué se buscó. Lo guardado antes de #292 no los trae.
+             */
+            arguments: {
+                [key: string]: unknown;
+            };
             /**
              * Data
              * @description Salida estructurada de la herramienta, tal como la declara su `output_schema`. Las que devuelven texto o listas llegan envueltas en `result`, porque el protocolo sólo deja sin envolver los objetos.
@@ -1339,6 +1350,13 @@ export interface operations {
             };
             /** @description Se superó el límite de peticiones. La cabecera `Retry-After` dice cuántos segundos esperar. */
             429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description El servidor MCP no responde, y la herramienta puede estar en él. */
+            503: {
                 headers: {
                     [name: string]: unknown;
                 };

@@ -22,8 +22,10 @@ Lo que no se deduce leyendo el bucle:
   pueda corregir los argumentos o contarlo, y va a la traza como mensaje
   público. Lo imprevisto se registra entero ANTES de publicar la frase (#89).
 - **Cada herramienta se ejecuta en el servidor que la publicó**, no buscándola
-  en todos: `execute_tool` recorre los servidores en orden, y uno caído lo haría
-  fallar antes de llegar al bueno. Por eso el catálogo se descubre una vez por
+  en todos: `execute_tool` recorre los servidores en orden, y hasta #292 uno
+  caído lo hacía fallar antes de llegar al bueno. Ahora lo salta, pero el
+  catálogo ya dice dónde está cada herramienta, y preguntar a los demás costaría
+  una conexión por servidor. Por eso el catálogo se descubre una vez por
   consulta y guarda de dónde vino cada herramienta.
 - **Como mucho seis vueltas**, como en el spike. Agotadas, termina con la traza
   entera y sin narración, y las tarjetas salen igual (R6.13). La vuelta en
@@ -370,6 +372,10 @@ async def _ejecutar(
             )
         except tools.ToolTimeout:
             error = f"«{nombre}» tardó demasiado en responder."
+        except tools.ServerUnavailable:
+            # Cayó entre el catálogo y la llamada (R1.8, #292). Hasta #292 su
+            # error de conexión llegaba aquí como imprevisto.
+            error = f"«{nombre}»: el servidor que la publicó no responde."
         except tools.ToolNotFound:
             error = f"«{nombre}» ya no está en el servidor que la publicó."
         except Exception as excepcion:

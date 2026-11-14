@@ -53,10 +53,12 @@ function mensajeDeCatalogo(fallo: HttpErrorResponse): string {
 /**
  * La ejecución no llegó a producir un resultado.
  *
- * Los tres casos se separan porque el remedio es distinto en cada uno, y
- * fundirlos en «no se pudo ejecutar» los volvería inaccionables. El 504 es el
- * que más importa: **no dice que la herramienta fallara**, dice que se agotó la
- * espera — en #113 terminó bien a los 151 s con la API ya desistida.
+ * Los casos se separan porque el remedio es distinto en cada uno, y fundirlos
+ * en «no se pudo ejecutar» los volvería inaccionables. El 504 es el que más
+ * importa: **no dice que la herramienta fallara**, dice que se agotó la espera
+ * — en #113 terminó bien a los 151 s con la API ya desistida. Y el 503 (#292)
+ * es que el servidor de herramientas no responde: la API sí, así que el
+ * mensaje genérico de los 5xx culparía a quien no es.
  */
 function mensajeDeEjecucion(fallo: HttpErrorResponse): string {
   if (fallo.status === 0) return SIN_RESPUESTA;
@@ -69,6 +71,9 @@ function mensajeDeEjecucion(fallo: HttpErrorResponse): string {
     return detalle
       ? `Los argumentos no encajan en el esquema: ${detalle}`
       : 'Los argumentos no encajan en el esquema de la herramienta.';
+  }
+  if (fallo.status === 503) {
+    return 'El servidor de herramientas no responde ahora mismo. Vuelve a intentarlo en un momento.';
   }
   if (fallo.status === 504) {
     return 'Se agotó la espera. La herramienta puede haber terminado igualmente, así que repetir la llamada la ejecutaría otra vez.';

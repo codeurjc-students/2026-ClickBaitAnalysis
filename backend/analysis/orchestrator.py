@@ -291,7 +291,12 @@ async def precalentar() -> dict[str, float]:
             # No se propaga: un modelo que no carga no debe impedir que la API
             # sirva `/tools` o `/history`. Se registra el fallo con un tiempo
             # negativo para que sea inconfundible en los logs.
-            log.warning("preheat.failed", signal=etiqueta, error=str(exc))
+            log.warning(
+                "preheat.failed",
+                signal=etiqueta,
+                error=str(exc),
+                traza="".join(traceback.format_exception(exc)),
+            )
             tiempos[etiqueta] = -1.0
             return
         tiempos[etiqueta] = time.perf_counter() - inicio
