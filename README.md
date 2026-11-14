@@ -1207,6 +1207,8 @@ y escondería lo que ya está escrito en `model_cards.py`: que es **interpretabl
 
 **R4.3 se queda, con sus consumidores anotados.** Ese endpoint —ejecutar una tool concreta— existía para que el catálogo lanzara herramientas, así que al dejar de ser lanzador parecía quedarse sin uso. No es el caso: le quedan dos reales, ejecutar **una señal suelta** (sólo el sentimiento, sin lanzar las cuatro) y **traer una noticia** desde la pantalla de análisis. Lo que estaba mal era su justificación, no su forma.
 
+*(Corregido en #216: el segundo consumidor no llegó a hacerse. La pantalla de análisis nunca trajo noticias, y quien ejecuta herramientas sueltas es la de Sistema; ver «Los requisitos, repasados un mes antes de congelar».)*
+
 **El nombre se mantiene.** Se valoró renombrar `Tool_Catalog`, ya que no aparece en el código y el cambio saldría barato. Se descarta: un catálogo es **descriptivo por naturaleza** —el de un museo describe obras que no te llevas— y lo que empujaba hacia el lanzador era la historia de usuario, ya corregida. Además la historia de R13 depende del término: *«que el sistema decida por mí qué herramientas usar sin necesidad de conocer el catálogo»* sólo tiene sentido si existe un catálogo que uno podría conocer.
 
 ### Registro automático de integraciones (#91, 5 ago 2026)
@@ -6348,6 +6350,8 @@ Había dos formas de tratarlo. Darlo por cumplido —las imágenes sólo se cons
 
 **R8.6 queda a revisar**, sin decidir: pide flujos separados para pull requests y para `main`, y hoy los dos pasan por el mismo `ci.yml`.
 
+*(Decidido en #216: matizado, y el despliegue continuo también; ver «Los requisitos, repasados un mes antes de congelar».)*
+
 #### Los diagramas que faltaban, y uno que es un plano
 
 [`docs/arquitectura.md`](docs/arquitectura.md) decía reflejar «el estado tras cerrar H2 y la primera pantalla de H3», y sus nueve diagramas describían el sistema corriendo en el PC de desarrollo: ni contenedores, ni Caddy, ni volúmenes, ni TLS. Todo lo de H4 vivía sólo en la prosa de este README. Entran tres secciones y se amplía una:
@@ -6399,6 +6403,8 @@ La cabecera lo deja fechado: *revisado entero contra el árbol en #173*. La segu
 | **R13** | ⬜ | ⬜ sin construir, con el spike rehecho y el diseño declarado como plano en §12 |
 
 *(Revisado en #193: R6 y R13 pasan a ✅, con R13.6 matizado y R13.8 fuera de H5; ver «El cierre de H5».)*
+
+*(Revisado en #216: R8 pasa a ✅, con R8.6 y el despliegue continuo matizados. R12 vuelve a ◑: una excepción imprevista dentro de una herramienta publica su texto (R12.7), y lo arregla #292. Ver «Los requisitos, repasados un mes antes de congelar».)*
 
 **R7.4 merece una nota.** Pide arrancar los servicios «en el orden correcto», y el compose no tiene `depends_on`, a propósito desde #164: con la API caída la web sigue sirviendo y el indicador de salud explica el 502, y con el MCP caído sólo se degrada la pantalla de Sistema. Se da por cumplido con una lectura que conviene dejar escrita: **si ningún servicio depende de otro para arrancar, cualquier orden es el correcto**, y `up --wait` deja sanos a los tres. No es el caso de R8.5: allí la letra no se podía cumplir; aquí sí se cumple, sólo que con una lectura.
 
@@ -11045,6 +11051,140 @@ Ningún aviso nuevo que triar. Dos cifras que se mueven sin ser de esta issue: T
 | Herramientas | pip-audit 2.10.1 con OSV, Trivy 0.75.0 (con su base del 13 nov, de las 12:56 UTC), ruff 0.16.1 y gitleaks 8.30.1 |
 | Código | `d007451`, con los cambios de esta PR sin commitear. Las sondas de npm, sobre `frontend/package.json` y `package-lock.json` de `835568e` |
 | Guiones | `spikes/vulnerabilidades.sh`, con los datos en `spikes/vulnerabilidades/2026-11-13-289/`; las sondas de npm, las órdenes de arriba |
+
+### Los requisitos, repasados un mes antes de congelar (#216, 14 nov 2026)
+
+#216 pide el estado final de cada requisito, que es lo que necesitan el anexo A de la memoria y el capítulo 6, y dos decisiones que estaban abiertas: R8.6, «a revisar» desde #173, y el despliegue continuo. La issue deja el repaso para después de la congelación del 15 de diciembre, porque la memoria describe esa versión. Aquí se adelanta un **repaso preliminar contra `dev`** (`f8a9eb5`), para que lo que falte en el código aparezca con un mes de margen y no el día de congelar. El repaso final se queda en comprobar qué ha cambiado desde éste, y por eso la PR lleva `Refs` y la issue sigue abierta.
+
+#### Cómo se hizo
+
+Tres subagentes de Claude Code repasaron los trece requisitos en paralelo, por grupos (R1, R2, R3, R10 y R11; R4, R5, R9, R12 y R13; R6, R7 y R8). Cada uno leyó los criterios uno a uno contra el código, con la ruta y la línea de cada evidencia, y les dio uno de cinco veredictos: se cumple, se cumple con una lectura, matizado (y el matiz sigue siendo cierto), no se cumple o PODRÁ sin hacer. Después, Claude comprobó en el código cada «no se cumple» y cada matiz que había dejado de ser cierto, antes de dárselos al autor. Dos veredictos cambiaron al comprobarlos:
+
+- **R12.7** salió como «se cumple con una lectura», y no hay lectura que lo salve: el texto de una excepción imprevista sale por la API (abajo).
+- **R2.5** salió como «no se cumple», y se queda como lectura, la más floja del repaso (abajo).
+
+Las líneas que cita #292 se cotejaron con `grep` antes de crearla, y dos estaban mal. No se ejecutó nada: es una lectura del código, no una medida.
+
+Con los veredictos ya comprobados, los 108 criterios quedan así:
+
+| Veredicto | Criterios |
+|---|---|
+| Se cumple | 56 |
+| Se cumple con una lectura | 29 |
+| Matizado | 14: siete matices que siguen siendo ciertos, cuatro revisados y tres nuevos |
+| No se cumple, y va a #292 | 6 |
+| PODRÁ, sin hacer | 3 |
+
+#### Las dos decisiones
+
+Las tomó el autor el 14 de noviembre, con la recomendación de Claude. Las dos se **matizan**, como R8.5 en #173, en vez de construir algo que cumpla la letra sin cambiar lo que pasa.
+
+**R8.6, los flujos separados para las pull requests y para `main`.** Hoy `ci.yml` hace exactamente lo mismo en una pull request y en un push a `main` o a `dev`: las pruebas, el estilo, los tipos y las dos imágenes. Separar los flujos tiene sentido cuando `main` hace algo más, como publicar las imágenes o desplegar, y aquí no hace ninguna de las dos cosas: R8.5 está matizado porque no hay registro, y el despliegue es manual. Lo único propio de `main` ya tiene su flujo, `protect-main.yml`, que sólo admite pull requests desde `dev`. Partir `ci.yml` con un `workflow_call` común costaría una o dos horas (estimado) y cumpliría la letra sin cambiar nada de lo que corre.
+
+**El despliegue continuo.** Ningún criterio lo pide; lo pide la historia de usuario de R8 («desplegado automáticamente»), y es ahí donde va el matiz. El despliegue es manual, a propósito, por tres motivos:
+
+- **La clave.** Desplegar desde GitHub obligaría a guardar allí una clave SSH de la máquina 1, que está en internet y tiene `sudo` sin contraseña.
+- **La rama.** La máquina 1 sirve `dev`, no `main`: «desplegar al hacer push a `main`» no describe lo que se hace.
+- **La vigilancia.** Antes de cada despliegue se guarda el registro de la API, que muere con el contenedor (#191), y después se mira el primer arranque: en #280, el de la pila local tras construir falló una vez sin explicación, y al desplegar `147d1df` en la máquina 1 se miró por eso.
+
+Desplegar ya es una sola orden, escrita en `despliegue/README.md`.
+
+#### Lo que no se cumple: #292
+
+Lo que falla en el código y no se puede matizar sin faltar a la verdad va a **#292** (hito H6, etiqueta `bug`), creada el 14 de noviembre para hacerse antes de la congelación:
+
+| Criterio | Qué pasa hoy |
+|---|---|
+| **R12.7** | Si una herramienta lanza una excepción que no es un `ToolError`, FastMCP la envuelve como `Error executing tool <nombre>: <texto>`, y `core/mcp/tools.py` sólo quita el prefijo: el texto de la librería sale por `POST /tools/{name}/execute`. Pasa con `analyze_headline` y un titular en blanco, que publica el error de validación de Pydantic entero, contra la regla de #163 |
+| **R1.8** | Con el servidor MCP caído, `POST /tools/{name}/execute` da un 500 en texto plano: `execute_tool` sólo captura `TimeoutError`, y el error de conexión llega dentro de un `ExceptionGroup`. El catálogo y el agente sí se degradan bien |
+| **R3.5** | `analyze_sentiment("")` clasifica la cadena vacía, y la incoherencia acepta un titular vacío. El léxico, el lineal, la dedicada y `/analyze` ya lo rechazan |
+| **R9.2** | Una ejecución suelta no guarda sus argumentos en el historial: un `get_guardian_news` no dice qué se buscó |
+| **R13.2**, de paso | `MAX_HERRAMIENTAS_POR_TURNO` sigue en 12, el catálogo de #188, y hoy hay 14: un turno que usara 13 herramientas distintas daría un 422 al preguntar lo siguiente |
+| **R10.2** | Los fallos de los modelos se registran con el tipo y el mensaje, sin la traza |
+
+Lo que queda por decidir en #292 lleva su recomendación en la issue: los argumentos, en un campo de `ExecuteResponse`; el servidor caído, con un 503; y el tope, atado al catálogo con una prueba en vez de con otro número.
+
+Fuera de #292, a **#217**: **R6.14**. Desde #259, una herramienta sin su clave sigue ofreciendo «Ejecutar» en Sistema, y su único resultado posible es la frase de `falta_clave`. Arreglarlo es medio día (estimado) entre el backend y la pantalla, y en producción no se ve, porque las claves están puestas. Se vería en una instalación hecha con la guía del anexo B.
+
+#### Los matices, antes y ahora
+
+En [`docs/requisitos.md`](docs/requisitos.md), cuatro matices nuevos —tres criterios y la historia de R8— y cuatro revisiones de matices que ya no eran ciertos o se habían quedado cortos:
+
+| Criterio | Antes | Ahora |
+|---|---|---|
+| R8, la historia | «validado y desplegado automáticamente» | Matizado: el despliegue es manual, por los tres motivos de arriba |
+| R8.6 | Flujos separados para pull requests y `main`, sin matiz | Matizado: el mismo `ci.yml`, a propósito, y `protect-main.yml` para lo propio de `main` |
+| R12.2 | `400 Bad Request` | Matizado: `422 Unprocessable Content`, con los detalles de la validación |
+| R6.11 | Filtros por servidor | Matizado: con un solo servidor, el filtro no filtraría nada; el transporte se lee en la dirección, como ya decidió #128 |
+| R4.3 | Lo usa la pantalla de análisis para traer una noticia | Corregido: eso no llegó a hacerse (abajo); el único consumidor es Sistema |
+| R5.3 | Tres categorías | Ampliado: hay una cuarta, «Análisis completo», la de `analyze_headline` |
+| R13.6 | Sólo la implementación de Ollama | Revisado: desde #265 está también `grabado`; sigue sin haber una de API externa |
+| R2.8 | Satisfecho por la salud desde la Épica 1 | Revisado: GNews y NewsData (#235) no se sondean, porque el sondeo gastaría sus cuotas diarias, y su caída se ve al usarlas |
+
+**El 422 y el 400.** FastAPI responde 422 a toda entrada que no pasa la validación, y las cuatro pantallas que la mandan distinguen ese código de los demás errores (`analisis/errores.ts`, `sistema-page.ts`, `historial-page.ts` y `asistente/errores.ts`). El RFC 9110 define el 400 como el genérico de un error del cliente, como una sintaxis mal formada (§15.5.1), y el 422 para una petición cuya sintaxis es correcta pero cuyo contenido el servidor no puede procesar (§15.5.21). El 422 venía de WebDAV (RFC 4918), y el RFC 9110 lo llevó a HTTP por su aplicabilidad general (apéndice B.3). Pasar a 400 costaría un día (estimado): un manejador de `RequestValidationError`, el contrato, las cuatro pantallas y las pruebas que esperan el 422. Y se perdería justo la distinción que el RFC hace.
+
+**R4.3.** El matiz se escribió el 5 de agosto (PR #96), al replantear R5, con dos consumidores previstos para la ejecución suelta: una señal suelta y «traer una noticia desde la pantalla de análisis». El segundo nunca se hizo. Hoy ejecuta herramientas sueltas la pantalla de Sistema, con el formulario de cada una (R6.3, R6.4), y el agente llama a las herramientas por MCP, sin pasar por este endpoint.
+
+#### Lo que se cumple con una lectura
+
+Estos 29 se cumplen leyendo el criterio de una manera concreta, y la lectura queda escrita aquí, como la de R7.4 en #173, para que el anexo A la pueda citar:
+
+| Criterio | La lectura |
+|---|---|
+| R1.5 | La respuesta de error «estructurada» es el `CallToolResult` con `isError` y el motivo en una frase; no hay un código de error legible por máquina |
+| R1.7 | `MCP_SERVERS` admite varios servidores, pero hay uno, y ninguna prueba junta dos que respondan |
+| R2.3 | Las noticias dan una frase pública por tipo de fallo. El tiempo tapa la causa: ante un 500 dice que no encuentra la zona |
+| R2.4 | Un limitador de velocidad por proceso (`AsyncLimiter`, en `BaseAPI`). Las cuotas diarias no se imponen, y las sondas de `/health` no pasan por él |
+| R2.5 | Se comprueba la forma que se usa —que haya lista, y cada campo con `.get()`—, no la respuesta entera con un modelo. Una respuesta sin `results` sale como «no hay noticias». Validar las cinco APIs con un modelo sería medio día (estimado); no se hace, porque el caso que rompía algo, el tiempo leyendo un campo sin comprobarlo, lo cubre R12.7 en #292 |
+| R2.6 | Se cuenta cada llamada, pero el recuento sólo va en el registro de las que salen bien |
+| R2.7 | Guardian y NewsData leen la cuota restante de la cabecera; NYT y GNews llevan un contador del proceso, que vuelve a cero al reiniciar |
+| R3.3 | Dan confianza la dedicada, el tono y el lineal. El léxico da sus pistas, la incoherencia una similitud, y el veredicto no lleva confianza, por diseño |
+| R3.6 | «Razonable» es lo medido en la máquina 1: 84 y 125 ms por análisis, en español y en inglés, con los modelos cargados (#256). No hay tope de tiempo |
+| R3.9 | Se divulgan todos los modelos; por configuración se cambian los tres que se descargan. El léxico son reglas, y los pesos del lineal, un fichero |
+| R4.4 | El historial guarda análisis y ejecuciones sueltas, no cada herramienta invocada: lo que ejecuta el agente no se guarda, como decidió H5 (R9.4) |
+| R4.6 | Las respuestas buenas tienen tipo en el contrato. Los errores no tienen una sola forma: el `detail` de un 422 es texto al ejecutar y una lista en el de FastAPI, y un 500 imprevisto sale en texto plano (el de R1.8 lo quita #292) |
+| R5.4, R5.6 | PODRÁ, y hechos en la pantalla de Sistema, no en `GET /tools` |
+| R6.8 | Un diseño fluido, sin `@media`, medido a 768 y 1.024 px en #130 y #147. La pantalla del asistente y la cabecera con cuatro pestañas no se han medido: se miden en el repaso final |
+| R6.13 | «Ilegible» es una respuesta cortada. Un texto que no está vacío pero no tiene sentido no se detecta; las tarjetas se ven igual |
+| R6.14 | Se cumple en los dos casos que enumera. El de las claves, a #217 (arriba) |
+| R7.2 | Dos contenedores, `api` y `mcp`, de la misma imagen, en vez de uno compartido |
+| R7.4 | «El orden correcto» es ninguno: ningún servicio necesita a otro para arrancar (#164) |
+| R8.2 | «Enviar código» es una pull request o un push a `dev` o a `main`. Un push a otra rama, sin pull request, no lanza nada |
+| R8.7 | Los registros detallados son los de Actions, con el check en rojo. Si fallan las pruebas, el estilo y los tipos no llegan a correr |
+| R10.4 | Lo registra uvicorn, en su registro de acceso: en texto, fuera de structlog |
+| R10.7 | Sin un mecanismo propio: `PYTHONUNBUFFERED` en la imagen, y structlog escribe cada línea al momento |
+| R11.2 | El fichero es el `.env`. Los endpoints configurables son los propios (`MCP_SERVERS`, `LLM_URL`); las URL de las APIs externas son constantes |
+| R11.6 | El `.env` de cada máquina y las variantes del compose con `-f` (`compose.local.yaml`, `compose.grabado.yaml`); la aplicación no tiene perfiles de entorno |
+| R12.3 | La entrada no se sanea: se neutraliza en cada destino. SQL con parámetros, Angular sin `innerHTML`, y `06-dato` frente a la inyección en el agente, que sigue siendo posible (#269) |
+| R12.5 | El tope de 1 MB lo pone Caddy (`request_body`), no la API: con uvicorn directo no hay tope |
+| R12.6 | Se comprueba que la clave esté configurada antes de salir a la red (#259), no que sea válida |
+| R13.4 | El veredicto es la tarjeta, que sale del dato de la herramienta. El texto del modelo es libre, y se ha medido que inventa (#234, el 15 de octubre en producción). El aviso de la pantalla mira si hubo alguna herramienta, no alguna señal: anotado para #217 |
+
+Tres PODRÁ siguen sin hacer, a propósito: **R3.11** (LIME o SHAP; la ficha de cada modelo opaco lo declara), **R10.5** (los registros centralizados; el de cada contenedor muere con él) y **R13.8** (el modo guiado, fuera desde H5).
+
+#### Lo que cambia
+
+- **`docs/requisitos.md`**: los ocho matices de la tabla.
+- **`docs/arquitectura.md`**, la tabla «Estado de los requisitos». Una línea dice que es este repaso, sobre `f8a9eb5`. R8 pasa a ✅ con sus tres matices. R1, R3, R9, R10 y R12 pasan a ◑, cada uno con su hueco enlazado a #292. Se corrigen R11 y R12, que seguían diciendo que las claves se validaban al arrancar (no es así desde #259), y R2, R6 y R13 llevan sus matices.
+- **Notas en dos secciones viejas**: dos en la de #173, que dejó R8.6 a revisar y dio R12 por cumplido, y una en la del replanteamiento de R5 (PR #96), por R4.3.
+- **#292**, creada, y R6.14 para #217.
+
+#### Visto de paso, sin ser un requisito
+
+Los rulesets del repositorio no exigen que el CI esté en verde para mergear: el de `main` sólo pide el check `only-from-dev`. Hoy lo cubre la costumbre de mergear con el CI en verde. Va a #217 con R6.14.
+
+#### Lo que queda para la congelación
+
+- **#292**, antes del 15 de diciembre.
+- **El repaso final**, sobre el commit congelado: qué ha cambiado desde `f8a9eb5`, y medir R6.8 en la pantalla del asistente. Con él, #216 se cierra, y sale el anexo A.
+
+| Condiciones | |
+|---|---|
+| Fecha | 14 nov 2026 |
+| Código | `f8a9eb5` (`dev`, con #289), leído sin ejecutar nada |
+| Cómo | Tres subagentes de Claude Code, uno por grupo de requisitos, con la ruta y la línea de cada evidencia. Cada «no se cumple» y cada matiz desfasado, comprobado después por Claude en el código; las líneas que cita #292, con `grep` |
+| Fuentes | El RFC 9110 (§15.5.1, §15.5.21 y apéndice B.3), leído en `rfc-editor.org` el 14 de noviembre; los rulesets, con `gh api` |
+| Guion | Ninguno: no hay medida. Las cifras de R3.6 son las de #256 |
 
 
 "Aplico Rudin donde puedo —incoherencia(A MEDIAS, YA QUE EL MODELO NO) y léxico son intrínsecamente interpretables— y reservo lo post-hoc (LIME/SHAP), con sus límites de fidelidad, solo para la parte que depende de un transformer preentrenado que no puedo abrir de otro modo." !!!IMPORTANTE (NO MODIFICAR, RECORDAR POSTURA DEFINIDA)

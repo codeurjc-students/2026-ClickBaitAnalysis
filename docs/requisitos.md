@@ -51,7 +51,7 @@ Este documento define los requisitos para un Trabajo de Fin de Grado (TFG) que i
 5. CUANDO se reciban respuestas de la API, EL API_Consumer DEBERÁ validar la estructura de la respuesta antes de procesarla.
 6. CUANDO se realice una llamada a la API, EL API_Consumer DEBERÁ rastrear el número de llamadas a la API utilizadas y registrarlo como **observabilidad interna** (logs). _(No se devuelve en la salida de la tool para no ensuciar la respuesta — ver memoria de cambios.)_
 7. DONDE una API tenga límites de uso, EL API_Consumer DEBERÁ rastrear la cuota restante y registrarla como **observabilidad interna** (logs). _(Ver memoria de cambios.)_
-8. SI una API externa declarada no responde, ENTONCES el sistema DEBERÁ seguir operando con las restantes y reflejar su estado degradado. _(Distinto de R1.8, que habla de servidores MCP. Ya satisfecho por el health check desde la Épica 1. Ver memoria de cambios.)_
+8. SI una API externa declarada no responde, ENTONCES el sistema DEBERÁ seguir operando con las restantes y reflejar su estado degradado. _(Distinto de R1.8, que habla de servidores MCP. Ya satisfecho por el health check desde la Épica 1. Ver memoria de cambios.)_ _(Revisado en #216: GNews y NewsData.io (#235) no se sondean, a propósito, porque sus cuotas diarias son pequeñas y el sondeo las gastaría. Su caída no se refleja como estado degradado: se ve al usarlas, en el error de la herramienta.)_
 
 ### Requisito 3: Herramientas de análisis de texto con NLP
 
@@ -79,7 +79,7 @@ Este documento define los requisitos para un Trabajo de Fin de Grado (TFG) que i
 
 1. La Backend_API DEBERÁ implementarse utilizando FastAPI.
 2. La Backend_API DEBERÁ exponer un endpoint para enumerar todas las MCP_Tools disponibles con sus descripciones y parámetros.
-3. La Backend_API DEBERÁ exponer un endpoint para ejecutar una MCP_Tool específica con los parámetros proporcionados. _(Sus consumidores son ejecutar **una señal suelta** —p. ej. sólo el sentimiento, sin lanzar las cuatro— y **traer una noticia** desde la pantalla de análisis; no un catálogo que haga de lanzador. Ver memoria de cambios.)_
+3. La Backend_API DEBERÁ exponer un endpoint para ejecutar una MCP_Tool específica con los parámetros proporcionados. _(Sus consumidores son ejecutar **una señal suelta** —p. ej. sólo el sentimiento, sin lanzar las cuatro— y **traer una noticia** desde la pantalla de análisis; no un catálogo que haga de lanzador. Ver memoria de cambios.)_ _(Corregido en #216: la pantalla de análisis nunca trajo noticias. El único consumidor es la de Sistema, que lista el catálogo y ejecuta desde él cualquier herramienta con su formulario (R6.3, R6.4): una señal suelta o una fuente de noticias. El agente no pasa por aquí: llama a las herramientas por MCP.)_
 4. La Backend_API DEBERÁ exponer un endpoint para recuperar el historial de ejecución de las herramientas.
 5. CUANDO se reciba una solicitud de ejecución de una herramienta, LA Backend_API DEBERÁ validar los parámetros de entrada antes de la ejecución.
 6. LA Backend_API DEBERÁ devolver respuestas en formato JSON con una estructura coherente.
@@ -94,7 +94,7 @@ Este documento define los requisitos para un Trabajo de Fin de Grado (TFG) que i
 
 1. EL Tool_Catalog DEBERÁ **exponer** las MCP_Tools disponibles con sus metadatos. _(Antes «mantener un registro»; contradecía a R5.8. Ver memoria de cambios.)_
 2. EL Tool_Catalog DEBERÁ exponer, por cada herramienta, su nombre, descripción, esquema de parámetros y categoría. _(Antes «CUANDO se registre… almacenar»: en un catálogo dinámico ese evento no existe. Ver memoria de cambios.)_
-3. EL Tool_Catalog DEBERÁ admitir la categorización de herramientas: «Fuentes de contenido», «Señales de análisis» y «Utilidades». _(Los ejemplos originales eran «Integración de API» y «Análisis de NLP»; el primero describía la implementación —y era falso como distinción, porque las señales también llaman a APIs— y el segundo nombraba una tecnología en vez de un propósito. Ver memoria de cambios.)_
+3. EL Tool_Catalog DEBERÁ admitir la categorización de herramientas: «Fuentes de contenido», «Señales de análisis» y «Utilidades». _(Los ejemplos originales eran «Integración de API» y «Análisis de NLP»; el primero describía la implementación —y era falso como distinción, porque las señales también llaman a APIs— y el segundo nombraba una tecnología en vez de un propósito. Ver memoria de cambios.)_ _(Ampliado en #216: hay una cuarta, «Análisis completo», la de `analyze_headline`, que ejecuta todas las señales y da el veredicto: no es una señal ni una fuente.)_
 4. AL consultar el catálogo, EL Tool_Catalog **PODRÁ** devolver las herramientas filtradas por categoría si así se solicita. _(Antes DEBERÁ. Ver memoria de cambios.)_
 5. EL Tool_Catalog DEBERÁ incluir esquemas de validación de parámetros para cada herramienta.
 6. EL Tool_Catalog **PODRÁ** admitir la búsqueda de herramientas por nombre o palabras clave de descripción. _(Antes DEBERÁ; desproporcionado para el número de tools previsto. Ver memoria de cambios.)_
@@ -118,7 +118,7 @@ Este documento define los requisitos para un Trabajo de Fin de Grado (TFG) que i
 8. LA Web_Interface DEBERÁ ser receptiva y funcionar en dispositivos de escritorio y tabletas.
 9. LA Web_Interface DEBERÁ incluir capacidades de filtrado y búsqueda para el catálogo de herramientas.
 10. LA Web_Interface DEBERÁ ofrecer **dos vías de entrada**: un formulario de análisis directo (determinista) y un **asistente conversacional** (ver Requisito 13). _(Matizado: el formulario está SIEMPRE; el asistente, **cuando el Agent_Orchestrator esté configurado**. El despliegue tiene que funcionar sin él, porque la máquina que corre el modelo se apaga cuando no se usa. Ver memoria de cambios.)_
-11. LA Web_Interface DEBERÁ mostrar el estado de los **MCP_Server conectados** (nombre, transporte, estado y herramientas que aporta), generado dinámicamente a partir del descubrimiento; los filtros por servidor DEBERÁN derivarse de esa misma lista.
+11. LA Web_Interface DEBERÁ mostrar el estado de los **MCP_Server conectados** (nombre, transporte, estado y herramientas que aporta), generado dinámicamente a partir del descubrimiento; los filtros por servidor DEBERÁN derivarse de esa misma lista. _(Matizado en #216: el filtro por servidor no está hecho, porque con un solo servidor conectado no filtraría nada; con varios habría que añadirlo, como en R1.7 y R5.7. De cada servidor se da el nombre, el estado, el número de herramientas y la dirección, de la que se lee el transporte. Justificado en el README.)_
 12. CUANDO el Agent_Orchestrator invoque herramientas, LA Web_Interface DEBERÁ renderizar el **resultado estructurado de cada herramienta** —no solo la narración del modelo— junto a la **traza** de herramientas invocadas.
 13. SI la narración del modelo llega **vacía o ilegible**, ENTONCES LA Web_Interface DEBERÁ mostrar igualmente los **resultados estructurados** de las herramientas invocadas, indicando de forma discreta que el asistente no generó un resumen. LA Web_Interface NO DEBERÁ condicionar la visualización del análisis a la existencia de esa narración. _(Modo de fallo observado en el spike #82: el agente invoca correctamente las herramientas y devuelve una respuesta de cero caracteres; el análisis existe y no debe perderse.)_
 14. SI una capacidad no está disponible —el Agent_Orchestrator sin configurar, o un parámetro de herramienta cuyo esquema LA Web_Interface no sabe representar—, ENTONCES LA Web_Interface NO DEBERÁ ofrecer controles que no puedan funcionar: DEBERÁ explicar por qué no está disponible en lugar de dejar un botón cuyo único resultado posible es un error. _(Complementa a R6.7: aquel pide que el error se entienda; éste, no provocarlo. Ver memoria de cambios.)_
@@ -140,7 +140,7 @@ Este documento define los requisitos para un Trabajo de Fin de Grado (TFG) que i
 
 ### Requisito 8: Pipeline de integración continua y despliegue continuo
 
-**Historia de usuario:** Como desarrollador del sistema, quiero un pipeline de CI/CD automatizado, para que el código sea validado y desplegado automáticamente.
+**Historia de usuario:** Como desarrollador del sistema, quiero un pipeline de CI/CD automatizado, para que el código sea validado y desplegado automáticamente. _(Matizado en #216: el despliegue es manual, a propósito, y ningún criterio de abajo pide automatizarlo. Desplegar desde GitHub obligaría a guardar allí una clave SSH de la máquina de despliegue, que está en internet; esa máquina sigue `dev`, no `main`; y cada despliegue se vigila: antes se guarda el registro de la API, que muere con el contenedor, y después se mira el primer arranque. Desplegar es un solo comando, escrito en `despliegue/README.md`. Justificado en el README.)_
 
 **Criterios de aceptación:**
 
@@ -149,7 +149,7 @@ Este documento define los requisitos para un Trabajo de Fin de Grado (TFG) que i
 3. DONDE se considere beneficioso, EL CI_Pipeline PODRÁ realizar comprobaciones de linting y calidad del código en Python y JavaScript.
 4. EL CI_Pipeline DEBERÁ crear imágenes Docker tanto para el backend como para el frontend.
 5. CUANDO las pruebas se superen, EL CI_Pipeline DEBERÁ construir las imágenes y dejar la compilación marcada como correcta en el estado del commit; las versiones publicadas se identifican por su tag `vX.Y.Z`. _(Matizado en #173: las imágenes se construyen para comprobarlas, no se publican en un registro —se construyen en la máquina de despliegue—, así que no queda una imagen que etiquetar. Justificado en el README.)_
-6. EL CI_Pipeline DEBERÁ incluir flujos de trabajo separados para pull requests y commits de la rama main.
+6. EL CI_Pipeline DEBERÁ incluir flujos de trabajo separados para pull requests y commits de la rama main. _(Matizado en #216: las pull requests y los commits de `main` y de `dev` pasan por el mismo `ci.yml` —pruebas, estilo, tipos y las dos imágenes—, a propósito. Separarlos tiene sentido cuando `main` hace algo más, como publicar las imágenes o desplegar, y aquí no hace ninguna de las dos cosas: R8.5 y la historia de usuario están matizadas. Lo único propio de `main` va en su propio flujo, `protect-main.yml`, que sólo admite pull requests desde `dev`. Justificado en el README.)_
 7. SI falla algún paso, ENTONCES EL CI_Pipeline DEBERÁ informar del fallo con registros detallados.
 
 ### Requisito 9: Persistencia de datos e historial
@@ -199,7 +199,7 @@ Este documento define los requisitos para un Trabajo de Fin de Grado (TFG) que i
 **Criterios de aceptación:**
 
 1. LA Backend_API DEBERÁ validar todos los parámetros de entrada utilizando mecanismos de validación apropiados (como Pydantic u otros).
-2. CUANDO se reciba una entrada no válida, LA Backend_API DEBERÁ devolver un error `400 Bad Request` con los detalles del error de validación.
+2. CUANDO se reciba una entrada no válida, LA Backend_API DEBERÁ devolver un error `400 Bad Request` con los detalles del error de validación. _(Matizado en #216: el código es `422 Unprocessable Content`, no 400. Es el que da FastAPI a una entrada que no pasa la validación, y el que el RFC 9110 define para una petición bien formada cuyo contenido no se puede procesar; el 400 es el genérico, para un error del cliente como una sintaxis mal formada. Lleva los detalles de la validación, y las pantallas lo distinguen de los demás errores. Justificado en el README.)_
 3. LA Backend_API DEBERÁ sanitizar las entradas de los usuarios para evitar ataques de inyección.
 4. LA Backend_API DEBERÁ implementar una limitación de velocidad para evitar abusos.
 5. LA Backend_API DEBERÁ incluir límites de tamaño de solicitud para evitar el agotamiento de los recursos.
@@ -217,6 +217,6 @@ Este documento define los requisitos para un Trabajo de Fin de Grado (TFG) que i
 3. EL Agent_Orchestrator DEBERÁ devolver, junto a su respuesta en lenguaje natural, la **traza** de herramientas invocadas y el **resultado estructurado** de cada una.
 4. EL veredicto de clickbait NO DEBERÁ emitirlo el modelo de lenguaje: DEBERÁ proceder de las MCP_Tools, limitándose el modelo a narrar y contrastar. _(Salvaguarda de R3.8: la explicabilidad no puede depender de un modelo opaco.)_
 5. EL **prompt de sistema** DEBERÁ ser un artefacto de configuración **versionado y consultable**, no código embebido. _(R3.9: transparencia de sistema.)_
-6. EL LLM_Backend DEBERÁ ser **intercambiable por configuración** (local vía Ollama o API externa), siguiendo el patrón ya usado para `nlp_backend`. _(R3.9.)_ _(Matizado en #193: se cambian por configuración el backend (`llm_backend`), el servidor (`llm_url`) y el modelo (`llm_model`), con una factoría como la de `nlp_backend`, pero sólo existe la implementación de Ollama. Usar una API externa exige escribir otra clase que implemente `LLMBackend`: es código, aunque no toca el agente. Justificado en el README.)_
+6. EL LLM_Backend DEBERÁ ser **intercambiable por configuración** (local vía Ollama o API externa), siguiendo el patrón ya usado para `nlp_backend`. _(R3.9.)_ _(Matizado en #193: se cambian por configuración el backend (`llm_backend`), el servidor (`llm_url`) y el modelo (`llm_model`), con una factoría como la de `nlp_backend`, pero sólo existe la implementación de Ollama. Usar una API externa exige escribir otra clase que implemente `LLMBackend`: es código, aunque no toca el agente. Justificado en el README.)_ _(Revisado en #216: desde #265 hay una segunda implementación, `grabado`, que reproduce respuestas grabadas del modelo para la demostración. Sigue sin haber una de API externa.)_
 7. EL Agent_Orchestrator DEBERÁ disponer de su propia **ficha de modelo**, declarando su naturaleza opaca y sus limitaciones conocidas. _(R3.9.)_
 8. SI el modelo no soporta *tool calling* de forma fiable, ENTONCES el sistema PODRÁ operar en **modo guiado**: la selección de herramientas la decide el backend de forma determinista y el modelo solo narra. _(Degradación prevista para modelos locales pequeños.)_
