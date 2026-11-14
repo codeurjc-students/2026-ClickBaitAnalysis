@@ -11272,7 +11272,7 @@ Desde #125, la API carga los modelos al arrancar (`PREHEAT_MODELS`), antes de se
 
 #### Lo que cuesta
 
-Los dos procesos cargan sus modelos a la vez al arrancar. La memoria no cambia respecto a la de después del primer uso —1,85 GB la API y 1,84 GB el servidor MCP en la máquina 1, al desplegar `147d1df`—, pero se ocupa desde el arranque. Y las dos cargas compiten por la CPU, lo que puede alargar lo que tarda la API en estar sana. Sin medir en la máquina 1: se mide al redesplegar.
+Los dos procesos cargan sus modelos a la vez al arrancar. La memoria no cambia respecto a la de después del primer uso —1,85 GB la API y 1,84 GB el servidor MCP en la máquina 1, al desplegar `147d1df`—, pero se ocupa desde el arranque. Y las dos cargas compiten por la CPU, lo que puede alargar lo que tarda la API en estar sana. Sin medir en la máquina 1: se mide al redesplegar. *(Medido en la PR #296: los dos precalentados, 13,0 y 12,9 s a la vez, la API sana a los 16 s, y la memoria, la de siempre; ver «El precalentado del servidor MCP, medido en la máquina 1».)*
 
 #### Comprobado
 
@@ -11291,6 +11291,50 @@ Los dos procesos cargan sus modelos a la vez al arrancar. La memoria no cambia r
 | Imágenes | `clickbait-backend` `6d84b2fcffec`, la construida para #292, con el mismo código que `dev`; `clickbait-web` `4c953371b8a1`. El cambio es sólo de entorno, y no pide reconstruirlas |
 | Código | `8a60521` (`dev`, con #294), con los cambios de esta PR sin commitear |
 | Guion | Ninguno: es una comprobación de que funciona, sin cifras que citar. Las de la máquina 1 irán con el suyo |
+
+### El precalentado del servidor MCP, medido en la máquina 1 (14 nov 2026, PR #296)
+
+La PR #295 activó el precalentado del servidor MCP y dejó sus cifras para cuando se redesplegara la máquina 1. Se redesplegó `dev` (`e19ba3a`) el 14 de noviembre a las 16:40, a petición del autor, con `spikes/precalentado_maquina1.sh`. El guion despliega y mide con una sola conexión SSH, y después hace los primeros análisis desde fuera. El despliegue trajo también #292.
+
+#### Lo medido
+
+| | En la máquina 1 |
+|---|---|
+| El despliegue (`up --build --wait`) | 74 s |
+| La API, de arrancar a su primera sonda de salud sana | 16 s |
+| Su precalentado (`api.preheat`) | 13,0 s: la dedicada inglesa 9,5 (la primera en cargar paga la importación de torch), la española 1,1, el tono 1,0 y 0,7, y la incoherencia 0,5 |
+| El del servidor MCP (`mcp.preheat`) | 12,9 s, con el mismo reparto, y terminó a la vez que el de la API |
+| La memoria de cada proceso, con los dos precalentados hechos (VmRSS) | la API, 1.819.132 kB; el servidor MCP, 1.811.332 kB. De cada uno, 1,35 millones de kB respaldados por ficheros (`RssFile`) |
+| El primer análisis por el servidor MCP, desde fuera | 0,95 s en inglés y 0,33 s en español; uno más en inglés, ya en caliente, 0,36 s |
+
+#### Lo que dicen
+
+- **Las dos cargas a la vez apenas se estorban.** En #234 (10 oct) la API precalentaba sola en 11,9 s, también recién construida la imagen; ahora, con el servidor MCP cargando a la vez, en 13,0 s. Son días distintos, así que es una indicación y no una medida del coste. Lo que sí está medido es que la API pasa su sonda de salud a los 16 s de arrancar, muy por debajo de su `start_period` de 120 s.
+- **La memoria no cambia, sólo cuándo se ocupa.** Al desplegar `147d1df` el 13 de noviembre, después de las comprobaciones, con todos los modelos ya usados, la API ocupaba 1,85 millones de kB y el servidor MCP 1,84; ahora, al arrancar, 1,82 y 1,81. `free` da 1.829 MiB usados de 15.613, porque lo respaldado por ficheros cuenta en la caché.
+- **El primer análisis por el servidor MCP ya no carga modelos**: menos de un segundo. La diferencia con el de en caliente, 0,95 frente a 0,36 s, queda sin explicar; no es una carga de modelos, que habría costado los 9,5 s de la dedicada. Como referencia, por otro camino: el 13 de noviembre, con el servidor MCP recién arrancado y sin precalentar, el primer turno del asistente grabado tardó 8 s y los siguientes 2 (#288).
+
+#### #292, en producción
+
+El mismo guion lo ve en vivo: `analyze_headline` con el titular en blanco da «El titular está vacío o no es válido», y cada respuesta trae sus argumentos. Además:
+
+- `spikes/produccion_en_vivo.py`: las 14 herramientas, en `ok`; el caso de #124, `ambiguous`; las señales en español, como siempre; y el agente, `unreachable`, porque no había sesión de GPU.
+- `spikes/certificado_en_vivo.sh`: 0 cosas que no cuadran, con Caddy 2.11.9.
+
+#### Lo que cambia
+
+- **`spikes/precalentado_maquina1.sh`**, nuevo, con su salida en `spikes/precalentado_maquina1/salida.txt`.
+- **`docs/demostracion.md`**: el plan B cambia «sin medir todavía en la máquina 1» por las cifras.
+- **`despliegue/README.md`**: `--wait` no espera al precalentado del servidor MCP, porque atiende mientras carga.
+- **Una nota en la cabecera de `spikes/memoria_maquina1.sh`**, que decía que el servidor MCP no precalienta, y otra en la sección de la PR #295.
+
+| Condiciones | |
+|---|---|
+| Fecha | 14 nov 2026, hora de Madrid: el despliegue, de las 16:40 a las 16:41; los análisis desde fuera, a las 16:41; `produccion_en_vivo.py` y el certificado, de las 16:42 a las 16:45 |
+| Máquina | La máquina 1: Ubuntu 24.04.4, 8 núcleos, 15 GiB y sin GPU; Docker 29.8.1 y Compose 5.5.1 |
+| Imágenes | `clickbait-backend` `fbece8c18b08` (5,99 GB) y `clickbait-web` `823211f4d720`, construidas allí |
+| Código | `e19ba3a` (`dev`, con #294 y #295) |
+| Guiones | `spikes/precalentado_maquina1.sh`, con su salida en `spikes/precalentado_maquina1/salida.txt`; `spikes/produccion_en_vivo.py` y `spikes/certificado_en_vivo.sh` |
+| Registros | En la máquina 1: `~/registro-antes-e19ba3a.log`, el de la API antes de recrearla, y `~/registro-despliegue-e19ba3a.log`, el del arranque |
 
 
 "Aplico Rudin donde puedo —incoherencia(A MEDIAS, YA QUE EL MODELO NO) y léxico son intrínsecamente interpretables— y reservo lo post-hoc (LIME/SHAP), con sus límites de fidelidad, solo para la parte que depende de un transformer preentrenado que no puedo abrir de otro modo." !!!IMPORTANTE (NO MODIFICAR, RECORDAR POSTURA DEFINIDA)

@@ -338,7 +338,9 @@ en #265 antes de grabar.
   2026 el servidor MCP cargaba los de las señales en su primera llamada: en la
   máquina 1, con el servidor MCP recién arrancado, el turno 1 tardó 8 s y los
   otros dos, 2; ya caliente, los tres tardaron 2. Desde entonces los carga al
-  arrancar (`PREHEAT_MODELS`); con eso, sin medir todavía en la máquina 1.
+  arrancar (`PREHEAT_MODELS`): en la máquina 1, en 12,9 s, a la vez que la API,
+  y el primer análisis por el servidor MCP tardó menos de un segundo (14 nov
+  2026). Los turnos del plan B con el servidor MCP precalentado, sin medir.
 - **Se ve**, en Asistente, un aviso fijo de que son respuestas grabadas, de qué
   modelo y de qué día, y «Sobre el asistente» enseña la ficha de la grabación.
 - **Se hace** el paso 6, con las mismas tres preguntas, pegadas de «Los

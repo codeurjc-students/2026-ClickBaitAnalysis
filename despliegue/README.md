@@ -63,6 +63,12 @@ fichas de los modelos se rehace su capa, un par de minutos más. Se usa
 ssh vmuser@gongarcia.tfg.etsii.urjc.es 'cd ~/2026-ClickBaitAnalysis && git pull --ff-only && sudo docker compose up --build --wait'
 ```
 
+`--wait` espera al precalentado de la API, que no sirve hasta tener los
+modelos, pero no al del servidor MCP, que atiende mientras los carga (PR
+#295): una llamada que llegue antes espera a esa carga. En la máquina 1, las
+dos cargas tardaron unos 13 s, a la vez (14 nov 2026,
+`spikes/precalentado_maquina1.sh`).
+
 ⚠️ **El registro de la API es del contenedor y se pierde al recrearlo.** Lo que
 se quiera citar de una prueba se lee antes de desplegar, con
 `bash spikes/chat_registro.sh` desde WSL.
