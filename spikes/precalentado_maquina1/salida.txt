@@ -1,0 +1,37 @@
+== 2026-11-14T16:40:21+01:00 · clon en 835568e (dev) · cambios sin commitear: 0
+registro de la API de antes: ~/registro-antes-e19ba3a.log (2909 líneas)
+
+== despliegue de e19ba3a
+ Container clickbait-web-1 Healthy 
+ Container clickbait-mcp-1 Healthy 
+ Container clickbait-api-1 Healthy 
+up --build --wait: 74 s, hasta las 2026-11-14T16:41:37+01:00
+
+== la API: cuándo arrancó y cuándo pasó su primera sonda de salud
+arrancó a las 15:41:20 UTC; sondas guardadas: 3
+primera sonda sana a los 16 s
+
+== el precalentado (esperando a mcp.preheat, hasta 300 s)
+2026-11-14T15:41:35.293266Z [info     ] api.preheat                    analyze_sentiment=1.0 analyze_sentiment (es)=0.7 detect_clickbait=9.5 detect_clickbait (es)=1.1 detect_clickbait_incoherence=0.5 total_s=13.0
+2026-11-14T15:41:35.238358Z [info     ] mcp.preheat                    analyze_sentiment=1.0 analyze_sentiment (es)=0.7 detect_clickbait=9.6 detect_clickbait (es)=1.1 detect_clickbait_incoherence=0.5 total_s=12.9
+
+== memoria de cada proceso, con el precalentado hecho (/proc/1/status, en kB)
+api: VmHWM: 1819132 · VmRSS: 1819132 · RssAnon: 467004 · RssFile: 1352124 · 
+mcp: VmHWM: 1811332 · VmRSS: 1811332 · RssAnon: 459972 · RssFile: 1351356 · 
+
+== la máquina (MiB)
+               total        used        free      shared  buff/cache   available
+Mem:           15613        1829        2348           4       11777       13784
+
+== imágenes
+clickbait-web:latest 823211f4d720 · 92.3MB
+clickbait-backend:latest fbece8c18b08 · 5.99GB
+registros del arranque: ~/registro-despliegue-e19ba3a.log
+
+== el primer análisis por el servidor MCP, desde fuera (2026-11-14T16:41:39+01:00)
+«You Will Not Believe What Happened Next» -> HTTP 200 en 0.949292 s · ok stylistic_clickbait en  · argumentos: {"headline": "You Will Not Believe What Happened Next"}
+«No vas a creer lo que pasó después» -> HTTP 200 en 0.333176 s · ok stylistic_clickbait es  · argumentos: {"headline": "No vas a creer lo que pasó después"}
+-- ya en caliente
+«You Will Not Believe What Happened Next» -> HTTP 200 en 0.355722 s · ok stylistic_clickbait en  · argumentos: {"headline": "You Will Not Believe What Happened Next"}
+-- el titular en blanco (#292)
+«   » -> HTTP 200 en 0.182780 s · error None None El titular está vacío o no es válido · argumentos: {"headline": "   "}
