@@ -82,7 +82,7 @@ ya no existe, hace fallar el CI.
 | `NLP_THRESHOLDS` | `{}` | — | Otro umbral para el léxico o la incoherencia: `{"detect_clickbait_lexical": 2}` |
 | `NLP_THRESHOLDS_ES` | `{}` | — | El de la incoherencia en español |
 | `NLP_LINEAR_TOP_CUES` | el del lineal | — | Cuántas pistas enseña el lineal como explicación |
-| `PREHEAT_MODELS` | `false` | `true`, en `api` | Cargar los modelos al arrancar, en vez de en la primera petición: la API, antes de servir; el servidor MCP, mientras ya atiende |
+| `PREHEAT_MODELS` | `false` | `true`, en `api` y en `mcp` | Cargar los modelos al arrancar, en vez de en la primera petición: la API, antes de servir; el servidor MCP, mientras ya atiende |
 
 **El servidor MCP y el catálogo**
 

@@ -92,13 +92,13 @@ Unos 15 minutos antes de la defensa:
 2. **Esperar a que el asistente esté.** Ollama tarda unos 27 s en responder, y
    `/api/agent` pasa a decir `available` (el comando, en «Máquina 1:
    desplegar»). Se pregunta a la API, y una vez: a la máquina 2 no se la sondea.
-3. **Calentar con la conversación del paso 6, entera.** Hace dos cosas:
-   - carga el modelo en la GPU: unos 8 s, pero tras un reinicio de la máquina 2
-     fueron 105 s (15 oct 2026);
-   - carga en el servidor MCP los modelos de las señales, en inglés y en
-     español. La API los precalienta al arrancar (`PREHEAT_MODELS`) y el
-     servidor MCP no, así que el primer análisis del asistente en cada idioma
-     los carga dentro de la llamada.
+3. **Calentar con la conversación del paso 6, entera.** Carga el modelo en la
+   GPU: unos 8 s, pero tras un reinicio de la máquina 2 fueron 105 s (15 oct
+   2026). Los modelos de las señales ya no: la API y el servidor MCP, por donde
+   llama el asistente, los cargan al arrancar (`PREHEAT_MODELS`, en el servidor
+   MCP desde el 14 nov 2026). *(Hasta entonces el servidor MCP no lo hacía, y
+   el primer análisis del asistente en cada idioma los cargaba dentro de la
+   llamada: era el otro motivo para calentar con la conversación entera.)*
 
    Al acabar, «Empezar una conversación nueva»: la conversación se guarda en la
    pestaña y, si no, seguiría ahí al llegar al paso 6.
@@ -334,10 +334,11 @@ en #265 antes de grabar.
   responde el análisis: en la máquina 1, el cambio tardó 13 o 14 s, y la
   vuelta, 14 (dos veces, el 13 nov 2026; en la pila local, 19 y 18).
 - **Se calienta como con el modelo**: la conversación del paso 6 entera, y
-  «Empezar una conversación nueva». No hay modelo que cargar, pero el servidor
-  MCP carga los de las señales en su primera llamada: en la máquina 1, con el
-  servidor MCP recién arrancado, el turno 1 tardó 8 s y los otros dos, 2; ya
-  caliente, los tres tardaron 2.
+  «Empezar una conversación nueva». No hay modelo que cargar. Hasta el 14 nov
+  2026 el servidor MCP cargaba los de las señales en su primera llamada: en la
+  máquina 1, con el servidor MCP recién arrancado, el turno 1 tardó 8 s y los
+  otros dos, 2; ya caliente, los tres tardaron 2. Desde entonces los carga al
+  arrancar (`PREHEAT_MODELS`); con eso, sin medir todavía en la máquina 1.
 - **Se ve**, en Asistente, un aviso fijo de que son respuestas grabadas, de qué
   modelo y de qué día, y «Sobre el asistente» enseña la ficha de la grabación.
 - **Se hace** el paso 6, con las mismas tres preguntas, pegadas de «Los

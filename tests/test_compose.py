@@ -80,6 +80,23 @@ def test_todo_proceso_del_backend_ejecuta_las_senales_en_local():
         assert servicio["environment"].get("NLP_BACKEND") == "local", nombre
 
 
+def test_todo_proceso_del_backend_precalienta_sus_modelos():
+    """Los dos cargan modelos, y los dos los cargan al arrancar. La API lo hacía
+    desde #125; el MCP, que es por donde llama el agente, no: su primer análisis
+    tras un despliegue cargaba los modelos dentro de la llamada (14 nov 2026).
+    El MCP precalienta mientras ya atiende (#267), así que el healthcheck no
+    espera a la carga."""
+    del_backend = {
+        nombre: servicio
+        for nombre, servicio in _servicios().items()
+        if servicio.get("image") == "clickbait-backend"
+    }
+
+    assert set(del_backend) == {"api", "mcp"}
+    for nombre, servicio in del_backend.items():
+        assert servicio["environment"].get("PREHEAT_MODELS") == "true", nombre
+
+
 def test_la_imagen_del_backend_la_construye_un_solo_servicio():
     """El fallo de #251. Con `api` y `mcp` construyendo los dos
     `clickbait-backend`, en una instalación nueva de Docker (29.1, Compose
