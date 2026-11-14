@@ -11259,6 +11259,39 @@ Y tres más, al plantear el trabajo o al escribir las pruebas:
 | Código | `667d957` (`dev`, con #293), con los cambios de esta PR sin commitear |
 | Guiones | `spikes/mcp_parado_pila_local.sh` (`subir`, `parar` y `bajar`), con su salida en `spikes/mcp_parado_pila_local/salida.txt`; `spikes/catalogo_volcado.py`, sobre `667d957` sacado con `git archive` y sobre la rama |
 
+### El servidor MCP también precalienta sus modelos (14 nov 2026, PR #295)
+
+Desde #125, la API carga los modelos al arrancar (`PREHEAT_MODELS`), antes de servir. Desde #267, el servidor MCP sabe hacerlo también, en un hilo aparte mientras ya atiende, porque Claude Desktop da por caído un servidor que tarda en saludar. Pero en el compose sólo lo tenía la API. El agente llama a las herramientas a través del servidor MCP, así que su primer análisis tras un despliegue cargaba los modelos dentro de la llamada, y la guía de la demostración (#214) lo compensaba calentando con la conversación entera, en los dos idiomas. Quedó como pendiente en #267, para decidirlo al redesplegar; lo decidió el autor el 14 de noviembre.
+
+#### Lo que cambia
+
+- **`compose.yaml`**: `PREHEAT_MODELS: "true"` en el servidor MCP. Su healthcheck no cambia: mira que el puerto acepte conexiones, y eso pasa desde el principio, porque el servidor atiende mientras carga. Una llamada que llegue a mitad no carga el modelo otra vez: espera a esa carga, por el candado de #267.
+- **`tests/test_compose.py`**: una prueba de que los dos procesos del backend precalientan, que se vio fallar en `mcp` contra el compose de antes.
+- **`docs/ejecucion.md`**: la tabla de ajustes dice que el compose lo pone en los dos.
+- **`docs/demostracion.md`**: el calentamiento. El procedimiento no cambia —calentar con la conversación del paso 6, entera—, porque si basta un turno para cargar el modelo en la GPU se verá en el ensayo. Lo que cambia es el motivo: el de cargar los modelos del servidor MCP queda como histórico, también en el plan B.
+
+#### Lo que cuesta
+
+Los dos procesos cargan sus modelos a la vez al arrancar. La memoria no cambia respecto a la de después del primer uso —1,85 GB la API y 1,84 GB el servidor MCP en la máquina 1, al desplegar `147d1df`—, pero se ocupa desde el arranque. Y las dos cargas compiten por la CPU, lo que puede alargar lo que tarda la API en estar sana. Sin medir en la máquina 1: se mide al redesplegar.
+
+#### Comprobado
+
+- La prueba del compose, y la suite entera, ruff y pyright.
+- **En la pila local**, sólo que funciona: `mcp` arranca con `PREHEAT_MODELS=true`, su registro trae `mcp.preheat` con las cinco cargas (el tono y la dedicada en los dos idiomas, y la incoherencia), y el primer `analyze_headline` por la API responde `ok`. Las cifras del PC no se citan (#256).
+
+#### Lo que queda
+
+- **Medir en la máquina 1 al redesplegar**: cuánto tarda el precalentado del servidor MCP (`mcp.preheat`, `total_s`), su memoria al arrancar, cuánto tarda la API en estar sana con las dos cargas a la vez, y el primer análisis por el servidor MCP.
+- **Si basta un turno para calentar** en la demostración: en el ensayo de #214.
+
+| Condiciones | |
+|---|---|
+| Fecha | 14 nov 2026, hora de Madrid: la pila local, a las 16:14 |
+| Máquina | El PC de sobremesa del autor: WSL2 con Ubuntu 24.04.4, Docker 29.1.3 y Compose 2.40.3 |
+| Imágenes | `clickbait-backend` `6d84b2fcffec`, la construida para #292, con el mismo código que `dev`; `clickbait-web` `4c953371b8a1`. El cambio es sólo de entorno, y no pide reconstruirlas |
+| Código | `8a60521` (`dev`, con #294), con los cambios de esta PR sin commitear |
+| Guion | Ninguno: es una comprobación de que funciona, sin cifras que citar. Las de la máquina 1 irán con el suyo |
+
 
 "Aplico Rudin donde puedo —incoherencia(A MEDIAS, YA QUE EL MODELO NO) y léxico son intrínsecamente interpretables— y reservo lo post-hoc (LIME/SHAP), con sus límites de fidelidad, solo para la parte que depende de un transformer preentrenado que no puedo abrir de otro modo." !!!IMPORTANTE (NO MODIFICAR, RECORDAR POSTURA DEFINIDA)
 

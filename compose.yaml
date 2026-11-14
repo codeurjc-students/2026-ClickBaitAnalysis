@@ -103,6 +103,11 @@ services:
       <<: *entorno-backend
       MCP_TRANSPORT: streamable-http # stdio no cruza contenedores
       MCP_HOST: 0.0.0.0 # en 127.0.0.1 sería invisible para la API
+      # Como la API, pero mientras ya atiende, en un hilo aparte (#267): el
+      # healthcheck de abajo no espera a la carga. Es por donde llama el agente,
+      # y sin esto su primer análisis tras un despliegue cargaba los modelos
+      # dentro de la llamada (14 nov 2026).
+      PREHEAT_MODELS: "true"
     healthcheck:
       # Basta con que el puerto acepte conexiones: hablar MCP exige una sesión.
       test: ["CMD", "python", "-c", "import socket; socket.create_connection(('127.0.0.1', 8765), timeout=5)"]
