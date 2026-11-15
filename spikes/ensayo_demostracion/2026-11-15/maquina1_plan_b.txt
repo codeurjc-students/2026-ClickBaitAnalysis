@@ -1,0 +1,20 @@
+== 2026-11-15T13:20:40+01:00 cambio a grabado
+  codigo 0, 13 s
+clickbait-api-1 Up 11 seconds (healthy)
+clickbait-mcp-1 Up 21 hours (healthy)
+clickbait-web-1 Up 21 hours (healthy)
+  agent: available · recording: {'model': 'qwen3.5:27b', 'recorded_at': '2026-11-13', 'commit': '147d1df'}
+== 2026-11-15T13:20:55+01:00 reproducir-en
+== https://gongarcia.tfg.etsii.urjc.es/api: sirve la grabación de backend/integrations/llm/grabaciones/demostracion.json
+  turno 1: entero · 2 de 2 vueltas · answered · 2.2 s
+  turno 2: entero · 2 de 2 vueltas · answered · 2.2 s
+  turno 3: entero · 2 de 2 vueltas · answered · 2.3 s
+Se reproduce entera.
+   reproducir-en: 0
+== 2026-11-15T13:21:03+01:00 vuelta a Ollama
+  codigo 0, 13 s
+clickbait-api-1 Up 11 seconds (healthy)
+clickbait-mcp-1 Up 21 hours (healthy)
+clickbait-web-1 Up 21 hours (healthy)
+  agent: unreachable · recording: None
+== 2026-11-15T13:21:18+01:00 FIN

@@ -1,0 +1,21 @@
+El vídeo del ensayo de la demostración (#214), 15 nov 2026.
+
+Medido a mano por el autor sobre el vídeo ORIGINAL, sin editar (editarlo mueve
+los minutos):
+  empieza a grabar   13:27:38 (hora peninsular; pasos_api.txt va en UTC, una hora menos)
+  dura               17:46, con pausas entre llamadas
+
+Comprobado contra pasos_api.txt:
+  turno 1 del paso 6 (primer POST /api/chat)    6:03 en el vídeo · 6:04 según el registro
+  pregunta de The Guardian del paso 7            14:06 en el vídeo · 14:05 según el registro
+Cuadran con un segundo de diferencia.
+
+El minuto de cada clic en el vídeo, calculado (la hora de pasos_api.txt menos
+la de inicio):
+  0:59   paso 1, «Analizar» del titular A
+  2:42   paso 2, «Analizar» del caso ambiguo
+  3:35   paso 3, «Analizar» en español
+  4:24   paso 4, Historial (abre dos análisis en 4:31 y 4:37)
+  4:42   paso 5, Sistema
+  6:04   paso 6, turno 1 (los turnos 2 y 3, en 7:47 y 9:49)
+  11:34  paso 7, la pregunta del NYT (la de The Guardian, en 14:05)

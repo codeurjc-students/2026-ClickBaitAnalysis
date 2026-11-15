@@ -10710,7 +10710,7 @@ La guía cita el veredicto y las cifras de cinco titulares. Son deterministas, p
 
 #### Lo que queda
 
-- **El ensayo**, sobre el despliegue que lleve #265: lo que tarda cada parte, la recarga del modelo tras diez minutos, el segundo turno con el 27B y la GPU a 0 MiB al acabar.
+- **El ensayo**, sobre el despliegue que lleve #265: lo que tarda cada parte, la recarga del modelo tras diez minutos, el segundo turno con el 27B y la GPU a 0 MiB al acabar. *(Hecho el 15 nov 2026, #214, al grabar el vídeo: sin calentar, la primera carga del modelo en la sesión costó unos 11 s, y el segundo turno eligió el lineal. La recarga tras diez minutos sin uso no se dio, porque el pase fue seguido. Sección «El ensayo de la demostración».)*
 - **El plan B**, cuando #265 esté en `dev`: cómo se enciende y cuánto tarda el cambio.
 - **El plan C**, el vídeo y las capturas, tras la congelación.
 - **Cuántos minutos tiene la demostración**, que decidirá qué se recorta.
@@ -11282,7 +11282,7 @@ Los dos procesos cargan sus modelos a la vez al arrancar. La memoria no cambia r
 #### Lo que queda
 
 - **Medir en la máquina 1 al redesplegar**: cuánto tarda el precalentado del servidor MCP (`mcp.preheat`, `total_s`), su memoria al arrancar, cuánto tarda la API en estar sana con las dos cargas a la vez, y el primer análisis por el servidor MCP.
-- **Si basta un turno para calentar** en la demostración: en el ensayo de #214.
+- **Si basta un turno para calentar** en la demostración: en el ensayo de #214. *(Ensayado el 15 nov 2026, #214, sin calentar: sólo el turno 1 pagó la carga del modelo, unos 11 s, y el turno en español no pagó nada más. No se midió la caché de disco. Sección «El ensayo de la demostración».)*
 
 | Condiciones | |
 |---|---|
@@ -11335,6 +11335,75 @@ El mismo guion lo ve en vivo: `analyze_headline` con el titular en blanco da «E
 | Código | `e19ba3a` (`dev`, con #294 y #295) |
 | Guiones | `spikes/precalentado_maquina1.sh`, con su salida en `spikes/precalentado_maquina1/salida.txt`; `spikes/produccion_en_vivo.py` y `spikes/certificado_en_vivo.sh` |
 | Registros | En la máquina 1: `~/registro-antes-e19ba3a.log`, el de la API antes de recrearla, y `~/registro-despliegue-e19ba3a.log`, el del arranque |
+
+### El ensayo de la demostración (#214, 15 nov 2026)
+
+#214 dejó para el ensayo cuatro preguntas que sólo contesta un pase de verdad con el 27B: lo que tarda cada paso, cómo sale el segundo turno, cuánto cuesta cargar el modelo dentro de una sesión y si basta un turno para calentar (#295). El 15 de noviembre, a petición del autor, Claude pasó entera «La víspera» de la guía, y el autor grabó después en vídeo el pase completo, sobre la máquina 1 con `e19ba3a`. Ese vídeo es el ensayo. No se cronometró a mano: el minuto de cada paso sale del registro de la API, con un guion nuevo, y el autor lo comprobó en el vídeo. Entran el guion, [`spikes/pasos_registro.sh`](spikes/pasos_registro.sh), los datos, en `spikes/ensayo_demostracion/2026-11-15/`, y la tabla de «El ensayo» en `docs/demostracion.md`. La issue sigue abierta: queda el plan C.
+
+#### La víspera
+
+Todo pasó:
+
+- la máquina 1, en `dev` y `e19ba3a`, sin cambios y con los tres servicios sanos;
+- `spikes/certificado_en_vivo.sh`, con 0 cosas que no cuadran, y `spikes/produccion_en_vivo.py`, con las 14 herramientas en `ok`;
+- `spikes/demostracion_titulares.py`, con los cinco titulares como dice la guía y 0 fallos;
+- `spikes/grabar_demostracion.py --reproducir`, con la grabación entera;
+- y el plan B en la máquina 1, con `spikes/grabado_maquina1.sh`: el cambio, 13 s; la grabación, entera desde fuera, con los tres turnos en 2,2, 2,2 y 2,3 s; y la vuelta a Ollama, 13 s.
+
+Es la primera vez que el plan B se reproduce con el servidor MCP precalentado (#295): el turno 1 tardó 2,2 s, frente a los 8,1 s del 13 de noviembre, cuando el servidor MCP acababa de arrancar sin precalentar y cargó los modelos de las señales dentro de la llamada (#288). De las comprobaciones de la víspera sólo se guardó la salida del plan B; las demás salieron por pantalla.
+
+#### Cómo se midió el pase
+
+La línea de acceso de uvicorn no lleva la hora, pero `docker compose logs --timestamps` se la pone. `spikes/pasos_registro.sh` saca de ahí cada petición que marca un paso —un análisis, el historial, Sistema, una pregunta al asistente— con su hora. Con la hora a la que empezó la grabación, las 13:27:38, que dio el autor, cada clic cae en un minuto del vídeo, y el autor comprobó dos: el primer turno del asistente, en el 6:03 del vídeo frente al 6:04 del registro, y la pregunta de The Guardian, en el 14:06 frente al 14:05. Ver el vídeo no hizo falta, y tampoco se podía: Claude no lee vídeo.
+
+Cada paso se cuenta desde el clic que lo abre hasta el del siguiente, y el 1, desde el principio del vídeo. **El vídeo tiene pausas entre llamadas**, así que eso no es lo que dura una exposición. La espera de cada respuesta del asistente sí lo es, porque no depende de cómo se cuente: sale de `spikes/chat_registro.sh` (`agent.fin`).
+
+| Paso | Previsto | Del clic al siguiente | Esperando respuesta |
+|---|---|---|---|
+| 1 | 90 s | 162 s | |
+| 2 | 45 s | 53 s | |
+| 3 | 45 s | 49 s | |
+| 4 | 30 s | 18 s | |
+| 5 | 60 s | 82 s | |
+| 6 | 150 s | 330 s | 127 s: 34, 50 y 43 |
+| 7 | 75 s | 216 s, con dos preguntas | 34 s el NYT y 65 s The Guardian |
+
+#### Lo que contesta
+
+- **El tiempo de cada paso.** El pase entero, 15:10 hasta la última respuesta, frente a los ocho minutos previstos; el vídeo, con la despedida, 17:46. Lo firme es la espera: **sólo esperando, el paso 6 se lleva 127 de sus 150 s**, así que no cabe en lo previsto aunque se hable deprisa.
+- **El segundo turno con el 27B** eligió `detect_clickbait_linear`, la herramienta que espera la guía, y tardó 50 s, 45 de ellos escribiendo la respuesta. Si lo que narró es fiel no se ha cotejado: se ve en el vídeo.
+- **La carga del modelo dentro de una sesión.** No se calentó, así que la primera pregunta, diez minutos después de abrir la sesión, cargó el modelo. Su primera vuelta tardó 16,2 s, frente a 4,5 a 5,8 s la de las demás: unos 11 s más. En el registro de Ollama, unos 4 s hasta dar por terminada la detección de la GPU y 4,7 s de cargar el modelo; el resto, sin desglosar. No es la recarga tras diez minutos sin uso que suponía #214, porque el pase fue seguido, pero es la misma situación: el modelo no estaba en la GPU.
+- **Si basta un turno para calentar.** No hizo falta ninguno. El turno 3, en español, no pagó nada más (su `analyze_headline`, 0,26 s), porque el servidor MCP ya tenía cargados los modelos de las señales (#295). Pero no se midió si el 27B estaba en la caché de disco (`mincore`), y tras un reinicio de la máquina 2 la primera carga fueron 105 s (15 oct): **el procedimiento de la guía no cambia** mientras el autor no lo decida.
+
+#### Lo que salió además
+
+- **La sesión de GPU no se cerró.** El autor la dio por cerrada al acabar, y a las 13:46 `gpu-sesion` seguía vivo, con el 27B cargado y el túnel abierto: su conexión SSH seguía abierta en alguna ventana. Claude la cerró mandando `HUP` a la shell de la sesión, comprobada antes por su PID, que es lo mismo que cerrar la ventana: `gpu-sesion` hizo su limpieza normal, y la GPU quedó a 0 MiB, sin ningún Ollama propio. Es lo que «Al terminar» pide comprobar, y se comprobó.
+- **La pregunta de The Guardian necesitó cuatro vueltas**: la tercera salió vacía, y la API se la volvió a pedir (#208). Tardó 65 s, frente a los 34 de la del NYT.
+
+#### Lo que cambia
+
+- **`spikes/pasos_registro.sh`**, nuevo, como `chat_registro.sh`: dos fechas, una conexión a la máquina 1 y la IP tapada.
+- **`spikes/ensayo_demostracion/2026-11-15/`**: los registros de la API (`chat_registro.txt` y `pasos_api.txt`) y de Ollama (`ollama_registro.txt`), la salida del plan B (`maquina1_plan_b.txt`), las condiciones (`condiciones.txt`) y lo medido en el vídeo (`pasos_del_video.txt`).
+- **`docs/demostracion.md`**: «El ensayo», con la tabla y lo que dejó; «Lo que falta», sin el ensayo; y en el plan B, los turnos con el servidor MCP precalentado, que estaban sin medir.
+- **Una nota** en la sección de #214 y otra en la de la PR #295, que dejaban esto para el ensayo.
+
+#### Lo que queda
+
+- **El plan C**: el vídeo y las capturas de la versión congelada, después del 15 de diciembre. El de hoy es de `e19ba3a`, y el autor quiere editarlo; los minutos de estos datos son los del original.
+- **Qué se recorta** para que la demostración quepa, sobre todo en el paso 6, cuando se sepa cuántos minutos da la defensa. Lo decide el autor.
+- **Si se quita el calentamiento**: antes habría que medir la carga con la caché de disco fría.
+- **`--reproducir` sobre el commit congelado**, con la congelación.
+
+| Condiciones | |
+|---|---|
+| Fecha | 15 nov 2026, hora de Madrid: la víspera, de las 13:16 a las 13:21; la sesión de GPU, de las 13:22 a las 13:46; el vídeo, de las 13:27:38 a las 13:45:24 |
+| Máquina 1 | Ubuntu 24.04.4, Docker 29.8.1 y Compose 5.5.1; `e19ba3a` en `dev`, con la imagen `fbece8c18b08` y el prompt `06-dato` |
+| Máquina 2 | La A40, con Ollama 0.34.2 y `qwen3.5:27b` (`7653528ba5cb`); `gpu-sesion`, igual al versionado (`6ad6a751d636`) |
+| El PC | WSL2 con Ubuntu 24.04.4, torch 2.12.1 y transformers 5.12.0, en CPU y sin red, para los titulares y `--reproducir`; con `1507958`, que no cambia nada de lo servido respecto a `e19ba3a` |
+| Guiones | `spikes/pasos_registro.sh`, `spikes/chat_registro.sh`, `spikes/ollama_registro.sh` y `spikes/grabado_maquina1.sh`, con sus salidas en `spikes/ensayo_demostracion/2026-11-15/`. Las demás comprobaciones de la víspera, sin salida guardada |
+| Medido a mano | La hora de inicio y la duración del vídeo, y dos marcas contra el registro (`pasos_del_video.txt`) |
+| Medido después | `condiciones.txt`, a las 13:59, con una conexión a cada máquina |
+| Sin medir | Si el 27B estaba en la caché de disco; lo que tardó en abrirse la sesión desde que se lanzó `gpu-sesion`; y el cierre con `exit` |
 
 
 "Aplico Rudin donde puedo —incoherencia(A MEDIAS, YA QUE EL MODELO NO) y léxico son intrínsecamente interpretables— y reservo lo post-hoc (LIME/SHAP), con sus límites de fidelidad, solo para la parte que depende de un transformer preentrenado que no puedo abrir de otro modo." !!!IMPORTANTE (NO MODIFICAR, RECORDAR POSTURA DEFINIDA)
