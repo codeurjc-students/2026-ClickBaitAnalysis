@@ -1,0 +1,16 @@
+Condiciones del ensayo de la demostración (#214), 15 nov 2026, medidas DESPUÉS:
+la sesión de GPU fue de 13:22 a 13:46, y esto, a las 13:59 del mismo día.
+No se midió entonces, y ya no se puede: qué parte del 27B estaba en la caché de disco (mincore).
+
+== máquina 1
+clon: dev · e19ba3a
+imagen de la API: fbece8c18b08
+contenedor de la API creado: 2026-11-15T12:21:04Z
+LLM_BACKEND de la API: ollama
+/api/agent: prompt 06-dato · modelo qwen3.5:27b
+
+== máquina 2
+ollama: 0.34.2
+qwen3.5:27b, sha256 del manifiesto: 7653528ba5cb
+gpu-sesion instalado, sha256: 6ad6a751d636
+gpu-sesion versionado (despliegue/maquina2/gpu-sesion), sha256: 6ad6a751d636

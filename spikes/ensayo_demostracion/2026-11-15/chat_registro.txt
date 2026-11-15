@@ -1,0 +1,32 @@
+clon: dev · e19ba3a feat(despliegue): el servidor MCP también precalienta sus mod
+contenedor de la API creado: 2026-11-15T12:21:04Z
+2026-11-15T12:33:42Z [info ] chat.aceptada en_espera=0 trabajo=…
+2026-11-15T12:33:59Z [info ] agent.vuelta pide=['analyze_headline'] prompt_tokens=4770 total_s=16.23 vuelta=1
+2026-11-15T12:33:59Z [info ] agent.herramienta duracion_s=0.29 estado=ok herramienta=analyze_headline
+2026-11-15T12:34:17Z [info ] agent.vuelta pide=[] prompt_tokens=5585 total_s=17.68 vuelta=2
+2026-11-15T12:34:17Z [info ] agent.fin estado=answered herramientas=1 total_s=34.34 vueltas=2
+2026-11-15T12:35:25Z [info ] chat.aceptada en_espera=0 trabajo=…
+2026-11-15T12:35:30Z [info ] agent.vuelta pide=['detect_clickbait_linear'] prompt_tokens=5119 total_s=4.51 vuelta=1
+2026-11-15T12:35:30Z [info ] agent.herramienta duracion_s=0.13 estado=ok herramienta=detect_clickbait_linear
+2026-11-15T12:36:15Z [info ] agent.vuelta pide=[] prompt_tokens=5307 total_s=45.21 vuelta=2
+2026-11-15T12:36:15Z [info ] agent.fin estado=answered herramientas=1 total_s=49.99 vueltas=2
+2026-11-15T12:37:27Z [info ] chat.aceptada en_espera=0 trabajo=…
+2026-11-15T12:37:32Z [info ] agent.vuelta pide=['analyze_headline'] prompt_tokens=5334 total_s=5.24 vuelta=1
+2026-11-15T12:37:32Z [info ] agent.herramienta duracion_s=0.26 estado=ok herramienta=analyze_headline
+2026-11-15T12:38:09Z [info ] agent.vuelta pide=[] prompt_tokens=6074 total_s=36.95 vuelta=2
+2026-11-15T12:38:09Z [info ] agent.fin estado=answered herramientas=1 total_s=42.57 vueltas=2
+2026-11-15T12:39:12Z [info ] chat.aceptada en_espera=0 trabajo=…
+2026-11-15T12:39:17Z [info ] agent.vuelta pide=['get_nyt_news'] prompt_tokens=5541 total_s=5.1 vuelta=1
+2026-11-15T12:39:18Z [info ] agent.herramienta duracion_s=0.64 estado=ok herramienta=get_nyt_news
+2026-11-15T12:39:26Z [info ] agent.vuelta pide=['analyze_headline'] prompt_tokens=6865 total_s=8.05 vuelta=2
+2026-11-15T12:39:26Z [info ] agent.herramienta duracion_s=0.34 estado=ok herramienta=analyze_headline
+2026-11-15T12:39:46Z [info ] agent.vuelta pide=[] prompt_tokens=7740 total_s=19.75 vuelta=3
+2026-11-15T12:39:46Z [info ] agent.fin estado=answered herramientas=2 total_s=34.03 vueltas=3
+2026-11-15T12:41:43Z [info ] chat.aceptada en_espera=0 trabajo=…
+2026-11-15T12:41:49Z [info ] agent.vuelta pide=['get_guardian_news'] prompt_tokens=5822 total_s=5.75 vuelta=1
+2026-11-15T12:41:50Z [info ] agent.herramienta duracion_s=0.63 estado=ok herramienta=get_guardian_news
+2026-11-15T12:41:57Z [info ] agent.vuelta pide=['analyze_headline'] prompt_tokens=7161 total_s=6.72 vuelta=2
+2026-11-15T12:41:57Z [info ] agent.herramienta duracion_s=0.33 estado=ok herramienta=analyze_headline
+2026-11-15T12:42:21Z [info ] agent.vuelta pide=[] prompt_tokens=8146 total_s=24.22 vuelta=3
+2026-11-15T12:42:48Z [info ] agent.vuelta pide=[] prompt_tokens=8181 total_s=26.92 vuelta=4
+2026-11-15T12:42:48Z [info ] agent.fin estado=answered herramientas=2 total_s=64.76 vueltas=4

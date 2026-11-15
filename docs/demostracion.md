@@ -12,7 +12,6 @@ principal, en la sección de #214.
 
 | Qué | Espera a |
 |---|---|
-| El ensayo completo, con lo que tarda cada parte | nada: la máquina 1 sirve la grabación desde el 13 nov |
 | El plan C: la grabación en vídeo y las capturas | la congelación |
 
 ## Lo que se enseña
@@ -340,7 +339,8 @@ en #265 antes de grabar.
   otros dos, 2; ya caliente, los tres tardaron 2. Desde entonces los carga al
   arrancar (`PREHEAT_MODELS`): en la máquina 1, en 12,9 s, a la vez que la API,
   y el primer análisis por el servidor MCP tardó menos de un segundo (14 nov
-  2026). Los turnos del plan B con el servidor MCP precalentado, sin medir.
+  2026). Con él precalentado, los tres turnos del plan B tardaron 2,2, 2,2 y
+  2,3 s (15 nov 2026, «El ensayo»).
 - **Se ve**, en Asistente, un aviso fijo de que son respuestas grabadas, de qué
   modelo y de qué día, y «Sobre el asistente» enseña la ficha de la grabación.
 - **Se hace** el paso 6, con las mismas tres preguntas, pegadas de «Los
@@ -374,22 +374,46 @@ las dos máquinas. El enlace, aquí, cuando esté hecha.
 
 ## El ensayo
 
-**Pendiente.** Un ensayo completo, siguiendo este guion al pie de la letra,
-sobre la máquina 1, y después el plan B. Se apunta lo que tarda cada parte y,
-al acabar, la GPU a 0 MiB.
+Un pase completo, el 15 de noviembre de 2026, sobre la máquina 1 con `e19ba3a`
+y el 27B: el que se grabó en vídeo. Se hizo sin calentar, y el paso 7 llevó dos
+preguntas, al NYT y a The Guardian. El plan B se comprobó minutos antes, desde
+fuera y no en la pantalla (`--reproducir-en`). Los registros, las condiciones y
+el minuto de cada paso en el vídeo, en `spikes/ensayo_demostracion/2026-11-15/`.
 
-| Parte | Previsto | Medido |
-|---|---|---|
-| Antes de empezar, hasta `available` | — | |
-| El calentamiento | — | |
-| Paso 1 | 90 s | |
-| Paso 2 | 45 s | |
-| Paso 3 | 45 s | |
-| Paso 4 | 30 s | |
-| Paso 5 | 60 s | |
-| Paso 6 | 150 s | |
-| Paso 7 | 75 s | |
-| Al terminar, hasta 0 MiB | — | |
-| Plan B: el cambio, hasta `available` | 13–14 s | |
-| Plan B: el paso 6, reproducido | — | |
-| Plan B: la vuelta al modelo | 14 s | |
+Cada paso se cuenta desde el clic que lo abre hasta el del siguiente, y el 1,
+desde el principio del vídeo; las horas, de `spikes/pasos_registro.sh`. **El
+vídeo tiene pausas entre llamadas**, así que esa columna no es lo que dura una
+exposición. La espera sí: es lo que tardó en responder el asistente, y no
+depende de cómo se cuente.
+
+| Parte | Previsto | Medido | Esperando respuesta |
+|---|---|---|---|
+| Antes de empezar, hasta `available` | — | 30 s desde que arrancó Ollama | |
+| El calentamiento | — | No se hizo | |
+| Paso 1 | 90 s | 162 s | |
+| Paso 2 | 45 s | 53 s | |
+| Paso 3 | 45 s | 49 s | |
+| Paso 4 | 30 s | 18 s | |
+| Paso 5 | 60 s | 82 s | |
+| Paso 6 | 150 s | 330 s | 127 s: 34, 50 y 43 |
+| Paso 7 | 75 s | 216 s, con las dos preguntas | 34 s el NYT y 65 s The Guardian |
+| Al terminar, hasta 0 MiB | — | Sin medir | |
+| Plan B: el cambio, hasta `available` | 13–14 s | 13 s | |
+| Plan B: el paso 6, reproducido | — | | 2,2, 2,2 y 2,3 s |
+| Plan B: la vuelta al modelo | 14 s | 13 s | |
+
+Lo que dejó:
+
+- **Sin calentar, el turno 1 tardó unos 11 s más que los otros**: cargó el
+  modelo en la GPU (4,7 s), y su primera vuelta tardó 16,2 s, frente a 4,5 a
+  5,8 s la de los demás. No se midió si el modelo estaba en la caché de disco,
+  así que no dice nada del caso tras un reinicio (105 s, el 15 oct). El turno
+  3, en español, no pagó nada más: el servidor MCP ya tenía cargados los
+  modelos de las señales.
+- **El paso 6 no cabe en lo previsto**: sólo esperando, se lleva 127 de sus
+  150 s.
+- **El pase entero, 15:10** hasta la última respuesta, frente a los ocho minutos
+  previstos; el vídeo, con el cierre, 17:46.
+- **La sesión de GPU no se cerró al cerrar la terminal**: su conexión siguió
+  abierta, y se cerró después con un `HUP` a su shell. Por eso «Al terminar»
+  pide comprobar que la GPU queda libre.
