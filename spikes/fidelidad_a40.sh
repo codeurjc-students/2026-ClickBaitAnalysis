@@ -32,6 +32,10 @@
 # 16384, la ventana de producción desde #192. Y la sesión dura FIDELIDAD_MINUTOS
 # (45 por defecto): la repetición de las desbocadas no cabe en 45.
 #   FIDELIDAD_MINUTOS=60 setsid nohup bash spikes/fidelidad_a40.sh repeticion desbocadas > /tmp/fidelidad_rep.log 2>&1 < /dev/null & disown
+#
+# #299 (2026-11-17): `produccion`, el agente servido, también con 16384. Usa
+# además la comprobación de revisiones de `grabar_demostracion.py`.
+#   FIDELIDAD_MINUTOS=60 setsid nohup bash spikes/fidelidad_a40.sh produccion 06-dato 05-llano > /tmp/fidelidad_299.log 2>&1 < /dev/null & disown
 exec 2>&1
 cd "$(dirname "$0")/.." || exit 1
 MAQUINA_2=gongarcia@gserver2.tfg.etsii.urjc.es
@@ -46,9 +50,10 @@ if [ "${1:-}" = jueces ]; then
   CTX=16384
   # Lo juzgado: el corpus, o el fichero de la comparación que se le pase.
   USADO+=(spikes/prompts/juez-fidelidad.md "spikes/fidelidad/${3:-corpus.json}")
-elif [[ "${1:-}" =~ ^(repeticion|seguimiento|ventana)$ ]]; then
+elif [[ "${1:-}" =~ ^(repeticion|seguimiento|ventana|produccion)$ ]]; then
   PRECARGA=qwen3.5:27b
   CTX=16384
+  [ "$1" = produccion ] && USADO+=(spikes/grabar_demostracion.py)
 else
   PRECARGA=qwen3.5:27b
   CTX=8192

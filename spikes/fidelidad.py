@@ -116,6 +116,22 @@ respuesta, el tope y el aviso que pide rehacer). La comprobación final mide
 `con-arreglos-208`, la de producción con los dos primeros: el aviso se quedó
 fuera tras `seguimiento`.
 
+#299 (2026-11-17) añadió una parte, para medir el agente que se sirve:
+
+11. `produccion`: las 27 consultas con el agente como lo monta la API
+    (`configuracion()` de `api/chat.py`), con cada prompt que se le dé,
+    intercalados y contados como en `comparar`. `comparar` repite las
+    condiciones de #192, y desde entonces el agente cambió: la ventana de
+    16.384, el tope de salida, el aviso del historial y pedir la respuesta,
+    además de los cortes del servidor MCP y el precalentado de los modelos.
+    Aquí no se replica ningún ajuste: se toma la configuración de la API y sólo
+    se cambia el prompt. Se para si un ajuste que producción no pone no tiene
+    su valor por defecto, si torch ve una GPU o si la caché de Hugging Face no
+    tiene la revisión de las fichas. `--en-seco` comprueba, sin Ollama, que lo
+    que se mandaría es lo de producción. Los ficheros son
+    `comparacion-P-<nn>-produccion.json`, así que `jueces`, `validar` y
+    `resumen` los leen como los demás.
+
 Ejecutar desde la raíz, con el túnel abierto (la sesión la abre
 `spikes/fidelidad_a40.sh`):
 
@@ -142,6 +158,8 @@ Ejecutar desde la raíz, con el túnel abierto (la sesión la abre
     .venv/bin/python spikes/fidelidad.py fallos [spikes/fidelidad/ventana-….json …]
     NLP_BACKEND=local .venv/bin/python spikes/fidelidad.py repeticion [veces] [vacias] [desbocadas]
     NLP_BACKEND=local .venv/bin/python spikes/fidelidad.py seguimiento [veces]
+    .venv/bin/python spikes/fidelidad.py produccion --en-seco 06-dato 05-llano
+    .venv/bin/python spikes/fidelidad.py produccion 06-dato 05-llano
 
 Sin fuentes, las cuatro; los jueces, de uno en uno; `E:<prompt>` es la
 condición del perfil preciso sobre ese prompt. `OLLAMA_URL` cambia el servidor
@@ -161,7 +179,7 @@ import statistics
 import subprocess
 import sys
 from collections import Counter
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, fields, replace
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import NamedTuple
@@ -176,6 +194,21 @@ sys.path.insert(0, str(RAIZ))
 # con los argumentos de éste fallarían. Se importan con la línea vacía y se
 # devuelve después, como en `agente_a40.py`.
 _ARGUMENTOS, sys.argv = sys.argv, sys.argv[:1]
+
+URL = os.environ.get("OLLAMA_URL", "http://127.0.0.1:11500")
+
+# #299: la parte `produccion` monta el agente como la API, desde los ajustes, y
+# `backend` los lee al importarse, así que se ponen aquí. Los dos que pone el
+# `environment` de `compose.yaml` en la API —el backend y la URL, aquí la del
+# túnel—; los demás, por defecto, y `_ajustes_de_produccion` lo comprueba. Y
+# las señales, en CPU y sin red, como en la imagen: en WSL `transformers` usaría
+# la GTX (#159), y con red cargaría lo que hubiera ese día en el Hub (#282).
+if _ARGUMENTOS[1:2] == ["produccion"]:
+    os.environ["LLM_BACKEND"] = "ollama"
+    os.environ["LLM_URL"] = URL
+    os.environ["CUDA_VISIBLE_DEVICES"] = ""
+    os.environ["HF_HUB_OFFLINE"] = "1"
+
 from backend.agent import agente, prompts  # noqa: E402
 from backend.agent.agente import (  # noqa: E402
     AVISO_HISTORIAL,
@@ -183,8 +216,11 @@ from backend.agent.agente import (  # noqa: E402
     Configuracion,
     responder,
 )
-from backend.config.settings import settings  # noqa: E402
+from backend.analysis.orchestrator import precalentar  # noqa: E402
+from backend.api import chat  # noqa: E402
+from backend.config.settings import Settings, settings  # noqa: E402
 from backend.core.mcp import session as mcp_session  # noqa: E402
+from backend.core.models import ToolResult  # noqa: E402
 from backend.integrations.llm.ollama import OllamaClient  # noqa: E402
 from backend.main import mcp as SERVIDOR  # noqa: E402
 from spikes.agente_a40 import BUCLES  # noqa: E402
@@ -200,7 +236,6 @@ structlog.configure(wrapper_class=structlog.make_filtering_bound_logger(logging.
 for ruidoso in ("httpx", "mcp", "backend"):
     logging.getLogger(ruidoso).setLevel(logging.WARNING)
 
-URL = os.environ.get("OLLAMA_URL", "http://127.0.0.1:11500")
 NUM_CTX = 8192
 KEEP_ALIVE = "10m"
 # El `llm_timeout` de producción desde #188: una vuelta llegó a tardar 96 s.
@@ -396,6 +431,10 @@ class Condicion:
 
     `muestreo` es `None` cuando no se manda nada, como en producción: entonces
     manda el Modelfile, que se lee y se anota en las condiciones.
+
+    Con `produccion` (#299), la configuración no sale de aquí sino de la API
+    (`_config_de_produccion`), y el redondeo y el muestreo se anotan para que
+    se lean en el registro: son los que pone ella.
     """
 
     nombre: str
@@ -403,6 +442,7 @@ class Condicion:
     decimales: int | None
     muestreo: dict | None = None
     modelo: str = "qwen3.5:27b"
+    produccion: bool = False
 
 
 # El perfil que recomiendan los autores de Qwen3.5 para tareas precisas; el del
@@ -870,32 +910,42 @@ async def jueces(modelo: str, ruta: Path, juzgado: Path = CORPUS) -> None:
 # ----- 3 · La comparación -----
 
 # Lo que tiene que coincidir para que una sesión continúe la anterior de la
-# misma condición.
-CONDICIONES_FIJAS_DE_LA_COMPARACION = ("condicion", "prompt_huella", "modelo_id")
+# misma condición. `produccion` sólo lo llevan las de #299: los ajustes del
+# agente servido, comprobados (`_ajustes_de_produccion`).
+CONDICIONES_FIJAS_DE_LA_COMPARACION = ("condicion", "prompt_huella", "modelo_id", "produccion")
 
 
 def _ruta_de(condicion: Condicion) -> Path:
     return CARPETA / f"comparacion-{condicion.nombre}.json"
 
 
-async def _registro_de(condicion: Condicion) -> dict:
-    """El fichero de una condición: el que había, si es de la misma medida, o uno nuevo."""
+async def _registro_de(condicion: Condicion, produccion: dict | None = None, sesion: dict | None = None) -> dict:
+    """El fichero de una condición: el que había, si es de la misma medida, o uno nuevo.
+
+    `produccion` va a las condiciones, y lo que cambia de una sesión a otra
+    sin cambiar la medida (el precalentado), a la sesión.
+    """
     condiciones = await _condiciones({condicion.modelo}) | {
         "condicion": asdict(condicion),
         "prompt_huella": _huella(prompts.cargar(condicion.prompt)),
-        "num_ctx": NUM_CTX,
-        "keep_alive": KEEP_ALIVE,
+        "num_ctx": settings.llm_num_ctx if condicion.produccion else NUM_CTX,
+        "keep_alive": settings.llm_keep_alive if condicion.produccion else KEEP_ALIVE,
         "nlp_backend": settings.nlp_backend,
         "repeticiones": REPETICIONES,
     }
+    if produccion is not None:
+        condiciones["produccion"] = produccion
     condiciones["modelo_id"] = condiciones["modelos"][condicion.modelo]["id"]
     ruta = _ruta_de(condicion)
     if ruta.exists():
         registro = json.loads(ruta.read_text(encoding="utf-8"))
+        # Por JSON, para comparar lo leído con lo de ahora en la misma forma
+        # (una tupla se guarda como lista).
+        ahora = json.loads(json.dumps(condiciones, ensure_ascii=False, default=str))
         distintas = [
             clave
             for clave in CONDICIONES_FIJAS_DE_LA_COMPARACION
-            if registro["condiciones"].get(clave) != condiciones[clave]
+            if registro["condiciones"].get(clave) != ahora.get(clave)
         ]
         if distintas:
             sys.exit(f"ABORTADO: {ruta} es de otra medida (cambia {distintas}). Se aparta a mano.")
@@ -905,12 +955,16 @@ async def _registro_de(condicion: Condicion) -> dict:
         ]
     else:
         registro = {"condiciones": condiciones, "sesiones": [], "conversaciones": []}
-    registro["sesiones"].append({clave: condiciones[clave] for clave in ("fecha", "commit", "guion", "ollama")})
+    registro["sesiones"].append(
+        {clave: condiciones[clave] for clave in ("fecha", "commit", "guion", "ollama")} | (sesion or {})
+    )
     return registro
 
 
-async def comparar(condiciones: list[Condicion]) -> None:
-    registros = {condicion.nombre: await _registro_de(condicion) for condicion in condiciones}
+async def comparar(condiciones: list[Condicion], produccion: dict | None = None, sesion: dict | None = None) -> None:
+    registros = {
+        condicion.nombre: await _registro_de(condicion, produccion, sesion) for condicion in condiciones
+    }
     for condicion in condiciones:
         print(f"  {condicion.nombre}: {asdict(condicion)} · {len(registros[condicion.nombre]['conversaciones'])} ya hechas")
     hechas = {
@@ -930,9 +984,12 @@ async def comparar(condiciones: list[Condicion]) -> None:
                 clave_repetida = f"{clave}/r{repeticion}"
                 if f"{condicion.nombre}/{clave_repetida}" in hechas:
                     continue
-                resultado = await responder(
-                    consulta, historial, _config(fuente, condicion.decimales, condicion.muestreo)
+                config = (
+                    _config_de_produccion(condicion.prompt)
+                    if condicion.produccion
+                    else _config(fuente, condicion.decimales, condicion.muestreo)
                 )
+                resultado = await responder(consulta, historial, config)
                 conversacion = _conversacion(fuente, clave_repetida, categoria, consulta, historial, resultado)
                 de_mas = _de_mas(resultado["steps"], esperadas)
                 conversacion |= {
@@ -1084,7 +1141,11 @@ def validar(carpetas: list[Path]) -> None:
       leyó.
 
     `lectura.json` sólo se toca si llegan decisiones del corpus: exportar sólo
-    la comparación no puede borrar la validación del corpus.
+    la comparación no puede borrar la validación del corpus. Y las de la
+    comparación se AÑADEN a las que ya había (#299): hasta entonces el fichero
+    se escribía entero con lo exportado, y exportar sólo las condiciones nuevas
+    habría borrado las de #192. Un caso que vuelve a llegar se sustituye, y se
+    dice.
     """
     ruta_lectura = CARPETA / "lectura.json"
     registro = json.loads(ruta_lectura.read_text(encoding="utf-8"))
@@ -1122,19 +1183,32 @@ def validar(carpetas: list[Path]) -> None:
         print(f"  corpus: {len(corpus)} de {len(registro['lecturas'])} validadas · {dict(decisiones)} → {ruta_lectura}")
 
     if comparacion:
-        _guardar(
-            {
+        registro_comparacion = (
+            json.loads(VALIDACION_COMPARACION.read_text(encoding="utf-8"))
+            if VALIDACION_COMPARACION.exists()
+            else {
                 "condiciones": {
                     "exportada": exportada,
                     "origen": "la página de validación de #192 (artefacto privado), colección `validaciones_comparacion`",
                     "que_se_valido": "lo que el juez (gemma4:31b) marcó como infiel en cada condición; lo que dio por fiel no se leyó",
                 },
-                "validaciones": dict(sorted(comparacion.items())),
-            },
-            VALIDACION_COMPARACION,
+                "validaciones": {},
+            }
         )
+        sustituidas = sorted(set(registro_comparacion["validaciones"]) & set(comparacion))
+        registro_comparacion["condiciones"].setdefault("exportaciones", []).append(
+            {
+                "exportada": exportada,
+                "validadas": len(comparacion),
+                "condiciones": sorted({fila["condicion"] for fila in comparacion.values()}),
+            }
+        )
+        registro_comparacion["validaciones"] = dict(sorted((registro_comparacion["validaciones"] | comparacion).items()))
+        _guardar(registro_comparacion, VALIDACION_COMPARACION)
         por_condicion = Counter((fila["condicion"], fila["fiel"]) for fila in comparacion.values())
         print(f"  comparación: {len(comparacion)} validadas · (condición, fiel): {dict(sorted(por_condicion.items()))} → {VALIDACION_COMPARACION}")
+        if sustituidas:
+            print(f"  sustituidas, porque ya estaban: {sustituidas}")
 
 
 def _kappa(referencia: list[bool], dicho: list[bool]) -> float | None:
@@ -1937,6 +2011,171 @@ async def seguimiento(veces: int) -> None:
     recuento([ruta])
 
 
+# ----- 11 · El agente servido (#299) -----
+
+# Lo que el `environment` de `compose.yaml` pone a la API del agente (se ponen
+# al principio del guion). Producción alcanza el servidor MCP por otra URL
+# (`mcp:8765`); aquí es el de `backend.main`, servido en proceso.
+PUESTOS_POR_COMPOSE = {"llm_backend", "llm_url"}
+# Los cortes del servidor MCP que usa el agente: `compose.yaml` no los toca.
+CORTES_DEL_AGENTE = {"mcp_timeout", "mcp_execute_timeout"}
+
+
+def _ajustes_de_produccion() -> dict:
+    """Los ajustes del agente que se mide, comprobados contra los de producción.
+
+    Producción no pone más que el backend y la URL: si otro ajuste `llm_*` o
+    un corte del servidor MCP no tiene su valor por defecto —una variable
+    olvidada en el entorno—, lo medido no sería el agente servido, y se para.
+    También si torch ve una GPU, o si la caché de Hugging Face no tiene la
+    revisión de las fichas, que es la que lleva la imagen.
+
+    Devuelve lo que se guarda en las condiciones: esos ajustes, los campos de
+    `Configuracion` que deja la API por defecto y las revisiones.
+    """
+    import torch
+
+    from spikes.grabar_demostracion import comprobar_revisiones
+
+    defecto = {nombre: campo.default for nombre, campo in Settings.model_fields.items()}
+    vigilados = ({nombre for nombre in defecto if nombre.startswith("llm_")} - PUESTOS_POR_COMPOSE) | CORTES_DEL_AGENTE
+    distintos = {
+        nombre: getattr(settings, nombre) for nombre in sorted(vigilados) if getattr(settings, nombre) != defecto[nombre]
+    }
+    if distintos:
+        sys.exit(f"ABORTADO: ajustes que producción no pone: {distintos}. Se quitan del entorno.")
+    if torch.cuda.is_available():
+        sys.exit("ABORTADO: torch ve una GPU, y las señales de producción van en CPU.")
+    config = chat.configuracion()
+    if config is None:
+        sys.exit("ABORTADO: sin `LLM_BACKEND` no hay agente.")
+    return {
+        "ajustes": {nombre: getattr(settings, nombre) for nombre in sorted(vigilados | PUESTOS_POR_COMPOSE)},
+        "agente": {
+            campo.name: getattr(config, campo.name)
+            for campo in fields(config)
+            if campo.name not in ("backend", "prompt")
+        },
+        "revisiones": comprobar_revisiones(),
+        "senales": "en CPU (CUDA_VISIBLE_DEVICES vacío) y sin red (HF_HUB_OFFLINE=1)",
+    }
+
+
+def _config_de_produccion(prompt: str) -> Configuracion:
+    """La que monta `api/chat.py` para cada conversación, con el prompt de la
+    condición: es lo único que cambia. Sin réplica de ningún ajuste."""
+    config = chat.configuracion()
+    if config is None:
+        sys.exit("ABORTADO: sin `LLM_BACKEND` no hay agente.")
+    return replace(config, prompt=prompts.cargar(prompt))
+
+
+def _condicion_de_produccion(prompt: str) -> Condicion:
+    """`P-<nn>-produccion`. El redondeo, el muestreo y el modelo, los de la API."""
+    config = _config_de_produccion(prompt)
+    return Condicion(
+        f"P-{prompt[:2]}-produccion",
+        prompt,
+        decimales=config.decimales_para_el_modelo,
+        muestreo={"temperature": settings.llm_temperature, "presence_penalty": settings.llm_presence_penalty},
+        modelo=settings.llm_model,
+        produccion=True,
+    )
+
+
+class _Captura:
+    """Hace de Ollama en la prueba en seco: guarda cada petición y contesta,
+    sin salir a la red, primero vacío —para que el agente pida la respuesta— y
+    después «ok»."""
+
+    def __init__(self) -> None:
+        self.cuerpos: list[dict] = []
+
+    async def __call__(self, endpoint, method, params=None, json=None) -> ToolResult:
+        self.cuerpos.append(json)
+        contenido = "" if len(self.cuerpos) == 1 else "ok"
+        return ToolResult.ok({"message": {"role": "assistant", "content": contenido}, "done_reason": "stop"})
+
+
+async def _en_seco(elegidos: list[str]) -> None:
+    """Lo que el agente servido mandaría a Ollama con cada prompt, sin Ollama.
+
+    Es el criterio de #299: que se mande lo mismo que `api/chat.py`. Usa una
+    consulta con historial, para que vaya el aviso, y la primera respuesta
+    llega vacía, para que pida la respuesta. Cada petición se compara con los
+    valores por defecto de los ajustes y de `Configuracion`, que son los de
+    producción.
+    """
+    clave, _, consulta, historial, _ = next(fila for fila in _consultas() if fila[0] == "bucle-segundo-turno")
+    herramientas = await SERVIDOR.list_tools()
+    defecto = {nombre: campo.default for nombre, campo in Settings.model_fields.items()}
+    think = next(campo.default for campo in fields(Configuracion) if campo.name == "think")
+    esperado = {
+        "model": defecto["llm_model"],
+        "think": think,
+        "keep_alive": defecto["llm_keep_alive"],
+        "options": {
+            "num_ctx": defecto["llm_num_ctx"],
+            "temperature": defecto["llm_temperature"],
+            "presence_penalty": defecto["llm_presence_penalty"],
+            "num_predict": defecto["llm_num_predict"],
+        },
+    }
+    print(f"\n== en seco: `{clave}`, con {len(historial)} turnos de historial · esperado {esperado}")
+    fallos = []
+    for prompt in elegidos:
+        config = _config_de_produccion(prompt)
+        captura = _Captura()
+        # Sólo en seco: sustituye la salida a la red del cliente de producción.
+        config.backend.make_request = captura
+        resultado = await responder(consulta, historial, config)
+        cuerpos = captura.cuerpos
+        sistema = [
+            [mensaje["content"] for mensaje in cuerpo["messages"] if mensaje["role"] == "system"] for cuerpo in cuerpos
+        ]
+        comprobaciones = {
+            "contesta «ok» en dos peticiones": resultado["answer"] == "ok" and len(cuerpos) == 2,
+            **{
+                f"{campo} en las dos": all(cuerpo.get(campo) == valor for cuerpo in cuerpos)
+                for campo, valor in esperado.items()
+            },
+            f"las {len(herramientas)} herramientas": all(len(cuerpo.get("tools", [])) == len(herramientas) for cuerpo in cuerpos),
+            f"el prompt `{prompt}`": all(prompts.cargar(prompt) in mensajes for mensajes in sistema),
+            "el aviso del historial": AVISO_HISTORIAL in sistema[0],
+            "pide la respuesta": len(sistema) == 2 and PEDIR_RESPUESTA in sistema[1],
+        }
+        print(f"  {prompt} (huella {_huella(prompts.cargar(prompt))}):")
+        for nombre, cumple in comprobaciones.items():
+            print(f"    {'ok   ' if cumple else 'FALLA'} {nombre}")
+        fallos += [f"{prompt}: {nombre}" for nombre, cumple in comprobaciones.items() if not cumple]
+        if cuerpos:
+            sin_mensajes = {campo: valor for campo, valor in cuerpos[0].items() if campo not in ("messages", "tools")}
+            print(f"    la primera petición, sin los mensajes: {sin_mensajes}")
+    if fallos:
+        sys.exit(f"ABORTADO: no manda lo mismo que la API: {fallos}")
+    print("  EN SECO, BIEN: lo que se mandaría es lo de producción.")
+
+
+async def produccion(elegidos: list[str], en_seco: bool) -> None:
+    """Las 27 consultas con el agente servido y cada prompt, intercalados."""
+    ajustes = _ajustes_de_produccion()
+    for clave, valor in ajustes.items():
+        print(f"  {clave}: {valor}")
+    if en_seco:
+        await _en_seco(elegidos)
+        return
+    # Como el `mcp` de `compose.yaml` (`PREHEAT_MODELS`, PR #295): sin esto la
+    # primera conversación cargaría los modelos dentro de una llamada, con el
+    # corte de producción, 60 s.
+    tiempos = await precalentar()
+    print(f"  precalentado: {', '.join(f'{senal} {segundos:.1f} s' for senal, segundos in tiempos.items())}")
+    await comparar(
+        [_condicion_de_produccion(prompt) for prompt in elegidos],
+        produccion=ajustes,
+        sesion={"precalentado_s": {senal: round(segundos, 1) for senal, segundos in tiempos.items()}},
+    )
+
+
 async def _con_mcp(corrutina) -> None:
     """Sirve el `mcp` de producción en proceso mientras corre `corrutina`."""
     app = SERVIDOR.streamable_http_app()
@@ -1988,6 +2227,10 @@ async def main(parte: str, argumentos: list[str]) -> None:
     if parte == "seguimiento":
         await _con_mcp(seguimiento(int(argumentos[0]) if argumentos else 20))
         return
+    if parte == "produccion":
+        elegidos = [argumento for argumento in argumentos if argumento != "--en-seco"]
+        await _con_mcp(produccion(elegidos, en_seco="--en-seco" in argumentos))
+        return
 
     fuentes = [fuente for fuente in FUENTES if fuente.nombre in argumentos]
     ruta = Path(os.environ.get("FIDELIDAD_JSON", CORPUS))
@@ -2033,10 +2276,15 @@ if __name__ == "__main__":
     elif parte == "seguimiento":
         if len(argumentos) > 1 or (argumentos and not argumentos[0].isdigit()):
             sys.exit("Uso: fidelidad.py seguimiento [veces]")
+    elif parte == "produccion":
+        elegidos = [argumento for argumento in argumentos if argumento != "--en-seco"]
+        if not elegidos or set(elegidos) - set(prompts.disponibles()):
+            sys.exit(f"Uso: fidelidad.py produccion [--en-seco] <prompt ...>. Hay: {prompts.disponibles()}")
     elif parte not in ("resumen", "calibrar", "recuento", "fallos"):
         sys.exit(
             "Uso: fidelidad.py corpus | jueces <modelo> [fichero] | comparar <condición ...>"
             " | resumen | validar <carpeta ...> | calibrar | ventana [--ctx N,N] [--veces N] [consulta ...]"
             " | recuento [fichero ...] | fallos [fichero ...] | repeticion [veces] | seguimiento [veces]"
+            " | produccion [--en-seco] <prompt ...>"
         )
     asyncio.run(main(parte, argumentos))
