@@ -11405,6 +11405,78 @@ Cada paso se cuenta desde el clic que lo abre hasta el del siguiente, y el 1, de
 | Medido después | `condiciones.txt`, a las 13:59, con una conexión a cada máquina |
 | Sin medir | Si el 27B estaba en la caché de disco; lo que tardó en abrirse la sesión desde que se lanzó `gpu-sesion`; y el cierre con `exit` |
 
+### Las cifras del veredicto inglés, con su guion (16 nov 2026, PR #298)
+
+El segundo repaso de la memoria, el 16 de noviembre, encontró cifras que la memoria cita y que ninguna sección de este README publicaba:
+
+- el F1 del lineal (0,526) y el de la incoherencia (0,314) sobre los 19.484 tuits del trozo grande de Webis-Clickbait-17;
+- la precisión y el recall del veredicto inglés;
+- el reparto de sus etiquetas, con el *clickbait* que hay dentro de cada una, del 4,4 % de lo que llama `factual` al 71,2 % de lo que llama `deceptive`.
+
+Salían de `eval_veredicto` (#124), que guarda en `var/` el voto de cada señal por tuit, pero su salida no se guardó. Lo publicado era el F1 del veredicto (0,660, y 0,811 en los unánimes, en la sección de #231) y, con el lineal de #78, anterior al bilingüe, 0,535, 4,7 % y 72,0 %.
+
+Lo mismo pasaba con el 75 % de tuits cuyo texto difiere del titular del artículo. Lo afirmaban el docstring de `webis_extract.py` y `data/external/ATTRIBUTION.md`, sin ningún guion detrás.
+
+#### Lo que entra
+
+- **`spikes/cifras_veredicto.py`**: lee la caché sin cargar ningún modelo, y cuenta:
+  - las señales, sobre los tuits en que votaron, como `eval_veredicto.comprobar`;
+  - el veredicto, en todos los tuits y en los unánimes, con `deceptive` y `stylistic_clickbait` como «es clickbait»;
+  - y el reparto de las etiquetas.
+
+  Dos cifras ya publicadas lo atan a lo que se midió: si la dedicada no da 0,758 (#124) o el veredicto no da 0,660 (#231), la caché es de otro sistema y el guion se para. Su salida, con el sha256 de la caché, queda en `spikes/cifras_veredicto/2026-11-16.txt`.
+- **`spikes/webis_tuit_titular.py`**: cruza por `id`, en el trozo grande, el tuit (`headline`, del fichero de titulares) con el titular del artículo (`targetTitle`, del de cuerpos), y cuenta en cuántos difieren.
+
+#### Lo medido
+
+| Señal | Votan | P | R | F1 |
+|---|---|---|---|---|
+| Dedicada (control) | 19.458 | 0,709 | 0,814 | 0,758 |
+| Léxico | 19.458 | 0,341 | 0,656 | 0,448 |
+| Lineal bilingüe | 19.475 | 0,404 | 0,751 | **0,526** |
+| Incoherencia | 19.439 | 0,666 | 0,205 | **0,314** |
+
+| El veredicto | Tuits | P | R | F1 |
+|---|---|---|---|---|
+| Todos (control) | 19.484 | **0,690** | **0,633** | 0,660 |
+| Unánimes | 6.808 | 0,805 | 0,817 | 0,811 |
+
+| Etiqueta | Tuits | Del total | *Clickbait* dentro |
+|---|---|---|---|
+| `factual` | 6.952 | 35,7 % | **4,4 %** |
+| `ambiguous` | 8.194 | 42,1 % | 17,4 % |
+| `stylistic_clickbait` | 2.990 | 15,3 % | 68,0 % |
+| `deceptive` | 1.339 | 6,9 % | **71,2 %** |
+| `no_data` | 9 | 0,0 % | 66,7 % |
+
+**El tuit frente al titular del artículo:** de los 19.484, difieren 14.605 (75,0 %) sin contar mayúsculas ni espacios repetidos, y 16.562 (85,0 %) tal cual. Las comillas tipográficas, la puntuación y los emojis cuentan como diferencia.
+
+#### Lo que hay que saber al citarlas
+
+- **Son del sistema del 8 de octubre**, el de la caché, que es la misma con la que se escribió la sección de #231 (huella `3db32ea91cb2`). Es anterior a BETO (#242).
+  - En ella, la dedicada no vota 26 tuits, los que el detector no toma por ingleses, y el léxico tampoco.
+  - Lo que entró después en lo que decide un voto (el `git log` de `backend/integrations/nlp/`, `orchestrator.py` y `domain.py` desde el 8 oct) no cambia el de un tuit inglés: la dedicada y el tono en español, la revisión fijada de los modelos, el cerrojo de carga, las claves opcionales, las anotaciones de las herramientas, el texto vacío y textos de las fichas.
+  - Así que hoy el resultado sólo puede ser otro en esos 26 tuits, de 19.484. Es una lectura del historial: no se ha comprobado regenerando la caché.
+- **Los 19.484 incluyen `webis_test`**, el 80 %, desde la partición de #78: no son cifras de un test reservado. La memoria lo dice así desde ese mismo repaso.
+- **El 0,525 de la ficha de la incoherencia** (#274) es otra cuenta del mismo lineal: sale de `eval_incoherencia`, que llama a `linear.predict` directamente.
+  - Lectura mía, sin comprobar: así no pasa por la puerta del idioma y cuenta también los 9 tuits en que el análisis no deja votar al lineal.
+- **La caché sigue sin versionar.** El guion la identifica por su sha256, y la que se regenere puede dar otras cifras.
+
+#### Lo que no entra
+
+- **Regenerar la caché con el sistema de hoy**: sería una medida nueva, y la decide el autor.
+- **Versionar la caché**: son 13,6 MB, y la de #275, que lee la misma, tampoco se versionó.
+- **La memoria**: sus cifras ya coinciden con éstas.
+
+| Condiciones | |
+|---|---|
+| Fecha | 16 nov 2026, hacia las 23:18, hora de Madrid |
+| Máquina | El PC de sobremesa del autor: WSL2 con Ubuntu 24.04.4, Python 3.12.3 del `.venv` y scikit-learn 1.9.0 |
+| Datos | `var/veredicto_validation170630.json`, del 8 oct, de 13.662.667 bytes, con sha256 `5be239b5b9d6…` y huella `3db32ea91cb2`; y `var/webis/webis17_validation170630.jsonl.gz` y `…_cuerpos.jsonl.gz`, de `webis_extract` |
+| Código | `ffd31f8` (`dev`), con los dos guiones sin commitear |
+| Modelos | Ninguno: se cuenta desde lo guardado |
+| Guiones | `spikes/cifras_veredicto.py`, con su salida en `spikes/cifras_veredicto/2026-11-16.txt`, y `spikes/webis_tuit_titular.py`, con la suya en su docstring |
+
 
 "Aplico Rudin donde puedo —incoherencia(A MEDIAS, YA QUE EL MODELO NO) y léxico son intrínsecamente interpretables— y reservo lo post-hoc (LIME/SHAP), con sus límites de fidelidad, solo para la parte que depende de un transformer preentrenado que no puedo abrir de otro modo." !!!IMPORTANTE (NO MODIFICAR, RECORDAR POSTURA DEFINIDA)
 
