@@ -36,6 +36,14 @@
 # #299 (2026-11-17): `produccion`, el agente servido, también con 16384. Usa
 # además la comprobación de revisiones de `grabar_demostracion.py`.
 #   FIDELIDAD_MINUTOS=60 setsid nohup bash spikes/fidelidad_a40.sh produccion 06-dato 05-llano > /tmp/fidelidad_299.log 2>&1 < /dev/null & disown
+#
+# Y FIDELIDAD_COMPARTIR=1 (#299, 18 nov), para abrir la sesión con la GPU
+# ocupada por otros. `gpu-sesion` no abre nunca sin terminal si hay alguien:
+# lo decide una persona, y esta variable es esa decisión, que no se toma por
+# defecto. Aun así se para si quedan menos de LIBRE_MINIMO MiB libres —el 27B
+# con 16384 ocupa 16.487, medido en #192—, para no quitarle memoria a nadie, y
+# si el modelo no cabe entero en la GPU. Con la GPU compartida, los tiempos de
+# la medida no se pueden citar: el cálculo también se comparte.
 exec 2>&1
 cd "$(dirname "$0")/.." || exit 1
 MAQUINA_2=gongarcia@gserver2.tfg.etsii.urjc.es
@@ -43,6 +51,8 @@ PUERTO=11500
 REGISTRO=$(mktemp -d)
 trap 'rm -rf "$REGISTRO"' EXIT
 MINUTOS=${FIDELIDAD_MINUTOS:-45}
+COMPARTIR=${FIDELIDAD_COMPARTIR:-0}
+LIBRE_MINIMO=20000
 
 USADO=(backend spikes/fidelidad.py)
 if [ "${1:-}" = jueces ]; then
@@ -66,13 +76,14 @@ for fichero in "${USADO[@]}"; do
 done
 
 echo "== condiciones"
-echo "fecha: $(date -Is) · commit: $(git rev-parse --short HEAD) · rama: $(git branch --show-current) · guion: $(sha256sum spikes/fidelidad.py | cut -c1-12) · precarga: $PRECARGA con num_ctx $CTX · sesión: $MINUTOS min"
+echo "fecha: $(date -Is) · commit: $(git rev-parse --short HEAD) · rama: $(git branch --show-current) · guion: $(sha256sum spikes/fidelidad.py | cut -c1-12) · precarga: $PRECARGA con num_ctx $CTX · sesión: $MINUTOS min · gpu compartida: $([ "$COMPARTIR" = 1 ] && echo sí || echo no)"
 
 # --- Máquina 2: la sesión, que espera a que WSL termine ---------------------------
 {
   # El resto va entre comillas, sin expandir aquí: el modelo y la ventana se le
   # pasan delante, como variables del guion remoto, que las hereda la sesión.
-  printf 'export PRECARGA=%q CTX=%q MINUTOS=%q\n' "$PRECARGA" "$CTX" "$MINUTOS"
+  printf 'export PRECARGA=%q CTX=%q MINUTOS=%q COMPARTIR=%q LIBRE_MINIMO=%q\n' \
+    "$PRECARGA" "$CTX" "$MINUTOS" "$COMPARTIR" "$LIBRE_MINIMO"
   cat <<'REMOTO'
 cat > /tmp/fidelidad192_sesion.sh <<'SESION'
 echo "== máquina 2: $PRECARGA, cargado"
@@ -80,6 +91,14 @@ jq -nc --arg modelo "$PRECARGA" --argjson ctx "$CTX" \
   '{model: $modelo, stream: false, keep_alive: "10m", messages: [{role: "user", content: "Responde sólo: ok"}], options: {num_ctx: $ctx, num_predict: 4}}' \
   | curl -s http://127.0.0.1:11434/api/chat -d @- \
   | jq -r '"  carga: \((.load_duration // 0) / 1e9) s · total: \((.total_duration // 0) / 1e9) s\(if .error then " · ERROR: " + .error else "" end)"'
+# Entero en la GPU, o no se mide: repartido con la CPU sería otra configuración.
+curl -s http://127.0.0.1:11434/api/ps \
+  | jq -r '.models[] | "  en la GPU: \(.size_vram / 1048576 | floor) de \(.size / 1048576 | floor) MiB del modelo"'
+if [ "$(curl -s http://127.0.0.1:11434/api/ps | jq '[.models[] | select(.size_vram < .size)] | length')" != 0 ]; then
+  echo "ABORTADO: el modelo no cabe entero en la GPU"
+  exit 0
+fi
+echo "gpu con el modelo: $(nvidia-smi --query-gpu=memory.used,utilization.gpu --format=csv,noheader) · procesos: $(nvidia-smi --query-compute-apps=pid --format=csv,noheader | grep -c .)"
 echo "LISTO PARA WSL"
 for _ in $(seq 1 $((MINUTOS * 60))); do [ -f /tmp/fidelidad192_fin ] && break; sleep 1; done
 SESION
@@ -87,7 +106,16 @@ rm -f /tmp/fidelidad192_fin
 biblioteca=~/.ollama/models/manifests/registry.ollama.ai/library
 echo "máquina 2: $(hostname) · ollama $(~/.local/ollama/bin/ollama --version 2>&1 | grep -o '[0-9][0-9.]*' | tail -1) · $PRECARGA $(sha256sum "$biblioteca/${PRECARGA%%:*}/${PRECARGA#*:}" | cut -c1-12) · qwen3.5:2b $(sha256sum $biblioteca/qwen3.5/2b | cut -c1-12) · gpu-sesion $(sha256sum ~/bin/gpu-sesion | cut -c1-12)"
 echo "gpu antes: $(nvidia-smi --query-gpu=memory.used --format=csv,noheader,nounits) MiB · procesos: $(nvidia-smi --query-compute-apps=pid --format=csv,noheader | grep -c .)"
-GPU_SESION_MAX=${MINUTOS}m GPU_SESION_TUNEL=0 ~/bin/gpu-sesion bash /tmp/fidelidad192_sesion.sh < /dev/null
+libre=$(nvidia-smi --query-gpu=memory.total,memory.used --format=csv,noheader,nounits | awk -F', ' '{print $1 - $2}')
+if [ "$COMPARTIR" = 1 ] && [ "$libre" -lt "$LIBRE_MINIMO" ]; then
+  echo "ABORTADO: con la GPU compartida quedan $libre MiB libres, y hacen falta $LIBRE_MINIMO"
+elif [ "$COMPARTIR" = 1 ]; then
+  # La respuesta a «¿Seguir igualmente?» de `gpu-sesion`: la dio una persona al pedir FIDELIDAD_COMPARTIR.
+  echo "gpu compartida: $libre MiB libres (hacen falta $LIBRE_MINIMO)"
+  printf 's\n' | GPU_SESION_MAX=${MINUTOS}m GPU_SESION_TUNEL=0 ~/bin/gpu-sesion bash /tmp/fidelidad192_sesion.sh
+else
+  GPU_SESION_MAX=${MINUTOS}m GPU_SESION_TUNEL=0 ~/bin/gpu-sesion bash /tmp/fidelidad192_sesion.sh < /dev/null
+fi
 sleep 2
 echo "== máquina 2, al cerrar la sesión"
 echo "  gpu: $(nvidia-smi --query-gpu=memory.used --format=csv,noheader,nounits) MiB · procesos: $(nvidia-smi --query-compute-apps=pid --format=csv,noheader | grep -c .) · ollama propios: $(pgrep -u gongarcia -c -x ollama)"
