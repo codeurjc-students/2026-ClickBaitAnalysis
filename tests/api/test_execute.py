@@ -359,6 +359,44 @@ async def test_el_analisis_completo_rechaza_el_titular_vacio_con_su_frase(
     assert "AnalyzeRequest" not in resultado.detail
 
 
+# ----- Lo que FastMCP genera fuera del decorador (R12.7), #301 -----
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("herramienta", "argumentos"),
+    [
+        ("get_guardian_news", {"topic": "[1]"}),
+        ("get_nyt_news", {"topic": '{"a": 1}'}),
+        (
+            "analyze_headline",
+            {
+                "headline": "You Won't Believe What Happened Next",
+                "content": '{"cuerpo": 1}',
+            },
+        ),
+    ],
+    ids=["lista-en-el-tema", "objeto-en-el-tema", "objeto-en-el-cuerpo"],
+)
+async def test_un_texto_que_es_json_no_publica_el_error_de_pydantic(
+    monkeypatch, servidor_mcp, herramienta, argumentos
+):
+    """Hasta #301, FastMCP convertía en lista u objeto un texto opcional que
+    fuera JSON (`pre_parse_json`), su modelo de argumentos lo rechazaba y el
+    error de Pydantic salía entero: el modelo, el valor y la dirección de su
+    documentación. Pasa antes de llamar a la herramienta, así que el decorador
+    de #292 no lo ve. El texto cumple el esquema publicado: no es un 422."""
+    resultado = await _ejecutar(monkeypatch, servidor_mcp, herramienta, argumentos)
+
+    assert resultado.status == ExecuteStatus.ERROR
+    assert resultado.detail is not None
+    assert "validation error" not in resultado.detail
+    assert "pydantic" not in resultado.detail.lower()
+    assert "Arguments" not in resultado.detail
+    assert "input_value" not in resultado.detail
+    assert "no previsto" in resultado.detail
+
+
 # ----- Los argumentos, en la respuesta y con ella en el historial (R9.2, #292) -----
 
 

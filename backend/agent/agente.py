@@ -393,7 +393,8 @@ async def _ejecutar(
                 datos = invocacion.result.data
             else:
                 # Las herramientas lanzan mensajes ya redactados para publicarse
-                # (#89, #185); `_leer` los trae tal cual.
+                # (#89, #185); `_leer` sólo trae ésos, y lo demás lo cambia por
+                # una frase pública (#301).
                 error = (
                     invocacion.result.error or f"«{nombre}» falló sin decir por qué."
                 )
