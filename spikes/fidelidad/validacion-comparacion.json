@@ -2,7 +2,17 @@
  "condiciones": {
   "exportada": "2026-09-30T14:24:05+02:00",
   "origen": "la página de validación de #192 (artefacto privado), colección `validaciones_comparacion`",
-  "que_se_valido": "lo que el juez (gemma4:31b) marcó como infiel en cada condición; lo que dio por fiel no se leyó"
+  "que_se_valido": "lo que el juez (gemma4:31b) marcó como infiel en cada condición; lo que dio por fiel no se leyó",
+  "exportaciones": [
+   {
+    "exportada": "2026-11-20T15:41:45+01:00",
+    "validadas": 4,
+    "condiciones": [
+     "P-05-produccion",
+     "P-06-produccion"
+    ]
+   }
+  ]
  },
  "validaciones": {
   "B-04/contraste-1/r1": {
@@ -84,6 +94,38 @@
    "decision": "acuerdo",
    "nota": "",
    "actualizada": "2026-09-30T09:12:55.391Z"
+  },
+  "P-05-produccion/bucle-encadena-nyt/r1": {
+   "condicion": "P-05-produccion",
+   "fiel": false,
+   "legibilidad": null,
+   "decision": "acuerdo",
+   "nota": "",
+   "actualizada": "2026-11-20T15:41:42+01:00"
+  },
+  "P-05-produccion/especifica-8/r1": {
+   "condicion": "P-05-produccion",
+   "fiel": false,
+   "legibilidad": null,
+   "decision": "acuerdo",
+   "nota": "",
+   "actualizada": "2026-11-20T15:41:42+01:00"
+  },
+  "P-05-produccion/otro_dominio-3/r1": {
+   "condicion": "P-05-produccion",
+   "fiel": false,
+   "legibilidad": null,
+   "decision": "acuerdo",
+   "nota": "",
+   "actualizada": "2026-11-20T15:41:42+01:00"
+  },
+  "P-06-produccion/especifica-8/r1": {
+   "condicion": "P-06-produccion",
+   "fiel": false,
+   "legibilidad": null,
+   "decision": "acuerdo",
+   "nota": "roza",
+   "actualizada": "2026-11-20T15:41:42+01:00"
   }
  }
 }
