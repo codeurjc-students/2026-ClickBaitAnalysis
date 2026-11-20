@@ -250,6 +250,12 @@ RUBRICA = RAIZ / "spikes" / "prompts" / "juez-fidelidad.md"
 JUEZ_NUM_CTX = 16384
 JUEZ_TEMPERATURA = 0
 JUEZ_THINK = True
+# Cuánto se espera cada juicio. Era el `LLM_TIMEOUT` del agente, 300 s; con la
+# A40 compartida (#299, 20 nov) dos juicios de `05-llano` pasaron de 300 s, y uno
+# dos veces. No cambia el instrumento —el juez, la ventana, la temperatura y la
+# rúbrica son los mismos—, sólo cuánto se le espera: por eso se anota en las
+# condiciones, pero no está entre las que tienen que coincidir para continuar.
+JUEZ_TIMEOUT = 600.0
 
 CLASIFICACIONES = ["respaldada", "mal_atribuida", "contradicha", "inventada"]
 # Lo que tiene que devolver el juez; Ollama lo impone al generar (`format`).
@@ -746,7 +752,7 @@ async def _juzgar(cliente: httpx.AsyncClient, modelo: str, rubrica: str, convers
     }
     fila: dict = {"id": conversacion["id"], "fuente": conversacion["fuente"], "caracteres": len(caso)}
     try:
-        respuesta = await cliente.post(f"{URL}/api/chat", json=cuerpo, timeout=LLM_TIMEOUT)
+        respuesta = await cliente.post(f"{URL}/api/chat", json=cuerpo, timeout=JUEZ_TIMEOUT)
         respuesta.raise_for_status()
         datos = respuesta.json()
     except (httpx.HTTPError, ValueError) as error:
@@ -836,6 +842,7 @@ async def jueces(modelo: str, ruta: Path, juzgado: Path = CORPUS) -> None:
         "temperature": JUEZ_TEMPERATURA,
         "think": JUEZ_THINK,
         "keep_alive": KEEP_ALIVE,
+        "timeout": JUEZ_TIMEOUT,
         "rubrica": _huella(rubrica),
         "corpus": hashlib.sha256(juzgado.read_bytes()).hexdigest()[:12],
         "corpus_generado": corpus_leido["condiciones"]["fecha"],
