@@ -10005,7 +10005,7 @@ Con `CHAT_PARTE_ABIERTA=espanol bash spikes/chat_maquina1.sh`, por Caddy y con e
 
 - **Separar y marcar el contenido de las noticias** en el resultado de cada herramienta, la mitigación de OWASP que no se ha hecho → #217.
 - **Poder afirmar algo de `06-dato`** pediría repetir (a) con más repeticiones; hoy se adopta como defensa en profundidad, que no rompe la elección de herramientas.
-- **La fidelidad de `06-dato`**, con las 27 consultas de #192.
+- **La fidelidad de `06-dato`**, con las 27 consultas de #192. *(Medida en #299, 20 nov 2026, con el agente como se sirve: 1 infiel de 27, frente a 3 de `05-llano` en la misma sesión, según el juez y confirmadas por el autor. Cumple la regla de #192; sección «La fidelidad del prompt que se sirve, `06-dato`».)*
 - **Avisar al usuario** cuando una noticia traiga instrucciones, con su propia medida.
 - **Producción** usa `06-dato` y las anotaciones desde el próximo despliegue.
 - **`docs/arquitectura.md`** dice `05-llano` en lo que describe de `v0.6` y `v0.8`, que es correcto para ellas: lo de hoy va al lado, con la siguiente versión.
@@ -11476,6 +11476,83 @@ Lo mismo pasaba con el 75 % de tuits cuyo texto difiere del titular del artícul
 | Código | `ffd31f8` (`dev`), con los dos guiones sin commitear |
 | Modelos | Ninguno: se cuenta desde lo guardado |
 | Guiones | `spikes/cifras_veredicto.py`, con su salida en `spikes/cifras_veredicto/2026-11-16.txt`, y `spikes/webis_tuit_titular.py`, con la suya en su docstring |
+
+### La fidelidad del prompt que se sirve, `06-dato` (#299, 20 nov 2026)
+
+Desde #269, el agente usa `06-dato`: `05-llano` más un párrafo que dice que el texto de una noticia es un dato y no una instrucción. Se adoptó con las 26 consultas de elección, pero su fidelidad al narrar no se midió, y así lo decían la ficha del modelo y la memoria. La cifra que había, 1 respuesta infiel de 27 en #192, era de `05-llano` con el perfil preciso. Esta issue mide `06-dato` tal como se sirve, con `05-llano` en la misma sesión como referencia.
+
+#### Lo que se vio en el código
+
+El modo `comparar` de `spikes/fidelidad.py` repite las condiciones de #192, no las de producción. Medir con él habría dado la fidelidad de `06-dato` en un agente que no es el servido:
+
+- la ventana es de 8.192 tokens, y en producción de 16.384 desde #192;
+- no manda el tope de salida de 1.500 tokens (#208);
+- apaga el aviso del historial (#192) y la petición de la respuesta cuando sale vacía (#208);
+- espera 10 s a descubrir las herramientas y 120 s a ejecutarlas, y producción 5 y 60;
+- no precalienta los modelos, y en producción los dos procesos lo hacen;
+- y en WSL las señales van en la GTX (#159), sin comprobar qué revisión de cada modelo se carga.
+
+Las tres primeras estaban en la issue; las otras tres se vieron al empezarla.
+
+#### Lo que entra
+
+- **La parte `produccion` de `spikes/fidelidad.py`**: las 27 consultas de #192 con cada prompt que se le dé, intercaladas y contadas como en `comparar`.
+  - La configuración es la que monta la API, `configuracion()` de `api/chat.py`, y sólo se cambia el prompt: no se replica ningún ajuste.
+  - Antes de importar `backend` pone lo mismo que el `environment` de `compose.yaml` en la API —`LLM_BACKEND` y `LLM_URL`, aquí la del túnel—, y las señales en CPU y sin red.
+  - Se para si un ajuste que producción no pone no tiene su valor por defecto, si torch ve una GPU o si la caché de Hugging Face no tiene la revisión de las fichas (`comprobar_revisiones`, de #265). Y precalienta como el `mcp`.
+  - `--en-seco` captura, sin Ollama, las peticiones que saldrían y las compara con los valores por defecto. Con los dos prompts salió lo de producción: `qwen3.5:27b`, `num_ctx` 16.384, `num_predict` 1.500, temperatura 0,6, `presence_penalty` 0, `think`, `keep_alive` de 10 min, las 14 herramientas, el aviso del historial y la petición de la respuesta. Con `LLM_NUM_PREDICT=2000` se para.
+- **`validar` añade** lo validado a lo que había: escribía el fichero entero, y exportar sólo las condiciones nuevas habría borrado la validación de #192.
+- **`JUEZ_TIMEOUT`**, 600 s: el juez esperaba los 300 s del agente, y con la GPU compartida dos juicios pasaron de ahí (abajo). No cambia el instrumento, así que no está entre las condiciones que tienen que coincidir para continuar una medida.
+- **`spikes/fidelidad_a40.sh`**: `produccion` precarga el 27B con 16.384, y `FIDELIDAD_COMPARTIR=1` abre la sesión con la GPU ocupada por otros. Sin ella, `gpu-sesion` no abre nunca por guion si hay alguien: lo decide una persona, y la variable es esa decisión. Con ella contesta «s», pero se para si quedan menos de 20.000 MiB libres o si el modelo no cabe entero en la GPU, y lo anota en las condiciones.
+- **Los datos**, en `spikes/fidelidad/`: `comparacion-P-06-produccion.json` y `comparacion-P-05-produccion.json`, sus juicios (`juez-gemma4-31b-comparacion-P-06-produccion.json` y el de `P-05`), `resumen.json` y la lectura del autor en `validacion-comparacion.json`.
+
+#### La regla, publicada antes de medir
+
+Es la de #192, precisada en un [comentario de la issue](https://github.com/codeurjc-students/2026-ClickBaitAnalysis/issues/299#issuecomment-6946218735) el 17 de noviembre, antes de medir: **`06-dato` se queda si su tasa de infieles según `gemma4:31b`, sobre las 27 consultas, no supera en más de 5 puntos a la de `05-llano` en la misma sesión.** Con 27, cinco puntos son 1,35 respuestas: como mucho, una infiel más. Las vacías o fallidas no cuentan como infieles y van aparte, y lo validado por el autor va al lado, sin decidir.
+
+#### Lo medido
+
+| Prompt | Contestadas | Infieles según el juez | Leídas por el autor | Marcadores | Llamadas de más | Sin herramientas |
+|---|---|---|---|---|---|---|
+| `06-dato` | 27 de 27 | **1** (3,7 %) | 1, confirmada | 0 | 0 | 0 |
+| `05-llano` | 27 de 27 | **3** (11,1 %) | 3, confirmadas | 2 | 1 | 0 |
+
+**Cumple la regla**: `06-dato` queda 7,4 puntos por debajo de `05-llano`, no por encima. Las 54 respuestas tienen legibilidad 3 según el juez, ninguna repite una llamada y, al final, ninguna quedó vacía ni fallida.
+
+Las cuatro que marcó el juez las leyó el autor el 20 de noviembre, en la conversación y no en la página de validación de #192, y las confirmó todas como infieles, la primera con la nota «roza». `validar` las guardó en `validacion-comparacion.json` desde la misma forma que exporta aquella página. Ninguna falsa alarma, así que las cifras validadas son las del juez.
+
+Las cuatro:
+
+- **`especifica-8`, con los dos prompts**: el tono de «A wonderful celebration took place». La herramienta sólo da «positive» y su confianza, y las dos respuestas le atribuyen una justificación: «un sentimiento de alegría» con `06-dato`, y «debido a palabras como "wonderful" que expresan alegría» con `05-llano`. Es el fallo que más se repitió en #192, en C y en E, y esta misma consulta salió infiel con `04-preciso`.
+- **`bucle-encadena-nyt`, con `05-llano`**: trae noticias del NYT y, en la vuelta siguiente, sin llamar a ninguna señal, narra un análisis entero: tres pistas, un 65 % del modelo de pesos, una similitud de 0,72, «factual news» al 82 %, un tono neutro y un veredicto. Ninguna cifra sale de una herramienta. Es el análisis inventado de #188 y #208, sin historial, como el de las noticias en español en #234 (1 de 2) y en producción (1 de 3, sección de #269); en #192, esta consulta lo había hecho bien las 7 veces. Con `06-dato`, la misma consulta llamó a `analyze_headline` y contestó bien. Los dos marcadores de `05-llano` son de esta respuesta: los nombres internos `factual news` y `stylistic_clickbait`.
+- **`otro_dominio-3`, con `05-llano`**: las fichas de los modelos. Dice que los dos modelos del tono están entrenados en tuits, y la ficha del español dice que no: «No está entrenado en tuits ni en titulares, al revés que el modelo inglés».
+
+#### Lo que hay que saber al citarlas
+
+- **Es una sola repetición**, como en #192 y como se decidió al definir la issue. Con 27 respuestas, una infiel más o menos son 3,7 puntos. La regla dice que `06-dato` no es menos fiel; la diferencia, 1 frente a 3, no basta para decir que lo sea más. Y dos de las tres de `05-llano` —el tono y las fichas— no tienen que ver con el párrafo de las noticias.
+- **No se compara con el 1 de 27 de #192**. Es otra sesión, y entre sesiones hay deriva (#192); es otra configuración, la de producción; y es otro `05-llano`, porque #234 lo cambió para el español: su huella pasó de `cb03dab24e21` a `6f0bcb7f306a`. La referencia es `05-llano` en la misma sesión.
+- **La A40 estaba compartida.** Del 17 al 20 de noviembre la ocupaban procesos de otro usuario. La generación se hizo el 18 compartiéndola con dos, de unos 25 GB al 100 % de cálculo, por decisión del autor; el juez, el 20, con uno, de 12,6 GB. Los dos modelos estuvieron enteros en la GPU (16.348 y 19.934 MiB), comprobado en cada sesión, así que lo compartido fue el cálculo, no la configuración. **Los tiempos no se pueden citar**: el 27B escribió a unos 7 tokens por segundo, frente a unos 27 en #192.
+- **El juez necesitó más memoria libre que su tamaño.** El 18 de noviembre, con 21.094 MiB libres, Ollama sólo puso en la GPU 16.879 de sus 20.579 MiB, y dejó 4.215 sin usar (con el 27B dejó 4.746). El intento se abortó sin juzgar, y se esperó a que hubiera sitio.
+- **El juez es el de #192**: `gemma4:31b` con el mismo id (`6316f0629137`), la misma rúbrica (`78e41cf7cdc3`), temperatura 0, `think` y ventana de 16.384. Lo que dio por fiel no se leyó, como en #192, y en su calibración dejó pasar 4 de 24 infieles.
+- **Las sesiones.** La primera de generación se cortó a los 60 minutos con 38 de 54, y las tres conversaciones que estaban en marcha fallaron y se repitieron en la segunda (`comparar` repite las fallidas). En el juez, dos juicios de `05-llano`, `generica-3` y `otro_dominio-3`, pasaron de 300 s; `generica-3` volvió a pasar en la repetición, y como era su primer caso, la sesión se paró. Con `JUEZ_TIMEOUT` a 600 s se juzgaron en 354 y 269 s.
+- **Las respuestas no son más largas que en #192**: 14.329 y 15.303 tokens de salida en total, frente a 13.799 de E.
+
+#### Lo que no entra
+
+- Cambiar `06-dato` o los docstrings de las herramientas.
+- Lo demás que #269 dejó en #217: marcar el contenido de las noticias, avisar al usuario, más repeticiones de la inyección y la semilla fija.
+- La elección de herramienta con las 26 consultas, que #215 repite sobre la versión congelada.
+- Que la pantalla avise de un análisis inventado tras traer noticias, que sigue en #217.
+
+| Condiciones | |
+|---|---|
+| Fechas | Generación: 18 nov 2026, de 09:25 a 10:25 y de 10:26 a 10:43. Juez: 20 nov, `06-dato` de 10:41 a 11:51 y `05-llano` de 11:51 a 14:01, en tres sesiones. Hora de Madrid |
+| Máquinas | La A40 de la máquina 2, con Ollama 0.34.2, por un túnel propio en el 11500, compartida (arriba). El guion, el servidor MCP en proceso y las señales, en WSL2 en el PC del autor, en CPU y sin red |
+| Modelos | `qwen3.5:27b` (`7653528ba5cb`), el de producción, y `gemma4:31b` (`6316f0629137`), el juez. Las señales, con las revisiones de las fichas: `517de05db9ba`, `3216a57f2a0d`, `1110a243fdf4`, `03c31ac0c288` y `cf991100d706` |
+| Prompts | `06-dato` (`68f89b3ec133`) y `05-llano` (`6f0bcb7f306a`) |
+| Agente | La configuración de `api/chat.py`: `num_ctx` 16.384, `num_predict` 1.500, temperatura 0,6, `presence_penalty` 0, `keep_alive` de 10 min, `think`, 3 decimales, el aviso del historial y la petición de la respuesta, 6 vueltas como mucho, y cortes de 5 y 60 s |
+| Código | La generación, sobre `a120f41`; el juez, sobre `00693c4` y, en su última sesión, `bf66992`. Lo servido, igual que en la máquina 1 (`e19ba3a`) |
+| Guiones | `spikes/fidelidad.py` (`produccion`, `jueces`, `resumen` y `validar`) y `spikes/fidelidad_a40.sh` |
 
 
 "Aplico Rudin donde puedo —incoherencia(A MEDIAS, YA QUE EL MODELO NO) y léxico son intrínsecamente interpretables— y reservo lo post-hoc (LIME/SHAP), con sus límites de fidelidad, solo para la parte que depende de un transformer preentrenado que no puedo abrir de otro modo." !!!IMPORTANTE (NO MODIFICAR, RECORDAR POSTURA DEFINIDA)

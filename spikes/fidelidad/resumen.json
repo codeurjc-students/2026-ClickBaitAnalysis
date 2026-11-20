@@ -152,6 +152,76 @@
      "sin_validar": 0
     }
    }
+  },
+  "P-05-produccion": {
+   "conversaciones": 27,
+   "estados": {
+    "answered": 27
+   },
+   "marcadores_por_respuesta": 0.07,
+   "respuestas_sin_marcadores": 26,
+   "marcadores_por_tipo": {
+    "nombres_internos": 2,
+    "posiciones": 0,
+    "decimales_largos": 0
+   },
+   "sin_herramientas": 0,
+   "con_llamadas_de_mas": 1,
+   "con_repetidas": 0,
+   "tiempo_mediana_s": 66.1,
+   "tiempo_max_s": 311.9,
+   "modelo_mediana_s": 64.8,
+   "modelo_max_s": 311.7,
+   "modelo_suma_s": 2191.3,
+   "salida_tokens_suma": 15303,
+   "prompt_tokens_max": 9513,
+   "juez gemma4-31b": {
+    "juzgadas": 27,
+    "infieles": 3,
+    "legibilidad": {
+     "3": 27
+    },
+    "validacion_del_autor": {
+     "infieles_confirmadas": 3,
+     "falsas_alarmas": 0,
+     "sin_validar": 0
+    }
+   }
+  },
+  "P-06-produccion": {
+   "conversaciones": 27,
+   "estados": {
+    "answered": 27
+   },
+   "marcadores_por_respuesta": 0,
+   "respuestas_sin_marcadores": 27,
+   "marcadores_por_tipo": {
+    "nombres_internos": 0,
+    "posiciones": 0,
+    "decimales_largos": 0
+   },
+   "sin_herramientas": 0,
+   "con_llamadas_de_mas": 0,
+   "con_repetidas": 0,
+   "tiempo_mediana_s": 71.2,
+   "tiempo_max_s": 265.3,
+   "modelo_mediana_s": 69.6,
+   "modelo_max_s": 264.8,
+   "modelo_suma_s": 2076.4,
+   "salida_tokens_suma": 14329,
+   "prompt_tokens_max": 9580,
+   "juez gemma4-31b": {
+    "juzgadas": 27,
+    "infieles": 1,
+    "legibilidad": {
+     "3": 27
+    },
+    "validacion_del_autor": {
+     "infieles_confirmadas": 1,
+     "falsas_alarmas": 0,
+     "sin_validar": 0
+    }
+   }
   }
  },
  "marcadores_frente_a_la_lectura": {

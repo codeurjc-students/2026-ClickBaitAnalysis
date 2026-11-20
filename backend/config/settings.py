@@ -432,7 +432,9 @@ class Settings(BaseSettings):
     # `06-dato`, que es `05-llano` más una regla contra la inyección indirecta:
     # cumplió la de #78 con las 26 consultas (98/104 frente a 99/104, en la
     # misma sesión). Que reduzca la inyección no se puede afirmar: 0 de 16
-    # frente a 1 de 16.
+    # frente a 1 de 16. Su fidelidad al narrar, medida con el agente como se
+    # sirve (#299): 1 respuesta infiel de 27, frente a 3 con `05-llano` en la
+    # misma sesión.
     llm_prompt: Literal["03-estricto", "04-preciso", "05-llano", "06-dato"] = "06-dato"
     # Qué grabación reproduce `llm_backend=grabado` (#265): el nombre de un
     # fichero de `backend/integrations/llm/grabaciones/`, sin la extensión, como
