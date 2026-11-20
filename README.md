@@ -11228,7 +11228,7 @@ Y tres más, al plantear el trabajo o al escribir las pruebas:
 
 #### Lo que no se arregla
 
-- **Dos textos de FastMCP siguen saliendo**: «Input validation error» y «Output validation error». Los genera el servidor de bajo nivel de MCP fuera del decorador, antes y después de llamar a la herramienta. No son textos de una librería sobre nuestras tripas: son los mensajes de `jsonschema` sobre los esquemas de entrada y de salida, que ya son públicos, y el de salida sólo saldría con un fallo de nuestro propio esquema.
+- **Dos textos de FastMCP siguen saliendo**: «Input validation error» y «Output validation error». Los genera el servidor de bajo nivel de MCP fuera del decorador, antes y después de llamar a la herramienta. No son textos de una librería sobre nuestras tripas: son los mensajes de `jsonschema` sobre los esquemas de entrada y de salida, que ya son públicos, y el de salida sólo saldría con un fallo de nuestro propio esquema. *(Corregido en #301: «Input validation error» no salía nunca, porque FastMCP registra su manejador con `validate_input=False`. Lo que salía era el texto de Pydantic sobre el modelo de argumentos, cuando un texto opcional era JSON de una lista o un objeto: el nombre del modelo, el valor y la dirección de su documentación. Y «Output validation error» sí podía salir, con un fallo de nuestra propia salida. Desde #301 no sale ninguno; ver «Lo que FastMCP publica sin pasar por el decorador».)*
 - **La traza lleva los marcos y los mensajes, no los valores de las variables.** En `BaseAPI` la lleva sólo el `except` genérico; la rama del error HTTP, cuyo mensaje trae la URL con la clave de Guardian o de NYT, sigue sin ella.
 - **R6.14**, las herramientas sin clave que siguen ofreciendo «Ejecutar», está en #217 desde #216.
 - **Ningún docstring de herramienta cambió**: el volcado del catálogo sale idéntico antes y después, así que el modelo del agente recibe lo mismo y no hacen falta las 26 consultas.
@@ -11553,6 +11553,85 @@ Las cuatro:
 | Agente | La configuración de `api/chat.py`: `num_ctx` 16.384, `num_predict` 1.500, temperatura 0,6, `presence_penalty` 0, `keep_alive` de 10 min, `think`, 3 decimales, el aviso del historial y la petición de la respuesta, 6 vueltas como mucho, y cortes de 5 y 60 s |
 | Código | La generación, sobre `a120f41`; el juez, sobre `00693c4` y, en su última sesión, `bf66992`. Lo servido, igual que en la máquina 1 (`e19ba3a`) |
 | Guiones | `spikes/fidelidad.py` (`produccion`, `jueces`, `resumen` y `validar`) y `spikes/fidelidad_a40.sh` |
+
+### Lo que FastMCP publica sin pasar por el decorador (#301, 20 nov 2026)
+
+Al preparar el anexo A de la memoria con el estado de los requisitos, R12.7 («la API no debe revelar detalles de errores internos») seguía sin cumplirse del todo después de #292. El decorador `log_tool_invocation` sanea lo que se lanza dentro de una herramienta, pero FastMCP genera textos antes y después de llamarla, y ésos no pasan por él. Bastaba un texto opcional que fuera JSON de una lista o de un objeto para que el error de validación de Pydantic saliera entero por `POST /tools/{name}/execute` y hacia el agente.
+
+#### Lo que se vio
+
+Por la ruta entera de `/tools/{name}/execute`, con el servidor real en proceso, sobre `fc0da20`:
+
+| Herramienta | Argumento | `detail` de la respuesta |
+|---|---|---|
+| `get_guardian_news` | `topic="[1]"` | «1 validation error for get_guardian_newsArguments / topic / Input should be a valid string [type=string_type, input_value=[1], input_type=list] / For further information visit https://errors.pydantic.dev/2.12/v/string_type» |
+| `get_nyt_news` | `topic='{"a": 1}'` | lo mismo, con `input_type=dict` |
+| `analyze_headline` | `content='{"cuerpo": 1}'` | lo mismo, sobre `analyze_headlineArguments` |
+
+El agente recibía el mismo texto: lo ponía en el paso de la traza, que pinta la pantalla, y se lo daba al modelo.
+
+El mecanismo está en el FastMCP de `mcp` 1.30.0:
+
+- registra su manejador de llamadas con `validate_input=False`, así que el servidor de bajo nivel no valida contra el esquema de entrada;
+- antes de validar con su propio modelo de argumentos, `pre_parse_json` convierte en lista u objeto una cadena JSON siempre que la anotación del parámetro no sea exactamente `str`. No lo es `TextoOpcional`, el `topic` de las cuatro herramientas de noticias, ni `content: str | None` de `analyze_headline`. El texto cumple el esquema publicado, así que la validación previa de `core/mcp/tools.py` (R4.5) no lo para, y es el modelo de argumentos el que rechaza la lista;
+- y envuelve cualquier excepción como «Error executing tool <nombre>: <texto>», del que `_leer` (`core/mcp/tools.py`) sólo quitaba el prefijo.
+
+Según el código de la librería, a `_leer` le pueden llegar cinco formas de texto, y las cinco se provocaron con un FastMCP de verdad:
+
+| | Forma | ¿Con el prefijo? | Hasta #301 |
+|---|---|---|---|
+| a | La frase de un `ToolError`: de la herramienta (#89) o del decorador (#292) | sí | sale, y tiene que salir |
+| b | El error de Pydantic del modelo de argumentos | sí | salía: es lo de arriba |
+| c | El error de Pydantic del modelo de salida | sí | habría salido, con un fallo de nuestra salida |
+| d | «Output validation error», de `jsonschema`, en el servidor de bajo nivel | no | habría salido, con un fallo de nuestra salida como el `NotRequired` de #230 |
+| e | «Unknown tool» o el texto de cualquier excepción del servidor de bajo nivel | no | habría salido |
+
+#### Lo que se arregló
+
+`_leer` sólo publica la forma (a): el texto que llega con el prefijo de FastMCP y no empieza como un error de validación de Pydantic («1 validation error for …», «2 validation errors for …»). Todo lo demás sale como «La herramienta falló por un motivo no previsto; el detalle técnico queda en el log del servidor», la misma frase del decorador, y el texto entero queda en el registro, en `tool.execute.failed`, que ya se escribía antes de decidir. La frase la da `no_previsto()`, nueva en `core/errores.py`: `mensaje_publico` necesita una excepción que clasificar, y aquí sólo hay un texto que llega de otro proceso.
+
+Como el agente ejecuta con el mismo `execute_tool`, el arreglo llega a la vez a la pantalla de Sistema, a la traza y al modelo.
+
+#### Lo que se decidió
+
+Con el autor, el 20 de noviembre, y con la recomendación que llevaban:
+
+- **El arreglo, en `_leer`**, y no en el servidor con una subclase de FastMCP que reconociera el `ValidationError` por su tipo. Por `_leer` pasa todo resultado de una herramienta hacia la API y hacia el agente, y cubre las cinco formas; en el servidor no se cubrirían (d) ni (e), que nacen en el servidor de bajo nivel después de llamar a la herramienta. La subclase sí habría cubierto también a Claude Desktop (abajo).
+- **Una sola frase**, la de lo no previsto, y no otra que dijera que no se aceptaron los argumentos: distinguir (b) de (c) pediría leer el nombre del modelo dentro del texto de Pydantic.
+- **El nombre de herramienta inventado, fuera** (abajo).
+
+#### Lo que salió al hacerlo
+
+- **El modelo de salida no se llama como la herramienta.** Pydantic titula el error con el nombre del `TypedDict` de la salida («1 validation error for Salida»), y el de argumentos, con el de la herramienta («get_guardian_newsArguments»). Por eso la regla mira la cabecera del texto de Pydantic y no el nombre del modelo.
+- **«Input validation error» no salía nunca**, al contrario de lo que decía la sección de #292, que se corrige con una nota.
+- **Las 14 herramientas llevan el decorador**, comprobado una a una. Es lo que hace que lo que llega con el prefijo, salvo Pydantic, sea siempre una frase redactada.
+- **Un fallo sin contenido de texto** salía como «Error desconocido», que no decía dónde mirar. Ahora sale con la frase de lo no previsto, y el registro sigue diciendo «Error desconocido».
+- **Una frase del docstring de `_publicable`, corregida antes de entregar.** La primera versión decía que una forma nueva de la librería saldría como no prevista. Sólo es así sin el prefijo; con él, sale todo salvo Pydantic (abajo).
+- **El servidor de prueba del agente tiene una herramienta más**, `busca`, con un texto opcional. El conjunto del catálogo que fijaba una prueba pasa de tres a cuatro nombres, y el docstring del módulo decía «dos herramientas» cuando ya eran tres.
+
+#### Lo que no se arregla
+
+- **Un texto que sea exactamente una lista o un objeto en JSON** sigue sin poder buscarse ni analizarse: FastMCP lo convierte antes de llamar a la herramienta, y lo que cambia es que ya no se publica el porqué. Evitarlo pide cambiar la anotación de los parámetros, que es el catálogo del agente, y con ello las 26 consultas con la A40.
+- **Con el prefijo, la regla deja pasar todo salvo el error de Pydantic.** En el código de `mcp` 1.30.0 es lo que FastMCP lanza ahí fuera de la función; si una versión nueva lanzara otra cosa con el mismo prefijo, saldría entera. Las pruebas cubren las formas que hay hoy.
+- **Claude Desktop** (#267) habla con el servidor por stdio, sin pasar por `_leer`, y ahí el texto de Pydantic sigue llegando. No es la API de R12.7: es el cliente del propio usuario, en su máquina.
+- **El nombre de herramienta inventado.** Si el modelo pidiera una herramienta con un punto o un espacio en el nombre, el paso se guardaría con él, la pantalla lo reenviaría en el historial y `ChatRequest` respondería 422 a todas las preguntas siguientes de esa conversación. No publica nada interno, y tiene tres arreglos posibles por elegir: va a #217, con lo comprobado ([comentario](https://github.com/codeurjc-students/2026-ClickBaitAnalysis/issues/217#issuecomment-7045981029)).
+
+#### Comprobado
+
+- **Las pruebas.** 725 en la suite del CI, frente a 716: 9 nuevas en tres ficheros, y cada una se vio fallar contra el código de antes por su motivo, salvo una que vigila que el arreglo no se pase de largo y ya pasaba: que la frase de un `ToolError` sale sin el prefijo. Afirman lo que no sale —«validation error», «pydantic», el nombre del modelo, el valor—, sin copiar la frase entera.
+  - `tests/api/test_execute.py`: los tres casos de arriba, por la ruta entera y con el servidor real.
+  - `tests/core/test_mcp_tools.py`, nuevo: `_leer` con las formas (c), (d) y (e), provocadas con un FastMCP en memoria y no escritas a mano, y con un fallo sin texto; en cada una, el original en el registro.
+  - `tests/agent/test_agente.py`: ni el paso de la traza ni el mensaje al modelo llevan el texto de Pydantic.
+- **ruff y pyright**, sin avisos.
+- **El catálogo**, volcado con `spikes/catalogo_volcado.py` sobre `fc0da20` y sobre la rama: idéntico. Ningún docstring de herramienta cambió, así que el modelo del agente recibe lo mismo y no hacen falta las 26 consultas.
+
+| Condiciones | |
+|---|---|
+| Fecha | 20 nov 2026 |
+| Máquina | WSL2 en el PC del autor; sin red, porque todo falla antes de llamar a ninguna API |
+| Versiones | Python 3.12.3, `mcp` 1.30.0 y Pydantic 2.12.5 |
+| Código | `dev` en `fc0da20`, y la rama `fix/301-texto-de-pydantic` |
+| Guiones | Las pruebas de arriba, que reproducen cada forma, y `spikes/catalogo_volcado.py` |
 
 
 "Aplico Rudin donde puedo —incoherencia(A MEDIAS, YA QUE EL MODELO NO) y léxico son intrínsecamente interpretables— y reservo lo post-hoc (LIME/SHAP), con sus límites de fidelidad, solo para la parte que depende de un transformer preentrenado que no puedo abrir de otro modo." !!!IMPORTANTE (NO MODIFICAR, RECORDAR POSTURA DEFINIDA)

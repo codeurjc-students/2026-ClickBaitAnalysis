@@ -9,7 +9,10 @@ sistema por dentro: un `KeyError: 'is_clickbait'` le cuenta a un tercero cómo
 está estructurado el código. Entre las dos, `describir_respuesta_http` (#236)
 da el código de una respuesta de error y, si su nombre no lo dice, qué
 significa: lo usa `base_api.py`, cuyo mensaje lee los dos. Y `falta_clave`
-(#259), el fallo de una API que pide una clave que no está configurada.
+(#259), el fallo de una API que pide una clave que no está configurada. Y
+`no_previsto` (#301), lo mismo que `mensaje_publico` para lo imprevisto, para
+quien no tiene una excepción que clasificar sino un texto que no se puede
+publicar.
 
 **La regla (#163): el texto de una excepción de librería no sale hacia fuera.**
 Un 401 de httpx lleva la URL entera en su mensaje, y Guardian y NYT llevan la
@@ -117,4 +120,16 @@ def mensaje_publico(excepcion: BaseException) -> str:
         return f"recibió un {describir_error(excepcion)} del servicio externo"
     if isinstance(excepcion, httpx.TransportError):
         return _SIN_CONEXION
+    return _NO_PREVISTO
+
+
+def no_previsto() -> str:
+    """El predicado de un fallo imprevisto, cuando lo que hay es un texto (#301).
+
+    `mensaje_publico` clasifica una excepción. `core/mcp/tools.py` recibe en
+    cambio el texto de un fallo que llega de otro proceso, por MCP, y cuando no
+    es la frase que redactó la herramienta no hay nada que clasificar: sólo se
+    puede decir que no estaba previsto. Es la misma frase que da
+    `mensaje_publico`, para que quien lee vea lo mismo en los dos casos.
+    """
     return _NO_PREVISTO

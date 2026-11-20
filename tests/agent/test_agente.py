@@ -4,7 +4,7 @@ El modelo es falso —responde lo que dice el guion, vuelta a vuelta, y apunta l
 que recibe—, porque lo que se prueba es el bucle y no el modelo: contra la A40
 se prueba aparte, con un guion de `spikes/`.
 
-El MCP, en cambio, es real: un FastMCP diminuto con dos herramientas, servido
+El MCP, en cambio, es real: un FastMCP diminuto con cuatro herramientas, servido
 por `ASGITransport` como en `tests/api/test_catalog.py`. El protocolo se habla
 entero —saludo, catálogo y llamada— sin abrir puertos, así que se prueba
 también que el agente usa bien `core/mcp/`.
@@ -94,8 +94,8 @@ CIFRAS: Cifras = {
 
 
 def _servidor() -> FastMCP:
-    """Un servidor MCP con una herramienta que responde, otra que falla y otra
-    que devuelve cifras con todos sus decimales."""
+    """Un servidor MCP con una herramienta que responde, otra que falla, otra
+    que devuelve cifras con todos sus decimales y otra con un texto opcional."""
     mcp = FastMCP("servidor-de-prueba")
 
     @mcp.tool()
@@ -115,6 +115,16 @@ def _servidor() -> FastMCP:
     def cifras() -> Cifras:
         """Devuelve cifras con todos sus decimales."""
         return CIFRAS
+
+    @mcp.tool()
+    def busca(tema: str | None = None) -> Eco:
+        """Busca un tema; sin él, lo más reciente.
+
+        Su parámetro es un texto opcional, como el `topic` de las noticias: el
+        tipo cuya cadena JSON convierte FastMCP en lista u objeto (#301).
+        """
+        texto = tema or "lo más reciente"
+        return {"texto": texto, "longitud": len(texto)}
 
     return mcp
 
@@ -256,7 +266,7 @@ async def test_el_catalogo_llega_al_modelo_con_su_esquema(monkeypatch):
         await responder("Hola", [], _config(modelo))
 
     catalogo = {herramienta["name"]: herramienta for herramienta in modelo.catalogos[0]}
-    assert set(catalogo) == {"eco", "rota", "cifras"}
+    assert set(catalogo) == {"eco", "rota", "cifras", "busca"}
     # Sin la sangría del docstring, que FastMCP manda tal cual y el modelo
     # pagaría en cada petición.
     assert catalogo["eco"]["description"] == (
@@ -670,6 +680,29 @@ async def test_el_error_de_una_herramienta_vuelve_al_modelo(monkeypatch):
     }
     # El bucle sigue: el modelo puede contarlo o corregirse.
     assert resultado["status"] == "answered"
+
+
+@pytest.mark.asyncio
+async def test_el_error_de_pydantic_no_llega_al_modelo_ni_a_la_traza(monkeypatch):
+    """Un texto opcional que es JSON: FastMCP lo convierte en lista antes de
+    llamar a la herramienta, y su modelo de argumentos lo rechaza. Hasta #301,
+    el error de Pydantic llegaba entero al paso de la traza, que pinta la
+    pantalla, y al modelo."""
+    modelo = ModeloGuionado(
+        _pide(("busca", {"tema": "[1]"})), _responde("La búsqueda falló.")
+    )
+
+    async with mcp_en_proceso(monkeypatch):
+        resultado = await responder("Prueba", [], _config(modelo))
+
+    (paso,) = _herramientas(resultado)
+    assert paso["status"] == "error"
+    al_modelo = modelo.conversaciones[1][-1]["content"]
+    for publicado in (paso["error"] or "", al_modelo):
+        assert "validation error" not in publicado
+        assert "pydantic" not in publicado.lower()
+        assert "Arguments" not in publicado
+    assert "no previsto" in (paso["error"] or "")
 
 
 @pytest.mark.asyncio
