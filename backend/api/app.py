@@ -119,7 +119,11 @@ app = FastAPI(
         "y las agrupa por lo que miden —forma, engaño y tono—, declarando las "
         "discrepancias en vez de promediarlas."
     ),
-    version="0.3.0-dev",
+    # La del commit que se congela y se publica como `v1.0.0`. Se quedó en
+    # «0.3.0-dev» desde #88 (4 ago) hasta la revisión de antes de congelar: la
+    # release sólo se publica si lo servido es idéntico al commit congelado,
+    # así que cambiarla después ya no habría sido posible.
+    version="1.0.0",
     lifespan=lifespan,
     # El 429 del límite de velocidad (#169) se declara UNA vez, aquí, porque el
     # límite es de la aplicación entera: no hay ruta exenta. FastAPI mezcla

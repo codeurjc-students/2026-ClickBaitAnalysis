@@ -11786,7 +11786,7 @@ Antes de revisar el código se pasó `bash spikes/vulnerabilidades.sh 2026-11-21
 
 #### Lo que no entra
 
-- **Los otros 35 que la revisión pone antes de congelar**, todos de severidad baja: textos que ya no son ciertos (varios en el contrato o copiados en la memoria), seis de accesibilidad, cuatro pruebas que no vigilan lo que dicen, la versión «0.3.0-dev» del contrato y una pasada de nombres de una letra. Los decide el autor.
+- **Los otros 35 que la revisión pone antes de congelar**, todos de severidad baja: textos que ya no son ciertos (varios en el contrato o copiados en la memoria), seis de accesibilidad, cuatro pruebas que no vigilan lo que dicen, la versión «0.3.0-dev» del contrato y una pasada de nombres de una letra. Los decide el autor. *(Decidido el 21 nov: a #217, salvo la versión, que entró en la PR #306.)*
 - **Los 23 que van a #217**, sobre todo los que tocarían un docstring de herramienta o el prompt, que piden las 26 consultas, y los 5 que no son un fallo.
 
 #### Comprobado
@@ -11803,6 +11803,18 @@ Antes de revisar el código se pasó `bash spikes/vulnerabilidades.sh 2026-11-21
 | Modelos | los cuatro de la tabla, los de las fichas, desde la caché y sin comprobar su revisión |
 | NWS | `api.weather.gov`, el 21 nov, con `curl` |
 | Guiones | `spikes/recorte_512.py`, para los 512 tokens; `spikes/vulnerabilidades.sh` y CodeQL, para las vulnerabilidades |
+
+### La versión 1.0.0 en el contrato, antes de congelar (21 nov 2026, PR #306)
+
+El contrato publicaba la versión «0.3.0-dev» desde #88 (4 de agosto), en `/api/docs` y en `frontend/openapi.json`, y nadie la había vuelto a tocar. La revisión de antes de congelar la dejó entre los 35 de severidad baja, que van a #217 ([comentario 7063312839](https://github.com/codeurjc-students/2026-ClickBaitAnalysis/issues/217#issuecomment-7063312839)). Ésta es la excepción, decidida por el autor el 21 de noviembre: según el plan de la congelación del 20 de noviembre, la `v1.0.0` sólo se publica si lo servido es idéntico al commit congelado. Cambiar la versión después ya no habría llegado a la release, y la 1.0.0 habría dicho «0.3.0-dev» hasta después de la defensa.
+
+- **`backend/api/app.py` dice ahora `version="1.0.0"`**, con un comentario del porqué. `openapi.json`, regenerado: sólo cambia esa línea. `schema.d.ts` no lleva la versión y no cambia.
+- **La memoria no la cita.**
+- **Es lo último antes de congelar**: el código se congela sobre el merge de esta PR.
+
+#### Comprobado
+
+- La suite del backend, ruff y pyright, sin cambios ni avisos; y `openapi.json` y `schema.d.ts`, los que salen de regenerarlos. El frontend no cambia.
 
 
 "Aplico Rudin donde puedo —incoherencia(A MEDIAS, YA QUE EL MODELO NO) y léxico son intrínsecamente interpretables— y reservo lo post-hoc (LIME/SHAP), con sus límites de fidelidad, solo para la parte que depende de un transformer preentrenado que no puedo abrir de otro modo." !!!IMPORTANTE (NO MODIFICAR, RECORDAR POSTURA DEFINIDA)
