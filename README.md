@@ -2941,6 +2941,11 @@ usuario pliega y despliega— pero que se **resiembra** cuando llega otra señal
 Con un `signal` normal habría que reiniciarlo a mano, y olvidarlo dejaría la
 tarjeta abierta arrastrando el estado del análisis anterior.
 
+*(Revisado en la PR #305: en el asistente, cada sondeo trae la misma señal en
+un objeto nuevo, y la tarjeta la tomaba por otra, así que se plegaba o se
+desplegaba sola cada 2 s. Lo arregla la pantalla del asistente, que conserva
+los pasos ya recibidos; la regla de aquí no cambia.)*
+
 #### Lo que enseñó ejecutarla contra la API de verdad
 
 **El modelo dedicado no se puede servir en remoto.** Con `NLP_BACKEND=remote`,
@@ -3709,6 +3714,11 @@ Ahí vive una garantía que sostiene la decisión de precalentar bloqueando el
 arranque: **una señal que no carga se registra con tiempo negativo y no
 propaga**, porque `/tools` y `/history` no necesitan ningún modelo. Si esa
 excepción subiera, un modelo corrupto dejaría la API sin levantar entera.
+
+*(Revisado en la PR #305: un modelo que no carga no lanza, sino que lo
+devuelve como `ToolResult.fail`, así que esta garantía sólo cubría lo que sí
+sube, y un modelo roto salía con su tiempo y sin `preheat.failed`. Ver «Los
+nueve fallos medios de la revisión de antes de congelar».)*
 
 Tres tests nuevos: que con `nlp_backend=local` se calientan las tres señales, que
 con `remote` sólo la incoherencia —las otras van por HTTP y calentarlas en local
@@ -5212,6 +5222,11 @@ fallos a propósito** (#125) —un modelo que no carga no debe impedir servir
 `/tools` ni `/history`— y además está **desactivado por defecto**. Sin
 `PREHEAT_MODELS=true` el error aparece en la primera petición; con él, al
 arrancar, como `preheat.failed` en el log, y el proceso sigue en pie.
+
+*(Revisado en la PR #305: no salía. Un modelo no horneado da una
+`FaltaDependencia`, que el detector devuelve como `ToolResult.fail` sin
+lanzar ni registrar nada, y `precalentar` sólo miraba las excepciones: no
+quedaba ninguna línea. Desde la PR #305, sale como `preheat.failed`.)*
 
 **El coste, medido:** un modelo puesto por `NLP_MODELS` ya **no se descarga al
 usarse**, que es lo que la propia issue daba por hecho apoyándose en #119.
@@ -11687,6 +11702,107 @@ Crossref no da el volumen de LNCS, y no se pone. La bibliografía de la memoria 
 | Hub | `ggcastle/beto-clickbait-es`, de `03c31ac0c288` a `05ed7524593f` (21 nov), sólo el `README.md` |
 | Fuentes | la Tabla 1 de arXiv:2507.09777v1, para el 0,69; y Crossref, `10.1007/978-3-031-80366-6_32`, para la cita |
 | Guiones | Ninguno mide nada; la prueba de `asistente-page.spec.ts` |
+
+### Los nueve fallos medios de la revisión de antes de congelar (21 nov 2026, PR #305)
+
+Antes de congelar el código, el autor pidió una revisión a conciencia de todo el repositorio, en una sesión aparte y con un *workflow* por zonas: 28 agentes de sólo lectura. Ocho revisores, uno por zona (`analysis/`; `integrations/nlp/`; el agente y `llm/`; `api/` y `core/`; las noticias, el tiempo y `main.py`; el frontend; el despliegue y el CI; y uno transversal), y veinte verificadores que intentaron refutar cada hallazgo contra el código, este diario y las issues. Salieron 72 hallazgos distintos y, según la revisión, ninguno grave: con una entrada normal, lo servido no da un veredicto incorrecto, no se cae y no publica nada que no deba. **Nueve eran de severidad media**, siete de funcionamiento y dos de documentación, y esta PR los arregla. El informe, con la evidencia de cada hallazgo, no está en el repositorio.
+
+El plan, fichero por fichero y con cinco decisiones recomendadas, lo aprobó el autor el 21 de noviembre tal como se propuso. Las cinco: recortar los textos largos y decirlo en las fichas, que el backend responda el 422 con la forma del contrato, conservar los pasos del asistente, cancelar la carga en vuelo del historial, y hacerlo todo como trabajo suelto y no como issue.
+
+#### 1. El precalentado no veía un modelo que no carga
+
+`precalentar` sólo daba por fallo una excepción que subiera de la tarea, y **ningún detector de verdad lanza al cargar**: `classify`, `zero_shot` e `IncoherenceDetector.detect` capturan el fallo y lo devuelven como `ToolResult.fail`, desde antes de que existiera el precalentado. Un modelo que no cargaba salía con su tiempo, como si hubiera cargado, sin −1 y sin `preheat.failed`. Con una `FaltaDependencia` (falta torch, o un modelo que no se horneó) no quedaba **ninguna** línea en el registro, porque esa rama no registra nada. Es lo que se lee para dar por bueno un despliegue (`spikes/precalentado_maquina1.sh`, PR #296), y lo que se leerá en el de la congelación.
+
+- **`cronometrar` mira ahora lo que devuelve la tarea**: un `ToolResult` fallido se registra como `preheat.failed`, con su `error`, y con −1,0. La traza ya la dejó quien capturó el fallo (`nlp.local.fallo`, `nlp.incoherencia.fallo`), salvo la de una `FaltaDependencia`, que no la tiene.
+- **Las dos pruebas de #138 y de #292 usaban un doble que LANZA**: pasaban sin vigilar el caso real. Se quedan, para lo que sí puede subir, como un error de la factoría, y una tercera, `test_un_modelo_que_no_carga_se_registra_aunque_no_lance`, usa un doble que devuelve `ToolResult.fail`. Contra el código de antes, el modelo salía cargado en 0,00002 s.
+
+#### 2. Un texto de más de 512 piezas tumbaba la dedicada y el tono
+
+La pipeline de text-classification de `transformers` no recorta por defecto, y `classify` le pasaba el texto tal cual. Nada lo impedía antes: `AnalyzeRequest.headline` sólo tiene `min_length`, y ni el formulario ni las herramientas ponen tope. Con un texto más largo que las posiciones del modelo, torch fallaba, la señal salía en `error` con «motivo no previsto», y el veredicto, sólo del léxico y del lineal. El caso realista es el agente pasándole al tono el cuerpo de una noticia. Medido con [`spikes/recorte_512.py`](spikes/recorte_512.py), con los cuatro modelos que pasan por `classify` y un texto de unos 3.000 caracteres:
+
+| Modelo | Tope que declara | Piezas | Tal cual | Con `truncation` | Y con `max_length` |
+|---|---|---|---|---|---|
+| `Stremie/roberta-base-clickbait` | 512 | 643 | falla | Clickbait 0,880 | Clickbait 0,880 |
+| `cardiffnlp/twitter-roberta-base-sentiment-latest` | 1e+30 | 643 | falla | **falla** | negative 0,770 |
+| `ggcastle/beto-clickbait-es` | 512 | 722 | falla | Clickbait 0,617 | Clickbait 0,617 |
+| `lxyuan/distilbert-base-multilingual-cased-sentiments-student` | 512 | 802 | falla | neutral 0,582 | neutral 0,582 |
+
+- **`classify` llama ahora con `truncation=True, max_length=512`** (`MAX_PIEZAS`, en `local.py`). `truncation=True` solo no basta: el tokenizador del tono inglés declara un tope de 1e+30, y con él no recorta nada. El zero-shot ya recortaba por su cuenta.
+- **Con un titular, la salida es idéntica recortada o no** (lo comprueba el guion con los cuatro), así que no cambia ninguna cifra medida: todos los corpus son titulares o tuits.
+- **Recortar, y decirlo en las fichas**, mejor que una frase propia de «texto demasiado largo»: es lo que ya hace la incoherencia, que sólo lee el principio del cuerpo, y lo dice su ficha. Las cuatro fichas llevan una limitación nueva, que sale por `GET /tools` y por `describe_models`. La grabación del plan B (#265) no la lleva: sus herramientas son `analyze_headline` y el lineal, y ninguna devuelve fichas. Tocar `model_cards.py` rehace la capa de modelos de la imagen (unos 2 min).
+- **Prueba**: `test_classify_recorta_lo_que_no_cabe_en_el_modelo` falla contra el código de antes. Dos dobles de la pipeline aceptan ahora opciones.
+
+#### 3. El 422 de `/tools/{name}/execute` no tenía la forma del contrato
+
+Respondía `detail` como una cadena, y el contrato publica `HTTPValidationError`, con `detail` como lista de `{loc, msg, type}`. `detalleDeValidacion`, en el frontend, sólo lee la lista, así que Sistema enseñaba siempre «Los argumentos no encajan en el esquema de la herramienta.», sin decir cuál: con `days = 2.5` en `get_nyt_news`, por ejemplo. Ninguna prueba HTTP vigilaba este 422, y `test_las_otras_categorias_no_cambian` decía vigilar el 404 y el 422 y sólo comprobaba el 404.
+
+- **El backend responde con la forma de FastAPI**, `{"loc": ["body", "arguments"], "msg": <los problemas>, "type": "value_error"}`, mejor que hacer que el frontend acepte también una cadena: casa con lo publicado, y `openapi.json` no cambia. Sistema enseña ya el motivo sin tocar su código. El agente no pasa por esta ruta.
+- **Pruebas**: `test_el_422_tiene_la_forma_que_publica_el_contrato`, HTTP, falla contra el código de antes; y `test_las_otras_categorias_no_cambian` comprueba ahora también el 422.
+
+#### 4. `get_forecast` fallaba con más de cuatro decimales
+
+NWS responde 301 hacia la coordenada redondeada a cuatro decimales, y `make_request` no sigue redirecciones: con (40.712776, −74.005974) salía «Unable to find requested zone» con una zona que existe. Comprobado el 21 de noviembre contra `api.weather.gov` con `curl`: esa coordenada da 301 hacia `40.7128,-74.006`, que da 200. Ni el CI ni `produccion_en_vivo.py` lo veían, porque usan cuatro decimales.
+
+- **`get_zone_by_points` pide la coordenada con `round(…, 4)`**, sin tocar el docstring de la herramienta. Es andamiaje del tutorial de la Épica 0, pero está en el catálogo y en Sistema.
+- **La revisión decía que `:.4f` volvería a redirigir por los ceros finales, y no se sostiene**: `40.7128,-74.0060`, `40.7000,-74.0000` y `40.7100,-74.0100` dan 200 hoy. Se usa `round` igual.
+- **Prueba**: `test_las_coordenadas_se_piden_con_cuatro_decimales` falla contra el código de antes.
+
+#### 5. El resaltado del léxico se corría detrás de un emoji
+
+`lexical.detect` da los `span` en puntos de código, como cuenta Python, y `segmentar` los cortaba con `slice` y los filtraba con `length`, que en JavaScript cuentan unidades UTF-16: un emoji ocupa dos. Cada emoji anterior a una pista corría la marca un carácter, y podía partirlo por la mitad. Con «😱 You Won't Believe It», el léxico marca `you` en [2, 5] e `it` en [20, 22], y la pantalla resaltaba « Yo» y « I». Es la explicación del léxico pintada sobre el titular (R3.8): en Analizar, en el historial y en el asistente.
+
+- **`segmentar` trocea y mide con `Array.from(titular)`**, que cuenta puntos de código. De paso, el `(a, b)` del `sort` lleva nombre.
+- **Prueba**: el titular con sus `span` reales, en `segmentos.spec.ts`; falla contra el código de antes.
+- **No entra lo de la «İ»** (U+0130), que la revisión dejó de severidad baja: `lower()` la alarga, y detrás de una, las pistas del léxico apuntan un carácter a la izquierda.
+
+#### 6. En el asistente, una tarjeta volvía sola a como estaba
+
+La tarjeta de una señal guarda si está abierta en un `linkedSignal`, que se resiembra cuando le llega otra señal (#127). En el asistente, cada sondeo de `GET /chat/{id}` trae un JSON nuevo cada 2 s, y la tarjeta lo tomaba por otra señal: mientras se esperaba la narración, que puede pasar del minuto, una opaca desplegada a mano se plegaba, y una interpretable plegada se desplegaba. En la demostración se habría visto al abrir una tarjeta durante la espera del paso 6.
+
+- **`conservarPasos`, nueva en `asistente/conversacion.ts`**: dentro de la misma conversación, reutiliza cada paso ya recibido cuyo contenido no ha cambiado, comparado como JSON, y `seguir` pasa por ella cada lectura. La traza sólo crece, así que la tarjeta recibe la misma referencia y no se resiembra.
+- **Mejor que hacer que la tarjeta compare el contenido**: entonces volver a analizar el mismo titular conservaría también lo plegado a mano, contra lo que decidió #127.
+- **Pruebas**: en `asistente-page.spec.ts`, una tarjeta plegada a mano sigue plegada tras un sondeo con los mismos pasos, y falla contra el código de antes; y tres de `conservarPasos`.
+
+#### 7. En el historial, un doble clic desalineaba la tabla de sus rótulos
+
+`cargar()` volvía sin hacer nada si había otra carga en vuelo, pero `filtrar` y `pasar` ya habían cambiado el filtro o el desplazamiento. Un doble clic en «Siguientes →» enseñaba las entradas 21–40 bajo «Mostrando 41–50 de 50», y cambiar un filtro mientras cargaba la primera página dejaba el `<select>` en «Engañoso» y la tabla sin filtrar.
+
+- **`cargar()` cancela la petición en vuelo y pide la nueva**: al cancelar la suscripción, `HttpClient` corta la petición. Mejor que desactivar filtros y paginación mientras carga, que pararía a quien navega.
+- **Prueba**: un doble clic; la primera petición, cancelada, y la segunda, la que se pinta. Falla contra el código de antes.
+
+#### 8. Dos textos que decían lo contrario de lo medido
+
+- **El anexo B** (`docs/ejecucion.md`) decía que el servidor MCP carga sus modelos la primera vez que se usa Sistema, «hasta 1,2 GB más». Desde #295 precalienta al arrancar, y la tabla del mismo documento ya lo decía. Ahora da las cifras de la PR #296: cada proceso marca unos 1,8 GB, 1,35 de ellos ficheros que el sistema cuenta en la caché de disco, y `free`, 1,8 GB usados. La frase está copiada en el anexo B de la memoria, y como ya estaba mal en `fc0da20`, el `git diff fc0da20 <etiqueta>` de la congelación sólo la recogerá por estar corregida aquí.
+- **La descripción de `Medidas`** (`llm/base.py`), que el contrato publica, decía que `prompt_tokens` «podría contar menos que la conversación entera: medirlo es de #188». #188 lo midió, y cuenta la conversación entera. `openapi.json` y `schema.d.ts`, regenerados: sólo cambia esa descripción.
+
+#### El análisis de vulnerabilidades, de paso
+
+Antes de revisar el código se pasó `bash spikes/vulnerabilidades.sh 2026-11-21-revision --anterior spikes/vulnerabilidades/2026-11-13-289`, y CodeQL con el visto bueno del autor (la ejecución 44899982449, sobre `3aea084`). **No hay nada nuevo que triar.** Los resultados, en `spikes/vulnerabilidades/2026-11-21-revision/`, que es desde ahora la pasada de referencia.
+
+- **Dependencias**: 0 avisos nuevos frente al 13 de noviembre. Siguen `minimatch` en npm, no aplicable (#289), y `setuptools` 83 en la imagen, no aplicable (#280).
+- **Imágenes**: no hay críticos, y los dos altos con arreglo son los mismos del 13 de noviembre, ya aceptados: `setuptools` 70.3.0 en la del backend (CVE-2025-47273) y `golang.org/x/net` 0.60.0 en Caddy (CVE-2026-78661). Crecen los que la regla de #260 no tría: altos de Debian sin arreglo, de 47 a 50; medios de Alpine con arreglo, de 1 a 7; y medios de Go en Caddy con arreglo, de 1 a 5. Se analizaron las imágenes locales del 14 de noviembre, que el guion aceptó porque llevan el mismo `requirements.txt` que `3aea084`: una construcción nueva podría traer otros paquetes del sistema.
+- **Código y secretos**: ruff `S` sólo da los dos S608 de `history.py`, aceptados, y gitleaks, 0 hallazgos.
+- **CodeQL 2.27.5**: 0 hallazgos en lo servido. En `spikes/`, uno, `spikes/noticias_es.py:87`, que ya estaba entre los aceptados el 13 de octubre. Los siete de octubre que avisaban de peticiones sin verificar el certificado ya no salen: desde #213, los guiones lo verifican.
+
+#### Lo que no entra
+
+- **Los otros 35 que la revisión pone antes de congelar**, todos de severidad baja: textos que ya no son ciertos (varios en el contrato o copiados en la memoria), seis de accesibilidad, cuatro pruebas que no vigilan lo que dicen, la versión «0.3.0-dev» del contrato y una pasada de nombres de una letra. Los decide el autor.
+- **Los 23 que van a #217**, sobre todo los que tocarían un docstring de herramienta o el prompt, que piden las 26 consultas, y los 5 que no son un fallo.
+
+#### Comprobado
+
+- **Cada arreglo, con una prueba que falló contra el código de antes**, salvo los dos textos.
+- **La rama entera**: 729 pruebas del backend (725 antes) y 221 del frontend (215); ruff, pyright, ESLint y la compilación, sin avisos; y el contrato, con sólo la descripción de `Medidas` cambiada.
+- **No se ha visto en un navegador**: lo cubren los specs, que montan los componentes de verdad.
+
+| Condiciones | |
+|---|---|
+| Fecha | 21 nov 2026 |
+| Máquina | WSL2 en el PC del autor, con Python 3.12.3 y Node 22.23.2. Los modelos, en CPU y sin red, con torch 2.12.1+cu130 (la GPU, oculta) y transformers 5.12.0 |
+| Código | `dev` en `3aea084`, y la rama `fix/medios-de-la-revision` |
+| Modelos | los cuatro de la tabla, los de las fichas, desde la caché y sin comprobar su revisión |
+| NWS | `api.weather.gov`, el 21 nov, con `curl` |
+| Guiones | `spikes/recorte_512.py`, para los 512 tokens; `spikes/vulnerabilidades.sh` y CodeQL, para las vulnerabilidades |
 
 
 "Aplico Rudin donde puedo —incoherencia(A MEDIAS, YA QUE EL MODELO NO) y léxico son intrínsecamente interpretables— y reservo lo post-hoc (LIME/SHAP), con sus límites de fidelidad, solo para la parte que depende de un transformer preentrenado que no puedo abrir de otro modo." !!!IMPORTANTE (NO MODIFICAR, RECORDAR POSTURA DEFINIDA)

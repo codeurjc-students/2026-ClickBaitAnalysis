@@ -305,6 +305,25 @@ describe('AsistentePage', () => {
     expect(html().querySelector<HTMLButtonElement>('button[type=submit]')!.disabled).toBe(false);
   });
 
+  // Cada sondeo trae objetos nuevos aunque digan lo mismo, y la tarjeta se
+  // resembraba con cada uno: una plegada a mano se desplegaba sola cada 2 s.
+  it('una tarjeta plegada a mano sigue plegada en el sondeo siguiente', async () => {
+    await conAgente('available');
+    await preguntar('¿Es clickbait «Top 5 Secrets»?');
+    http.expectOne('/api/chat').flush({ id: 'abc' });
+    await sondeo(lectura('running', PASOS), 0);
+
+    const cabecera = () => html().querySelector<HTMLButtonElement>('app-senal-card .cabecera')!;
+    expect(cabecera().getAttribute('aria-expanded')).toBe('true');
+    cabecera().click();
+    await fixture.whenStable();
+    expect(cabecera().getAttribute('aria-expanded')).toBe('false');
+
+    await sondeo(lectura('running', structuredClone(PASOS)));
+
+    expect(cabecera().getAttribute('aria-expanded')).toBe('false');
+  });
+
   it('la traza se anuncia sin interrumpir (aria-live educado)', async () => {
     await conAgente('available');
     await preguntar('¿Es clickbait?');

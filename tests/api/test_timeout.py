@@ -28,7 +28,7 @@ from backend.api import app as app_mod
 from backend.api.app import app
 from backend.api.execute import execute_tool
 from backend.core.mcp import tools as mcp_tools
-from backend.core.mcp.tools import ToolNotFound, ToolTimeout
+from backend.core.mcp.tools import InvalidArguments, ToolNotFound, ToolTimeout
 
 client = TestClient(app)
 
@@ -146,15 +146,28 @@ def test_otros_fallos_siguen_su_camino(monkeypatch):
 
 
 def test_las_otras_categorias_no_cambian(monkeypatch):
-    """404 y 422 seguían funcionando; el 504 se añade, no sustituye."""
+    """404 y 422 seguían funcionando; el 504 se añade, no sustituye.
+
+    Hasta la revisión de antes de congelar sólo se comprobaba el 404.
+    """
 
     async def no_existe(name, arguments):
         raise ToolNotFound(name)
+
+    async def no_encaja(name, arguments):
+        raise InvalidArguments("headline: 42 is not of type 'string'")
 
     monkeypatch.setattr(app_mod, "execute_tool", no_existe)
     assert (
         client.post("/tools/inventada/execute", json={"arguments": {}}).status_code
         == 404
+    )
+    monkeypatch.setattr(app_mod, "execute_tool", no_encaja)
+    assert (
+        client.post(
+            "/tools/detect_clickbait/execute", json={"arguments": {}}
+        ).status_code
+        == 422
     )
 
 

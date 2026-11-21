@@ -1,0 +1,5 @@
+fecha: 2026-11-21T11:52:32+01:00
+commit: 3aea084 (dev)
+gitleaks 8.30.1, configuración: .gitleaks.toml, --redact
+.gitleaksignore: 13 huellas ya triadas
+confirmaciones en todas las ramas: 321

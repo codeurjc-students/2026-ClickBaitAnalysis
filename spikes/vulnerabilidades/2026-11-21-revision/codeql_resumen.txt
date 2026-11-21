@@ -1,0 +1,4 @@
+== codeql_javascript-typescript.sarif: 0 hallazgos
+== codeql_python.sarif: 1 hallazgos
+   no servido    alta          1
+      no servido    alta          py/clear-text-logging-sensitive-data · spikes/noticias_es.py:87 · This expression logs [sensitive data (private)](1) as clear text.

@@ -256,6 +256,29 @@ export function aMedias(intercambio: Intercambio): boolean {
   return !intercambio.error && intercambio.trabajo?.status !== 'done';
 }
 
+/**
+ * La lectura nueva de una conversación, con los pasos que ya habían llegado.
+ *
+ * Cada sondeo trae un JSON nuevo, y la tarjeta de una señal (`abierta`, un
+ * `linkedSignal`) se resiembra cuando le llega otro objeto, aunque diga lo
+ * mismo: hasta la revisión de antes de congelar, cada 2 s una tarjeta opaca
+ * desplegada a mano se plegaba, y una interpretable plegada se desplegaba. La
+ * traza sólo crece, así que un paso que ya estaba se reutiliza si su contenido
+ * no ha cambiado, y la tarjeta recibe la misma referencia.
+ *
+ * Sólo dentro de la misma conversación: con otro `id`, la lectura sale tal
+ * cual. Y no toca la tarjeta: volver a analizar el mismo titular la resiembra,
+ * como decidió #127.
+ */
+export function conservarPasos(anterior: ChatJob | null, nuevo: ChatJob): ChatJob {
+  if (!anterior || anterior.id !== nuevo.id) return nuevo;
+  const pasos = nuevo.steps.map((paso, posicion) => {
+    const previo = anterior.steps[posicion];
+    return previo && JSON.stringify(previo) === JSON.stringify(paso) ? previo : paso;
+  });
+  return { ...nuevo, steps: pasos };
+}
+
 // ----- Lo que sobrevive a recargar (#209) -----
 
 /**

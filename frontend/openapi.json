@@ -1258,7 +1258,7 @@
           "total_s"
         ],
         "title": "Medidas",
-        "description": "Lo que el propio servidor dice que costó una respuesta.\n\n`prompt_tokens` es lo que el servidor EVALUÓ del prompt en esta llamada. Con\nla ventana llena recorta en silencio, y esto es lo único que lo delata\n(spike rehecho en la A40, PR #176). Es `None` si el servidor no lo informa.\nSi reutiliza lo ya evaluado en una vuelta anterior, podría contar menos que\nla conversación entera: medirlo es de #188, antes de usarlo como tamaño."
+        "description": "Lo que el propio servidor dice que costó una respuesta.\n\n`prompt_tokens` es lo que el servidor EVALUÓ del prompt en esta llamada. Con\nla ventana llena recorta en silencio, y esto es lo único que lo delata\n(spike rehecho en la A40, PR #176). Es `None` si el servidor no lo informa.\nCuenta la conversación entera también cuando Ollama reutiliza lo evaluado en\nuna vuelta anterior (medido en #188: la misma petición dos veces, el mismo\nrecuento), así que sirve como tamaño de la ventana."
       },
       "Origin": {
         "type": "string",
