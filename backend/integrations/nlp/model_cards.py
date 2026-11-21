@@ -273,7 +273,7 @@ MODEL_CARDS: list[FichaDeclarada] = [
         "type": "interpretable",
         "limitations": [
             "Detecta clickbait de ESTILO, no engaño semántico: mira qué palabras usa el titular, no si el cuerpo cumple lo que promete.",
-            "Medido en TA1C test (#231), tuits en español: F1 0.674 (P 0.756, R 0.608) con umbral 0.35, frente a 0.61 de la base publicada con el corpus (TF-IDF + XGBoost) y 0.84 de BETO afinado. Hasta #231, con el español tratado como inglés, 0.019 en TA1C validation (#229).",
+            "Medido en TA1C test (#231), tuits en español: F1 0.674 (P 0.756, R 0.608) con umbral 0.35. Los autores del corpus publican 0.61 con TF-IDF + XGBoost, 0.69 con rasgos diseñados + XGBoost (P 0.81, R 0.60) y 0.84 con BETO afinado: el lineal supera la base, pero no el mejor clásico publicado. Hasta #231, con el español tratado como inglés, 0.019 en TA1C validation (#229).",
             "Es el MISMO modelo que analiza el inglés: el bilingüe empató en TA1C validation con uno entrenado sólo con TA1C (0.390 frente a 0.368 con umbral 0.5, dentro del ruido) sin bajar el inglés, y la regla publicada en #231 lo prefería en el empate.",
             "Aprende VOCABULARIO DE FUENTE también en español: nombres de medios y etiquetas de sección pesan en contra (`euvzla` −2.10, `diariolibre` −1.28, `opinión` −1.21, `columna` −0.59), y dicen de dónde viene el tuit, no si es clickbait.",
             "TA1C son tuits con los que 18 medios de 12 países anuncian una noticia, no titulares de portada: fuera de ese registro, sin medir.",

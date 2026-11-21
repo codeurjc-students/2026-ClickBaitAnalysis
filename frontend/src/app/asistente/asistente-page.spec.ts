@@ -328,7 +328,8 @@ describe('AsistentePage', () => {
     const enlace = conEnlace.querySelector('a')!;
     expect(enlace.getAttribute('href')).toBe('https://www.nytimes.com/2026/09/29/us/college-ai.html');
     expect(enlace.getAttribute('target')).toBe('_blank');
-    expect(enlace.getAttribute('rel')).toBe('noopener');
+    // Sin `Referer`: el medio no sabe de qué página viene quien pulsa.
+    expect(enlace.getAttribute('rel')).toBe('noopener noreferrer');
 
     // El titular, en inglés; el aviso, en castellano y fuera del `lang="en"`,
     // para que el lector no lo pronuncie como inglés.
