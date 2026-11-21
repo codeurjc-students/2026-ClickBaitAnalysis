@@ -3,7 +3,7 @@
   "info": {
     "title": "ClickBait Analysis API",
     "description": "API REST del TFG *Agente inteligente basado en MCP para la detección y análisis de clickbait en medios digitales*.\n\nEl sistema **no emite un veredicto único de caja negra**: contrasta varias señales de distinta naturaleza (interpretable, híbrida y opaca) y las agrupa por lo que miden —forma, engaño y tono—, declarando las discrepancias en vez de promediarlas.",
-    "version": "0.3.0-dev"
+    "version": "1.0.0"
   },
   "paths": {
     "/analyze": {
