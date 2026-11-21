@@ -771,7 +771,7 @@ Los autores de TA1C publican un F1 de 0,84 en `test` con BETO afinado.
 Deriva de BETO y se publica con su misma licencia, [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). Lo que se cambió: se le añadió una capa de clasificación y se afinó entero con TA1C para distinguir el clickbait.
 
 - **BETO**: Cañete, J., Chaperon, G., Fuentes, R., Ho, J.-H., Kang, H. y Pérez, J. (2020). *Spanish Pre-Trained BERT Model and Evaluation Data*. PML4DC at ICLR 2020. [github.com/dccuchile/beto](https://github.com/dccuchile/beto). Sus autores advierten de que no pueden asegurar que todos los textos con que se entrenó BETO tengan licencias compatibles con CC BY 4.0, sobre todo para uso comercial; el aviso vale también para este modelo.
-- **TA1C**: Mordecki, Moncecchi y Couto (2025). *TA1C: A Dataset for Clickbait Detection in News in Spanish*. Los datos, con licencia MIT: [github.com/gmordecki/TA1C](https://github.com/gmordecki/TA1C).
+- **TA1C**: Mordecki, G., Moncecchi, G. y Couto, J. (2025). *Te Ahorré Un Click: A Revised Definition of Clickbait and Detection in Spanish News*. En *Advances in Artificial Intelligence – IBERAMIA 2024*, LNCS, págs. 387–399. Springer. [doi:10.1007/978-3-031-80366-6_32](https://doi.org/10.1007/978-3-031-80366-6_32). Los datos, con licencia MIT: [github.com/gmordecki/TA1C](https://github.com/gmordecki/TA1C).
 """
 
 
