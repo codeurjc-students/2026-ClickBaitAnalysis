@@ -277,7 +277,16 @@ async def post_execute(name: str, request: ExecuteRequest) -> ExecuteResponse:
             ),
         ) from None
     except InvalidArguments as exc:
-        raise HTTPException(status_code=422, detail=str(exc)) from None
+        # Con la forma de FastAPI, que es la que publica el contrato
+        # (`HTTPValidationError`) y la única que lee `detalleDeValidacion`.
+        # Hasta la revisión de antes de congelar salía como cadena, y Sistema
+        # enseñaba la frase genérica sin decir qué argumento no encajaba.
+        raise HTTPException(
+            status_code=422,
+            detail=[
+                {"loc": ["body", "arguments"], "msg": str(exc), "type": "value_error"}
+            ],
+        ) from None
     except ToolTimeout:
         raise HTTPException(
             status_code=504,

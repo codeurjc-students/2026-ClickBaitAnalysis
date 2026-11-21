@@ -760,8 +760,9 @@ export interface components {
          *     `prompt_tokens` es lo que el servidor EVALUÓ del prompt en esta llamada. Con
          *     la ventana llena recorta en silencio, y esto es lo único que lo delata
          *     (spike rehecho en la A40, PR #176). Es `None` si el servidor no lo informa.
-         *     Si reutiliza lo ya evaluado en una vuelta anterior, podría contar menos que
-         *     la conversación entera: medirlo es de #188, antes de usarlo como tamaño.
+         *     Cuenta la conversación entera también cuando Ollama reutiliza lo evaluado en
+         *     una vuelta anterior (medido en #188: la misma petición dos veces, el mismo
+         *     recuento), así que sirve como tamaño de la ventana.
          */
         Medidas: {
             /** Prompt Tokens */

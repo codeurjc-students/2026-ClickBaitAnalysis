@@ -136,6 +136,30 @@ async def test_get_forecast(fake_forecast_periods):
 
 
 @pytest.mark.asyncio
+async def test_las_coordenadas_se_piden_con_cuatro_decimales():
+    """NWS responde 301 hacia la coordenada redondeada a cuatro decimales, y
+    `make_request` no sigue redirecciones: con (40.712776, -74.005974) salía
+    «Unable to find requested zone» con una zona que existe. Comprobado contra
+    `api.weather.gov` el 21 nov 2026, en la revisión de antes de congelar."""
+    with respx.mock:
+        ruta = respx.get("https://api.weather.gov/points/40.7128,-74.006").mock(
+            return_value=Response(
+                200,
+                json={
+                    "properties": {
+                        "forecast": "https://api.weather.gov/gridpoints/OKX/33,42/forecast",
+                    }
+                },
+            )
+        )
+
+        zona = await WeatherAPI().get_zone_by_points(40.712776, -74.005974)
+
+    assert ruta.called
+    assert zona.success
+
+
+@pytest.mark.asyncio
 async def test_get_zone_by_points_bad_response():
     with respx.mock:
         respx.get("https://api.weather.gov/points/40.7128,-74.006").mock(

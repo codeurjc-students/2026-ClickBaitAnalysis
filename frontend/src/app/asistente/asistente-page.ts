@@ -29,6 +29,7 @@ import {
   alRecuperar,
   avisoDeGuardado,
   comoIntercambios,
+  conservarPasos,
   esperaDe,
   historialQueCabe,
   paraGuardar,
@@ -222,8 +223,14 @@ export class AsistentePage {
       .pipe(takeUntilDestroyed(this.destruccion))
       .subscribe({
         // La hora de cada lectura es la que mueve el «lleva…» de la espera: el
-        // sondeo ya lee cada 2 s, así que no hace falta otro temporizador.
-        next: (trabajo) => this.actualizar(indice, { trabajo, leidaEl: Date.now() }),
+        // sondeo ya lee cada 2 s, así que no hace falta otro temporizador. Los
+        // pasos que ya habían llegado se conservan, para que una tarjeta no
+        // vuelva sola a como estaba (`conservarPasos`).
+        next: (trabajo) =>
+          this.actualizar(indice, {
+            trabajo: conservarPasos(this.intercambios()[indice]?.trabajo ?? null, trabajo),
+            leidaEl: Date.now(),
+          }),
         error: (fallo: HttpErrorResponse) => this.alFallar(indice, fallo),
       });
   }

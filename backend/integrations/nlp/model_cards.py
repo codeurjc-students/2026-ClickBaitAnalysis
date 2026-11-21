@@ -160,6 +160,7 @@ MODEL_CARDS: list[FichaDeclarada] = [
             "No memoriza, verificado: rinde MEJOR fuera de su dominio (F1 0.946 en Chakraborty) que dentro (0.631 y 0.758 en los dos splits de Webis), el patrón inverso al de `elozano/bert-base-cased-clickbait-news`, descartado por 99.7% dentro y F1 0.185 fuera.",
             "Ese 0.946 de Chakraborty NO significa que sea mejor ahí (#121): Chakraborty etiqueta por fuente y ese método no puede producir casos dudosos, así que mide sólo la mitad fácil del problema. Restringiendo Webis a los titulares donde los 5 anotadores coinciden — lo más parecido a Chakraborty que hay dentro de Webis — sube a F1 0.906, y el resto lo explica el balance de clases.",
             "Contexto imprescindible para leer cualquiera de estos números: el techo humano de la tarea es F1 0.665, y sólo el 34.9% de los titulares tiene a los 5 anotadores de acuerdo (#121). Sus errores se concentran donde las personas discrepan (92.9% de los fallos en el 65.1% dudoso) y su confianza baja ahí (0.918 vs 0.834), sin haber visto nunca los juicios individuales.",
+            "Lee como mucho 512 piezas de su tokenizador: de un texto más largo, como el cuerpo de una noticia, sólo cuenta el principio, y no se avisa. Hasta la revisión de antes de congelar, uno así salía en `error` (`spikes/recorte_512.py`).",
         ],
         "operation": [
             "NO SE PUEDE SERVIR EN REMOTO, y es permanente: `hf-inference` responde `400 Model not supported by provider`. Detectado el 2026-09-03 al ejecutar la pantalla contra la API de verdad, y confirmado el 2026-09-07 contra el catálogo del proveedor: la ficha del Hub no declara ninguno (`inferenceProviderMapping` vacío) y NINGUNO de los 40 modelos de clickbait del Hub lo tiene. HuggingFace sirve por demanda, y éste tiene 59 descargas/mes frente a los 3.248.238 del de sentimiento, que entonces sí respondía por la misma vía y con el mismo token (desde el 7 oct 2026 da 402, sin crédito: ver su ficha). Doce reintentos en dos minutos no lo reactivan. Con `nlp_backend=remote` esta señal sale SIEMPRE en `error`, y desde el 7 oct el tono también: el veredicto se emite con el léxico, el lineal y la incoherencia, que corren en el propio proceso con cualquier backend.",
@@ -182,6 +183,7 @@ MODEL_CARDS: list[FichaDeclarada] = [
             "Entrenado en tuits, no en titulares de noticias.",
             "Caja negra.",
             "Solo inglés: el español lo analiza otro modelo (#233), con su ficha aparte.",
+            "Lee como mucho 512 piezas de su tokenizador: de un texto más largo, como el cuerpo de una noticia, sólo cuenta el principio, y no se avisa. Hasta la revisión de antes de congelar, uno así salía en `error` (`spikes/recorte_512.py`).",
         ],
         "operation": [
             "SIN VÍA REMOTA GRATUITA desde el 7 oct 2026: Hugging Face retiró el crédito mensual de las cuentas gratuitas (en https://huggingface.co/docs/inference-providers/pricing, la fila «Free Users» pasó a «None»; huggingface/hub-docs#2865), y `hf-inference` responde `402` («You have no remaining credits») con la cuenta del proyecto, que es gratuita. No es una caída: con crédito volvería a responder, y por eso la vía remota se conserva. Con `nlp_backend=remote` esta señal sale en `error`; como el tono no vota, el veredicto no cambia. Se repite con `spikes/hf_credito.py` (#236).",
@@ -301,6 +303,7 @@ MODEL_CARDS: list[FichaDeclarada] = [
             "TA1C son tuits con los que 18 medios de 12 países anuncian una noticia, no titulares de portada: fuera de ese registro, sin medir.",
             "Aprendió de TA1C, como el lineal: si los dos aciertan por la misma pista, su acuerdo no son dos pruebas. Su independencia, sin medir.",
             "Solo español: el inglés lo analiza otro modelo, con su ficha aparte.",
+            "Lee como mucho 512 piezas de su tokenizador: de un texto más largo, como el cuerpo de una noticia, sólo cuenta el principio, y no se avisa. Hasta la revisión de antes de congelar, uno así salía en `error` (`spikes/recorte_512.py`).",
         ],
         "operation": [
             "SIN VÍA REMOTA, como la inglesa: ningún proveedor de Hugging Face lo sirve (`inferenceProviderMapping` vacío, comprobado el 2026-10-09), y desde el 7 oct 2026 la vía remota exige crédito (#236).",
@@ -324,6 +327,7 @@ MODEL_CARDS: list[FichaDeclarada] = [
             "No está entrenado en tuits ni en titulares, al revés que el modelo inglés.",
             "Elegido frente a `cardiffnlp/twitter-xlm-roberta-base-sentiment` (tuits, 1,11 GB, sin licencia en el Hub y sin tokenizador rápido, que habría exigido `sentencepiece` y `protobuf` en la imagen) por su licencia Apache-2.0 declarada y por pesar la mitad (#233).",
             "Solo español: el inglés lo analiza otro modelo, con su ficha aparte.",
+            "Lee como mucho 512 piezas de su tokenizador: de un texto más largo, como el cuerpo de una noticia, sólo cuenta el principio, y no se avisa. Hasta la revisión de antes de congelar, uno así salía en `error` (`spikes/recorte_512.py`).",
         ],
         "operation": [
             "La vía local DEPENDE DE `torch`, que `requirements.txt` no trae, como el tono inglés; la imagen lo instala (#162). Trae tokenizador rápido (`tokenizer.json`), así que no necesita `sentencepiece`. Lo hornea `docker/hornear_modelos.py`: unos 540 MB más.",

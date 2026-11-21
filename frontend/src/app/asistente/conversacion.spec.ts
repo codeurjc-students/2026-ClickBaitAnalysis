@@ -4,6 +4,7 @@ import {
   avisoDeGuardado,
   comoIntercambios,
   comoNoticias,
+  conservarPasos,
   duracionLegible,
   esperaDe,
   ESPERA_LARGA_MS,
@@ -336,6 +337,44 @@ describe('trazaVisible', () => {
     expect(
       trazaVisible(terminado('x', 'y', [herramienta('get_nyt_news', { result: [] })]).trabajo!),
     ).toBe(true);
+  });
+});
+
+describe('conservarPasos', () => {
+  /** Una lectura de la conversación que se diga, a medias. */
+  function enMarcha(pasos: ChatJob['steps'], id = 'conversacion-1'): ChatJob {
+    return { id, status: 'running', created_at: '2026-11-21T10:00:00Z', steps: pasos, result: null };
+  }
+
+  // Cada sondeo trae objetos nuevos aunque digan lo mismo, y la tarjeta de una
+  // señal se resembraba con cada uno.
+  it('un paso que ya había llegado conserva su referencia, y el nuevo se añade', () => {
+    const anterior = enMarcha([herramienta('detect_clickbait_lexical', SENAL.data, SENAL)]);
+    const nuevo = enMarcha([
+      structuredClone(anterior.steps[0]),
+      herramienta('detect_clickbait_linear', { probability: 0.9 }),
+    ]);
+
+    const conservada = conservarPasos(anterior, nuevo);
+
+    expect(conservada.steps[0]).toBe(anterior.steps[0]);
+    expect(conservada.steps[1]).toBe(nuevo.steps[1]);
+    expect(conservada).toEqual(nuevo);
+  });
+
+  it('un paso que cambió llega tal cual', () => {
+    const anterior = enMarcha([herramienta('detect_clickbait', { label: 'clickbait', score: 1 })]);
+    const nuevo = enMarcha([herramienta('detect_clickbait', { label: 'clickbait', score: 0.5 })]);
+
+    expect(conservarPasos(anterior, nuevo).steps[0]).toBe(nuevo.steps[0]);
+  });
+
+  it('sin lectura anterior, o con la de otra conversación, la nueva sale tal cual', () => {
+    const anterior = enMarcha([herramienta('detect_clickbait', { label: 'clickbait', score: 1 })]);
+    const otra = enMarcha([structuredClone(anterior.steps[0])], 'conversacion-2');
+
+    expect(conservarPasos(anterior, otra)).toBe(otra);
+    expect(conservarPasos(null, otra)).toBe(otra);
   });
 });
 

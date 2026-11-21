@@ -49,6 +49,24 @@ describe('segmentar', () => {
     ).toEqual([{ texto: 'Amazing', categoria: 'hyperbole' }]);
   });
 
+  // El léxico da los `span` en puntos de código, como cuenta Python, y
+  // `String.slice` cuenta unidades UTF-16, en las que un emoji ocupa dos. Sin
+  // contar igual, cada emoji anterior a una pista corría la marca un carácter.
+  it('cuenta los caracteres como el léxico, también detrás de un emoji', () => {
+    // Los `span` que da `lexical.detect` para este titular.
+    const segmentos = segmentar("😱 You Won't Believe It", [
+      pista('forward_reference', 'you', [2, 5]),
+      pista('forward_reference', 'it', [20, 22]),
+    ]);
+
+    expect(segmentos).toEqual([
+      { texto: '😱 ', categoria: null },
+      { texto: 'You', categoria: 'forward_reference' },
+      { texto: " Won't Believe ", categoria: null },
+      { texto: 'It', categoria: 'forward_reference' },
+    ]);
+  });
+
   it('ignora un span fuera de rango sin perder texto', () => {
     const segmentos = segmentar(TITULAR, [
       pista('hyperbole', 'lo que sea', [3, 900]),

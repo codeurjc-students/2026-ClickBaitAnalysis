@@ -1,6 +1,7 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { Component, computed, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
+import type { Subscription } from 'rxjs';
 
 import { mensajeDeLimite, SIN_RESPUESTA } from '../api/errores';
 import { HistoryService } from '../api/history.service';
@@ -102,13 +103,30 @@ export class HistorialPage {
     this.cargar();
   }
 
+  /**
+   * La petición de la página que se está cargando, para cancelarla si se pide
+   * otra. No es una señal porque la plantilla no la lee: lo que pinta es
+   * `cargando`.
+   */
+  private enVuelo: Subscription | null = null;
+
+  /**
+   * Pide la página que dicen los filtros y el desplazamiento de ahora.
+   *
+   * Con otra carga en vuelo, la CANCELA y pide esta: `filtrar` y `pasar` ya
+   * han cambiado los parámetros, y la respuesta vieja pintaría otra página
+   * bajo sus rótulos. Hasta la revisión de antes de congelar se ignoraba la
+   * nueva, y un doble clic en «Siguientes» enseñaba las entradas 21–40 bajo
+   * «Mostrando 41–50 de 50». Al cancelar la suscripción, `HttpClient` corta
+   * la petición.
+   */
   cargar(): void {
-    if (this.cargando()) return;
+    this.enVuelo?.unsubscribe();
 
     this.cargando.set(true);
     this.error.set(null);
 
-    this.historial
+    this.enVuelo = this.historial
       .pagina({
         limit: TAMANO,
         offset: this.offset(),

@@ -263,6 +263,32 @@ def test_con_el_unico_servidor_caido_es_un_503_con_una_frase_publica(monkeypatch
     assert "TaskGroup" not in detalle
 
 
+def test_el_422_tiene_la_forma_que_publica_el_contrato(monkeypatch):
+    """El contrato publica el 422 como `HTTPValidationError`, con `detail` como
+    lista, y se respondía con una cadena. `detalleDeValidacion`, en el
+    frontend, sólo lee la lista, así que Sistema enseñaba siempre la frase
+    genérica, sin decir qué argumento no encajaba. Lo vio la revisión de antes
+    de congelar: ninguna prueba HTTP vigilaba este 422."""
+    problemas = "days: 2.5 is not of type 'integer'"
+
+    async def no_encaja(name, arguments):
+        raise InvalidArguments(problemas)
+
+    monkeypatch.setattr("backend.api.app.execute_tool", no_encaja)
+    cliente = TestClient(api_app)
+
+    respuesta = cliente.post(
+        "/tools/get_nyt_news/execute", json={"arguments": {"days": 2.5}}
+    )
+
+    assert respuesta.status_code == 422
+    assert respuesta.json() == {
+        "detail": [
+            {"loc": ["body", "arguments"], "msg": problemas, "type": "value_error"}
+        ]
+    }
+
+
 # ----- El texto vacío (R3.5) y lo que no se publica (R12.7), #292 -----
 
 

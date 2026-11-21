@@ -36,6 +36,17 @@ Pipeline = Callable[..., Any]
 
 log = structlog.get_logger()
 
+# Lo más largo que recibe un clasificador, en piezas de su tokenizador. La
+# pipeline de text-classification NO recorta por defecto, y un texto más largo
+# que las posiciones del modelo fallaba dentro de torch: la dedicada y el tono
+# salían en `error` con «motivo no previsto», y el veredicto, sólo del léxico y
+# del lineal. Lo vio la revisión de antes de congelar; el caso realista es el
+# agente pasándole al tono el cuerpo de una noticia. `truncation=True` solo no
+# basta, porque hay tokenizadores que no declaran su tope de verdad
+# (`spikes/recorte_512.py`). Los cuatro modelos que pasan por aquí admiten 512,
+# y con menos piezas la salida no cambia. El zero-shot recorta por su cuenta.
+MAX_PIEZAS = 512
+
 
 def _fallo(tarea: str, model: str, error: Exception) -> ToolResult:
     """Registra el fallo entero y devuelve lo único que puede salir fuera (#89).
@@ -114,7 +125,7 @@ class LocalNLPClient(NLPBackend):
         try:
             pipe = self._get_pipeline("text-classification", model)
             result = await asyncio.to_thread(
-                pipe, text
+                pipe, text, truncation=True, max_length=MAX_PIEZAS
             )  # Usamos thread ya que es una accion bloqueante
             # (func, *args)
 

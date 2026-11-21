@@ -28,9 +28,11 @@ volumen, así que sobrevive a recrear los contenedores. El dibujo, en
   modelos del Hub de Hugging Face y los paquetes de npm.
 - **Unos 6 GB de disco** para las dos imágenes —la del backend lleva `torch` y
   los modelos—, y unos 7 GB más de caché de construcción.
-- **Unos 2 GB de memoria** con el sistema en marcha, casi todos de la API, que
-  carga los modelos al arrancar. El servidor MCP carga los suyos la primera vez
-  que se ejecuta una señal desde la pantalla de Sistema: hasta 1,2 GB más.
+- **Unos 2 GB de memoria** con el sistema en marcha, más la caché de disco de
+  los modelos. La API y el servidor MCP los cargan al arrancar, y cada uno
+  marca unos 1,8 GB, pero 1,35 son ficheros —`torch` y los modelos— que el
+  sistema cuenta en esa caché y no como memoria usada: en la máquina 1, con los
+  dos cargados, `free` da 1,8 GB usados (PR #296).
 - **Los puertos 80 y 443** libres.
 
 ## La configuración

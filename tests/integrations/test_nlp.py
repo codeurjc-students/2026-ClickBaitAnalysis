@@ -257,7 +257,7 @@ async def test_request_sends_bearer_header():
 # ------ LocalNLPClient
 
 
-def fake_pipe_classify(text):
+def fake_pipe_classify(text, **opciones):
     return [{"label": "POSITIVE", "score": 0.99}]
 
 
@@ -281,6 +281,28 @@ async def test_classify_local(monkeypatch):
     result = await client.classify("great movie", model)
     assert result.success
     assert result.data == {"label": "POSITIVE", "score": 0.99}
+
+
+@pytest.mark.asyncio
+async def test_classify_recorta_lo_que_no_cabe_en_el_modelo(monkeypatch):
+    """La pipeline de text-classification no recorta por defecto, y un texto
+    de más de 512 piezas tumbaba la dedicada y el tono con «motivo no
+    previsto». `truncation=True` solo no basta: el tokenizador del tono inglés
+    declara un tope de 1e+30, y con él sigue fallando. Medido con los cuatro
+    modelos servidos en `spikes/recorte_512.py`."""
+    recibido = {}
+
+    def pipe_que_anota(texto, **opciones):
+        recibido.update(opciones)
+        return [{"label": "OK", "score": 1.0}]
+
+    client = LocalNLPClient()
+    monkeypatch.setattr(client, "_get_pipeline", lambda task, model: pipe_que_anota)
+
+    result = await client.classify("un texto largo", "modelo")
+
+    assert result.success
+    assert recibido == {"truncation": True, "max_length": 512}
 
 
 def fake_pipe_zero_shot(text, candidate_labels):
@@ -1080,7 +1102,7 @@ async def test_el_aviso_no_secuestra_a_quien_sustituye_el_cargador(monkeypatch):
     """
     _sin_paquete(monkeypatch, "torch")
 
-    def pipeline_falso(texto):
+    def pipeline_falso(texto, **opciones):
         return [{"label": "OK", "score": 1.0}]
 
     cliente = LocalNLPClient()
