@@ -1,13 +1,15 @@
 # Arquitectura
 
-> **Documento vivo.** Refleja el estado de **`v0.8.0`**, con el análisis en
-> español. Revisado entero en #173; §7, §10 y §12 otra vez en #193, al cerrar
+> **Documento vivo.** Refleja el estado de **`v1.0.0`**, el código congelado el
+> 21 de noviembre de 2026 en `79f029e`. Revisado entero en #173; §7, §10 y §12 otra vez en #193, al cerrar
 > H5; y el 11 de octubre de 2026, para `v0.8`: §3, §6, §7, §10 y §12 llevan un
 > diagrama **«Hoy, en `v0.8`»** —delante en las cuatro primeras, y al final en
 > §12, que va en orden cronológico—, y los de antes se conservan. El 12 de
 > octubre, §8 sumó el diagrama de capas del cliente, que pide la plantilla de la
 > memoria (#251). El 10 de noviembre, §10 cambió el certificado autofirmado
-> por el de HARICA (#213). Para los requisitos,
+> por el de HARICA (#213). Y el 22 de noviembre, para `v1.0`: §4, §10 y §12
+> llevan un diagrama «Hoy, en `v1.0`», y §1, §3, §6 y §7, una nota. Para los
+> requisitos,
 > ver [`requisitos.md`](requisitos.md); para dónde vive cada cosa y con qué
 > criterio, [`estructura.md`](estructura.md).
 >
@@ -23,7 +25,8 @@
 > `v0.8`» marcan así lo que cambió desde el anterior —el de `v0.6` en §7, §10 y
 > §12, y el del 4 de septiembre de 2026 en §3 y §6—, con la regla de #193: el
 > anterior no se toca si quedó desfasado por un cambio posterior, y se corrige
-> sólo si ya estaba mal al dibujarse.
+> sólo si ya estaba mal al dibujarse. Los «Hoy, en `v1.0`», igual: lo que no
+> tenía el de `v0.8`, o, en §4, el del 5 de septiembre de 2026.
 >
 > **Formato.** Los diagramas de flujo van en **Mermaid**: GitHub los renderiza,
 > viven junto al texto y se revisan en el diff de una pull request. Los dos SVG
@@ -88,6 +91,11 @@ Face sólo se llama por la vía remota, que desde #236 es de pago y ha dejado de
 ser el defecto: producción analiza en local y sin red. El diagrama, del 4 de
 septiembre de 2026, se deja como se dibujó.)*
 
+*(Desde #267, Claude Desktop puede usar el mismo servidor MCP, por stdio y en
+la máquina de quien lo usa, sin pasar por la API: es un consumidor más del
+protocolo, como el agente. Se instala con la guía de
+[`ejecucion.md`](ejecucion.md#desde-claude-desktop).)*
+
 **`/analyze` y `/health` importan el núcleo.** Dar el rodeo por el protocolo
 significaría serializar a JSON, volver a parsear y acabar **en la misma
 función**. `/health` reutiliza el mismo `check_health` que la tool MCP, así que
@@ -116,6 +124,8 @@ cinco. La traza de invocaciones ya vive en los logs.
 ## 3 · Secuencia de `POST /analyze`
 
 ### Hoy, en `v0.8`
+
+*(Sigue valiendo en `v1.0`: comprobado el 22 de noviembre de 2026 sobre `79f029e`. Desde `v0.8.0`, el orquestador sólo cambió en cómo registra el precalentado (#305).)*
 
 ```mermaid
 sequenceDiagram
@@ -225,6 +235,93 @@ le falta el idioma de `v0.8`.*
 
 ## 4 · Secuencia de `POST /tools/.../execute`
 
+### Hoy, en `v1.0`
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant C as Cliente
+    participant API as FastAPI
+    participant TR as api/execute · traduce
+    participant EX as core/mcp/tools · mecanismo
+    participant M as Servidor MCP
+    participant H as Historial
+
+    C->>API: POST a la ruta de ejecución
+    API->>TR: execute_tool(nombre, argumentos)
+    TR->>EX: execute_tool(nombre, argumentos, servers, timeout)
+
+    loop por cada servidor de mcp_servers
+        EX->>M: handshake y list_tools
+        alt no responde
+            rect rgba(43, 138, 62, 0.15)
+                M--xEX: error de conexión
+                Note over EX,M: se anota y se sigue con el siguiente
+            end
+        else no tiene la herramienta
+            M-->>EX: no está, pasa al siguiente
+        else la tiene
+            EX->>EX: valida los argumentos contra su inputSchema
+            EX->>M: call_tool(nombre, argumentos)
+            M-->>EX: CallToolResult
+            rect rgba(43, 138, 62, 0.15)
+                EX->>EX: de un fallo, sólo la frase<br/>que redactó la herramienta
+            end
+        end
+    end
+
+    Note over EX,M: todo va dentro de un asyncio.timeout<br/>que acota la operación ENTERA, no sólo call_tool
+
+    EX-->>TR: Invocation, o ToolNotFound / ServerUnavailable /<br/>InvalidArguments / ToolTimeout
+    TR-->>API: ExecuteResponse con status ok o error,<br/>y sus argumentos
+    rect rgba(43, 138, 62, 0.15)
+        API->>H: guarda la respuesta entera,<br/>con los argumentos
+    end
+    API-->>C: 200, o 404 / 503 / 422 / 504 según la excepción
+```
+
+*En verde, lo que no tenía el del 5 de septiembre de 2026. Un servidor MCP que
+no responde ya no corta la búsqueda: se anota y se sigue, y si la herramienta
+no estaba en los que respondieron, sale `ServerUnavailable` y la API da un 503
+(R1.8, #292); hasta entonces era un 500 en texto plano. La respuesta lleva los
+argumentos con que se ejecutó, y el historial la guarda entera (R9.2, #292). Y
+del texto de un fallo sólo se publica la frase que redactó la herramienta; lo
+demás, como el error de Pydantic que FastMCP genera fuera de ella, sale como
+«no previsto», y entero sólo en el registro (R12.7, #292 y #301). El 422 tiene
+la forma de FastAPI, la que publica el contrato, desde #305.*
+
+**El mecanismo y su traducción están separados** desde la issue 137. `core/mcp/tools.py`
+localiza, valida e invoca sin saber que existe HTTP; `api/execute.py` convierte lo
+que devuelve en un código de estado. El motivo no es estética: el agente de R13
+necesita ese mecanismo y no puede importar de una fachada sin que falle
+`tests/test_arquitectura.py`.
+
+Esa frontera explica la última pareja de flechas. Lo que sube del mecanismo son
+**excepciones o un resultado**, no códigos: una excepción interrumpe, un
+resultado fallido es una respuesta. Por eso el 200 con `status: error` viaja
+dentro de `Invocation` y los otros cuatro no.
+
+**La validación ocurre antes de invocar** (R4.5). Si se dejara a MCP, un argumento
+mal escrito llegaría como fallo de ejecución y sería indistinguible de un análisis
+que salió mal; validando aquí, la API responde 422 diciendo qué campo falla.
+
+**Cinco salidas, cinco significados distintos.** El 200 con `status: error`
+dice «la herramienta se ejecutó y falló»: la petición era correcta. El 504 es su
+propia categoría porque **la herramienta pudo terminar bien al otro lado** — lo
+que falló es la espera, y decir «el análisis falló» sería mentir. Y el 503
+dice que un servidor no respondió y la herramienta podía estar en él: no se
+sabe si existe, así que no es un 404.
+
+**Hay dos timeouts y hacen falta los dos.** El de `httpx` mide inactividad entre
+bytes; el `asyncio.timeout` acota la duración. Hasta el arreglo de la issue 113,
+sólo estaba el primero y una herramienta lenta **no fallaba, se colgaba**.
+
+### Como se dibujó (5 sep 2026)
+
+*(Lo que ha quedado viejo: un servidor que no respondía cortaba la búsqueda y
+daba un 500; la respuesta no llevaba sus argumentos; y el texto de un fallo
+salía tal cual llegaba.)*
+
 ```mermaid
 sequenceDiagram
     autonumber
@@ -255,30 +352,6 @@ sequenceDiagram
     TR-->>API: ExecuteResponse con status ok o error
     API-->>C: 200, o 404 / 422 / 504 según la excepción
 ```
-
-**El mecanismo y su traducción están separados** desde la issue 137. `core/mcp/tools.py`
-localiza, valida e invoca sin saber que existe HTTP; `api/execute.py` convierte lo
-que devuelve en un código de estado. El motivo no es estética: el agente de R13
-necesita ese mecanismo y no puede importar de una fachada sin que falle
-`tests/test_arquitectura.py`.
-
-Esa frontera explica la última pareja de flechas. Lo que sube del mecanismo son
-**excepciones o un resultado**, no códigos: una excepción interrumpe, un
-resultado fallido es una respuesta. Por eso el 200 con `status: error` viaja
-dentro de `Invocation` y los otros tres no.
-
-**La validación ocurre antes de invocar** (R4.5). Si se dejara a MCP, un argumento
-mal escrito llegaría como fallo de ejecución y sería indistinguible de un análisis
-que salió mal; validando aquí, la API responde 422 diciendo qué campo falla.
-
-**Cuatro salidas, cuatro significados distintos.** El 200 con `status: error`
-dice «la herramienta se ejecutó y falló»: la petición era correcta. El 504 es su
-propia categoría porque **la herramienta pudo terminar bien al otro lado** — lo
-que falló es la espera, y decir «el análisis falló» sería mentir.
-
-**Hay dos timeouts y hacen falta los dos.** El de `httpx` mide inactividad entre
-bytes; el `asyncio.timeout` acota la duración. Hasta el arreglo de la issue 113,
-sólo estaba el primero y una herramienta lenta **no fallaba, se colgaba**.
 
 ## 5 · El historial: escritura y lectura
 
@@ -311,6 +384,8 @@ renombrar una columna dejaría su campo a `None` sin un solo error.
 ## 6 · El dominio del análisis
 
 ### Hoy, en `v0.8`
+
+*(Sigue valiendo en `v1.0`: comprobado el 22 de noviembre de 2026 sobre `79f029e`. `AnalyzeResponse` y `SignalResult` no han cambiado; lo nuevo del contrato está fuera del análisis: `arguments` en `ExecuteResponse` (§4) y `recording` en `AgentInfo` (§12).)*
 
 ```mermaid
 classDiagram
@@ -444,6 +519,8 @@ queda desfasado y se deja: le falta `label`, que llegó al día siguiente con
 ## 7 · Capas y dirección de dependencias
 
 ### Hoy, en `v0.8`
+
+*(Sigue valiendo en `v1.0`: comprobado el 22 de noviembre de 2026 sobre `79f029e`. `spikes/imports_entre_capas.py` da los mismos 21 pares de capas que sobre `v0.8.0`, ninguno sin camino en el dibujo. Lo nuevo vive dentro de capas que ya estaban: `grabado.py` en `integrations/llm/` y el prompt `06-dato` en `agent/prompts/`.)*
 
 ```mermaid
 flowchart TD
@@ -771,7 +848,64 @@ Tres decisiones que el diagrama no puede enseñar solo:
 
 ## 10 · Despliegue
 
-### Hoy, en `v0.8`
+### Hoy, en `v1.0`
+
+```mermaid
+flowchart TB
+    NAV["Navegador"]
+    EXT["APIs de noticias<br/>NYT · Guardian · GNews · NewsData.io · weather.gov"]
+    PER["Una persona<br/>abre la sesión de GPU"]
+
+    subgraph M1["Máquina 1 · la aplicación · 15 GiB, sin GPU"]
+        subgraph PUB["Publicado: 80, 443 y 443/udp"]
+            WEB["web · Caddy 2.11.9<br/>la SPA en /srv · TLS · tope de 1 MB"]
+        end
+        subgraph RED["Red interna de compose · nada publicado"]
+            API["api · uvicorn :8000<br/>--root-path /api · limitador<br/>5 señales y 5 modelos en local · 1,7 GiB"]
+            MCP["mcp · FastMCP :8765<br/>streamable-http<br/>precalienta los modelos"]
+            AGT["agente · backend/agent/<br/>dentro del proceso de la API<br/>o, con compose.grabado.yaml,<br/>con respuestas grabadas"]
+        end
+        TUN["172.17.0.1:11434<br/>boca del túnel<br/>escucha el usuario tunel"]
+        CERT[("/etc/clickbait/tls<br/>certificado de HARICA<br/>a mano, hasta el 28 may 2027")]
+        HIST[("volumen historial<br/>/app/var/history.db")]
+    end
+
+    subgraph M2["Máquina 2 · A40 de 46 GB · compartida · bajo demanda"]
+        GS["gpu-sesion<br/>2 h como mucho<br/>lo suelta todo al salir"]
+        OLL["Ollama 0.34.2<br/>qwen3.5:27b · num_ctx 16.384"]
+    end
+
+    NAV -->|HTTPS| WEB
+    WEB -->|"/api/* sin el prefijo"| API
+    API -->|"/tools y execute"| MCP
+    API -->|"/health: NYT, Guardian y weather.gov"| EXT
+    MCP -->|"herramientas de noticias, también en español"| EXT
+    API --- HIST
+    WEB --- CERT
+    API -->|"POST /chat<br/>1 en marcha, 2 en cola"| AGT
+    AGT -->|"descubrimiento y llamadas"| MCP
+    AGT -->|"el chat, por host.docker.internal:11434"| TUN
+    TUN -->|"túnel SSH inverso"| OLL
+    PER --> GS
+    GS -->|"arranca"| OLL
+    GS -->|"abre el túnel hacia la 1"| TUN
+    API -->|"GET /agent y POST /chat<br/>preguntan si el modelo está"| TUN
+
+    classDef nuevo stroke:#2b8a3e,stroke-width:3px
+    class WEB,MCP,AGT nuevo
+```
+
+*En verde, lo que el de `v0.8` no tenía. Caddy es la 2.11.9 (#260 y #280). El
+servidor MCP precalienta sus modelos al arrancar, en un hilo y mientras ya
+atiende (#267, #295): en la máquina 1, 17,6 s, a la vez que la API (17,0 s).
+Y el plan B de la demostración (#265): con `compose.grabado.yaml`, el agente
+de la API reproduce las respuestas que grabó el 27B, que van dentro de la
+imagen, y no llama al modelo; las herramientas se ejecutan de verdad. Pasar a
+ese modo, o volver, recrea sólo la API, en 13 o 14 s. La imagen ocupa 5,99 GB
+y cada proceso del backend, unos 1,7 GiB residentes (medido al desplegar
+`79f029e` el 21 de noviembre de 2026, `spikes/congelacion/despliegue.txt`).*
+
+### En `v0.8` (11 oct 2026)
 
 ```mermaid
 flowchart TB
@@ -1264,7 +1398,7 @@ Cambiaron el prompt y el modo guiado, y se añadió lo que está en naranja:
   por tiempo, y 5,2 s cargándolo (del registro de Ollama, con
   `spikes/ollama_registro.sh`).
 
-### Hoy, en `v0.8`
+### En `v0.8` (11 oct 2026)
 
 ```mermaid
 sequenceDiagram
@@ -1342,6 +1476,86 @@ agente se la pide una vez más, si le quedan vueltas; si no, termina como
 vacía. Medido en la A40, con 40 conversaciones con historial sin el arreglo y
 40 con él: vacías 5 → 2, fallidas 2 → 0, y la espera más larga, de 313 a
 117 s.*
+
+### Hoy, en `v1.0`
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant SPA as SPA · asistente
+    participant API as FastAPI
+    participant TRA as trabajos en memoria
+    participant AGT as agente
+    participant MCP as servidor MCP
+    participant LLM as Ollama, o la grabación
+
+    Note over SPA,LLM: HOY, en v1.0. En verde, lo que no tenía el de v0.8.
+    SPA->>API: GET /agent
+    API->>LLM: pregunta si el modelo está
+    LLM-->>API: su versión y sus modelos, o la conexión rechazada al instante
+    rect rgba(43, 138, 62, 0.15)
+        API-->>SPA: disponibilidad, ficha, prompt,<br/>tope del historial y si es una grabación
+    end
+    SPA->>SPA: recorta el historial al tope,<br/>con los nombres de las herramientas
+    SPA->>API: POST /chat con el mensaje y el historial
+    API->>LLM: pregunta si el modelo está
+    LLM-->>API: si está, y si tiene el modelo
+    API->>TRA: crea el trabajo, en cola<br/>si hay otro en marcha
+    TRA-->>API: el trabajo y su id,<br/>o que la cola está llena
+    Note over SPA,API: 503 sin modelo o con la cola llena,<br/>y 422 si el historial pasa del tope
+    API-->>SPA: 202 con el id del trabajo, al instante
+    par el agente trabaja
+        TRA->>TRA: espera su turno en la cola, en queued,<br/>y al tocarle pasa a running
+        TRA->>AGT: lanza el agente
+        AGT->>MCP: list_tools
+        MCP-->>AGT: el catálogo, 14 herramientas
+        AGT->>AGT: monta los turnos anteriores,<br/>con sus llamadas sin resultado, y un aviso
+        loop como mucho 6 vueltas
+            rect rgba(43, 138, 62, 0.15)
+                AGT->>LLM: mensajes, catálogo y 06-dato, razonando,<br/>num_ctx 16.384 y perfil preciso
+            end
+            Note over AGT,LLM: con un tope de 1.500 tokens de salida por vuelta
+            LLM-->>AGT: llamadas a herramientas, o el texto final
+            AGT->>TRA: anota la vuelta, con lo que pidió,<br/>sus tokens y su tiempo
+            alt el modelo pide herramientas
+                AGT->>MCP: call_tool, una por cada llamada
+                rect rgba(43, 138, 62, 0.15)
+                    MCP-->>AGT: resultado estructurado, o la frase<br/>pública de su fallo, también<br/>si el servidor no responde
+                end
+                AGT->>TRA: anota la llamada y su resultado<br/>entero en la traza
+                Note over AGT,LLM: al modelo vuelve con las cifras a tres decimales
+            else responde con texto entero
+                Note over AGT,LLM: sale del bucle, con la respuesta
+            else vacía o cortada por el tope
+                AGT->>AGT: si no se la pidió ya y quedan vueltas,<br/>añade un mensaje que le pide la respuesta
+                Note over AGT,LLM: y vuelve al bucle, o sale como vacía
+            end
+        end
+        AGT-->>TRA: el resultado, answered, empty_answer,<br/>max_rounds o failed
+        TRA->>TRA: lo guarda y da el trabajo por terminado
+    and la SPA sondea cada 2 s
+        loop hasta que el trabajo termine
+            SPA->>API: GET /chat/id
+            API->>TRA: lee el estado y la traza
+            TRA-->>API: el estado y los pasos hasta ahora
+            API->>API: a cada paso de señal<br/>le añade su SignalResult
+            API-->>SPA: queued, running o done, con la traza
+        end
+    end
+    Note over SPA,TRA: las tarjetas se pintan con el SignalResult de la traza, no con el texto del modelo
+```
+
+*En verde, lo que el de `v0.8` no tenía. El prompt es `06-dato` desde #269:
+`05-llano` más un párrafo que dice que el texto de una noticia es un dato y no
+una instrucción, frente a la inyección indirecta. El resultado de una
+herramienta que falla trae la frase que ella redactó, o una de «no previsto», y
+un servidor MCP que no responde tiene la suya (#292, #301). Y `GET /agent` dice
+si las respuestas son grabadas (`recording`, #265): con `compose.grabado.yaml`,
+lo que contesta no es Ollama sino la grabación de la conversación de la
+demostración, que sólo narra si el prompt y lo que devuelven las herramientas
+son los de la grabación, y si no, lo dice con una frase fija. La pantalla lo
+avisa siempre. Las 14 herramientas se declaran además de sólo lectura
+(`readOnlyHint`, #269), algo que no llega al modelo.*
 
 ## Los diagramas de la Fase A
 
