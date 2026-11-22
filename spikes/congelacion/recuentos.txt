@@ -1,0 +1,53 @@
+== 2026-11-21 16:32 +0100 · el commit 79f029e
+
+== Líneas no vacías, por zona y lenguaje (ficheros versionados)
+| Zona | Lenguaje | Ficheros | Líneas |
+|---|---|---|---|
+| .github | YAML | 4 | 409 |
+| backend (servido) | JSON | 2 | 210 |
+| backend (servido) | Markdown | 5 | 275 |
+| backend (servido) | Python | 70 | 8820 |
+| backend/evaluation (no se sirve) | JSON | 1 | 1 |
+| backend/evaluation (no se sirve) | Python | 23 | 5338 |
+| despliegue | Markdown | 1 | 279 |
+| docker | Python | 1 | 72 |
+| docs | Markdown | 6 | 2711 |
+| frontend (pruebas) | TypeScript | 17 | 3435 |
+| frontend (servido) | HTML | 11 | 1039 |
+| frontend (servido) | SCSS | 11 | 1381 |
+| frontend (servido) | TypeScript | 29 | 3078 |
+| raíz y configuración | JSON | 10 | 290 |
+| raíz y configuración | Markdown | 2 | 8460 |
+| raíz y configuración | TOML | 2 | 99 |
+| raíz y configuración | YAML | 3 | 220 |
+| spikes | Bash | 27 | 2653 |
+| spikes | JSON | 132 | 367053 |
+| spikes | Markdown | 13 | 580 |
+| spikes | Python | 51 | 10680 |
+| tests | Python | 41 | 9774 |
+
+lo servido, en código (HTML, Python, SCSS, TypeScript; backend y frontend, sin pruebas): 14318 líneas
+
+== Generado o lockfile, aparte
+  frontend/openapi.json: 2058 líneas (el contrato, exportado)
+  frontend/package-lock.json: 9229 líneas (lockfile de npm)
+  frontend/src/app/api/schema.d.ts: 1616 líneas (tipos generados del contrato)
+  requirements.txt: 189 líneas (lockfile de Python)
+
+== Pruebas
+  servidor, todas: 745
+  servidor, sin `integration` (las del CI): 729 (16 de integración, que tocan la red)
+  cliente: 221 en 17 ficheros (`ng test`)
+
+== Cobertura del servidor (de ramas, `.coveragerc`)
+  97%: 2615 sentencias (58 sin cubrir) y 542 ramas (36 a medias), con 729 pruebas
+
+== El repositorio
+  commits hasta 79f029e: 274 (233 sin merges), desde 2026-02-24
+  etiquetas: v0.2.0 v0.3.0 v0.4.0 v0.4.1 v0.5.0 v0.6.0 v0.7.0 v0.8.0
+
+  En GitHub, a las 2026-11-21 16:34 +0100:
+  pull requests: 170 · merged 170 · por destino: dev 124, main 46
+  ramas de las que salió alguna pull request: 163
+  ramas que quedan en GitHub: 13
+  issues: 136 · abiertas 12, cerradas 124

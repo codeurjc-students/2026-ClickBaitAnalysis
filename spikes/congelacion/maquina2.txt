@@ -1,0 +1,26 @@
+La máquina 2 durante la conversación del asistente de #215 (21 nov 2026), con
+la GPU COMPARTIDA: había dos procesos de otro usuario (decidido por el usuario
+compartirla; los tiempos no se citan sueltos). Dos conexiones SSH, una con la
+sesión abierta y otra tras cerrarla; salida tal cual, salvo el nombre y la ruta de los procesos del otro usuario, que se tapan. La versión de
+`gpu-sesion` se compara con la versionada (`despliegue/maquina2/gpu-sesion`).
+
+== 2026-11-21T23:24:52+01:00 · máquina 2
+ollama: ollama version is 0.34.2
+qwen3.5:27b id: 7653528ba5cb
+gpu-sesion sha256: 6ad6a751d636
+== /api/ps
+qwen3.5:27b size 16487 MiB · size_vram 16487 MiB · contexto 16384 · caduca 2026-11-21T23:34:49.015973071+01:00
+== nvidia-smi
+31409 MiB, 46068 MiB, 100 %
+431858, (proceso de otro usuario), 6764 MiB
+431859, (proceso de otro usuario), 6764 MiB
+442867, /home/gongarcia/.local/ollama/lib/ollama/llama-server, 17848 MiB
+== versionado: 6ad6a751d636
+
+== 2026-11-21T23:31:24+01:00 · máquina 2, tras cerrar la sesión
+procesos ollama propios: 0
+procesos gpu-sesion propios: 0
+13554 MiB, 46068 MiB, 100 %
+procesos de gongarcia en la GPU: 0
+431858, (proceso de otro usuario), 6764 MiB
+431859, (proceso de otro usuario), 6764 MiB

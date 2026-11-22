@@ -15,6 +15,12 @@ hoy podrían cambiar, como mucho, esos 26 de 19.484. Dos cifras ya publicadas la
 atan a lo que se midió: la dedicada tiene que dar 0,758 (#124) y el veredicto,
 0,660 (#231). Si no, la caché es de otro sistema y el guion se para.
 
+Desde #215 (21 nov 2026) la caché se regeneró sobre la versión congelada
+(`79f029e`), y la del 8 oct quedó en
+`var/veredicto_validation170630.antes-215.json`. El control va por la huella
+de cada caché (`CONTROLES`): cada una, con lo que se publicó de ella. Una
+caché de huella desconocida no se para, pero lo dice: nada publicado la ata.
+
 Las señales se miden sobre los tuits en que votaron, como en
 `eval_veredicto.comprobar`; el veredicto, sobre todos, con `deceptive` y
 `stylistic_clickbait` como «es clickbait» y lo demás como «no». Los 19.484 son
@@ -23,7 +29,9 @@ el trozo grande de Webis-Clickbait-17, que desde la partición de #78 incluye
 
 Ejecutar desde la raíz:
 
-    .venv/bin/python spikes/cifras_veredicto.py | tee spikes/cifras_veredicto/2026-11-16.txt
+    .venv/bin/python spikes/cifras_veredicto.py [caché] | tee spikes/cifras_veredicto/<fecha>.txt
+
+Sin argumento lee la de `var/`; la del 8 oct, con su ruta.
 
 Resultados (2026-11-16, con la caché del 8 oct, huella 3db32ea91cb2):
 
@@ -44,11 +52,21 @@ los 6.808 unánimes.
 | stylistic_clickbait | 2.990 | 15,3 % | 68,0 % |
 | deceptive | 1.339 | 6,9 % | 71,2 % |
 | no_data | 9 | 0,0 % | 66,7 % |
+
+Resultados (2026-11-21, #215, con la caché regenerada sobre `79f029e`, huella
+c5755af33a53; la salida, en `spikes/cifras_veredicto/2026-11-21.txt`): la
+dedicada vota 19.475 tuits, 17 más, los que el detector toma por españoles
+(los vota BETO; quedan 9 de idioma indeterminado), y sigue en F1 0,758. El
+léxico, el lineal, la incoherencia y el veredicto en los 19.484 no cambian. En
+los unánimes, el veredicto pasa de 0,811 a 0,812, y en el reparto cambian dos
+filas: `ambiguous`, 8.199 (42,1 %, 17,3 % de clickbait), y
+`stylistic_clickbait`, 2.985 (15,3 %, 68,1 %).
 """
 
 import hashlib
 import json
 import subprocess
+import sys
 from collections import Counter
 from datetime import UTC, datetime
 from pathlib import Path
@@ -59,9 +77,13 @@ RAIZ = Path(__file__).resolve().parent.parent
 CACHE = RAIZ / "var" / "veredicto_validation170630.json"
 
 TUITS = 19_484
-# Lo ya publicado, que ata la caché a lo que se midió.
-CONTROL_DEDICADA = 0.758  # #124
-CONTROL_VEREDICTO = 0.660  # #231
+# Lo ya publicado de cada caché, por su huella: la ata a lo que se midió.
+CONTROLES = {
+    # La del 8 oct: la dedicada, de #124, y el veredicto, de #231.
+    "3db32ea91cb2": {"dedicada": 0.758, "veredicto": 0.660},
+    # La de la versión congelada, `79f029e` (#215).
+    "c5755af33a53": {"dedicada": 0.758, "veredicto": 0.660},
+}
 
 SENALES = {
     "Dedicada (control)": "detect_clickbait",
@@ -100,9 +122,9 @@ def _commit() -> str:
     )
 
 
-def cargar() -> tuple[dict, bytes]:
+def cargar(ruta: Path) -> tuple[dict, bytes]:
     """La caché entera y sus bytes, comprobada contra los 19.484 tuits."""
-    contenido = CACHE.read_bytes()
+    contenido = ruta.read_bytes()
     cache = json.loads(contenido)
     if len(cache["ids"]) != TUITS or len(cache["filas"]) != TUITS:
         raise SystemExit(f"la caché no tiene los {TUITS} tuits del trozo grande")
@@ -166,30 +188,38 @@ def reparto(filas: list[dict]) -> list[tuple[str, int, int]]:
 
 
 def main() -> None:
-    cache, contenido = cargar()
+    ruta = Path(sys.argv[1]).resolve() if len(sys.argv) > 1 else CACHE
+    cache, contenido = cargar(ruta)
     filas = cache["filas"]
-    modificada = datetime.fromtimestamp(CACHE.stat().st_mtime, tz=UTC)
+    modificada = datetime.fromtimestamp(ruta.stat().st_mtime, tz=UTC)
 
     senales = {nombre: medir_senal(filas, senal) for nombre, senal in SENALES.items()}
     veredicto = medir_veredicto(filas)
     dedicada = senales["Dedicada (control)"]["f1"]
-    if round(dedicada, 3) != CONTROL_DEDICADA:
-        raise SystemExit(
-            f"control: la dedicada da {dedicada:.4f}, y no {CONTROL_DEDICADA}"
-        )
     _, _, _, f1_veredicto = veredicto["todos"]
-    if round(f1_veredicto, 3) != CONTROL_VEREDICTO:
-        raise SystemExit(
-            f"control: el veredicto da {f1_veredicto:.4f}, y no {CONTROL_VEREDICTO}"
-        )
+    control = CONTROLES.get(cache["huella"])
+    if control is not None:
+        if round(dedicada, 3) != control["dedicada"]:
+            raise SystemExit(
+                f"control: la dedicada da {dedicada:.4f}, y no {control['dedicada']}"
+            )
+        if round(f1_veredicto, 3) != control["veredicto"]:
+            raise SystemExit(
+                f"control: el veredicto da {f1_veredicto:.4f}, "
+                f"y no {control['veredicto']}"
+            )
 
     print("== condiciones")
     print(f"  fecha: {datetime.now(UTC).isoformat(timespec='seconds')}")
     print(f"  commit: {_commit()}")
-    print(f"  caché: {CACHE.relative_to(RAIZ)}, {_miles(len(contenido))} bytes")
+    print(f"  caché: {ruta.relative_to(RAIZ)}, {_miles(len(contenido))} bytes")
     print(f"  sha256: {hashlib.sha256(contenido).hexdigest()}")
     print(f"  modificada: {modificada.isoformat(timespec='seconds')}")
     print(f"  huella del sistema que la generó: {cache['huella']}")
+    if control is None:
+        print("  control: ninguno; ninguna cifra publicada ata esta caché")
+    else:
+        print(f"  control: {control}, cumplido")
     print(f"  tuits: {_miles(len(filas))}")
 
     print("\n== las señales, sobre los tuits en que votaron")

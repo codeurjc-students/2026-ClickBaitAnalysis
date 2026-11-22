@@ -26,12 +26,14 @@
 #
 # Despliega: sólo se ejecuta cuando el usuario lo pide. Ejecutar desde la raíz:
 #   bash spikes/precalentado_maquina1.sh
-# La salida se guarda en spikes/precalentado_maquina1/salida.txt.
+# La salida se guarda en spikes/precalentado_maquina1/salida.txt, la medida de
+# la PR #296; otro despliegue la guarda en su carpeta, con `SALIDA=<carpeta>`
+# (desde #215: el de la congelación, en spikes/congelacion/).
 set -uo pipefail
 cd "$(dirname "$0")/.." || exit 1
 MAQUINA_1=vmuser@193.147.60.40
 SITIO=https://gongarcia.tfg.etsii.urjc.es
-SALIDA=spikes/precalentado_maquina1
+SALIDA=${SALIDA:-spikes/precalentado_maquina1}
 mkdir -p "$SALIDA"
 
 analizar() {

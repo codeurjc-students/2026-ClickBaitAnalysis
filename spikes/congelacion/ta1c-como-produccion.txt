@@ -1,0 +1,22 @@
+== 2026-11-21, en WSL (CPU, sin red) sobre 79f029e: NLP_BACKEND=local .venv/bin/python -m backend.evaluation.eval_ta1c --como-produccion
+==  79f029e
+== 700 teasers de TA1C validation; 4 sin cuerpo
+  100/700 · 43 s
+  200/700 · 71 s
+  300/700 · 100 s
+  400/700 · 126 s
+  500/700 · 154 s
+  600/700 · 183 s
+  700/700 · 212 s
+== TA1C validation, con el idioma detectado, como producción: 700 teasers, 206 clickbait (29.4%)
+== cada señal, frente a la etiqueta humana
+  detect_clickbait               P 0.849 · R 0.762 · F1 0.803 · vota en 700 · {'ok': 700}
+  detect_clickbait_lexical       P 0.000 · R 0.000 · F1 0.000 · vota en 1 · {'not_applicable': 699, 'ok': 1}
+  detect_clickbait_linear        P 0.710 · R 0.534 · F1 0.609 · vota en 700 · {'ok': 700}
+  detect_clickbait_incoherence   no vota · {'not_applicable': 700}
+  analyze_sentiment              no vota · {'ok': 700}
+  el léxico no encuentra ninguna pista en 1 de 1 (100.0%)
+== el veredicto
+  «es clickbait» frente a la etiqueta: P 0.938 · R 0.515 · F1 0.665
+  reparto: factual 473 (67.6%) · ambiguous 114 (16.3%) · stylistic_clickbait 113 (16.1%)
+  (Las cifras publicadas de TA1C —TF-IDF + XGBoost 0,61, BETO 0,84— son de su `test`, no de `validation`: no se comparan tal cual.)

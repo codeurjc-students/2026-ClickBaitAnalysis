@@ -1,0 +1,35 @@
+clon: dev · 79f029e chore(api): la versión 1.0.0 en el contrato, antes de congela
+contenedor de la API creado: 2026-11-21T13:56:33Z
+2026-11-21T22:18:05Z [info ] chat.aceptada en_espera=0 trabajo=…
+2026-11-21T22:19:03Z [info ] agent.vuelta pide=['analyze_headline'] prompt_tokens=4770 total_s=57.72 vuelta=1
+2026-11-21T22:19:03Z [info ] agent.herramienta duracion_s=0.31 estado=ok herramienta=analyze_headline
+2026-11-21T22:21:48Z [info ] agent.vuelta pide=[] prompt_tokens=5585 total_s=164.81 vuelta=2
+2026-11-21T22:24:33Z [info ] agent.vuelta pide=[] prompt_tokens=5620 total_s=164.74 vuelta=3
+2026-11-21T22:24:33Z [info ] agent.fin estado=empty_answer herramientas=1 total_s=387.76 vueltas=3
+2026-11-21T22:24:33Z [info ] chat.aceptada en_espera=0 trabajo=…
+2026-11-21T22:24:49Z [info ] agent.vuelta pide=['detect_clickbait_linear'] prompt_tokens=4771 total_s=15.15 vuelta=1
+2026-11-21T22:24:49Z [info ] agent.herramienta duracion_s=0.12 estado=ok herramienta=detect_clickbait_linear
+2026-11-21T22:25:23Z [info ] agent.vuelta pide=[] prompt_tokens=4959 total_s=34.02 vuelta=2
+2026-11-21T22:25:23Z [info ] agent.fin estado=answered herramientas=1 total_s=49.42 vueltas=2
+2026-11-21T22:25:24Z [info ] chat.aceptada en_espera=0 trabajo=…
+2026-11-21T22:26:02Z [info ] agent.vuelta pide=['detect_clickbait_linear', 'detect_clickbait', 'analyze_headline'] prompt_tokens=5074 total_s=38.18 vuelta=1
+2026-11-21T22:26:02Z [info ] agent.herramienta duracion_s=0.12 estado=ok herramienta=detect_clickbait_linear
+2026-11-21T22:26:02Z [info ] agent.herramienta duracion_s=0.17 estado=ok herramienta=detect_clickbait
+2026-11-21T22:26:02Z [info ] agent.herramienta duracion_s=0.19 estado=ok herramienta=analyze_headline
+2026-11-21T22:26:49Z [info ] agent.vuelta pide=[] prompt_tokens=6071 total_s=46.96 vuelta=2
+2026-11-21T22:26:49Z [info ] agent.fin estado=answered herramientas=3 total_s=85.74 vueltas=2
+2026-11-21T22:26:51Z [info ] chat.aceptada en_espera=0 trabajo=…
+2026-11-21T22:27:12Z [info ] agent.vuelta pide=['analyze_headline'] prompt_tokens=4770 total_s=21.6 vuelta=1
+2026-11-21T22:27:13Z [info ] agent.herramienta duracion_s=0.3 estado=ok herramienta=analyze_headline
+2026-11-21T22:27:55Z [info ] agent.vuelta pide=[] prompt_tokens=5583 total_s=42.57 vuelta=2
+2026-11-21T22:27:55Z [info ] agent.fin estado=answered herramientas=1 total_s=64.61 vueltas=2
+2026-11-21T22:27:57Z [info ] chat.aceptada en_espera=0 trabajo=…
+2026-11-21T22:28:13Z [info ] agent.vuelta pide=['detect_clickbait_linear'] prompt_tokens=5077 total_s=16.33 vuelta=1
+2026-11-21T22:28:13Z [info ] agent.herramienta duracion_s=0.12 estado=ok herramienta=detect_clickbait_linear
+2026-11-21T22:28:45Z [info ] agent.vuelta pide=[] prompt_tokens=5265 total_s=32.0 vuelta=2
+2026-11-21T22:28:45Z [info ] agent.fin estado=answered herramientas=1 total_s=48.59 vueltas=2
+2026-11-21T22:28:47Z [info ] chat.aceptada en_espera=0 trabajo=…
+2026-11-21T22:29:02Z [info ] agent.vuelta pide=['analyze_headline'] prompt_tokens=5289 total_s=14.49 vuelta=1
+2026-11-21T22:29:02Z [info ] agent.herramienta duracion_s=0.29 estado=ok herramienta=analyze_headline
+2026-11-21T22:29:32Z [info ] agent.vuelta pide=[] prompt_tokens=6029 total_s=29.6 vuelta=2
+2026-11-21T22:29:32Z [info ] agent.fin estado=answered herramientas=1 total_s=44.49 vueltas=2

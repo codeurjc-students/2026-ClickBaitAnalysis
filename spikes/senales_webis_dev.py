@@ -11,7 +11,12 @@ genera `eval_veredicto`. El lineal hace de control, porque su F1 en esta partici
 ya está publicado (#231): si no sale 0,535, la caché es de otro sistema y el guion
 se para. Se cuentan los que votaron, como en `eval_veredicto.comprobar`.
 
-Ejecutar desde la raíz: .venv/bin/python spikes/senales_webis_dev.py
+Ejecutar desde la raíz: .venv/bin/python spikes/senales_webis_dev.py [caché]
+
+Sin argumento lee la de `var/`. Desde #215 (21 nov 2026) es la regenerada
+sobre la versión congelada, y la del 8 oct está en
+`var/veredicto_validation170630.antes-215.json`. El control vale para las
+dos: ni los pesos del lineal ni su puerta del idioma cambian desde #231.
 
 Resultados (2026-11-08, con la caché del 8 oct):
 
@@ -23,9 +28,15 @@ Resultados (2026-11-08, con la caché del 8 oct):
 
 No votan, por la puerta del idioma (`not_applicable`), 2 tuits en el lineal y 5 en
 las otras dos.
+
+Con la caché regenerada en #215 (2026-11-21, `79f029e`; la salida, en
+`spikes/congelacion/senales_webis_dev.txt`), la dedicada vota 3 tuits más
+(3.894; no votan 2) y da lo mismo: P 0,713, R 0,820 y F1 0,763. El léxico y
+el lineal no cambian.
 """
 
 import json
+import sys
 from collections import Counter
 from pathlib import Path
 
@@ -46,7 +57,7 @@ SENALES = {
 }
 
 
-def filas_de_dev() -> list[dict]:
+def filas_de_dev(cache: Path) -> list[dict]:
     """Las filas de la caché de `webis_dev`, comprobadas contra su partición."""
     with open(PARTE, encoding="utf-8") as fichero:
         etiquetas = {fila["id"]: fila["label"] for fila in map(json.loads, fichero)}
@@ -55,7 +66,7 @@ def filas_de_dev() -> list[dict]:
 
     filas = [
         fila
-        for fila in json.loads(CACHE.read_text(encoding="utf-8"))["filas"]
+        for fila in json.loads(cache.read_text(encoding="utf-8"))["filas"]
         if fila["id"] in etiquetas
     ]
     if {fila["id"] for fila in filas} != set(etiquetas):
@@ -86,7 +97,8 @@ def medir(filas: list[dict], senal: str) -> dict:
 
 
 def main() -> None:
-    filas = filas_de_dev()
+    cache = Path(sys.argv[1]).resolve() if len(sys.argv) > 1 else CACHE
+    filas = filas_de_dev(cache)
     resultados = {nombre: medir(filas, senal) for nombre, senal in SENALES.items()}
     control = resultados["Lineal bilingüe, 0,35 (control)"]["f1"]
     if round(control, 3) != CONTROL_LINEAL:

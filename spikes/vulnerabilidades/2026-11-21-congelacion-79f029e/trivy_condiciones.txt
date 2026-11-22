@@ -1,0 +1,10 @@
+fecha: 2026-11-21T23:00:18+01:00
+commit: 79f029e (chore/215-medidas-congelacion)
+Version: 0.75.0
+Vulnerability DB:
+  Version: 2
+  UpdatedAt: 2026-11-21 07:02:51.626719824 +0000 UTC
+  NextUpdate: 2026-11-22 07:02:51.626719593 +0000 UTC
+  DownloadedAt: 2026-11-21 10:50:25.073957539 +0000 UTC
+imagen: clickbait-backend sha256:0ac3bbe2e888e09ffc67e68520273f86128eef7d2cf5db61ab9027d4837f1cdb creada 2026-11-21T21:59:03.831689065+01:00
+imagen: clickbait-web sha256:2cdcdef2af7f9fdcefb9db7fc6c909fcbe8f9b6da1b2fe7c639da50f8131a5cd creada 2026-11-21T21:58:06.231887281+01:00
