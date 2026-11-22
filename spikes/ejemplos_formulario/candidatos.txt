@@ -1,0 +1,89 @@
+# Los 72 titulares entre los que se eligió el ejemplo «caso ambiguo» (#282).
+# Escritos el 12 nov 2026 para la ocasión, no tomados de ningún corpus.
+# Se miden con: .venv/bin/python spikes/ejemplos_formulario.py --candidatos <este fichero>
+
+# Preguntas sobre un hecho
+Is the Federal Reserve About to Cut Interest Rates?
+Will the Federal Reserve Cut Interest Rates This Year?
+Why Did the Federal Reserve Hold Interest Rates Steady?
+What Does the Federal Reserve's Rate Decision Mean for Mortgages?
+Can the European Central Bank Avoid a Recession?
+Who Will Lead the Federal Reserve Next Year?
+Why Is Inflation Still So High?
+What Is a Recession, and Are We in One?
+Is Coffee Good for You? Here's What the Science Says
+
+# Noticias con un número al principio
+3 Astronauts Return to Earth After Six Months on the Space Station
+12 Countries Sign Trade Agreement at Geneva Summit
+5 Takeaways From the Federal Reserve's March Meeting
+4 Charts That Explain the Federal Reserve's Rate Decision
+2 Senators Propose Bill to Limit Interest Rates on Credit Cards
+6 Things to Know About the New Interest Rates
+20 Countries Sign Climate Agreement at Geneva Summit
+
+# Explicativos
+How the Federal Reserve Sets Interest Rates
+What the Federal Reserve's Rate Decision Means for You
+Why Interest Rates Matter More Than You Think
+Here Is What the Federal Reserve Decided on Interest Rates
+Everything You Need to Know About the Federal Reserve's Decision
+The Real Reason the Federal Reserve Is Holding Interest Rates Steady
+What Happens to Your Savings When Interest Rates Fall
+This Is Why the Federal Reserve Held Interest Rates Steady
+
+# Sobrios, con una pista
+Federal Reserve Makes Surprising Decision on Interest Rates
+Federal Reserve Holds Interest Rates Steady, and Markets Can't Believe It
+Scientists Discover Surprising Link Between Sleep and Memory
+The Federal Reserve Just Held Interest Rates Steady. Here's Why
+Economists Reveal When Interest Rates Could Finally Fall
+Study Finds Coffee Drinkers Live Longer
+Scientists Say This Common Habit May Shorten Your Life
+NASA Finds Something Unexpected on Mars
+Researchers Find a Simple Trick to Improve Memory
+Federal Reserve Chair Explains What Comes Next for Interest Rates
+Scientists Finally Know Why Cats Purr
+Apple Unveils New iPhone With Longer Battery Life
+You Can Now Renew Your Passport Online
+Here's How Much Rent Rose in Every Major City This Year
+
+# El tema del titular anterior
+7 Tips for Moving Abroad
+A Guide to Moving Abroad: What to Know Before You Go
+What to Know Before Moving Abroad
+Moving Abroad: 5 Questions to Ask First
+How to Move Abroad Without Losing Your Savings
+The 10 Best Countries for Moving Abroad, Ranked
+Thinking of Moving Abroad? Read This First
+What I Learned From Moving Abroad
+Is Moving Abroad Worth It?
+How Much Does It Cost to Move Abroad?
+The Truth About Moving Abroad
+Moving Abroad Changed My Life
+How to Move Abroad Without Going Broke
+How to Move Abroad on a Budget
+
+# El titular factual del formulario, con un gancho
+Federal Reserve Holds Interest Rates Steady. Here's Why
+Federal Reserve Holds Interest Rates Steady, Here's Why
+Federal Reserve Holds Interest Rates Steady. Here Is Why
+Federal Reserve Holds Interest Rates Steady. Here's Why It Matters
+Federal Reserve Holds Interest Rates Steady. Here's What It Means
+Federal Reserve Holds Interest Rates Steady. The Reason May Surprise You
+Federal Reserve Holds Interest Rates Steady for a Surprising Reason
+Here's Why the Federal Reserve Held Interest Rates Steady
+Why the Federal Reserve Held Interest Rates Steady
+Why the Federal Reserve Is Holding Interest Rates Steady
+The Federal Reserve Just Held Interest Rates Steady
+The Federal Reserve Held Interest Rates Steady Again. Here's Why
+The Reason the Federal Reserve Held Interest Rates Steady
+How the Federal Reserve Decided to Hold Interest Rates Steady
+
+# Variantes de los que mejor salieron
+Scientists Find a Simple Trick to Fall Asleep Faster
+Doctors Find a Simple Trick to Lower Blood Pressure
+Astronomers Find Something Unexpected on Mars
+Astronomers Spot Something Strange Near Jupiter
+Scientists Find Something Unexpected Under Antarctic Ice
+Scientists Finally Explain Why Cats Purr

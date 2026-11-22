@@ -116,6 +116,7 @@ describe('ToolsService', () => {
       tool: 'get_nyt_news',
       server: 'tfg',
       status: 'error',
+      arguments: { topic: 'clima' },
       detail: 'La API de NYT respondió 503.',
     };
 

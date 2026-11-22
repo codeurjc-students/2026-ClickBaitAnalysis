@@ -10,7 +10,7 @@ from mcp.server.fastmcp import FastMCP
 from mcp.server.fastmcp.exceptions import ToolError
 
 from backend.core.observability import log_tool_invocation
-from backend.integrations.metadata import tool_meta
+from backend.integrations.metadata import SOLO_LECTURA, tool_meta
 from backend.integrations.weather.client import WeatherAPI
 
 
@@ -18,7 +18,9 @@ def register(mcp: FastMCP):
 
     api = WeatherAPI()
 
-    @mcp.tool(meta=tool_meta("Fuentes de contenido", __name__))
+    @mcp.tool(
+        meta=tool_meta("Fuentes de contenido", __name__), annotations=SOLO_LECTURA
+    )
     @log_tool_invocation
     async def get_alerts(state: str) -> str:
         """Get weather alerts for a US state.
@@ -38,7 +40,9 @@ def register(mcp: FastMCP):
 
         return response.unwrap()
 
-    @mcp.tool(meta=tool_meta("Fuentes de contenido", __name__))
+    @mcp.tool(
+        meta=tool_meta("Fuentes de contenido", __name__), annotations=SOLO_LECTURA
+    )
     @log_tool_invocation
     async def get_forecast(latitude: float, longitude: float) -> str:
         """Get weather forecast for a location.

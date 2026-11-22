@@ -1,0 +1,113 @@
+== condiciones
+fecha: 2026-11-13T14:22:12+01:00 · commit: 147d1df · rama: feat/265-grabacion-27b · guion: spikes/grabar_demostracion.py 1ed08de9d5c0 · sesión de 60 min como máximo
+máquina 2: gpuserver2 · ollama 0.34.2 · qwen3.5:27b 7653528ba5cb · gpu-sesion 6ad6a751d636
+gpu antes: 0 MiB · procesos: 0
+Ollama en marcha (pid 188665). Registro: /home/gongarcia/.ollama-serve.log
+La sesión se cierra sola, como mucho, en 60m.
+== máquina 2: el modelo, cargado
+  carga: 7.883000796 s · total: 8.167247168 s
+LISTO PARA WSL
+túnel: 11500 → ollama {"version":"0.34.2"} · 11434 local → {"version":"0.32.5"}
+== condiciones
+  fecha: 2026-11-13T14:23:01+01:00
+  commit: 147d1df
+  cambios_sin_commitear: False
+  ollama: 0.34.2
+  servidor: http://127.0.0.1:11500
+  modelo: qwen3.5:27b
+  digest: 7653528ba5cb
+  prompt: 06-dato
+  num_ctx: 16384
+  temperature: 0.6
+  presence_penalty: 0.0
+  num_predict: 1500
+  think: True
+  tope_del_historial: 4000
+  tomas_por_redaccion: 3
+  senales_en: CPU
+  modelos_de_las_senales: [{'model_id': 'Stremie/roberta-base-clickbait', 'revision': '517de05db9ba2bf977c6c653d2f03265b74317a8'}, {'model_id': 'cardiffnlp/twitter-roberta-base-sentiment-latest', 'revision': '3216a57f2a0d9c45a2e6c20157c20c49fb4bf9c7'}, {'model_id': 'sentence-transformers/all-MiniLM-L6-v2', 'revision': '1110a243fdf4706b3f48f1d95db1a4f5529b4d41'}, {'model_id': 'ggcastle/beto-clickbait-es', 'revision': '03c31ac0c288a982fb2aa02755a9bd0abb43078e'}, {'model_id': 'lxyuan/distilbert-base-multilingual-cased-sentiments-student', 'revision': 'cf991100d706c13c0a080c097134c05b7f436c45'}]
+Loading weights:   0%|          | 0/201 [00:00<?, ?it/s]Loading weights: 100%|██████████| 201/201 [00:00<00:00, 10917.57it/s]
+Loading weights:   0%|          | 0/201 [00:00<?, ?it/s]Loading weights: 100%|██████████| 201/201 [00:00<00:00, 8397.55it/s]
+[transformers] [1mRobertaForSequenceClassification LOAD REPORT[0m from: cardiffnlp/twitter-roberta-base-sentiment-latest
+Key                         | Status     |  | 
+----------------------------+------------+--+-
+roberta.pooler.dense.bias   | UNEXPECTED |  | 
+roberta.pooler.dense.weight | UNEXPECTED |  | 
+
+Notes:
+- UNEXPECTED:	can be ignored when loading from different task/architecture; not ok if you expect identical arch.
+Loading weights:   0%|          | 0/201 [00:00<?, ?it/s]Loading weights:  11%|█▏        | 23/201 [00:00<00:00, 229.08it/s]Loading weights:  23%|██▎       | 46/201 [00:00<00:00, 175.03it/s]Loading weights:  37%|███▋      | 75/201 [00:00<00:00, 218.96it/s]Loading weights:  49%|████▉     | 99/201 [00:00<00:00, 187.02it/s]Loading weights:  59%|█████▉    | 119/201 [00:00<00:00, 175.67it/s]Loading weights:  71%|███████   | 143/201 [00:00<00:00, 191.32it/s]Loading weights:  81%|████████  | 163/201 [00:00<00:00, 191.10it/s]Loading weights: 100%|██████████| 201/201 [00:00<00:00, 229.57it/s]
+Loading weights:   0%|          | 0/104 [00:00<?, ?it/s]Loading weights:   8%|▊         | 8/104 [00:00<00:02, 45.80it/s]Loading weights:  20%|██        | 21/104 [00:00<00:01, 61.66it/s]Loading weights:  33%|███▎      | 34/104 [00:00<00:00, 79.59it/s]Loading weights:  43%|████▎     | 45/104 [00:00<00:00, 88.74it/s]Loading weights:  55%|█████▍    | 57/104 [00:00<00:00, 92.88it/s]Loading weights:  68%|██████▊   | 71/104 [00:00<00:00, 103.56it/s]Loading weights:  79%|███████▉  | 82/104 [00:01<00:00, 63.60it/s] Loading weights: 100%|██████████| 104/104 [00:01<00:00, 86.34it/s]
+
+== toma 1
+-- turno 1: answered, 140.8 s, 3 vueltas · esperada True
+   pregunta: Analiza a fondo el titular 'You Won't Believe What This Dog Did Next' con todas las señales del sistema.
+   llama a: analyze_headline({"headline": "You Won't Believe What This Dog Did Next", "content": "None"})
+   responde: El veredicto del sistema es que se trata de un clickbait por la forma, sin engaño detectado. El clasificador entrenado lo etiqueta como clickbait con un 95 % de confianza, y el detector de pistas encuentra cuatro señales típicas: "you", "what", "this" y "dog". El modelo de pesos indica una probabilidad del 99 % de ser clickbait, donde las palabras "this", "you" y "what" son las que más influyen en el resultado. El análisis del tono lo clasifica como negativo con un 76 % de confianza, mientras que el comparador de titular y texto no se pudo aplicar por falta del cuerpo de la noticia.
+-- turno 2: answered, 20.7 s, 2 vueltas · esperada True
+   pregunta: ¿Con qué peso contribuye cada palabra de 'You Won't Believe What This Dog Did Next' al veredicto?
+   llama a: detect_clickbait_linear({"headline": "You Won't Believe What This Dog Did Next"})
+   responde: El modelo de pesos indica que todas las palabras del titular contribuyen positivamente a la clasificación como clickbait, con una probabilidad del 99 % de serlo. Las palabras con mayor peso son "this" con 1.9, "you" con 1.75 y "what" con 1.14, seguidas de "did" con 0.55, "dog" con 0.46, "next" con 0.44, "won't" con 0.15 y "believe" con 0.12. Estos valores positivos indican que cada término empuja el veredicto hacia la categoría de clickbait. El sistema detecta que la combinación de estas palabras es característica de titulares diseñados para atraer clics.
+-- turno 3: answered, 27.6 s, 2 vueltas · esperada True
+   pregunta: ¿Es clickbait 'No vas a creer lo que hizo este perro al ver a su dueño'?
+   llama a: analyze_headline({"headline": "No vas a creer lo que hizo este perro al ver a su dueño"})
+   responde: El veredicto del sistema es que se trata de un clickbait por la forma, sin engaño detectado. El clasificador entrenado lo etiqueta como clickbait con un 99 % de confianza, mientras que el modelo de pesos indica una probabilidad del 43 % de serlo, donde palabras como "que", "ver" y "lo" contribuyen positivamente al resultado. El análisis del tono lo clasifica como negativo con un 51 % de confianza. El detector de pistas y el comparador de titular y texto no se aplican porque el titular está en español.
+-- condiciones 1 y 2: True
+
+== toma 2
+-- turno 1: answered, 24.5 s, 2 vueltas · esperada True
+   pregunta: Analiza a fondo el titular 'You Won't Believe What This Dog Did Next' con todas las señales del sistema.
+   llama a: analyze_headline({"headline": "You Won't Believe What This Dog Did Next", "content": ""})
+   responde: El análisis del titular clasifica el caso como clickbait por la forma, sin engaño detectado, ya que no se pudo aplicar el comparador de titular y texto al no haber contenido disponible. El clasificador entrenado lo etiqueta como clickbait con una confianza del 95 %. El detector de pistas encuentra cuatro señales: las palabras "you", "what", "this" y "dog", que dejan la información para después. El modelo de pesos da una probabilidad del 99 % de que sea clickbait, con las palabras "this", "you" y "what" como las que más empujan ese veredicto. El análisis del tono lo clasifica como negativo con una confianza del 76 %.
+-- turno 2: answered, 53.4 s, 2 vueltas · esperada True
+   pregunta: ¿Con qué peso contribuye cada palabra de 'You Won't Believe What This Dog Did Next' al veredicto?
+   llama a: detect_clickbait_linear({"headline": "You Won't Believe What This Dog Did Next"})
+   responde: El modelo de pesos indica que todas las palabras del titular tienen un valor positivo que empuja hacia clickbait. Las palabras "this", "you" y "what" son las que más influyen con pesos de 1.899, 1.754 y 1.141 respectivamente, mientras que "did", "dog" y "next" aportan 0.552, 0.46 y 0.443. Finalmente, "won't" y "believe" contribuyen con valores de 0.148 y 0.121.
+-- turno 3: answered, 20.3 s, 2 vueltas · esperada True
+   pregunta: ¿Es clickbait 'No vas a creer lo que hizo este perro al ver a su dueño'?
+   llama a: analyze_headline({"headline": "No vas a creer lo que hizo este perro al ver a su dueño", "content": ""})
+   responde: El análisis clasifica el titular como clickbait por la forma, sin poder evaluar si engaña al no haber contenido disponible para comparar. El clasificador entrenado lo etiqueta como clickbait con una confianza del 99 %. El modelo de pesos da una probabilidad del 43 % de que sea clickbait, con las palabras "que", "ver" y "lo" empujando hacia ese veredicto, mientras que "no", "al" y "hizo" lo hacen en contra. El detector de pistas y el comparador de titular y texto no se aplican porque el titular está en español. El análisis del tono lo clasifica como negativo con una confianza del 51 %.
+-- condiciones 1 y 2: True
+
+== toma 3
+-- turno 1: answered, 13.5 s, 2 vueltas · esperada True
+   pregunta: Analiza a fondo el titular 'You Won't Believe What This Dog Did Next' con todas las señales del sistema.
+   llama a: analyze_headline({"headline": "You Won't Believe What This Dog Did Next", "content": "None"})
+   responde: El análisis concluye que el titular es un caso de clickbait por su forma, sin poder determinar si engaña porque no se proporcionó el texto de la noticia.
+
+El clasificador entrenado lo etiqueta como clickbait con una confianza del 95 %. El detector de pistas encuentra cuatro señales: las palabras "you", "what", "this" y "dog" que dejan la información para después. El modelo de pesos calcula una probabilidad del 99 % de ser clickbait, impulsado principalmente por las palabras "this" y "you".
+
+El análisis del tono clasifica el titular como negativo con una confianza del 76 %.
+
+La comparación entre titular y texto no se pudo aplicar porque falta el cuerpo de la noticia.
+-- turno 2: answered, 16.3 s, 2 vueltas · esperada True
+   pregunta: ¿Con qué peso contribuye cada palabra de 'You Won't Believe What This Dog Did Next' al veredicto?
+   llama a: detect_clickbait_linear({"headline": "You Won't Believe What This Dog Did Next"})
+   responde: El modelo de pesos atribuye los siguientes valores a las palabras del titular: "this" con 1,90, "you" con 1,75, "what" con 1,14, "did" con 0,55, "dog" con 0,46, "next" con 0,44, "won't" con 0,15 y "believe" con 0,12.
+
+Todos estos pesos son positivos y empujan hacia clickbait, lo que resulta en una probabilidad del 99 % de que el titular sea clickbait.
+
+Las palabras con mayor peso son "this" y "you", que son las que más influyen en el veredicto final.
+
+El titular cumple con el umbral de 0,35 para ser considerado clickbait, ya que su probabilidad es de 0,994.
+-- turno 3: answered, 23.2 s, 2 vueltas · esperada True
+   pregunta: ¿Es clickbait 'No vas a creer lo que hizo este perro al ver a su dueño'?
+   llama a: analyze_headline({"headline": "No vas a creer lo que hizo este perro al ver a su dueño"}), detect_clickbait_linear({"headline": "No vas a creer lo que hizo este perro al ver a su dueño"})
+   responde: El análisis concluye que el titular es clickbait por su forma, sin poder determinar si engaña porque no se proporcionó el texto de la noticia.
+
+El clasificador entrenado lo etiqueta como clickbait con una confianza del 99 %. El modelo de pesos calcula una probabilidad del 43 % de ser clickbait, impulsado principalmente por las palabras "que", "ver", "lo", "este" y "su", que tienen pesos positivos.
+
+El análisis del tono clasifica el titular como negativo con una confianza del 51 %.
+
+La comparación entre titular y texto y el detector de pistas léxicas no se pudieron aplicar porque el titular está en español y estas herramientas solo funcionan con inglés.
+-- condiciones 1 y 2: True
+
+== resumen: condiciones 1 y 2, sin leer todavía
+  toma 1: True
+  toma 2: True
+  toma 3: True
+
+Todo, con las conversaciones enteras: spikes/grabacion_demostracion/2026-11-13-27b/tomas.json
+túnel cerrado
+== máquina 2, al cerrar la sesión
+  gpu: 0 MiB · procesos: 0 · ollama propios: 0

@@ -1,0 +1,146 @@
+[
+ {
+  "regla": "generic-api-key",
+  "descripcion": "Detected a Generic API Key, potentially exposing access to various services and sensitive operations.",
+  "fichero": "backend/api/the_guardian_api.py",
+  "linea": 14,
+  "commit": "470b539",
+  "fecha": "2026-03-19",
+  "huella": "470b5394241e632c9f1b502a8ca1521efc04ca56:backend/api/the_guardian_api.py:generic-api-key:14"
+ },
+ {
+  "regla": "generic-api-key",
+  "descripcion": "Detected a Generic API Key, potentially exposing access to various services and sensitive operations.",
+  "fichero": "backend/api/the_guardian_api.py",
+  "linea": 15,
+  "commit": "ef51e07",
+  "fecha": "2026-03-23",
+  "huella": "ef51e072b08854c6c356331c163303bb9456a87d:backend/api/the_guardian_api.py:generic-api-key:15"
+ },
+ {
+  "regla": "generic-api-key",
+  "descripcion": "Detected a Generic API Key, potentially exposing access to various services and sensitive operations.",
+  "fichero": "tests/core/test_errores.py",
+  "linea": 9,
+  "commit": "a6e9a6a",
+  "fecha": "2026-09-17",
+  "huella": "a6e9a6a4d1b6467c29b3b868e369110c4a714e54:tests/core/test_errores.py:generic-api-key:9"
+ },
+ {
+  "regla": "generic-api-key",
+  "descripcion": "Detected a Generic API Key, potentially exposing access to various services and sensitive operations.",
+  "fichero": "tests/integrations/test_nyt.py",
+  "linea": 99,
+  "commit": "d4e0b53",
+  "fecha": "2026-10-02",
+  "huella": "d4e0b53926b4e9d1fc76658cf18c613bf455f971:tests/integrations/test_nyt.py:generic-api-key:99"
+ },
+ {
+  "regla": "generic-api-key",
+  "descripcion": "Detected a Generic API Key, potentially exposing access to various services and sensitive operations.",
+  "fichero": "tests/integrations/test_nyt.py",
+  "linea": 99,
+  "commit": "22ae9d9",
+  "fecha": "2026-10-02",
+  "huella": "22ae9d9b15d5a9cc082dc04d40be3b9d207b33b2:tests/integrations/test_nyt.py:generic-api-key:99"
+ },
+ {
+  "regla": "generic-api-key",
+  "descripcion": "Detected a Generic API Key, potentially exposing access to various services and sensitive operations.",
+  "fichero": "tests/integrations/test_nyt.py",
+  "linea": 102,
+  "commit": "d4e0b53",
+  "fecha": "2026-10-02",
+  "huella": "d4e0b53926b4e9d1fc76658cf18c613bf455f971:tests/integrations/test_nyt.py:generic-api-key:102"
+ },
+ {
+  "regla": "generic-api-key",
+  "descripcion": "Detected a Generic API Key, potentially exposing access to various services and sensitive operations.",
+  "fichero": "tests/integrations/test_nyt.py",
+  "linea": 102,
+  "commit": "22ae9d9",
+  "fecha": "2026-10-02",
+  "huella": "22ae9d9b15d5a9cc082dc04d40be3b9d207b33b2:tests/integrations/test_nyt.py:generic-api-key:102"
+ },
+ {
+  "regla": "generic-api-key",
+  "descripcion": "Detected a Generic API Key, potentially exposing access to various services and sensitive operations.",
+  "fichero": "tests/integrations/test_nyt.py",
+  "linea": 194,
+  "commit": "d4e0b53",
+  "fecha": "2026-10-02",
+  "huella": "d4e0b53926b4e9d1fc76658cf18c613bf455f971:tests/integrations/test_nyt.py:generic-api-key:194"
+ },
+ {
+  "regla": "generic-api-key",
+  "descripcion": "Detected a Generic API Key, potentially exposing access to various services and sensitive operations.",
+  "fichero": "tests/integrations/test_nyt.py",
+  "linea": 194,
+  "commit": "22ae9d9",
+  "fecha": "2026-10-02",
+  "huella": "22ae9d9b15d5a9cc082dc04d40be3b9d207b33b2:tests/integrations/test_nyt.py:generic-api-key:194"
+ },
+ {
+  "regla": "generic-api-key",
+  "descripcion": "Detected a Generic API Key, potentially exposing access to various services and sensitive operations.",
+  "fichero": "tests/integrations/test_gnews.py",
+  "linea": 258,
+  "commit": "2f6c705",
+  "fecha": "2026-10-09",
+  "huella": "2f6c7050f8d65331805213c81d4a5bd504b32295:tests/integrations/test_gnews.py:generic-api-key:258"
+ },
+ {
+  "regla": "generic-api-key",
+  "descripcion": "Detected a Generic API Key, potentially exposing access to various services and sensitive operations.",
+  "fichero": "tests/integrations/test_newsdata.py",
+  "linea": 268,
+  "commit": "2f6c705",
+  "fecha": "2026-10-09",
+  "huella": "2f6c7050f8d65331805213c81d4a5bd504b32295:tests/integrations/test_newsdata.py:generic-api-key:268"
+ },
+ {
+  "regla": "generic-api-key",
+  "descripcion": "Detected a Generic API Key, potentially exposing access to various services and sensitive operations.",
+  "fichero": "tests/integrations/test_nyt.py",
+  "linea": 23,
+  "commit": "5d6cf91",
+  "fecha": "2026-10-12",
+  "huella": "5d6cf91d3c582016e292827c37abcda7279264b5:tests/integrations/test_nyt.py:generic-api-key:23"
+ },
+ {
+  "regla": "generic-api-key",
+  "descripcion": "Detected a Generic API Key, potentially exposing access to various services and sensitive operations.",
+  "fichero": "spikes/vulnerabilidades/2026-10-13-base-arreglada/trivy_clickbait-backend.json",
+  "linea": 71,
+  "commit": "a5907d2",
+  "fecha": "2026-10-13",
+  "huella": "a5907d260c28bb19720d3d41b0a5b9155a9ec920:spikes/vulnerabilidades/2026-10-13-base-arreglada/trivy_clickbait-backend.json:generic-api-key:71"
+ },
+ {
+  "regla": "generic-api-key",
+  "descripcion": "Detected a Generic API Key, potentially exposing access to various services and sensitive operations.",
+  "fichero": "spikes/vulnerabilidades/2026-10-13-base-arreglada/trivy_clickbait-backend.json",
+  "linea": 222,
+  "commit": "a5907d2",
+  "fecha": "2026-10-13",
+  "huella": "a5907d260c28bb19720d3d41b0a5b9155a9ec920:spikes/vulnerabilidades/2026-10-13-base-arreglada/trivy_clickbait-backend.json:generic-api-key:222"
+ },
+ {
+  "regla": "generic-api-key",
+  "descripcion": "Detected a Generic API Key, potentially exposing access to various services and sensitive operations.",
+  "fichero": "spikes/vulnerabilidades/2026-10-13-caddy-2.11.7/trivy_clickbait-backend.json",
+  "linea": 71,
+  "commit": "a5907d2",
+  "fecha": "2026-10-13",
+  "huella": "a5907d260c28bb19720d3d41b0a5b9155a9ec920:spikes/vulnerabilidades/2026-10-13-caddy-2.11.7/trivy_clickbait-backend.json:generic-api-key:71"
+ },
+ {
+  "regla": "generic-api-key",
+  "descripcion": "Detected a Generic API Key, potentially exposing access to various services and sensitive operations.",
+  "fichero": "spikes/vulnerabilidades/2026-10-13-caddy-2.11.7/trivy_clickbait-backend.json",
+  "linea": 222,
+  "commit": "a5907d2",
+  "fecha": "2026-10-13",
+  "huella": "a5907d260c28bb19720d3d41b0a5b9155a9ec920:spikes/vulnerabilidades/2026-10-13-caddy-2.11.7/trivy_clickbait-backend.json:generic-api-key:222"
+ }
+]

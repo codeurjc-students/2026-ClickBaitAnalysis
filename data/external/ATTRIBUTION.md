@@ -120,18 +120,22 @@ dos permiten redistribuirlo conservando la atribución.
 
 ## Cita
 Gabriel Mordecki, Guillermo Moncecchi y Javier Couto. *"Te Ahorré Un Click: A
-Revised Definition of Clickbait and Detection in Spanish News."*
-arXiv:2507.09777, 2025. Según su ficha de arXiv, publicado en *Advances in
-Artificial Intelligence – IBERAMIA 2024* (LNCS).
+Revised Definition of Clickbait and Detection in Spanish News."* En *Advances
+in Artificial Intelligence – IBERAMIA 2024*, Lecture Notes in Computer Science,
+págs. 387–399. Springer Nature Switzerland, 2025.
+DOI: [10.1007/978-3-031-80366-6_32](https://doi.org/10.1007/978-3-031-80366-6_32)
+(cotejado en Crossref el 2026-11-20). También en arXiv: 2507.09777.
 
 ```bibtex
-@misc{mordecki2025teahorre,
+@inproceedings{mordecki2025teahorre,
   title={Te Ahorr{\'e} Un Click: A Revised Definition of Clickbait and Detection in Spanish News},
   author={Mordecki, Gabriel and Moncecchi, Guillermo and Couto, Javier},
+  booktitle={Advances in Artificial Intelligence -- IBERAMIA 2024},
+  series={Lecture Notes in Computer Science},
+  pages={387--399},
+  publisher={Springer Nature Switzerland},
   year={2025},
-  eprint={2507.09777},
-  archivePrefix={arXiv},
-  primaryClass={cs.CL}
+  doi={10.1007/978-3-031-80366-6_32}
 }
 ```
 

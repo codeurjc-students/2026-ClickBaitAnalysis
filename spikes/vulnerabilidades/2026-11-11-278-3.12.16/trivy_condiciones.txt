@@ -1,0 +1,11 @@
+fecha: 2026-11-11T17:57:45+01:00
+commit: ef228e6 (chore/278-versiones-fijadas)
+  ⚠️ con cambios sin commitear en docker/, requirements.txt o el lockfile de npm
+Version: 0.75.0
+Vulnerability DB:
+  Version: 2
+  UpdatedAt: 2026-11-11 13:00:47.186797699 +0000 UTC
+  NextUpdate: 2026-11-12 13:00:47.186796988 +0000 UTC
+  DownloadedAt: 2026-11-11 16:12:23.761448584 +0000 UTC
+imagen: clickbait-backend sha256:a2cd6e49d60e786f44d83b49de256bd4ea1ab41460c5f14052496cb181a1e381 creada 2026-11-11T17:46:57.719596153+01:00
+imagen: clickbait-web sha256:4dfc283696ead2895ac0d94630b0947e9690776eaac41fc802959b824bd9c7cb creada 2026-11-11T16:54:20.970669548+01:00

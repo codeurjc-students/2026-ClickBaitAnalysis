@@ -1,0 +1,6 @@
+webis_dev en la caché: 3896 tuits
+| Señal | Votan | P | R | F1 | Estados |
+|---|---|---|---|---|---|
+| Lineal bilingüe, 0,35 (control) | 3894 | 0.410 | 0.770 | 0.535 | {'ok': 3894, 'not_applicable': 2} |
+| Léxico | 3891 | 0.345 | 0.660 | 0.453 | {'ok': 3891, 'not_applicable': 5} |
+| Dedicada | 3894 | 0.713 | 0.820 | 0.763 | {'ok': 3894, 'not_applicable': 2} |

@@ -43,6 +43,7 @@ from backend.analysis.domain import (
 from backend.config.settings import settings
 from backend.core.idioma import Idioma
 from backend.integrations.llm.base import Disponibilidad
+from backend.integrations.llm.grabado import InfoGrabacion
 from backend.integrations.llm.model_card import FichaLLM
 
 # --------------------------------------------------------------------------
@@ -281,6 +282,14 @@ class ExecuteResponse(BaseModel):
     tool: str
     server: str
     status: ExecuteStatus
+    arguments: dict[str, Any] = Field(
+        description=(
+            "Los argumentos con que se ejecutó, tal como llegaron. El historial "
+            "guarda la respuesta, y con ella quedan (R9.2): sin ellos, una "
+            "búsqueda de noticias no dice qué se buscó. Lo guardado antes de "
+            "#292 no los trae."
+        )
+    )
 
     data: dict[str, Any] | None = Field(
         default=None,
@@ -316,9 +325,9 @@ class HistoryKind(
 class Origin(str, Enum):
     """Desde dónde se pidió la entrada en el historial. El prototipo distingue chat y formulario."""
 
-    FORM = "form"
-    CHAT = "chat"  # aún no existe: llega con el agente
-    API = "api"  # llamada directa, sin interfaz
+    FORM = "form"  # sin usar: el formulario llama a `POST /analyze` y queda como `API`
+    CHAT = "chat"  # sin usar: las conversaciones no van al historial (decidido en H5)
+    API = "api"  # lo que se escribe hoy, venga del formulario o de una llamada directa
 
 
 class HistoryEntry(BaseModel):
@@ -422,9 +431,12 @@ class HistoryPage(BaseModel):
 
 
 # Las herramientas de un turno del historial (#192): nombres como los del
-# catálogo, y como mucho tantos como tiene el catálogo entero (12, #188).
+# catálogo, y como mucho tantos como tiene el catálogo entero. Era 12, el de
+# #188, y se quedó corto al llegar el catálogo a 14 sin que nada avisara: un
+# turno con 13 habría dado un 422 al preguntar lo siguiente. Desde #292 lo vigila
+# una prueba contra el catálogo que se sirve (`test_chat.py`).
 NOMBRE_DE_HERRAMIENTA = re.compile(r"[A-Za-z0-9_\-]{1,64}")
-MAX_HERRAMIENTAS_POR_TURNO = 12
+MAX_HERRAMIENTAS_POR_TURNO = 14
 
 
 class ChatRequest(BaseModel):
@@ -573,10 +585,22 @@ class AgentInfo(BaseModel):
     funcionar), qué modelo es y sus límites medidos (R13.7), y qué
     instrucciones recibe (R13.5). No es `describe_models`: ésa la sirve el MCP,
     que no conoce la configuración del agente.
+
+    Y si sus respuestas son grabadas (#265), que la interfaz tiene que decir
+    siempre, sin que haya que abrir la ficha.
     """
 
     availability: Disponibilidad
     model_card: FichaLLM
+    recording: InfoGrabacion | None = Field(
+        description=(
+            "Si las respuestas del asistente son GRABADAS (#265): de qué modelo, "
+            "de qué día y sobre qué commit. `null` si es el modelo respondiendo "
+            "ahora, o si no hay asistente. La interfaz avisa siempre que no sea "
+            "`null`, y lo lee de aquí: nunca del nombre del modelo ni del texto "
+            "de `availability`."
+        )
+    )
     prompt: AgentPrompt
     max_history_chars: int = Field(
         description=(

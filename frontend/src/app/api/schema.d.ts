@@ -101,6 +101,10 @@ export interface paths {
          *     herramienta **puede haber terminado bien** —medido en #113, acabó con éxito a
          *     los 151 s mientras la API ya había desistido—, así que decir que el análisis
          *     falló sería falso. Lo que falló es la espera.
+         *
+         *     Y **503** si un servidor MCP no responde y la herramienta no estaba en los
+         *     que sí (R1.8, #292). Hasta #292 era un 500 en texto plano: el error de
+         *     conexión llegaba dentro de un `ExceptionGroup` y nadie lo capturaba.
          */
         post: operations["post_execute_tools__name__execute_post"];
         delete?: never;
@@ -298,6 +302,9 @@ export interface paths {
          *       apagado se detecta en 0,2 ms (#181).
          *     - `model_card`: la ficha del modelo, con sus límites medidos (R13.7). Si se
          *       configuró otro modelo, se publica ése y sin las medidas, que eran de otro.
+         *       Con respuestas grabadas, la de la grabación.
+         *     - `recording`: si las respuestas son grabadas (#265), de qué modelo, de qué
+         *       día y sobre qué commit; `null` si no. La interfaz lo avisa siempre.
          *     - `prompt`: el prompt de sistema en uso, entero (R13.5).
          *     - `max_history_chars`: el tope del historial de `POST /chat`, para que la
          *       interfaz recorte antes de enviar en vez de recibir un 422 (#191).
@@ -323,10 +330,15 @@ export interface components {
          *     funcionar), qué modelo es y sus límites medidos (R13.7), y qué
          *     instrucciones recibe (R13.5). No es `describe_models`: ésa la sirve el MCP,
          *     que no conoce la configuración del agente.
+         *
+         *     Y si sus respuestas son grabadas (#265), que la interfaz tiene que decir
+         *     siempre, sin que haya que abrir la ficha.
          */
         AgentInfo: {
             availability: components["schemas"]["Disponibilidad"];
             model_card: components["schemas"]["FichaLLM"];
+            /** @description Si las respuestas del asistente son GRABADAS (#265): de qué modelo, de qué día y sobre qué commit. `null` si es el modelo respondiendo ahora, o si no hay asistente. La interfaz avisa siempre que no sea `null`, y lo lee de aquí: nunca del nombre del modelo ni del texto de `availability`. */
+            recording: components["schemas"]["InfoGrabacion"] | null;
             prompt: components["schemas"]["AgentPrompt"];
             /**
              * Max History Chars
@@ -509,7 +521,7 @@ export interface components {
             message: string;
             /**
              * History
-             * @description Los turnos anteriores, del más antiguo al más reciente, sólo con su texto. El rol es `user` o `assistant`: el de sistema lo pone el servidor, y un cliente no puede colar otro. Los del asistente pueden llevar en `tools` los nombres de las herramientas que usaron (como mucho 12), sin sus resultados. Tiene un tope en caracteres, texto y nombres, que da la configuración; por encima, 422, y hay que quitar los turnos más antiguos.
+             * @description Los turnos anteriores, del más antiguo al más reciente, sólo con su texto. El rol es `user` o `assistant`: el de sistema lo pone el servidor, y un cliente no puede colar otro. Los del asistente pueden llevar en `tools` los nombres de las herramientas que usaron (como mucho 14), sin sus resultados. Tiene un tope en caracteres, texto y nombres, que da la configuración; por encima, 422, y hay que quitar los turnos más antiguos.
              */
             history?: components["schemas"]["Turno"][];
         };
@@ -595,6 +607,13 @@ export interface components {
             /** Server */
             server: string;
             status: components["schemas"]["ExecuteStatus"];
+            /**
+             * Arguments
+             * @description Los argumentos con que se ejecutó, tal como llegaron. El historial guarda la respuesta, y con ella quedan (R9.2): sin ellos, una búsqueda de noticias no dice qué se buscó. Lo guardado antes de #292 no los trae.
+             */
+            arguments: {
+                [key: string]: unknown;
+            };
             /**
              * Data
              * @description Salida estructurada de la herramienta, tal como la declara su `output_schema`. Las que devuelven texto o listas llegan envueltas en `result`, porque el protocolo sólo deja sin envolver los objetos.
@@ -718,14 +737,32 @@ export interface components {
             retention: components["schemas"]["RetentionPolicy"];
         };
         /**
+         * InfoGrabacion
+         * @description Lo que la pantalla necesita para decir que las respuestas son grabadas.
+         *
+         *     Va al contrato de `GET /agent`, así que las claves van en inglés.
+         */
+        InfoGrabacion: {
+            /** Model */
+            model: string;
+            /**
+             * Recorded At
+             * Format: date
+             */
+            recorded_at: string;
+            /** Commit */
+            commit: string;
+        };
+        /**
          * Medidas
          * @description Lo que el propio servidor dice que costó una respuesta.
          *
          *     `prompt_tokens` es lo que el servidor EVALUÓ del prompt en esta llamada. Con
          *     la ventana llena recorta en silencio, y esto es lo único que lo delata
          *     (spike rehecho en la A40, PR #176). Es `None` si el servidor no lo informa.
-         *     Si reutiliza lo ya evaluado en una vuelta anterior, podría contar menos que
-         *     la conversación entera: medirlo es de #188, antes de usarlo como tamaño.
+         *     Cuenta la conversación entera también cuando Ollama reutiliza lo evaluado en
+         *     una vuelta anterior (medido en #188: la misma petición dos veces, el mismo
+         *     recuento), así que sirve como tamaño de la ventana.
          */
         Medidas: {
             /** Prompt Tokens */
@@ -1314,6 +1351,13 @@ export interface operations {
             };
             /** @description Se superó el límite de peticiones. La cabecera `Retry-After` dice cuántos segundos esperar. */
             429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description El servidor MCP no responde, y la herramienta puede estar en él. */
+            503: {
                 headers: {
                     [name: string]: unknown;
                 };

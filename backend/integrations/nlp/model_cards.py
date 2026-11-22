@@ -5,21 +5,21 @@ forward-compatible con un futuro frontend. El campo ``type`` enlaza con R3.8:
 marca qué señales son white-box (``interpretable``) frente a caja negra
 (``opaque``), pasando por las ``hybrid`` (decisión transparente, feature opaca).
 
-CUIDADO CON LA OTRA MITAD DE R3.9
+LA OTRA MITAD DE R3.9: INTERCAMBIAR LOS MODELOS
 
-Este docstring afirmaba que «intercambiar modelos por configuración» lo cubría la
-factoría ``get_nlp_backend`` vía el setting ``nlp_backend``. **Es falso, y se
-comprobó al cambiar de modelo en #115**: ``nlp_backend`` decide DÓNDE corre el
-modelo (remoto o local), no CUÁL es. Sustituir el modelo de la señal de clickbait
-exigió tocar esta tabla, escribir ``dedicated.py`` y añadir un mapeo de
+Este docstring afirmó primero que «intercambiar modelos por configuración» lo
+cubría la factoría ``get_nlp_backend`` vía el setting ``nlp_backend``. **Era
+falso, y se comprobó al cambiar de modelo en #115**: ``nlp_backend`` decide DÓNDE
+corre el modelo (remoto o local), no CUÁL es. Sustituir el modelo de la señal de
+clickbait exigió tocar esta tabla, escribir ``dedicated.py`` y añadir un mapeo de
 etiquetas — todo código, que es justo lo que el requisito excluye.
 
-Queda por tanto **sin cumplir**, y anotado como tal en vez de darlo por hecho.
-#116 lo dejó a un paso —el id ya vive en un único sitio, así que leerlo de
-settings con la ficha como defecto es pequeño—, pero hay una tensión de fondo: el
-mapeo de etiquetas NO se configura igual de fácil, porque cada modelo trae su
-propio vocabulario. Intercambiar cualquier modelo por configuración sólo es
-realista dentro de una familia que comparta convención.
+**Se cumple desde #119**: el id de cada señal se pone en ``NLP_MODELS`` (y en
+``NLP_MODELS_ES`` desde #230), con esta ficha como defecto, y
+``factory.ficha_efectiva`` publica el modelo que se ejecuta de verdad. La tensión
+que quedaba —cada modelo trae su propio vocabulario de etiquetas— la resolvió
+#159 para ``detect_clickbait``, la única señal que las traduce: su entrada puede
+llevar también el modo de invocación y las etiquetas (``ModeloConInvocacion``).
 
 TRES CAMPOS QUE PARECEN LO MISMO Y NO LO SON
 
@@ -154,12 +154,13 @@ MODEL_CARDS: list[FichaDeclarada] = [
             "Caja negra: sin explicación intrínseca (post-hoc opcional, R3.11).",
             "Solo inglés: el español lo analiza otro modelo, afinado en este proyecto (#242), con su ficha aparte. Entrenado sobre `postText` de Webis-17, es decir TUITS de medios, no titulares de portada.",
             "INDEPENDENCIA DESCONOCIDA, que no es lo mismo que buena: en Chakraborty coincide mucho con el par acoplado (kappa 0.726 con el léxico y 0.772 con el lineal), pero ahí tres clasificadores competentes coinciden por fuerza, así que ese número no informa. Medirla bien exige un corpus con etiqueta humana que el modelo no haya visto — candidato en #121: Webis-Clickbait-16.",
-            "SPLIT DE ENTRENAMIENTO DESCONOCIDO: su ficha dice «Webis-Clickbait-17» sin precisar cuál de los dos splits, que son disjuntos. Medido en ambos: F1 0.631 en `train170331` (2459) y 0.758 en `validation170630` (19484). Ninguno de los dos se parece a la puntuación de un modelo evaluado sobre su propio entrenamiento, así que NO se afirma contaminación — pero tampoco se descarta que viera uno de ellos.",
+            "SPLIT DE ENTRENAMIENTO DESCONOCIDO: su ficha dice «Webis-Clickbait-17» sin precisar cuál de los dos splits, que son disjuntos. Medido en ambos: F1 0.631 en una muestra de 600 tuits de `train170331` y 0.758 en `validation170630` (19484). Ninguno de los dos se parece a la puntuación de un modelo evaluado sobre su propio entrenamiento, así que NO se afirma contaminación — pero tampoco se descarta que viera uno de ellos.",
             "Sustituye a `facebook/bart-large-mnli` (#115), elegido en E3-02 por eliminación y medido en #109 al 63.7%. La sustitución sí se decidió por medida: F1 0.946 en Chakraborty — corpus que NO vio — frente al 0.473 del anterior, y con la ambigüedad de `forma` cayendo del 37% al 15%.",
             "A favor, y es lo que más pesa: entrenado con ETIQUETA HUMANA (`truthMean` de anotadores), no por fuente. Es la única señal del sistema con supervisión no sesgada por el medio que publicó el titular — el fallo que #76 destapó y #109 cuantificó.",
             "No memoriza, verificado: rinde MEJOR fuera de su dominio (F1 0.946 en Chakraborty) que dentro (0.631 y 0.758 en los dos splits de Webis), el patrón inverso al de `elozano/bert-base-cased-clickbait-news`, descartado por 99.7% dentro y F1 0.185 fuera.",
             "Ese 0.946 de Chakraborty NO significa que sea mejor ahí (#121): Chakraborty etiqueta por fuente y ese método no puede producir casos dudosos, así que mide sólo la mitad fácil del problema. Restringiendo Webis a los titulares donde los 5 anotadores coinciden — lo más parecido a Chakraborty que hay dentro de Webis — sube a F1 0.906, y el resto lo explica el balance de clases.",
             "Contexto imprescindible para leer cualquiera de estos números: el techo humano de la tarea es F1 0.665, y sólo el 34.9% de los titulares tiene a los 5 anotadores de acuerdo (#121). Sus errores se concentran donde las personas discrepan (92.9% de los fallos en el 65.1% dudoso) y su confianza baja ahí (0.918 vs 0.834), sin haber visto nunca los juicios individuales.",
+            "Lee como mucho 512 piezas de su tokenizador: de un texto más largo, como el cuerpo de una noticia, sólo cuenta el principio, y no se avisa. Hasta la revisión de antes de congelar, uno así salía en `error` (`spikes/recorte_512.py`).",
         ],
         "operation": [
             "NO SE PUEDE SERVIR EN REMOTO, y es permanente: `hf-inference` responde `400 Model not supported by provider`. Detectado el 2026-09-03 al ejecutar la pantalla contra la API de verdad, y confirmado el 2026-09-07 contra el catálogo del proveedor: la ficha del Hub no declara ninguno (`inferenceProviderMapping` vacío) y NINGUNO de los 40 modelos de clickbait del Hub lo tiene. HuggingFace sirve por demanda, y éste tiene 59 descargas/mes frente a los 3.248.238 del de sentimiento, que entonces sí respondía por la misma vía y con el mismo token (desde el 7 oct 2026 da 402, sin crédito: ver su ficha). Doce reintentos en dos minutos no lo reactivan. Con `nlp_backend=remote` esta señal sale SIEMPRE en `error`, y desde el 7 oct el tono también: el veredicto se emite con el léxico, el lineal y la incoherencia, que corren en el propio proceso con cualquier backend.",
@@ -182,6 +183,7 @@ MODEL_CARDS: list[FichaDeclarada] = [
             "Entrenado en tuits, no en titulares de noticias.",
             "Caja negra.",
             "Solo inglés: el español lo analiza otro modelo (#233), con su ficha aparte.",
+            "Lee como mucho 512 piezas de su tokenizador: de un texto más largo, como el cuerpo de una noticia, sólo cuenta el principio, y no se avisa. Hasta la revisión de antes de congelar, uno así salía en `error` (`spikes/recorte_512.py`).",
         ],
         "operation": [
             "SIN VÍA REMOTA GRATUITA desde el 7 oct 2026: Hugging Face retiró el crédito mensual de las cuentas gratuitas (en https://huggingface.co/docs/inference-providers/pricing, la fila «Free Users» pasó a «None»; huggingface/hub-docs#2865), y `hf-inference` responde `402` («You have no remaining credits») con la cuenta del proyecto, que es gratuita. No es una caída: con crédito volvería a responder, y por eso la vía remota se conserva. Con `nlp_backend=remote` esta señal sale en `error`; como el tono no vota, el veredicto no cambia. Se repite con `spikes/hf_credito.py` (#236).",
@@ -202,9 +204,9 @@ MODEL_CARDS: list[FichaDeclarada] = [
         "type": "hybrid",
         "limitations": [
             "Decisión transparente (umbral sobre la similitud) pero feature opaca (embeddings).",
-            "Umbral 0.3 CALIBRADO en #92 sobre 19484 pares de Webis-17, eligiéndolo en una mitad y midiéndolo en la otra: es el punto de mayor precisión de la curva (0.649 en test) a cambio de pronunciarse sólo en el 7.4% de los titulares. ROC-AUC de la señal 0.720.",
+            "Umbral 0.3, contrastado en #92 sobre 19484 pares de Webis-17, eligiendo en una mitad y midiendo en la otra: el criterio fijado antes de medir daba 0.46, y se conservó el 0.3 porque supera con holgura su suelo de precisión, 0.50 (0.649 en test), y en esta señal pesa más la precisión, a cambio de pronunciarse sólo en el 7.4% de los titulares. No es el más preciso de la curva: más abajo sube la precisión y baja la cobertura. ROC-AUC de la señal 0.720.",
             "Sólo lee los primeros 1000 caracteres del cuerpo, porque el modelo trunca a 256 tokens de todas formas. Medido: trocear el artículo entero y quedarse con la mayor similitud da AUC 0.717 frente a 0.716 truncando — el resto del texto no aportaba nada.",
-            "REDUNDANTE con la señal dedicada: `dedicada ∨ incoherencia` BAJA la precisión de 0.709 a 0.673, así que los casos que añade son mayoritariamente falsos. Aporta en cambio a las señales débiles (`linear ∨ incoherencia` sube F1 de 0.448 a 0.517).",
+            "REDUNDANTE con la señal dedicada: `dedicada ∨ incoherencia` BAJA la precisión de 0.709 a 0.673, así que los casos que añade son mayoritariamente falsos. Aporta en cambio a las señales débiles (`linear ∨ incoherencia` sube F1 de 0.525 a 0.559).",
             "Precisión de sólo 0.12 en el subconjunto donde ninguna señal de forma dispara — que es justamente el hueco que esta dimensión existe para cubrir (titulares sobrios que engañan: 470 de 8793). No es culpa del umbral: con un 5.3% de positivos y AUC 0.628 ahí, la precisión alta es inalcanzable.",
             "Necesita el cuerpo/teaser, no solo el titular.",
             "Solo inglés. Calibrado sobre TUITS con su artículo enlazado, no sobre titulares de portada.",
@@ -253,7 +255,7 @@ MODEL_CARDS: list[FichaDeclarada] = [
             "Desde #78 no está acoplada al léxico por construcción: comparte con él sólo los cuatro patrones de estructura y la manera de partir las palabras. Acuerdo con el léxico: kappa 0.712 en Chakraborty dev y 0.384 en Webis (con el lineal de #78, 0.715 y 0.368; antes de #78, 0.880 y 0.644).",
             "Casi ningún titular se queda sin rasgos (0.5% en Webis-17, antes el 53.3%), y el techo de recall pasa del 65.5% al 98.1%: el límite ya no es el featurizado. Una palabra que no vio al entrenar no cuenta.",
             "La explicación son palabras con su contribución (peso × tf-idf), no pistas de una lista: más cobertura, a cambio de pesos que a veces no se entienden solos (`the` a favor, `in` en contra).",
-            "Dos de los cuatro patrones de estructura pesan EN CONTRA (mayúsculas −1.60, elipsis −0.87); la interrogación casi no pesa (+0.43; −1.59 con el lineal de #78), y el número inicial, +12.49: donde el léxico ve una pista de clickbait, el lineal puede restar. Sin medir por qué; las hipótesis son que las palabras interrogativas (`why`, `how`) ya llevan el peso, y que en los tuits de Webis-17 los puntos suspensivos son de recorte y las mayúsculas, de «BREAKING».",
+            "Dos de los cuatro patrones de estructura pesan EN CONTRA (mayúsculas −1.60, elipsis −0.87); la interrogación casi no pesa (+0.43), y el número inicial, +12.49: donde el léxico ve una pista de clickbait, el lineal puede restar. Medido (#256): la interrogación casi no pesa porque los corpus se contradicen (con `?` final, 0 % de clickbait en Chakraborty, 71.8 % en Webis-17 y 95.8 % en TA1C), y las mayúsculas restan porque suelen ser siglas de noticias, no «BREAKING». Quitar cualquiera de esos tres patrones no mueve el F1 por encima del ruido; sólo el número inicial aporta en tuits.",
             "Se entrenó con `train170331` de Webis-17: medirla sobre ese split ya no es una validación externa.",
             "Vota con umbral 0.35, no 0.5 (#231): lo eligió la regla de #78 sobre la media de los tres dev (Chakraborty, Webis-17 y TA1C), y es el mismo en los dos idiomas.",
             "Bilingüe desde #231: los mismos pesos analizan el español, con su ficha aparte.",
@@ -273,7 +275,7 @@ MODEL_CARDS: list[FichaDeclarada] = [
         "type": "interpretable",
         "limitations": [
             "Detecta clickbait de ESTILO, no engaño semántico: mira qué palabras usa el titular, no si el cuerpo cumple lo que promete.",
-            "Medido en TA1C test (#231), tuits en español: F1 0.674 (P 0.756, R 0.608) con umbral 0.35, frente a 0.61 de la base publicada con el corpus (TF-IDF + XGBoost) y 0.84 de BETO afinado. Hasta #231, con el español tratado como inglés, 0.019 en TA1C validation (#229).",
+            "Medido en TA1C test (#231), tuits en español: F1 0.674 (P 0.756, R 0.608) con umbral 0.35. Los autores del corpus publican 0.61 con TF-IDF + XGBoost, 0.69 con rasgos diseñados + XGBoost (P 0.81, R 0.60) y 0.84 con BETO afinado: el lineal supera la base, pero no el mejor clásico publicado. Hasta #231, con el español tratado como inglés, 0.019 en TA1C validation (#229).",
             "Es el MISMO modelo que analiza el inglés: el bilingüe empató en TA1C validation con uno entrenado sólo con TA1C (0.390 frente a 0.368 con umbral 0.5, dentro del ruido) sin bajar el inglés, y la regla publicada en #231 lo prefería en el empate.",
             "Aprende VOCABULARIO DE FUENTE también en español: nombres de medios y etiquetas de sección pesan en contra (`euvzla` −2.10, `diariolibre` −1.28, `opinión` −1.21, `columna` −0.59), y dicen de dónde viene el tuit, no si es clickbait.",
             "TA1C son tuits con los que 18 medios de 12 países anuncian una noticia, no titulares de portada: fuera de ese registro, sin medir.",
@@ -301,6 +303,7 @@ MODEL_CARDS: list[FichaDeclarada] = [
             "TA1C son tuits con los que 18 medios de 12 países anuncian una noticia, no titulares de portada: fuera de ese registro, sin medir.",
             "Aprendió de TA1C, como el lineal: si los dos aciertan por la misma pista, su acuerdo no son dos pruebas. Su independencia, sin medir.",
             "Solo español: el inglés lo analiza otro modelo, con su ficha aparte.",
+            "Lee como mucho 512 piezas de su tokenizador: de un texto más largo, como el cuerpo de una noticia, sólo cuenta el principio, y no se avisa. Hasta la revisión de antes de congelar, uno así salía en `error` (`spikes/recorte_512.py`).",
         ],
         "operation": [
             "SIN VÍA REMOTA, como la inglesa: ningún proveedor de Hugging Face lo sirve (`inferenceProviderMapping` vacío, comprobado el 2026-10-09), y desde el 7 oct 2026 la vía remota exige crédito (#236).",
@@ -324,6 +327,7 @@ MODEL_CARDS: list[FichaDeclarada] = [
             "No está entrenado en tuits ni en titulares, al revés que el modelo inglés.",
             "Elegido frente a `cardiffnlp/twitter-xlm-roberta-base-sentiment` (tuits, 1,11 GB, sin licencia en el Hub y sin tokenizador rápido, que habría exigido `sentencepiece` y `protobuf` en la imagen) por su licencia Apache-2.0 declarada y por pesar la mitad (#233).",
             "Solo español: el inglés lo analiza otro modelo, con su ficha aparte.",
+            "Lee como mucho 512 piezas de su tokenizador: de un texto más largo, como el cuerpo de una noticia, sólo cuenta el principio, y no se avisa. Hasta la revisión de antes de congelar, uno así salía en `error` (`spikes/recorte_512.py`).",
         ],
         "operation": [
             "La vía local DEPENDE DE `torch`, que `requirements.txt` no trae, como el tono inglés; la imagen lo instala (#162). Trae tokenizador rápido (`tokenizer.json`), así que no necesita `sentencepiece`. Lo hornea `docker/hornear_modelos.py`: unos 540 MB más.",

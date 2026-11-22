@@ -21,6 +21,12 @@
 #   AGENTE_A40_MAX_MIN=75 AGENTE_A40_JSON=/tmp/agente_a40_cierre.json setsid nohup bash spikes/agente_a40.sh cierre > /tmp/agente_a40_cierre.log 2>&1 < /dev/null & disown
 # y su segunda sesión, con la variante `v2`:
 #   AGENTE_A40_MAX_MIN=75 AGENTE_A40_JSON=/tmp/agente_a40_cierre_v2.json setsid nohup bash spikes/agente_a40.sh cierre > /tmp/agente_a40_cierre_v2.log 2>&1 < /dev/null & disown
+# La de #269, `dato` (`05-llano` frente a `06-dato`), del mismo tamaño:
+#   AGENTE_A40_MAX_MIN=75 AGENTE_A40_JSON=/tmp/agente_a40_dato.json setsid nohup bash spikes/agente_a40.sh dato > /tmp/agente_a40_dato.log 2>&1 < /dev/null & disown
+# Desde el 2026-10-15, `AGENTE_A40_GUION` cambia el guion de Python que se
+# ejecuta con la sesión abierta (por defecto, `spikes/agente_a40.py`), y le
+# llegan las mismas variables. La inyección de #260 con el 27B:
+#   AGENTE_A40_GUION=spikes/agente_inyeccion.py CUDA_VISIBLE_DEVICES= OLLAMA_URL=http://127.0.0.1:11500 OLLAMA_MODELO=qwen3.5:27b setsid nohup bash spikes/agente_a40.sh <carpeta> > /tmp/agente_inyeccion_27b.log 2>&1 < /dev/null & disown
 exec 2>&1
 cd "$(dirname "$0")/.." || exit 1
 MAQUINA_2=gongarcia@gserver2.tfg.etsii.urjc.es
@@ -35,7 +41,8 @@ fi
 
 echo "== condiciones"
 MAX_MIN=${AGENTE_A40_MAX_MIN:-45}
-echo "fecha: $(date -Is) · commit: $(git rev-parse --short HEAD) · rama: $(git branch --show-current) · guion: $(sha256sum spikes/agente_a40.py | cut -c1-12) · sesión de $MAX_MIN min como máximo"
+GUION=${AGENTE_A40_GUION:-spikes/agente_a40.py}
+echo "fecha: $(date -Is) · commit: $(git rev-parse --short HEAD) · rama: $(git branch --show-current) · guion: $GUION $(sha256sum "$GUION" | cut -c1-12) · sesión de $MAX_MIN min como máximo"
 
 # --- Máquina 2: la sesión, que espera a que WSL termine ---------------------------
 {
@@ -75,7 +82,7 @@ if grep -q "LISTO PARA WSL" "$REGISTRO/maquina2.log"; then
   # El 11434 de WSL es OTRO Ollama: se comprueba que el 11500 es la A40.
   echo "túnel: 11500 → ollama $(curl -s "http://127.0.0.1:$PUERTO/api/version") · 11434 local → $(curl -s -m 2 http://127.0.0.1:11434/api/version)"
   NLP_BACKEND=local AGENTE_A40_JSON="${AGENTE_A40_JSON:-/tmp/agente_a40.json}" \
-    .venv/bin/python spikes/agente_a40.py "$@" < /dev/null
+    .venv/bin/python "$GUION" "$@" < /dev/null
   pkill -f "ssh -f -N .*-L $PUERTO:127.0.0.1:11434" && echo "túnel cerrado"
 else
   echo "LA SESIÓN NO SE ABRIÓ: no se mide nada."

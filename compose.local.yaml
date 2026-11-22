@@ -1,0 +1,41 @@
+# La variante para levantar el sistema en una máquina que NO es la de la
+# universidad (#251): la de quien desarrolla, WSL o la de quien lo evalúe. Se
+# suma a `compose.yaml`, que describe el despliegue de la máquina 1, y sólo
+# cambia lo que en él es de esa máquina:
+#
+#   docker compose -f compose.yaml -f compose.local.yaml up --build --wait
+#
+# Se abre en https://localhost, con el aviso del certificado (`docs/ejecucion.md`).
+#
+# Es un fichero y no unas variables en el `.env` porque el `.env` sólo lleva
+# secretos: lo que define un despliegue va a la vista, como en `compose.yaml`.
+# `!override` sustituye la lista entera en vez de sumarse a la de
+# `compose.yaml`, y pide Compose 2.24 o posterior.
+
+services:
+  web:
+    environment:
+      # Las dos variables del `Caddyfile`. Con `internal`, Caddy firma el
+      # certificado de `localhost` con su propia autoridad, que guarda en el
+      # volumen `caddy_datos` y no se instala en el equipo.
+      SITIO: localhost
+      TLS: internal
+    # Sólo en este equipo. En `compose.yaml` están abiertos a internet a
+    # propósito (#165); aquí no hay por qué.
+    ports: !override
+      - "127.0.0.1:80:80"
+      - "127.0.0.1:443:443"
+      - "127.0.0.1:443:443/udp"
+    # Sin el certificado de la máquina 1, que aquí no existe: con `internal` no
+    # se lee, y montar una ruta que no existe haría que Docker la creara vacía.
+    volumes: !override
+      - caddy_datos:/data
+
+  api:
+    environment:
+      # R4.7 con el origen de aquí. Como en la máquina 1, no se ejercita: el
+      # navegador nunca hace una petición entre orígenes.
+      CORS_ORIGINS: '["https://localhost"]'
+      # El asistente se hereda tal cual: busca Ollama en el host, y sin uno que
+      # escuche donde lo ve el contenedor, la pantalla explica que está apagado
+      # y todo lo demás funciona.

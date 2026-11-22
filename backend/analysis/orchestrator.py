@@ -286,12 +286,29 @@ async def precalentar() -> dict[str, float]:
     async def cronometrar(etiqueta: str, tarea) -> None:
         inicio = time.perf_counter()
         try:
-            await tarea()
+            resultado = await tarea()
         except Exception as exc:
-            # No se propaga: un modelo que no carga no debe impedir que la API
-            # sirva `/tools` o `/history`. Se registra el fallo con un tiempo
-            # negativo para que sea inconfundible en los logs.
-            log.warning("preheat.failed", signal=etiqueta, error=str(exc))
+            # Lo que sí puede subir de la tarea, como un error de la factoría.
+            # No se propaga: un fallo al calentar no debe impedir que la API
+            # sirva `/tools` o `/history`. Se registra con un tiempo negativo
+            # para que sea inconfundible en los logs.
+            log.warning(
+                "preheat.failed",
+                signal=etiqueta,
+                error=str(exc),
+                traza="".join(traceback.format_exception(exc)),
+            )
+            tiempos[etiqueta] = -1.0
+            return
+        if not resultado.success:
+            # Un modelo que no carga NO lanza: `classify`, `zero_shot` e
+            # `IncoherenceDetector.detect` capturan el fallo y lo devuelven
+            # como `ToolResult.fail`, con su traza ya en el registro
+            # (`nlp.local.fallo`, `nlp.incoherencia.fallo`), salvo una
+            # `FaltaDependencia`, que no la tiene. Hasta la revisión de antes de
+            # congelar sólo se miraba la excepción, y un modelo que no cargaba
+            # salía con su tiempo, sin `preheat.failed`.
+            log.warning("preheat.failed", signal=etiqueta, error=resultado.error)
             tiempos[etiqueta] = -1.0
             return
         tiempos[etiqueta] = time.perf_counter() - inicio

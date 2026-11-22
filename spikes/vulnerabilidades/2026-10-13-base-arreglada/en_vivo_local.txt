@@ -1,0 +1,48 @@
+== 2026-10-13T15:04:52+02:00 · en local (https://localhost/api), la copia está en 92a92f9 (con cambios sin commitear)
+
+== catálogo: 14 herramientas · degradado: False
+   ficha del lineal: Regresión logística sobre las palabras del titular (entrenada en Chakraborty, Webis-17 y TA1C)
+
+== las fichas: modelo y revisión, por idioma (#234)
+   detect_clickbait               en · Stremie/roberta-base-clickbait @ 517de05db9ba
+   detect_clickbait               es · ggcastle/beto-clickbait-es @ 03c31ac0c288
+   analyze_sentiment              en · cardiffnlp/twitter-roberta-base-sentiment-latest @ 3216a57f2a0d
+   analyze_sentiment              es · lxyuan/distilbert-base-multilingual-cased-sentiments-student @ cf991100d706
+   detect_clickbait_incoherence   en · sentence-transformers/all-MiniLM-L6-v2 @ 1110a243fdf4
+   detect_clickbait_lexical       en · código propio @ -
+   detect_clickbait_linear        en · código propio @ -
+   detect_clickbait_linear        es · código propio @ -
+
+== cada herramienta, con «10 Secrets Doctors Won't Tell You... Are You Ready?»
+   analyze_headline               ok      9.6 s · veredicto deceptive
+   analyze_sentiment              ok      0.3 s · {"label": "neutral", "score": 0.7577604055404663, "language": "en"}
+   describe_models                ok      0.2 s · {"result": [{"signal": "detect_clickbait", "language": "en", "model_id": "Stremie/roberta-base-clickbait", "revision": "517de05db9ba2bf977c6
+   detect_clickbait               ok      0.3 s · {"label": "clickbait", "score": 0.9698459506034851, "language": "en"}
+   detect_clickbait_incoherence   ok      0.2 s · {"similarity": 0.0781177207827568, "incoherent": true, "threshold": 0.3, "headline": "10 Secrets Doctors Won't Tell You... Are You Ready?", 
+   detect_clickbait_lexical       ok      0.2 s · 5 pistas ['you', 'you', '10', '?', '...'] · umbral 1.0
+   detect_clickbait_linear        ok      0.2 s · p 0.991 · ['you', '<leading_number>', 'are', 'tell', '<question>']
+   get_alerts                     ok      0.5 s · {"result": "\n    Event: Coastal Flood Advisory\n    Area: San Francisco; San Francisco Bay Shoreline; Northern Monterey Bay; Southern Monte
+   get_forecast                   ok      0.6 s · {"result": "\n    Today:\n    Temperature: 73°F\n    Wind: 3 to 12 mph S\n    Forecast: Mostly sunny. High near 73, with temperatures fallin
+   get_gnews_news                 ok      0.7 s · {"result": [{"title": "Senamhi advierte DESCENSO EXTREMO DE TEMPERATURAS en 49 provincias: frío intenso iniciará desde el 13 de octubre", "u
+     (429: espero 48 s)
+   get_guardian_news              ok     49.0 s · {"result": [{"title": "Climate protester restrained after interrupting NSW parliament – as it happened", "url": "https://www.theguardian.com
+     (429: espero 8 s)
+   get_newsdata_news              ok      8.9 s · {"result": [{"title": "Clima en Campeche del 13 al 18 de octubre: ¿qué días se esperan las lluvias más fuertes?", "url": "https://www.porest
+   get_nyt_news                   ok      0.7 s · {"result": [{"title": "Tom Cruise, Climate Warrior?", "print_headline": "", "url": "https://www.nytimes.com/2026/10/08/climate/tom-cruise-di
+   health_check                   ok      0.5 s · {"status": "ok", "timestamp": "2026-10-13T13:06:08.365397+00:00", "integrations": {"weather": {"reachable": true, "error": null}, "guardian"
+
+== el caso de #124
+   veredicto ambiguous · dimensiones {'form': False, 'deception': True}
+
+== las señales, con «No vas a creer lo que hizo este perro al ver a su dueño» (#234)
+   detect_clickbait               ok    · es · {"label": "clickbait", "score": 0.9935142993927002, "language": "es"}
+   detect_clickbait_linear        ok    · es · p 0.429 · ['que', 'ver', 'lo', 'este', 'su']
+   analyze_sentiment              ok    · es · {"label": "negative", "score": 0.5143905282020569, "language": "es"}
+   detect_clickbait_lexical       error · - · El titular parece estar en español: el léxico no lo analiza, porque sus listas de pistas son de titulares en i
+   detect_clickbait_incoherence   error · - · El titular parece estar en español: la incoherencia no lo analiza, porque en titulares en español la similitud
+
+== /analyze en español (#234)
+     (429: espero 47 s)
+   idioma es · veredicto stylistic_clickbait · detect_clickbait ok, detect_clickbait_lexical not_applicable, detect_clickbait_linear ok, detect_clickbait_incoherence not_applicable, analyze_sentiment ok
+
+== el agente: unreachable · El asistente está apagado: el servidor del modelo se arranca bajo demanda y ahora no está en marcha.

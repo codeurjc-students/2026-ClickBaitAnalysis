@@ -10,14 +10,22 @@ name: clickbait
 
 # La API y el MCP son la MISMA imagen con otro comando (#162). Lo común se
 # escribe una vez: repetirlo en los dos servicios es dejar que diverjan.
+#
+# Salvo el `build`, que no está aquí a propósito: la imagen la construye sólo
+# `api` (#251). Si la construyeran los dos, en frío las dos exportaciones
+# compiten por el nombre y la segunda falla con «already exists»: `up --build`
+# fallaba justo la primera vez (medido con Docker 29.1 y Compose 2.40, en una
+# instalación nueva; con la caché caliente no se ve).
 x-backend: &backend
-  build:
-    context: .
-    dockerfile: docker/backend.Dockerfile
   image: clickbait-backend
   # Sólo los secretos. Lo que define el despliegue va en `environment`, a la
   # vista, y manda sobre lo que traiga el `.env`.
-  env_file: .env
+  #
+  # `required: false` desde #259: ninguna clave es obligatoria, así que sin
+  # `.env` el sistema arranca igual, sin las herramientas de noticias.
+  env_file:
+    - path: .env
+      required: false
   restart: unless-stopped
 
 # Configuración que necesitan los DOS procesos, porque los dos ejecutan señales
@@ -34,6 +42,9 @@ x-entorno-backend: &entorno-backend
 services:
   api:
     <<: *backend
+    build:
+      context: .
+      dockerfile: docker/backend.Dockerfile
     # `--root-path /api`: Caddy quita el prefijo antes de reenviar, y sin esto la
     # documentación pide `/openapi.json` en vez de `/api/openapi.json` y recibe el
     # index.html de la SPA. Medido en #163. Aquí y no en el `CMD` del Dockerfile,
@@ -84,11 +95,19 @@ services:
 
   mcp:
     <<: *backend
+    # La imagen que construye `api`. Sin `never`, Compose intenta descargarla de
+    # Docker Hub antes de construirla, y escribe un error que no lo es.
+    pull_policy: never
     command: ["python", "-m", "backend.main"]
     environment:
       <<: *entorno-backend
       MCP_TRANSPORT: streamable-http # stdio no cruza contenedores
       MCP_HOST: 0.0.0.0 # en 127.0.0.1 sería invisible para la API
+      # Como la API, pero mientras ya atiende, en un hilo aparte (#267): el
+      # healthcheck de abajo no espera a la carga. Es por donde llama el agente,
+      # y sin esto su primer análisis tras un despliegue cargaba los modelos
+      # dentro de la llamada (14 nov 2026).
+      PREHEAT_MODELS: "true"
     healthcheck:
       # Basta con que el puerto acepte conexiones: hablar MCP exige una sesión.
       test: ["CMD", "python", "-c", "import socket; socket.create_connection(('127.0.0.1', 8765), timeout=5)"]
@@ -112,12 +131,14 @@ services:
       - "443:443"
       - "443:443/udp"
     volumes:
-      # El certificado y su clave, generados en la máquina. En SÓLO LECTURA: el
-      # contenedor no tiene por qué poder tocarlos.
+      # El certificado y su clave, que emite HARICA a mano (#213; hasta el 10 nov
+      # 2026, el autofirmado de #165) y se instalan en la máquina. En SÓLO
+      # LECTURA: el contenedor no tiene por qué poder tocarlos.
       - /etc/clickbait/tls:/certificados:ro
       # Lo que Caddy guarda entre arranques. Con un certificado puesto a mano
-      # apenas usa nada, pero el día que lo saque una autoridad, sin esto pediría
-      # uno nuevo en cada recreación y se acercaría a sus límites semanales.
+      # apenas usa nada, pero el día que lo pida él mismo por ACME, sin esto
+      # pediría uno nuevo en cada recreación y se acercaría a los límites
+      # semanales de la autoridad.
       - caddy_datos:/data
     healthcheck:
       # A la API de administración de Caddy, que sólo escucha dentro del
@@ -132,7 +153,9 @@ services:
     restart: unless-stopped
     # Sin `depends_on` en ningún servicio, a propósito: con una API caída, la web
     # sigue sirviendo la aplicación y el indicador de salud explica el 502
-    # (#147); con un MCP caído, sólo se degrada la pantalla de Sistema.
+    # (#147); con un MCP caído, se degradan la pantalla de Sistema y el asistente,
+    # que llama por él a las herramientas, y el análisis sigue, porque `/analyze`
+    # no pasa por él.
 
 volumes:
   historial:

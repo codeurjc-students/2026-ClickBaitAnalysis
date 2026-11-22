@@ -1,0 +1,13 @@
+# El titular que rellenaba el botón «caso ambiguo» hasta #282, y de control los
+# otros dos ejemplos en inglés. Se mide dos veces:
+#
+#   con los modelos de hoy, a titular_anterior.json:
+#     .venv/bin/python spikes/ejemplos_formulario.py --candidatos <este fichero>
+#
+#   con el zero-shot que votaba hasta #109, a titular_anterior.zero_shot.json:
+#     NLP_MODELS='{"detect_clickbait": {"id": "facebook/bart-large-mnli", "task": "zero-shot-classification"}}' \
+#       .venv/bin/python spikes/ejemplos_formulario.py --candidatos <este fichero> \
+#       --salida spikes/ejemplos_formulario/titular_anterior.zero_shot.json
+17 Things Nobody Tells You About Moving Abroad
+10 Amazing Things You Won't Believe
+Federal Reserve Holds Interest Rates Steady

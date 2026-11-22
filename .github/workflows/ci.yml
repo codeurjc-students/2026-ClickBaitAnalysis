@@ -19,19 +19,21 @@ on:
 # del runner. GitHub renueva la imagen a menudo (su versión sale en el log, en
 # «Runner Image»), así que Docker, git o el propio runner siguen cambiando.
 # Python y Node no, porque los instalan `setup-python` y `setup-node` en la
-# versión que se les pide.
+# versión que se les pide. Hasta #278 se les pedía `3.12` y `22`, y eso es la
+# última de cada una el día que corre: se probaba con otra que la que se sirve.
+# Desde entonces, con su parche, el de las imágenes.
 jobs:
+  # Sin claves de API, a propósito: hasta #259 llevaba tres `dummy` sólo para
+  # poder importar `settings`, porque eran obligatorias. Ya no lo son, y correr
+  # sin ellas es lo que comprueba que el sistema arranca sin ninguna.
   test:
-    env: #Usar env para evadir fallo fail fast por falta de keys
-      GUARDIAN_API_KEY: dummy
-      NYT_API_KEY: dummy
-      HF_TOKEN: dummy
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v5 # usando organización actions por defecto
       - uses: actions/setup-python@v6
         with:
-          python-version: "3.12"
+          # El de `docker/backend.Dockerfile`, y se cambian juntos (#278).
+          python-version: "3.12.16"
           cache: pip #Evita instalación en cada run
       - name: Instalando dependencias...
         run: pip install -r requirements.txt
@@ -96,7 +98,8 @@ jobs:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v7
         with:
-          node-version: "22"
+          # La de `docker/web.Dockerfile`, y se cambian juntas (#278).
+          node-version: "22.23.2"
           cache: npm
           cache-dependency-path: frontend/package-lock.json
       # `npm ci` y no `npm install`: instala EXACTAMENTE lo del lock y falla si
@@ -144,7 +147,7 @@ jobs:
   # publicarlas. Hasta #173 un Dockerfile roto sólo se habría notado al
   # desplegar; ahora se ve en la PR.
   #
-  # SIN caché, a propósito, y decidido con números (#173, ver el README). La
+  # SIN caché, a propósito, y decidido con números (#173, ver el diario). La
   # primera ejecución real se hizo con la caché de GitHub Actions y tardó
   # 4 min 31 s en el backend: ~75 s construyendo y 175 s SUBIENDO la caché. Con
   # la caché caliente, una PR se ahorra unos 30 s; a cambio, cada vez que hay que

@@ -1,4 +1,12 @@
-FROM python:3.12-slim
+# El parche de Python, fijado (#278): con `3.12-slim`, cada construcción podía
+# traer otro 3.12.x. Por etiqueta y no por digest, como Node y Caddy en
+# web.Dockerfile, para que la base siga recibiendo las actualizaciones de
+# Debian: el digest las congelaría, y con ellas sus avisos. Pero Docker sólo
+# reconstruye la etiqueta del ÚLTIMO parche: la de uno anterior se congela
+# igual que un digest. Por eso es el último publicado y no el que servía
+# producción (3.12.15, cuya etiqueta se quedó en la del 21 oct), y se sube
+# cuando salga otro. El CI pide el mismo.
+FROM python:3.12.16-slim
 
 WORKDIR /app
 
@@ -6,6 +14,24 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PYTHONPATH=/app \
     HF_HOME=/modelos
+
+# 0 · La base, al día ANTES de instalar nada.
+#     Debian: los arreglos de seguridad que la etiqueta aún no trae (#280:
+#     zlib1g, con uno en trixie-security que la base del 8 nov no tenía).
+#     Docker guarda esta capa en su caché y sólo la rehace si cambia la base o
+#     la línea: para recoger un arreglo publicado después, se construye sin
+#     caché (docs/desarrollo.md, §8).
+#     pip y setuptools de la imagen base traían avisos publicados (pip 25.0.1 y
+#     setuptools 78.1.0, uno alto; #260), y pip 26.2.1, copias de certifi,
+#     msgpack y urllib3 con avisos (#280). Se fijan a lo mínimo que los
+#     arregla, y antes que lo de abajo, para que esa instalación ya use la pip
+#     arreglada. setuptools se queda en la 83: su aviso de #280 es sólo de
+#     Windows, y el arreglo, otra versión principal. Fijados, como torch, para
+#     que la imagen no cambie sola.
+RUN apt-get update \
+ && apt-get upgrade -y \
+ && rm -rf /var/lib/apt/lists/*
+RUN pip install --no-cache-dir pip==26.3 setuptools==83.0.0
 
 # 1 · Dependencias del lockfile.
 COPY requirements.txt .

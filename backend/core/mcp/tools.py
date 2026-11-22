@@ -20,13 +20,17 @@ API tiene dos distintos, uno para descubrir y otro para ejecutar.
 """
 
 import asyncio
+import re
 from collections.abc import Sequence
 from dataclasses import dataclass
 
+import httpx
 import structlog
 from jsonschema import Draft7Validator
+from mcp.shared.exceptions import McpError
 from mcp.types import CallToolResult, TextContent, Tool
 
+from backend.core.errores import describir_error, no_previsto
 from backend.core.mcp.session import open_session
 from backend.core.models import ToolResult
 
@@ -51,6 +55,24 @@ class ToolTimeout(Exception):
     Lo que ha fallado es la espera, no el trabajo. Quien traduzca esto a HTTP
     debe distinguirlo: decir «el análisis falló» sería mentir.
     """
+
+
+class ServerUnavailable(Exception):
+    """Algún servidor MCP no respondió, y la herramienta no estaba en los que sí.
+
+    No es ``ToolNotFound``: la herramienta puede estar justo en el que no
+    respondió, así que decir que no existe sería falso (R1.8, #292). Tampoco es
+    un timeout: no se llegó a esperar a nada, porque no hubo con quién hablar.
+    """
+
+
+# Lo que dice que un servidor no responde, y no que la herramienta haya fallado.
+# Son las familias que ve el catálogo con un servidor caído (`core/errores.py`):
+# la conexión rechazada o un nombre que no existe (`TransportError`), un servicio
+# que la rechaza (`HTTPStatusError`, el 421) y una ruta que no es MCP
+# (`McpError`). Cualquier otra excepción sigue subiendo: sería un fallo nuestro,
+# y esconderlo como una caída lo taparía.
+_NO_RESPONDE = (httpx.TransportError, httpx.HTTPStatusError, McpError)
 
 
 @dataclass(frozen=True)
@@ -97,8 +119,16 @@ async def execute_tool(
     ahí dentro: un ``except InvalidArguments`` de quien llame no lo capturaría.
     Por eso ``_intentar`` **devuelve** lo que ha pasado y es aquí, ya fuera,
     donde se decide qué excepción sale.
+
+    **Un servidor que no responde se salta** (R1.8, #292): se registra y se
+    sigue con el siguiente, como hace el catálogo. Hasta #292 su error de
+    conexión cortaba la búsqueda, y la API lo devolvía como un 500. Si al final
+    la herramienta no estaba en ninguno de los que respondieron y alguno no
+    respondió, sale ``ServerUnavailable``, no ``ToolNotFound``.
     """
+    no_respondieron: list[str] = []
     for url in servers:
+        intento = None
         try:
             intento = await _intentar(url, name, arguments, timeout)
 
@@ -124,10 +154,28 @@ async def execute_tool(
         # `ToolTimeout` dentro y quien llame vería un fallo genérico en lugar de
         # un timeout. Se asume: un timeout más un fallo independiente no es
         # realmente «no respondió a tiempo».
-        except* TimeoutError:
+        #
+        # El corte de httpx también es un timeout (#292): mide inactividad entre
+        # bytes, y salta con un servidor que acepta la conexión y deja de
+        # enviar, así que la herramienta puede haber terminado igual. Va en esta
+        # cláusula y no en la siguiente aunque herede de `TransportError`:
+        # `except*` da cada excepción a la PRIMERA cláusula que casa.
+        except* (TimeoutError, httpx.TimeoutException):
             log.warning("tool.execute.timeout", tool=name, url=url)
             raise ToolTimeout(name) from None
+        # Un servidor que no responde no es el final de la búsqueda (R1.8). El
+        # `continue` va fuera: Python no lo admite dentro de un `except*`.
+        except* _NO_RESPONDE as grupo:
+            log.warning(
+                "tool.execute.unreachable",
+                tool=name,
+                url=url,
+                motivo=describir_error(grupo),
+            )
+            no_respondieron.append(url)
 
+        if url in no_respondieron:
+            continue
         if intento is None:
             continue  # esta herramienta no está en este servidor
 
@@ -142,6 +190,8 @@ async def execute_tool(
 
         return _leer(resultado, name, servidor)
 
+    if no_respondieron:
+        raise ServerUnavailable(name)
     raise ToolNotFound(name)
 
 
@@ -256,6 +306,11 @@ def _leer(resultado: CallToolResult, name: str, servidor: str) -> Invocation:
     ``isError`` es fiable desde que las herramientas **lanzan** en vez de
     devolver el mensaje de error: antes un fallo llegaba por el mismo canal que
     un resultado válido y aquí no habría forma de distinguirlos.
+
+    **Del texto de un fallo sólo sale la frase que redactó la herramienta**
+    (R12.7, #301): ver `_publicable`. Todo resultado va de aquí a
+    `/tools/{name}/execute` y a la traza y el modelo del agente, así que es el
+    único sitio donde decidirlo para los dos.
     """
     if resultado.isError:
         # El contenido de MCP es una unión —texto, imagen, audio, recurso— y
@@ -266,16 +321,54 @@ def _leer(resultado: CallToolResult, name: str, servidor: str) -> Invocation:
         motivo = (
             primero.text if isinstance(primero, TextContent) else "Error desconocido"
         )
+        # El texto tal cual llegó, para quien depure: lo que se publica, abajo,
+        # puede ser otra frase.
         log.warning("tool.execute.failed", tool=name, motivo=motivo)
-        # FastMCP antepone «Error executing tool <nombre>: », en inglés, al
-        # mensaje de la herramienta. El mensaje ya es público —lo redacta la
-        # herramienta (#89)— y el prefijo sólo repite el nombre en otro idioma:
-        # se quita aquí, donde se lee, y deja de verse a la vez en
-        # `/tools/{name}/execute` y en la traza del agente (#191). El registro
-        # de arriba lo conserva tal cual llegó.
-        motivo = motivo.removeprefix(f"Error executing tool {name}: ")
-        return Invocation(server=servidor, result=ToolResult.fail(motivo))
+        return Invocation(
+            server=servidor, result=ToolResult.fail(_publicable(motivo, name))
+        )
 
     return Invocation(
         server=servidor, result=ToolResult.ok(resultado.structuredContent)
     )
+
+
+# La cabecera con que empieza el texto de un `ValidationError` de Pydantic: «1
+# validation error for get_guardian_newsArguments», «2 validation errors for…».
+_ERROR_DE_PYDANTIC = re.compile(r"\d+ validation errors? for ")
+
+
+def _publicable(motivo: str, name: str) -> str:
+    """Lo que se puede publicar del texto de un fallo: la frase de la herramienta.
+
+    FastMCP antepone «Error executing tool <nombre>: », en inglés, a todo lo que
+    se lanza dentro de una herramienta. Lo que lanzan las nuestras es una frase
+    pública: un `ToolError` que redacta la herramienta (#89), o el que pone
+    `log_tool_invocation` en lugar de cualquier otra excepción (#292). Esa frase
+    sale sin el prefijo, que sólo repite el nombre en otro idioma (#191).
+
+    Lo demás no lo redactó nadie, y sale con la frase de lo no previsto (#301):
+
+    - con el mismo prefijo, el error de Pydantic de los modelos que FastMCP pone
+      ALREDEDOR de la función, y que el decorador no ve porque no ocurre dentro
+      de ella: el de argumentos, que rechaza un texto opcional que fuera JSON
+      después de que `pre_parse_json` lo convierta en lista u objeto, y el de
+      salida;
+    - sin el prefijo, lo que genera el servidor de bajo nivel de MCP: «Output
+      validation error», «Unknown tool» o el texto de cualquier excepción suya.
+      «Input validation error» no llega nunca: FastMCP registra su manejador con
+      `validate_input=False`.
+
+    Sin el prefijo no sale nada, venga de donde venga. Con él sale todo salvo el
+    error de Pydantic, que es lo que FastMCP lanza ahí fuera de la función en el
+    código de `mcp` 1.30.0, al validar con sus dos modelos; nuestras
+    herramientas llevan el decorador, así que lo de dentro es siempre un
+    `ToolError`. Si una versión nueva lanzara otra cosa con el mismo prefijo,
+    saldría entera.
+    """
+    prefijo = f"Error executing tool {name}: "
+    if motivo.startswith(prefijo):
+        frase = motivo.removeprefix(prefijo)
+        if not _ERROR_DE_PYDANTIC.match(frase):
+            return frase
+    return f"La herramienta {no_previsto()}."

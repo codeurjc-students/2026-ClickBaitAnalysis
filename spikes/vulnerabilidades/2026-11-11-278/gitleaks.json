@@ -1,0 +1,11 @@
+[
+ {
+  "regla": "generic-api-key",
+  "descripcion": "Detected a Generic API Key, potentially exposing access to various services and sensitive operations.",
+  "fichero": "spikes/noticias_idioma_mcp.py",
+  "linea": 35,
+  "commit": "03c4f1f",
+  "fecha": "2026-10-14",
+  "huella": "03c4f1fc050238898efc78ac792cbb8822363441:spikes/noticias_idioma_mcp.py:generic-api-key:35"
+ }
+]

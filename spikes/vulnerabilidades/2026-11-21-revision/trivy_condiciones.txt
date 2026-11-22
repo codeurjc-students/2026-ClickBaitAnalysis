@@ -1,0 +1,10 @@
+fecha: 2026-11-21T11:50:25+01:00
+commit: 3aea084 (dev)
+Version: 0.75.0
+Vulnerability DB:
+  Version: 2
+  UpdatedAt: 2026-11-21 07:02:51.626719824 +0000 UTC
+  NextUpdate: 2026-11-22 07:02:51.626719593 +0000 UTC
+  DownloadedAt: 2026-11-21 10:50:25.073957539 +0000 UTC
+imagen: clickbait-backend sha256:6d84b2fcffeca6210516f77d72d12abd5f64d51ef88fbef47a8b6a81790a8571 creada 2026-11-14T14:38:38.479429323+01:00
+imagen: clickbait-web sha256:4c953371b8a17625fb23d26d01dfd2153a82219a8c8d4bc422c812285b6369c4 creada 2026-11-14T14:39:28.064035183+01:00

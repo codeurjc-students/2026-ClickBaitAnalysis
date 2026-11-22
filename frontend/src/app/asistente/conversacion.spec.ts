@@ -4,6 +4,7 @@ import {
   avisoDeGuardado,
   comoIntercambios,
   comoNoticias,
+  conservarPasos,
   duracionLegible,
   esperaDe,
   ESPERA_LARGA_MS,
@@ -89,11 +90,11 @@ describe('vistaDePaso', () => {
   it('una lista de noticias se pinta como noticias, por su forma', () => {
     const vista = vistaDePaso(
       herramienta('get_guardian_news', {
-        result: [{ title: 'A headline', url: 'https://x', date: '2026-09-27T10:00:00Z' }],
+        result: [{ title: 'A headline', url: 'https://x', date: '2026-09-27T10:00:00Z', language: 'en' }],
       }),
     );
     expect(vista.noticias).toEqual([
-      { title: 'A headline', url: 'https://x', date: '2026-09-27T10:00:00Z' },
+      { title: 'A headline', url: 'https://x', date: '2026-09-27T10:00:00Z', language: 'en' },
     ]);
   });
 
@@ -105,8 +106,8 @@ describe('vistaDePaso', () => {
       ],
     });
     expect(noticias).toEqual([
-      { title: 'Sin url', url: null, date: null },
-      { title: 'Url que no es texto', url: null, date: null },
+      { title: 'Sin url', url: null, date: null, language: '' },
+      { title: 'Url que no es texto', url: null, date: null, language: '' },
     ]);
   });
 
@@ -136,6 +137,36 @@ describe('comoNoticias', () => {
   it('rechaza lo que no es una lista', () => {
     expect(comoNoticias({ result: 'texto' })).toBeNull();
     expect(comoNoticias(null)).toBeNull();
+  });
+
+  // #263: el `lang` de cada titular en la pantalla. Lo dice la fuente —el
+  // idioma que le pidió a su API—, no se adivina aquí.
+  it('cada noticia trae el idioma que dijo su fuente (#263)', () => {
+    const noticias = comoNoticias({
+      result: [
+        { title: 'La IA resolvió el misterio del huevo', language: 'es' },
+        { title: 'College Leaders Are Using A.I.', language: 'en' },
+      ],
+    });
+    expect(noticias).toEqual([
+      { title: 'La IA resolvió el misterio del huevo', url: null, date: null, language: 'es' },
+      { title: 'College Leaders Are Using A.I.', url: null, date: null, language: 'en' },
+    ]);
+  });
+
+  // Desconocido y no inglés: una conversación guardada en `sessionStorage`
+  // antes de #263 puede traer noticias de GNews, que están en español.
+  it('sin idioma, o con uno que no es texto, queda desconocido y no inglés (#263)', () => {
+    const noticias = comoNoticias({
+      result: [
+        { title: 'Guardada antes de #263' },
+        { title: 'Idioma que no es texto', language: 42 },
+      ],
+    });
+    expect(noticias).toEqual([
+      { title: 'Guardada antes de #263', url: null, date: null, language: '' },
+      { title: 'Idioma que no es texto', url: null, date: null, language: '' },
+    ]);
   });
 });
 
@@ -306,6 +337,44 @@ describe('trazaVisible', () => {
     expect(
       trazaVisible(terminado('x', 'y', [herramienta('get_nyt_news', { result: [] })]).trabajo!),
     ).toBe(true);
+  });
+});
+
+describe('conservarPasos', () => {
+  /** Una lectura de la conversación que se diga, a medias. */
+  function enMarcha(pasos: ChatJob['steps'], id = 'conversacion-1'): ChatJob {
+    return { id, status: 'running', created_at: '2026-11-21T10:00:00Z', steps: pasos, result: null };
+  }
+
+  // Cada sondeo trae objetos nuevos aunque digan lo mismo, y la tarjeta de una
+  // señal se resembraba con cada uno.
+  it('un paso que ya había llegado conserva su referencia, y el nuevo se añade', () => {
+    const anterior = enMarcha([herramienta('detect_clickbait_lexical', SENAL.data, SENAL)]);
+    const nuevo = enMarcha([
+      structuredClone(anterior.steps[0]),
+      herramienta('detect_clickbait_linear', { probability: 0.9 }),
+    ]);
+
+    const conservada = conservarPasos(anterior, nuevo);
+
+    expect(conservada.steps[0]).toBe(anterior.steps[0]);
+    expect(conservada.steps[1]).toBe(nuevo.steps[1]);
+    expect(conservada).toEqual(nuevo);
+  });
+
+  it('un paso que cambió llega tal cual', () => {
+    const anterior = enMarcha([herramienta('detect_clickbait', { label: 'clickbait', score: 1 })]);
+    const nuevo = enMarcha([herramienta('detect_clickbait', { label: 'clickbait', score: 0.5 })]);
+
+    expect(conservarPasos(anterior, nuevo).steps[0]).toBe(nuevo.steps[0]);
+  });
+
+  it('sin lectura anterior, o con la de otra conversación, la nueva sale tal cual', () => {
+    const anterior = enMarcha([herramienta('detect_clickbait', { label: 'clickbait', score: 1 })]);
+    const otra = enMarcha([structuredClone(anterior.steps[0])], 'conversacion-2');
+
+    expect(conservarPasos(anterior, otra)).toBe(otra);
+    expect(conservarPasos(null, otra)).toBe(otra);
   });
 });
 

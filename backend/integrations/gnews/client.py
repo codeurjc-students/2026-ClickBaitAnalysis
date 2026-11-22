@@ -18,9 +18,13 @@ Lo que no se deduce de aquí, medido con `spikes/noticias_es.py` (9 oct 2026):
   este proceso (`DAILY_LIMIT`), como en NYT.
 - Una clave que no existe da 400 («You did not provide an API key.», como si
   faltara), no 401, y el cuerpo no la repite.
+- El idioma de cada noticia es el que se pidió (`IDIOMA`, #263), no el `lang`
+  que trae cada una: con el filtro coinciden, y así lo dicen igual las cuatro
+  fuentes. De ahí sale el `lang` de cada titular en la pantalla del asistente.
 
-La clave es opcional (`settings.gnews_api_key`): sin ella no se hace ninguna
-petición, y el fallo dice qué falta. Por la cuota, GNews no tiene sonda en
+La clave es opcional (`settings.gnews_api_key`): sin ella, `make_request` no
+hace ninguna petición, y el fallo dice qué falta (desde #259 lo decide
+`BaseAPI`; hasta entonces, este cliente). Por la cuota, GNews no tiene sonda en
 `/health`: con su caché de 30 s podría gastar las 100 peticiones del día.
 """
 
@@ -28,9 +32,8 @@ from datetime import UTC, datetime, timedelta
 
 from backend.config.settings import settings
 from backend.core.base_api import BaseAPI
+from backend.core.idioma import ESPANOL
 from backend.core.models import ToolResult
-
-SIN_CLAVE = "GNews no está configurado: falta GNEWS_API_KEY en la configuración."
 
 
 def _sin_repetidos(articulos: list[dict]) -> list[dict]:
@@ -58,6 +61,11 @@ class GNewsAPI(BaseAPI):
         settings.gnews_api_key.get_secret_value() if settings.gnews_api_key else None
     )
     API_KEY_PARAM = "apikey"
+    CLAVE = "GNEWS_API_KEY"
+
+    # El idioma que se pide, y el que se dice de cada noticia (#263): una sola
+    # constante, para que no puedan divergir.
+    IDIOMA = ESPANOL
 
     # El plan gratuito: una petición por segundo y 100 al día, con 30 días de
     # archivo (de ahí el tope de `days` en la herramienta).
@@ -82,7 +90,7 @@ class GNewsAPI(BaseAPI):
 
         Params enviados:
             - q: <topic> CONDICIONAL! (sólo en `/search`)
-            - lang: es
+            - lang: es (`IDIOMA`)
             - max: 10 (el máximo del plan gratuito)
             - from: YYYY-MM-DDTHH:MM:SSZ
 
@@ -94,21 +102,23 @@ class GNewsAPI(BaseAPI):
             articles[].publishedAt  → date (ISO 8601, en UTC)
             articles[].description  → content
             articles[].source.name  → source
+            (el `lang` que se pidió) → language
 
         Returns:
-            ToolResult.ok([{title, url, date, content, source}, ...]) si hay
-                artículos, sin titulares repetidos.
+            ToolResult.ok([{title, url, date, content, source, language}, ...])
+                si hay artículos, sin titulares repetidos.
             ToolResult.fail("No articles found") si `articles` está vacío o ausente.
-            ToolResult.fail(SIN_CLAVE) sin clave, sin llamar a la API.
-            El error de `make_request`, tal cual, si la petición falla.
+            El error de `make_request`, tal cual, si la petición falla o si
+                falta la clave (sin llamar a la API).
         """
-        if not self.API_KEY:
-            return ToolResult.fail(SIN_CLAVE)
-
         # UTC explícito, como en NYT: la ventana no depende de la zona de la
         # máquina que ejecuta.
         desde = datetime.now(UTC) - timedelta(days=days)
-        params = {"lang": "es", "max": 10, "from": desde.strftime("%Y-%m-%dT%H:%M:%SZ")}
+        params = {
+            "lang": self.IDIOMA,
+            "max": 10,
+            "from": desde.strftime("%Y-%m-%dT%H:%M:%SZ"),
+        }
         if topic:
             params["q"] = topic
 
@@ -136,6 +146,7 @@ class GNewsAPI(BaseAPI):
                 # El `content` viene recortado en el plan gratuito: ver arriba.
                 "content": article.get("description"),
                 "source": (article.get("source") or {}).get("name"),
+                "language": self.IDIOMA,
             }
             for article in results
         ]

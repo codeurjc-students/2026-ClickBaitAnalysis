@@ -1,0 +1,38 @@
+== 2026-11-22 10:50:59 · rutas · Edg/157.0.4341.60 · la máquina 1 sirve 79f029e · contrato 1.0.0 · asistente unreachable
+== 768×1024
+  /analizar                     768 px · se sale: nada · cabecera 80 px, 4 pestañas en 1 fila(s) · alto 1024 px
+  /analisis/310                 768 px · se sale: nada · cabecera 80 px, 4 pestañas en 1 fila(s) · alto 1377 px
+  /historial                    768 px · se sale: nada · cabecera 80 px, 4 pestañas en 1 fila(s) · alto 1958 px
+  /sistema                      768 px · se sale: nada · cabecera 80 px, 4 pestañas en 1 fila(s) · alto 4532 px
+  /sistema, salud desplegada    768 px · se sale: nada · cabecera 80 px, 4 pestañas en 1 fila(s) · alto 4532 px
+  /asistente (unreachable)      768 px · se sale: nada · cabecera 80 px, 4 pestañas en 1 fila(s) · alto 1024 px
+== 1024×768
+  /analizar                    1024 px · se sale: nada · cabecera 61 px, 4 pestañas en 1 fila(s) · alto 768 px
+  /analisis/310                1024 px · se sale: nada · cabecera 61 px, 4 pestañas en 1 fila(s) · alto 1270 px
+  /historial                   1024 px · se sale: nada · cabecera 61 px, 4 pestañas en 1 fila(s) · alto 1633 px
+  /sistema                     1024 px · se sale: nada · cabecera 61 px, 4 pestañas en 1 fila(s) · alto 4132 px
+  /sistema, salud desplegada   1024 px · se sale: nada · cabecera 61 px, 4 pestañas en 1 fila(s) · alto 4132 px
+  /asistente (unreachable)     1024 px · se sale: nada · cabecera 61 px, 4 pestañas en 1 fila(s) · alto 768 px
+== 1280×800
+  /analizar                    1280 px · se sale: nada · cabecera 61 px, 4 pestañas en 1 fila(s) · alto 800 px
+  /analisis/310                1280 px · se sale: nada · cabecera 61 px, 4 pestañas en 1 fila(s) · alto 1270 px
+  /historial                   1280 px · se sale: nada · cabecera 61 px, 4 pestañas en 1 fila(s) · alto 1633 px
+  /sistema                     1280 px · se sale: nada · cabecera 61 px, 4 pestañas en 1 fila(s) · alto 4089 px
+  /sistema, salud desplegada   1280 px · se sale: nada · cabecera 61 px, 4 pestañas en 1 fila(s) · alto 4089 px
+  /asistente (unreachable)     1280 px · se sale: nada · cabecera 61 px, 4 pestañas en 1 fila(s) · alto 800 px
+== 2026-11-22 10:52:09 · asistente · Edg/157.0.4341.60 · la máquina 1 sirve 79f029e · contrato 1.0.0 · asistente available (respuestas grabadas)
+  turno 1: respondió
+  turno 2: respondió
+  turno 3: respondió
+== 768×1024
+  /asistente, conversación      768 px · se sale: nada · cabecera 80 px, 4 pestañas en 1 fila(s) · alto 4205 px
+== 1024×768
+  /asistente, conversación     1024 px · se sale: nada · cabecera 61 px, 4 pestañas en 1 fila(s) · alto 3831 px
+== 1280×800
+  /asistente, conversación     1280 px · se sale: nada · cabecera 61 px, 4 pestañas en 1 fila(s) · alto 3786 px
+== 768×1024, con las tarjetas abiertas
+  /asistente, conversación      768 px · se sale: nada · cabecera 80 px, 4 pestañas en 1 fila(s) · alto 4559 px
+== 1024×768, con las tarjetas abiertas
+  /asistente, conversación     1024 px · se sale: nada · cabecera 61 px, 4 pestañas en 1 fila(s) · alto 4185 px
+== 1280×800, con las tarjetas abiertas
+  /asistente, conversación     1280 px · se sale: nada · cabecera 61 px, 4 pestañas en 1 fila(s) · alto 4140 px

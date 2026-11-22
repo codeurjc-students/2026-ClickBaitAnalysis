@@ -21,6 +21,7 @@ function agente(status: Disponibilidad['status'], detalle = 'Motivo publicable.'
       type: 'opaque',
       limitations: ['Lento.'],
     },
+    recording: null,
     prompt: { name: '04-preciso', text: 'Eres el asistente…' },
     max_history_chars: 4000,
   };
@@ -78,8 +79,45 @@ const NOTICIAS: PasoDeLaTraza[] = [
           title: 'College Leaders Are Using A.I.',
           url: 'https://www.nytimes.com/2026/09/29/us/college-ai.html',
           date: '2026-09-29T10:00:00Z',
+          language: 'en',
         },
-        { title: 'A Headline Without Link', url: null, date: null },
+        { title: 'A Headline Without Link', url: null, date: null, language: 'en' },
+      ],
+    },
+    error: null,
+    server: 'http://mcp:8765/mcp',
+    duration_s: 0.4,
+    signal: null,
+  },
+];
+
+/**
+ * Noticias en español (#263): una con su idioma, y otra sin él, como las de
+ * una conversación guardada antes de que las fuentes lo dijeran.
+ */
+const NOTICIAS_EN_ESPANOL: PasoDeLaTraza[] = [
+  {
+    kind: 'model',
+    round: 1,
+    content: '',
+    tool_calls: ['get_gnews_news'],
+    metrics: { prompt_tokens: 3700, output_tokens: 40, load_s: 0, total_s: 4 },
+  },
+  {
+    kind: 'tool',
+    round: 1,
+    name: 'get_gnews_news',
+    arguments: { topic: 'inteligencia artificial' },
+    status: 'ok',
+    data: {
+      result: [
+        {
+          title: 'La IA resolvió el misterio del huevo',
+          url: 'https://www.ejemplo.com/ciencia/huevo-gallina',
+          date: '2026-10-08T19:50:30Z',
+          language: 'es',
+        },
+        { title: 'Guardada antes de #263', url: null, date: null },
       ],
     },
     error: null,
@@ -210,6 +248,33 @@ describe('AsistentePage', () => {
     expect(sobre.textContent).toContain('Eres el asistente…');
   });
 
+  // ----- Respuestas grabadas (#265) -----
+
+  it('con respuestas grabadas lo dice siempre, sin abrir la ficha', async () => {
+    http.expectOne('/api/agent').flush({
+      ...agente('available'),
+      recording: { model: 'qwen3.5:27b', recorded_at: '2026-11-13', commit: 'abc1234' },
+    });
+    await fixture.whenStable();
+
+    const aviso = html().querySelector('.aviso--grabado');
+    expect(aviso).not.toBeNull();
+    expect(aviso!.getAttribute('role')).toBe('status');
+    expect(aviso!.closest('details')).toBeNull();
+    expect(aviso!.textContent).toContain('Respuestas grabadas');
+    expect(aviso!.textContent).toContain('qwen3.5:27b');
+    expect(aviso!.textContent).toContain('13 de noviembre de 2026');
+    // Es un asistente disponible: se le puede preguntar.
+    expect(html().querySelector('textarea')).not.toBeNull();
+  });
+
+  it('con el modelo respondiendo de verdad no hay aviso de grabación', async () => {
+    await conAgente('available');
+
+    expect(html().querySelector('.aviso--grabado')).toBeNull();
+    expect(texto()).not.toContain('grabad');
+  });
+
   // ----- La conversación -----
 
   it('la traza crece mientras trabaja, y la narración llega al final', async () => {
@@ -240,6 +305,25 @@ describe('AsistentePage', () => {
     expect(html().querySelector<HTMLButtonElement>('button[type=submit]')!.disabled).toBe(false);
   });
 
+  // Cada sondeo trae objetos nuevos aunque digan lo mismo, y la tarjeta se
+  // resembraba con cada uno: una plegada a mano se desplegaba sola cada 2 s.
+  it('una tarjeta plegada a mano sigue plegada en el sondeo siguiente', async () => {
+    await conAgente('available');
+    await preguntar('¿Es clickbait «Top 5 Secrets»?');
+    http.expectOne('/api/chat').flush({ id: 'abc' });
+    await sondeo(lectura('running', PASOS), 0);
+
+    const cabecera = () => html().querySelector<HTMLButtonElement>('app-senal-card .cabecera')!;
+    expect(cabecera().getAttribute('aria-expanded')).toBe('true');
+    cabecera().click();
+    await fixture.whenStable();
+    expect(cabecera().getAttribute('aria-expanded')).toBe('false');
+
+    await sondeo(lectura('running', structuredClone(PASOS)));
+
+    expect(cabecera().getAttribute('aria-expanded')).toBe('false');
+  });
+
   it('la traza se anuncia sin interrumpir (aria-live educado)', async () => {
     await conAgente('available');
     await preguntar('¿Es clickbait?');
@@ -263,7 +347,8 @@ describe('AsistentePage', () => {
     const enlace = conEnlace.querySelector('a')!;
     expect(enlace.getAttribute('href')).toBe('https://www.nytimes.com/2026/09/29/us/college-ai.html');
     expect(enlace.getAttribute('target')).toBe('_blank');
-    expect(enlace.getAttribute('rel')).toBe('noopener');
+    // Sin `Referer`: el medio no sabe de qué página viene quien pulsa.
+    expect(enlace.getAttribute('rel')).toBe('noopener noreferrer');
 
     // El titular, en inglés; el aviso, en castellano y fuera del `lang="en"`,
     // para que el lector no lo pronuncie como inglés.
@@ -278,6 +363,25 @@ describe('AsistentePage', () => {
 
     expect(sinEnlace.querySelector('a')).toBeNull();
     expect(sinEnlace.querySelector('[lang="en"]')?.textContent).toBe('A Headline Without Link');
+  });
+
+  // #263: hasta aquí, todo titular iba con `lang="en"`, y los de GNews y
+  // NewsData, en español, se leían con la pronunciación del inglés.
+  it('cada titular va con el idioma de su fuente, y sin él, con el desconocido (#263)', async () => {
+    await conAgente('available');
+    await preguntar('Tráeme noticias sobre inteligencia artificial');
+    http.expectOne('/api/chat').flush({ id: 'abc' });
+    await sondeo(respondida('Dos noticias.', NOTICIAS_EN_ESPANOL), 0);
+
+    const [enEspanol, sinIdioma] = [...html().querySelectorAll('.noticias li')];
+    expect(enEspanol.querySelector('[lang="es"]')?.textContent).toBe('La IA resolvió el misterio del huevo');
+    // El aviso, en castellano y fuera del titular, como con el inglés.
+    const aviso = enEspanol.querySelector('.solo-lector');
+    expect(aviso?.closest('[lang="es"]')).toBeNull();
+
+    // `lang=""` es «idioma desconocido»: con el atributo presente y vacío, no
+    // ausente, porque sin él heredaría el castellano de la página.
+    expect(sinIdioma.querySelector('[lang=""]')?.textContent).toBe('Guardada antes de #263');
   });
 
   // Visto probando #209: con una sola vuelta del modelo que no pide nada, la

@@ -939,6 +939,11 @@ async def test_una_señal_que_no_carga_no_impide_arrancar(señales, monkeypatch)
     Es lo que sostiene la decisión de #125 de precalentar bloqueando el
     arranque: si una excepción subiera, un modelo corrupto dejaría la API sin
     levantar entera, cuando `/tools` y `/history` no necesitan ningún modelo.
+
+    El doble LANZA, y un detector de verdad no lo hace al cargar: devuelve el
+    fallo como `ToolResult.fail`, que vigila
+    `test_un_modelo_que_no_carga_se_registra_aunque_no_lance`. Ésta cubre lo
+    que sí puede subir, como un error de la factoría.
     """
     dobles = señales()
     monkeypatch.setattr(settings, "nlp_backend", "remote")
@@ -951,6 +956,52 @@ async def test_una_señal_que_no_carga_no_impide_arrancar(señales, monkeypatch)
     tiempos = await orchestrator.precalentar()
 
     assert tiempos["detect_clickbait_incoherence"] == -1.0
+
+
+@pytest.mark.asyncio
+async def test_una_señal_que_no_carga_deja_su_traza(señales, monkeypatch):
+    """R10.2 (#292): el fallo no se propaga, a propósito (la prueba de arriba),
+    así que su traza sólo puede quedar en el registro. Un modelo que no carga
+    es justo el caso en que hace falta saber dónde."""
+    dobles = señales()
+    monkeypatch.setattr(settings, "nlp_backend", "remote")
+
+    async def revienta(headline, content):
+        raise RuntimeError("el modelo no está")
+
+    monkeypatch.setattr(dobles.detector, "detect", revienta)
+
+    with capture_logs() as registrado:
+        await orchestrator.precalentar()
+
+    fallo = next(linea for linea in registrado if linea["event"] == "preheat.failed")
+    assert "Traceback (most recent call last)" in fallo.get("traza", "")
+    assert "RuntimeError: el modelo no está" in fallo.get("traza", "")
+
+
+@pytest.mark.asyncio
+async def test_un_modelo_que_no_carga_se_registra_aunque_no_lance(señales, monkeypatch):
+    """Los detectores de verdad no lanzan al cargar: `classify`, `zero_shot` e
+    `IncoherenceDetector.detect` capturan el fallo y lo DEVUELVEN como
+    `ToolResult.fail`. Hasta la revisión de antes de congelar, el precalentado
+    sólo miraba si subía una excepción, así que un modelo que no cargaba salía
+    con 0,0 s y sin `preheat.failed`: lo contrario de lo que se lee para dar
+    por bueno un despliegue (`spikes/precalentado_maquina1.sh`)."""
+    dobles = señales()
+    monkeypatch.setattr(settings, "nlp_backend", "remote")
+
+    async def no_carga(headline, content):
+        return ToolResult.fail("El modelo no está en la caché.")
+
+    monkeypatch.setattr(dobles.detector, "detect", no_carga)
+
+    with capture_logs() as registrado:
+        tiempos = await orchestrator.precalentar()
+
+    assert tiempos["detect_clickbait_incoherence"] == -1.0
+    fallo = next(linea for linea in registrado if linea["event"] == "preheat.failed")
+    assert fallo["signal"] == "detect_clickbait_incoherence"
+    assert fallo["error"] == "El modelo no está en la caché."
 
 
 @pytest.mark.asyncio

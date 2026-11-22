@@ -285,6 +285,23 @@ describe('SistemaPage', () => {
     expect(raiz.textContent).toContain('Se agotó la espera');
   });
 
+  // El 503 (#292) es que el servidor MCP no responde: la API sí. Sin su caso,
+  // caía en «La API falló al ejecutar (503)», que culpa a quien no es.
+  it('explica el 503 como servidor de herramientas caído, no como fallo de la API', async () => {
+    const raiz = await montar();
+
+    await desplegar(raiz, 1);
+    await ejecutar(raiz);
+
+    http
+      .expectOne('/api/tools/get_nyt_news/execute')
+      .flush({ detail: 'no responde' }, { status: 503, statusText: 'Service Unavailable' });
+    await fixture.whenStable();
+
+    expect(raiz.textContent).toContain('El servidor de herramientas no responde');
+    expect(raiz.textContent).not.toContain('La API falló');
+  });
+
   it('enseña la ficha de modelo de las señales, con sus límites', async () => {
     const raiz = await montar();
 

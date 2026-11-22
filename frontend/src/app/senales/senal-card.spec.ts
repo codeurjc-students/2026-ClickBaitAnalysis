@@ -257,6 +257,21 @@ describe('SenalCard', () => {
     );
   });
 
+  // Tampoco desaparece una conocida cuyo `data` rechaza su guardián, como lo
+  // guardado por otra versión: antes, su `@case` no pintaba nada y la tarjeta se
+  // quedaba en la cabecera (visto al cotejar la sección 4.3 de la memoria).
+  it.each([
+    'detect_clickbait_lexical',
+    'detect_clickbait_linear',
+    'detect_clickbait_incoherence',
+  ])('%s, con un `data` que no encaja, cae en el JSON crudo', async (name) => {
+    const html = await montar({ ...LEXICA, name, data: DESCONOCIDA.data });
+
+    expect(html.querySelector('.crudo')?.textContent).toContain(
+      'que nadie ha previsto',
+    );
+  });
+
   // Medido en #130 sobre el análisis 31: la tarjeta de una opaca CAÍDA tenía el
   // mismo borde que la de una opaca sana, `rgb(184,84,80)`, porque el color
   // lleva el TIPO. Lo único que las distinguía era leer la palabra «error».

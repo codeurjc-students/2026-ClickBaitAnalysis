@@ -211,6 +211,29 @@ describe('HistorialPage', () => {
     expect(pedida().request.params.get('offset')).toBe('20');
   });
 
+  // Un doble clic con la página todavía cargando: hasta la revisión de antes de
+  // congelar, el segundo movía la paginación sin pedir nada, y la tabla
+  // enseñaba las entradas 21–40 bajo «Mostrando 41–50 de 50».
+  it('pasar de página con otra carga en vuelo la cancela y pide la última', async () => {
+    const raiz = await montar({ ...PAGINA, total: 50 });
+
+    const siguientes = raiz.querySelectorAll<HTMLButtonElement>('.paginacion button')[1];
+    siguientes.click();
+    siguientes.click();
+    await fixture.whenStable();
+
+    const peticiones = http.match((candidata) => candidata.url === '/api/history');
+    expect(peticiones.map((peticion) => peticion.request.params.get('offset'))).toEqual([
+      '20',
+      '40',
+    ]);
+    expect(peticiones[0].cancelled).toBe(true);
+    peticiones[1].flush({ ...PAGINA, total: 50, offset: 40 });
+    await fixture.whenStable();
+
+    expect(raiz.textContent).toContain('Mostrando 41–50 de 50');
+  });
+
   // Filtrar desde la página 3 sin volver al principio deja la pantalla vacía
   // sobre un resultado que sí tiene entradas, y parece que no hay nada.
   it('cambiar un filtro vuelve a la primera página', async () => {

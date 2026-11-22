@@ -1,0 +1,25 @@
+clon: dev · e19ba3a feat(despliegue): el servidor MCP también precalienta sus mod
+contenedor de la API creado: 2026-11-15T12:21:04Z
+2026-11-15T12:26:30Z INFO: IP - "GET /api/history?limit=20&offset=0 HTTP/1.1" 200 OK
+2026-11-15T12:26:46Z INFO: IP - "GET /api/tools HTTP/1.1" 200 OK
+2026-11-15T12:27:51Z INFO: IP - "GET /api/history?limit=20&offset=0 HTTP/1.1" 200 OK
+2026-11-15T12:27:59Z INFO: IP - "GET /api/tools HTTP/1.1" 200 OK
+2026-11-15T12:28:37Z INFO: IP - "POST /api/analyze HTTP/1.1" 200 OK
+2026-11-15T12:30:20Z INFO: IP - "POST /api/analyze HTTP/1.1" 200 OK
+2026-11-15T12:31:13Z INFO: IP - "POST /api/analyze HTTP/1.1" 200 OK
+2026-11-15T12:32:02Z INFO: IP - "GET /api/history?limit=20&offset=0 HTTP/1.1" 200 OK
+2026-11-15T12:32:09Z INFO: IP - "GET /api/history/241 HTTP/1.1" 200 OK
+2026-11-15T12:32:14Z INFO: IP - "GET /api/history?limit=20&offset=0 HTTP/1.1" 200 OK
+2026-11-15T12:32:15Z INFO: IP - "GET /api/history/242 HTTP/1.1" 200 OK
+2026-11-15T12:32:20Z INFO: IP - "GET /api/tools HTTP/1.1" 200 OK
+2026-11-15T12:33:42Z INFO: IP - "POST /api/chat HTTP/1.1" 202 Accepted
+2026-11-15T12:35:25Z INFO: IP - "POST /api/chat HTTP/1.1" 202 Accepted
+2026-11-15T12:37:27Z INFO: IP - "POST /api/chat HTTP/1.1" 202 Accepted
+2026-11-15T12:39:12Z INFO: IP - "POST /api/chat HTTP/1.1" 202 Accepted
+2026-11-15T12:41:43Z INFO: IP - "POST /api/chat HTTP/1.1" 202 Accepted
+2026-11-15T12:41:50Z INFO: IP - "GET /api/tools HTTP/1.1" 200 OK
+2026-11-15T12:44:01Z INFO: IP - "GET /api/history?limit=20&offset=0 HTTP/1.1" 200 OK
+2026-11-15T12:44:17Z INFO: IP - "GET /api/history?limit=20&offset=0 HTTP/1.1" 200 OK
+2026-11-15T12:44:23Z INFO: IP - "GET /api/tools HTTP/1.1" 200 OK
+2026-11-15T12:45:03Z INFO: IP - "GET /api/history?limit=20&offset=0 HTTP/1.1" 200 OK
+2026-11-15T12:45:04Z INFO: IP - "GET /api/tools HTTP/1.1" 200 OK

@@ -54,6 +54,30 @@ async def test_todas_las_tools_publican_su_esquema_de_salida(servidor_mcp):
 
 
 @pytest.mark.asyncio
+async def test_todas_las_tools_declaran_que_solo_leen():
+    """#269: ninguna herramienta modifica nada —traen noticias o analizan un
+    titular—, y cada una lo declara con `readOnlyHint`. Sin la anotación, MCP
+    manda al cliente suponer lo contrario: que puede modificar, y además
+    destruir (`destructiveHint` vale `true` por defecto). Es una pista para el
+    cliente, no una garantía: por sí sola no protege nada.
+
+    Con el `mcp` de `main.py`, el objeto que se sirve (#188), y no con una
+    réplica: que estén las 14 lo asegura `analyze_headline`, la que no viene
+    del descubrimiento de integraciones."""
+    from backend.main import mcp
+
+    herramientas = await mcp.list_tools()
+
+    assert "analyze_headline" in {herramienta.name for herramienta in herramientas}
+    sin_declarar = [
+        herramienta.name
+        for herramienta in herramientas
+        if not (herramienta.annotations and herramienta.annotations.readOnlyHint)
+    ]
+    assert sin_declarar == []
+
+
+@pytest.mark.asyncio
 async def test_las_tools_de_datos_describen_sus_campos(servidor_mcp):
     """Las que devuelven datos declaran sus campos; las de texto los envuelven.
 

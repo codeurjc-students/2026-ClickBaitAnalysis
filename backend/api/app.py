@@ -54,12 +54,21 @@ from backend.api.schemas import (
 )
 from backend.config.settings import settings
 from backend.core.health import Salud, check_health
-from backend.core.logging import configure_logging
+from backend.core.logging import avisar_si_faltan_claves, configure_logging
 
 # Las tres excepciones son vocabulario del MECANISMO, no de la fachada: viven
 # donde se lanzan (#137). Importarlas de `api.execute` las haría parecer suyas.
-from backend.core.mcp.tools import InvalidArguments, ToolNotFound, ToolTimeout
-from backend.integrations.llm.factory import disponibilidad, ficha_efectiva
+from backend.core.mcp.tools import (
+    InvalidArguments,
+    ServerUnavailable,
+    ToolNotFound,
+    ToolTimeout,
+)
+from backend.integrations.llm.factory import (
+    disponibilidad,
+    ficha_efectiva,
+    grabacion,
+)
 
 log = structlog.get_logger()
 
@@ -80,6 +89,7 @@ async def lifespan(app: FastAPI):
         cors_origins=settings.cors_origins,
         preheat_models=settings.preheat_models,
     )
+    avisar_si_faltan_claves()
 
     # Precalentado BLOQUEANTE, a propósito (#125). Hacerlo en segundo plano
     # dejaría a uvicorn aceptando conexiones mientras los modelos cargan: las
@@ -109,7 +119,11 @@ app = FastAPI(
         "y las agrupa por lo que miden —forma, engaño y tono—, declarando las "
         "discrepancias en vez de promediarlas."
     ),
-    version="0.3.0-dev",
+    # La del commit que se congela y se publica como `v1.0.0`. Se quedó en
+    # «0.3.0-dev» desde #88 (4 ago) hasta la revisión de antes de congelar: la
+    # release sólo se publica si lo servido es idéntico al commit congelado,
+    # así que cambiarla después ya no habría sido posible.
+    version="1.0.0",
     lifespan=lifespan,
     # El 429 del límite de velocidad (#169) se declara UNA vez, aquí, porque el
     # límite es de la aplicación entera: no hay ruta exenta. FastAPI mezcla
@@ -217,6 +231,11 @@ async def get_tools() -> CatalogResponse:
     # desistida). La pantalla de Sistema los distingue desde #128.
     responses={
         404: {"description": "No hay ninguna herramienta con ese nombre."},
+        503: {
+            "description": (
+                "El servidor MCP no responde, y la herramienta puede estar en él."
+            )
+        },
         504: {
             "description": "Se agotó la espera; la herramienta puede haber terminado."
         },
@@ -242,6 +261,10 @@ async def post_execute(name: str, request: ExecuteRequest) -> ExecuteResponse:
     herramienta **puede haber terminado bien** —medido en #113, acabó con éxito a
     los 151 s mientras la API ya había desistido—, así que decir que el análisis
     falló sería falso. Lo que falló es la espera.
+
+    Y **503** si un servidor MCP no responde y la herramienta no estaba en los
+    que sí (R1.8, #292). Hasta #292 era un 500 en texto plano: el error de
+    conexión llegaba dentro de un `ExceptionGroup` y nadie lo capturaba.
     """
     try:
         respuesta = await execute_tool(name, request.arguments)
@@ -249,8 +272,25 @@ async def post_execute(name: str, request: ExecuteRequest) -> ExecuteResponse:
         raise HTTPException(
             status_code=404, detail=f"No hay ninguna herramienta llamada '{name}'."
         ) from None
+    except ServerUnavailable:
+        raise HTTPException(
+            status_code=503,
+            detail=(
+                f"El servidor de herramientas no responde: no se pudo ejecutar "
+                f"'{name}'. Vuelve a intentarlo en un momento."
+            ),
+        ) from None
     except InvalidArguments as exc:
-        raise HTTPException(status_code=422, detail=str(exc)) from None
+        # Con la forma de FastAPI, que es la que publica el contrato
+        # (`HTTPValidationError`) y la única que lee `detalleDeValidacion`.
+        # Hasta la revisión de antes de congelar salía como cadena, y Sistema
+        # enseñaba la frase genérica sin decir qué argumento no encajaba.
+        raise HTTPException(
+            status_code=422,
+            detail=[
+                {"loc": ["body", "arguments"], "msg": str(exc), "type": "value_error"}
+            ],
+        ) from None
     except ToolTimeout:
         raise HTTPException(
             status_code=504,
@@ -524,6 +564,9 @@ async def get_agent() -> AgentInfo:
       apagado se detecta en 0,2 ms (#181).
     - `model_card`: la ficha del modelo, con sus límites medidos (R13.7). Si se
       configuró otro modelo, se publica ése y sin las medidas, que eran de otro.
+      Con respuestas grabadas, la de la grabación.
+    - `recording`: si las respuestas son grabadas (#265), de qué modelo, de qué
+      día y sobre qué commit; `null` si no. La interfaz lo avisa siempre.
     - `prompt`: el prompt de sistema en uso, entero (R13.5).
     - `max_history_chars`: el tope del historial de `POST /chat`, para que la
       interfaz recorte antes de enviar en vez de recibir un 422 (#191).
@@ -531,6 +574,7 @@ async def get_agent() -> AgentInfo:
     return AgentInfo(
         availability=await disponibilidad(),
         model_card=ficha_efectiva(),
+        recording=grabacion(),
         prompt=AgentPrompt(
             name=settings.llm_prompt, text=prompts.cargar(settings.llm_prompt)
         ),

@@ -28,7 +28,8 @@ fi
 echo "== condiciones"
 echo "fecha: $(date -Is) · commit: $(git rev-parse --short HEAD) · rama: $(git branch --show-current) · guion: $(sha256sum spikes/chat_maquina1.py | cut -c1-12)"
 DESPLEGADO=$(ssh -n -o BatchMode=yes "$MAQUINA_1" 'cd ~/2026-ClickBaitAnalysis && git rev-parse HEAD')
-echo "máquina 1: clon en $(echo "$DESPLEGADO" | cut -c1-7) · rutas del chat servidas: $(curl -sk "$BASE/openapi.json" | grep -o '"/chat[^"]*"\|"/agent"' | sort -u | tr '\n' ' ')"
+# Sin `-k` desde #213: el certificado es de HARICA, y si no se acepta, `-S` lo dice.
+echo "máquina 1: clon en $(echo "$DESPLEGADO" | cut -c1-7) · rutas del chat servidas: $(curl -sS "$BASE/openapi.json" | grep -o '"/chat[^"]*"\|"/agent"' | sort -u | tr '\n' ' ')"
 if [ "$DESPLEGADO" != "$(git rev-parse HEAD)" ]; then
   echo "ABORTADO: la máquina 1 no sirve este commit."
   exit 1

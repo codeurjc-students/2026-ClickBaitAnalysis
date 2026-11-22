@@ -1,0 +1,10 @@
+fecha: 2026-10-13T15:18:59+02:00
+commit: 7ed02fb (chore/260-analisis-vulnerabilidades)
+Version: 0.75.0
+Vulnerability DB:
+  Version: 2
+  UpdatedAt: 2026-10-13 06:41:11.035783622 +0000 UTC
+  NextUpdate: 2026-10-14 06:41:11.035783311 +0000 UTC
+  DownloadedAt: 2026-10-13 13:18:59.463233838 +0000 UTC
+imagen: clickbait-backend sha256:37126bf86f21b5fd8aba825b77d875431935a3f0f9e5ce61af2fdeb40d4a359e creada 2026-10-13T14:58:19.278037699+02:00
+imagen: clickbait-web sha256:fa2881376d1d24a8be9dc87a9a028c12430481b50f987240aa81567e9121a6dd creada 2026-10-13T14:41:09.524537381+02:00

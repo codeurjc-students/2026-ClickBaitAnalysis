@@ -1,0 +1,568 @@
+{
+  "condiciones": {
+    "fecha": "2026-11-12",
+    "commit": "15ae202",
+    "backend_con_cambios": false,
+    "dispositivo": "cpu",
+    "torch": "2.12.1+cu130",
+    "transformers": "5.12.0",
+    "ajustes": {},
+    "modelos": [
+      {
+        "signal": "analyze_sentiment",
+        "language": "en",
+        "model_id": "cardiffnlp/twitter-roberta-base-sentiment-latest",
+        "revision": "3216a57f2a0d9c45a2e6c20157c20c49fb4bf9c7"
+      },
+      {
+        "signal": "analyze_sentiment",
+        "language": "es",
+        "model_id": "lxyuan/distilbert-base-multilingual-cased-sentiments-student",
+        "revision": "cf991100d706c13c0a080c097134c05b7f436c45"
+      },
+      {
+        "signal": "detect_clickbait",
+        "language": "en",
+        "model_id": "Stremie/roberta-base-clickbait",
+        "revision": "517de05db9ba2bf977c6c653d2f03265b74317a8"
+      },
+      {
+        "signal": "detect_clickbait",
+        "language": "es",
+        "model_id": "ggcastle/beto-clickbait-es",
+        "revision": "03c31ac0c288a982fb2aa02755a9bd0abb43078e"
+      }
+    ]
+  },
+  "ejemplos": [
+    {
+      "label": "clickbait claro",
+      "analysis": {
+        "headline": "10 Amazing Things You Won't Believe",
+        "content": null,
+        "language": "en",
+        "signals": [
+          {
+            "name": "detect_clickbait",
+            "label": "RoBERTa dedicado (entrenado en Webis-17)",
+            "status": "ok",
+            "dimension": "form",
+            "type": "opaque",
+            "is_clickbait": true,
+            "data": {
+              "label": "clickbait",
+              "score": 0.9667009115219116,
+              "language": "en"
+            },
+            "detail": null
+          },
+          {
+            "name": "detect_clickbait_lexical",
+            "label": "Léxico por reglas (listas de cues de Chakraborty et al. 2016)",
+            "status": "ok",
+            "dimension": "form",
+            "type": "interpretable",
+            "is_clickbait": true,
+            "data": {
+              "score": 4,
+              "is_clickbait": true,
+              "threshold": 1,
+              "matches": [
+                {
+                  "category": "hyperbole",
+                  "cue": "amazing",
+                  "span": [
+                    3,
+                    10
+                  ]
+                },
+                {
+                  "category": "forward_reference",
+                  "cue": "things",
+                  "span": [
+                    11,
+                    17
+                  ]
+                },
+                {
+                  "category": "forward_reference",
+                  "cue": "you",
+                  "span": [
+                    18,
+                    21
+                  ]
+                },
+                {
+                  "category": "leading_number",
+                  "cue": "10",
+                  "span": [
+                    0,
+                    2
+                  ]
+                }
+              ],
+              "headline": "10 Amazing Things You Won't Believe",
+              "language": "en"
+            },
+            "detail": null
+          },
+          {
+            "name": "detect_clickbait_linear",
+            "label": "Regresión logística sobre las palabras del titular (entrenada en Chakraborty, Webis-17 y TA1C)",
+            "status": "ok",
+            "dimension": "form",
+            "type": "interpretable",
+            "is_clickbait": true,
+            "data": {
+              "is_clickbait": true,
+              "probability": 0.9972702739134334,
+              "threshold": 0.35,
+              "top_cues": [
+                [
+                  "<leading_number>",
+                  2.523524189808953
+                ],
+                [
+                  "you",
+                  2.1248685318554945
+                ],
+                [
+                  "things",
+                  1.348643738803193
+                ],
+                [
+                  "amazing",
+                  0.8514058039426126
+                ],
+                [
+                  "won't",
+                  0.17936934895915765
+                ],
+                [
+                  "<number>",
+                  0.1727791815282825
+                ],
+                [
+                  "believe",
+                  0.14697291423953618
+                ]
+              ],
+              "headline": "10 Amazing Things You Won't Believe",
+              "language": "en"
+            },
+            "detail": null
+          },
+          {
+            "name": "detect_clickbait_incoherence",
+            "label": "MiniLM-L6-v2 (embeddings de frase)",
+            "status": "not_applicable",
+            "dimension": "deception",
+            "type": "hybrid",
+            "is_clickbait": null,
+            "data": null,
+            "detail": "Requiere el cuerpo o teaser de la noticia."
+          },
+          {
+            "name": "analyze_sentiment",
+            "label": "RoBERTa afinado en tuits (3 clases)",
+            "status": "ok",
+            "dimension": "tone",
+            "type": "opaque",
+            "is_clickbait": null,
+            "data": {
+              "label": "positive",
+              "score": 0.951151430606842,
+              "language": "en"
+            },
+            "detail": null
+          }
+        ],
+        "dimensions": [
+          {
+            "dimension": "form",
+            "is_clickbait": true,
+            "contributing": [
+              "detect_clickbait",
+              "detect_clickbait_lexical",
+              "detect_clickbait_linear"
+            ]
+          }
+        ],
+        "verdict": "stylistic_clickbait"
+      }
+    },
+    {
+      "label": "titular factual",
+      "analysis": {
+        "headline": "Federal Reserve Holds Interest Rates Steady",
+        "content": null,
+        "language": "en",
+        "signals": [
+          {
+            "name": "detect_clickbait",
+            "label": "RoBERTa dedicado (entrenado en Webis-17)",
+            "status": "ok",
+            "dimension": "form",
+            "type": "opaque",
+            "is_clickbait": false,
+            "data": {
+              "label": "factual news",
+              "score": 0.9678516387939453,
+              "language": "en"
+            },
+            "detail": null
+          },
+          {
+            "name": "detect_clickbait_lexical",
+            "label": "Léxico por reglas (listas de cues de Chakraborty et al. 2016)",
+            "status": "ok",
+            "dimension": "form",
+            "type": "interpretable",
+            "is_clickbait": false,
+            "data": {
+              "score": 0,
+              "is_clickbait": false,
+              "threshold": 1,
+              "matches": [],
+              "headline": "Federal Reserve Holds Interest Rates Steady",
+              "language": "en"
+            },
+            "detail": null
+          },
+          {
+            "name": "detect_clickbait_linear",
+            "label": "Regresión logística sobre las palabras del titular (entrenada en Chakraborty, Webis-17 y TA1C)",
+            "status": "ok",
+            "dimension": "form",
+            "type": "interpretable",
+            "is_clickbait": false,
+            "data": {
+              "is_clickbait": false,
+              "probability": 0.08597082373101117,
+              "threshold": 0.35,
+              "top_cues": [
+                [
+                  "steady",
+                  -0.056233776763382655
+                ],
+                [
+                  "interest",
+                  -0.0801424434176074
+                ],
+                [
+                  "reserve",
+                  -0.09043321579679879
+                ],
+                [
+                  "rates",
+                  -0.1384846438239208
+                ],
+                [
+                  "holds",
+                  -0.20418456206966878
+                ],
+                [
+                  "federal",
+                  -0.34763271253254424
+                ]
+              ],
+              "headline": "Federal Reserve Holds Interest Rates Steady",
+              "language": "en"
+            },
+            "detail": null
+          },
+          {
+            "name": "detect_clickbait_incoherence",
+            "label": "MiniLM-L6-v2 (embeddings de frase)",
+            "status": "not_applicable",
+            "dimension": "deception",
+            "type": "hybrid",
+            "is_clickbait": null,
+            "data": null,
+            "detail": "Requiere el cuerpo o teaser de la noticia."
+          },
+          {
+            "name": "analyze_sentiment",
+            "label": "RoBERTa afinado en tuits (3 clases)",
+            "status": "ok",
+            "dimension": "tone",
+            "type": "opaque",
+            "is_clickbait": null,
+            "data": {
+              "label": "neutral",
+              "score": 0.7704406380653381,
+              "language": "en"
+            },
+            "detail": null
+          }
+        ],
+        "dimensions": [
+          {
+            "dimension": "form",
+            "is_clickbait": false,
+            "contributing": [
+              "detect_clickbait",
+              "detect_clickbait_lexical",
+              "detect_clickbait_linear"
+            ]
+          }
+        ],
+        "verdict": "factual"
+      }
+    },
+    {
+      "label": "caso ambiguo",
+      "analysis": {
+        "headline": "The Federal Reserve Just Held Interest Rates Steady. Here's Why",
+        "content": null,
+        "language": "en",
+        "signals": [
+          {
+            "name": "detect_clickbait",
+            "label": "RoBERTa dedicado (entrenado en Webis-17)",
+            "status": "ok",
+            "dimension": "form",
+            "type": "opaque",
+            "is_clickbait": true,
+            "data": {
+              "label": "clickbait",
+              "score": 0.85857093334198,
+              "language": "en"
+            },
+            "detail": null
+          },
+          {
+            "name": "detect_clickbait_lexical",
+            "label": "Léxico por reglas (listas de cues de Chakraborty et al. 2016)",
+            "status": "ok",
+            "dimension": "form",
+            "type": "interpretable",
+            "is_clickbait": false,
+            "data": {
+              "score": 0,
+              "is_clickbait": false,
+              "threshold": 1,
+              "matches": [],
+              "headline": "The Federal Reserve Just Held Interest Rates Steady. Here's Why",
+              "language": "en"
+            },
+            "detail": null
+          },
+          {
+            "name": "detect_clickbait_linear",
+            "label": "Regresión logística sobre las palabras del titular (entrenada en Chakraborty, Webis-17 y TA1C)",
+            "status": "ok",
+            "dimension": "form",
+            "type": "interpretable",
+            "is_clickbait": true,
+            "data": {
+              "is_clickbait": true,
+              "probability": 0.760336850760472,
+              "threshold": 0.35,
+              "top_cues": [
+                [
+                  "here's",
+                  1.1404368899923996
+                ],
+                [
+                  "why",
+                  0.9454938217059282
+                ],
+                [
+                  "just",
+                  0.8302768725429092
+                ],
+                [
+                  "the",
+                  0.5678756431171648
+                ],
+                [
+                  "steady",
+                  -0.051382469281172904
+                ],
+                [
+                  "interest",
+                  -0.07322852694654478
+                ],
+                [
+                  "reserve",
+                  -0.08263151081295399
+                ],
+                [
+                  "rates",
+                  -0.1265375254295609
+                ],
+                [
+                  "held",
+                  -0.23139055192420135
+                ],
+                [
+                  "federal",
+                  -0.3176423174988574
+                ]
+              ],
+              "headline": "The Federal Reserve Just Held Interest Rates Steady. Here's Why",
+              "language": "en"
+            },
+            "detail": null
+          },
+          {
+            "name": "detect_clickbait_incoherence",
+            "label": "MiniLM-L6-v2 (embeddings de frase)",
+            "status": "not_applicable",
+            "dimension": "deception",
+            "type": "hybrid",
+            "is_clickbait": null,
+            "data": null,
+            "detail": "Requiere el cuerpo o teaser de la noticia."
+          },
+          {
+            "name": "analyze_sentiment",
+            "label": "RoBERTa afinado en tuits (3 clases)",
+            "status": "ok",
+            "dimension": "tone",
+            "type": "opaque",
+            "is_clickbait": null,
+            "data": {
+              "label": "neutral",
+              "score": 0.8205485343933105,
+              "language": "en"
+            },
+            "detail": null
+          }
+        ],
+        "dimensions": [
+          {
+            "dimension": "form",
+            "is_clickbait": null,
+            "contributing": [
+              "detect_clickbait",
+              "detect_clickbait_lexical",
+              "detect_clickbait_linear"
+            ]
+          }
+        ],
+        "verdict": "ambiguous"
+      }
+    },
+    {
+      "label": "en español",
+      "analysis": {
+        "headline": "No vas a creer lo que hizo este perro al ver a su dueño",
+        "content": null,
+        "language": "es",
+        "signals": [
+          {
+            "name": "detect_clickbait",
+            "label": "BETO afinado en TA1C (entrenado en este proyecto)",
+            "status": "ok",
+            "dimension": "form",
+            "type": "opaque",
+            "is_clickbait": true,
+            "data": {
+              "label": "clickbait",
+              "score": 0.9935142993927002,
+              "language": "es"
+            },
+            "detail": null
+          },
+          {
+            "name": "detect_clickbait_lexical",
+            "label": "Léxico por reglas (listas de cues de Chakraborty et al. 2016)",
+            "status": "not_applicable",
+            "dimension": "form",
+            "type": "interpretable",
+            "is_clickbait": null,
+            "data": null,
+            "detail": "El titular parece estar en español: el léxico no lo analiza, porque sus listas de pistas son de titulares en inglés (Chakraborty)."
+          },
+          {
+            "name": "detect_clickbait_linear",
+            "label": "Regresión logística sobre las palabras del titular (entrenada en Chakraborty, Webis-17 y TA1C)",
+            "status": "ok",
+            "dimension": "form",
+            "type": "interpretable",
+            "is_clickbait": true,
+            "data": {
+              "is_clickbait": true,
+              "probability": 0.4286427769075338,
+              "threshold": 0.35,
+              "top_cues": [
+                [
+                  "que",
+                  0.5953955947731434
+                ],
+                [
+                  "ver",
+                  0.4837547055392687
+                ],
+                [
+                  "lo",
+                  0.25539863286735454
+                ],
+                [
+                  "este",
+                  0.14774365802386946
+                ],
+                [
+                  "su",
+                  0.13854067728046973
+                ],
+                [
+                  "hizo",
+                  -0.03500866574591274
+                ],
+                [
+                  "no",
+                  -0.12733329144051025
+                ],
+                [
+                  "al",
+                  -0.29913889246094166
+                ]
+              ],
+              "headline": "No vas a creer lo que hizo este perro al ver a su dueño",
+              "language": "es"
+            },
+            "detail": null
+          },
+          {
+            "name": "detect_clickbait_incoherence",
+            "label": "MiniLM-L6-v2 (embeddings de frase)",
+            "status": "not_applicable",
+            "dimension": "deception",
+            "type": "hybrid",
+            "is_clickbait": null,
+            "data": null,
+            "detail": "El titular parece estar en español: la incoherencia no lo analiza, porque en titulares en español la similitud con el artículo apenas distingue el clickbait (medido con TA1C)."
+          },
+          {
+            "name": "analyze_sentiment",
+            "label": "DistilBERT multilingüe de sentimiento (3 clases)",
+            "status": "ok",
+            "dimension": "tone",
+            "type": "opaque",
+            "is_clickbait": null,
+            "data": {
+              "label": "negative",
+              "score": 0.5143905282020569,
+              "language": "es"
+            },
+            "detail": null
+          }
+        ],
+        "dimensions": [
+          {
+            "dimension": "form",
+            "is_clickbait": true,
+            "contributing": [
+              "detect_clickbait",
+              "detect_clickbait_linear"
+            ]
+          }
+        ],
+        "verdict": "stylistic_clickbait"
+      }
+    }
+  ]
+}

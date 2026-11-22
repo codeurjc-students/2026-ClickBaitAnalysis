@@ -1,0 +1,49 @@
+== 2026-11-21T16:20:46+01:00 · 79f029e
+== spikes/imports_entre_capas.py
+ok  agent              -> core                 2  p. ej. agent/agente.py -> backend.core.errores
+ok  agent              -> integrations/llm     2  p. ej. agent/agente.py -> backend.integrations.llm.base
+ok  analysis           -> config               1  p. ej. analysis/orchestrator.py -> backend.config.settings
+ok  analysis           -> core                 7  p. ej. analysis/domain.py -> backend.core.idioma
+ok  analysis           -> integrations         3  p. ej. analysis/orchestrator.py -> backend.integrations.nlp
+ok  core               -> config               2  p. ej. core/health.py -> backend.config.settings
+ok  core               -> integrations         1  p. ej. core/health.py -> backend.integrations.metadata
+ok  evaluation         -> analysis             4  p. ej. evaluation/eval_ta1c.py -> backend.analysis.domain
+ok  evaluation         -> config               1  p. ej. evaluation/eval_transferencia.py -> backend.config.settings
+ok  evaluation         -> core                 4  p. ej. evaluation/eval_idioma.py -> backend.core
+ok  evaluation         -> integrations        21  p. ej. evaluation/eval_acoplamiento.py -> backend.integrations.nlp
+ok  fachadas           -> agent                5  p. ej. api/app.py -> backend.agent
+ok  fachadas           -> analysis             7  p. ej. api/app.py -> backend.analysis.domain
+ok  fachadas           -> config               8  p. ej. api/app.py -> backend.config.settings
+ok  fachadas           -> core                11  p. ej. api/app.py -> backend.core.health
+ok  fachadas           -> integrations         4  p. ej. api/catalog.py -> backend.integrations.nlp.factory
+ok  fachadas           -> integrations/llm     5  p. ej. api/app.py -> backend.integrations.llm.factory
+ok  integrations       -> config               6  p. ej. integrations/gnews/client.py -> backend.config.settings
+ok  integrations       -> core                46  p. ej. integrations/gnews/client.py -> backend.core.base_api
+ok  integrations/llm   -> config               1  p. ej. integrations/llm/factory.py -> backend.config.settings
+ok  integrations/llm   -> core                 5  p. ej. integrations/llm/base.py -> backend.core.models
+
+21 pares de capas; sin camino en el dibujo: 0
+código de salida: 0
+
+== spikes/imports_cliente.py
+ok  analisis   -> api          3  p. ej. analisis/analisis-page.ts -> ../api/analyze.service
+ok  analisis   -> senales      2  p. ej. analisis/analisis-page.ts -> ../senales/formas
+ok  asistente  -> api          5  p. ej. asistente/asistente-page.ts -> ../api/chat.service
+ok  asistente  -> senales      3  p. ej. asistente/asistente-page.ts -> ../senales/resultado-analisis
+ok  cáscara    -> analisis     2  p. ej. app.routes.ts -> ./analisis/analisis-page
+ok  cáscara    -> api          1  p. ej. app.ts -> ./api/chat.service
+ok  cáscara    -> asistente    1  p. ej. app.routes.ts -> ./asistente/asistente-page
+ok  cáscara    -> historial    1  p. ej. app.routes.ts -> ./historial/historial-page
+ok  cáscara    -> salud        1  p. ej. app.ts -> ./salud/indicador-salud
+ok  cáscara    -> sistema      1  p. ej. app.routes.ts -> ./sistema/sistema-page
+ok  historial  -> api          3  p. ej. historial/historial-page.ts -> ../api/errores
+ok  historial  -> senales      2  p. ej. historial/historial-page.ts -> ../senales/formas
+ok  salud      -> api          3  p. ej. salud/indicador-salud.ts -> ../api/errores
+ok  senales    -> api          1  p. ej. senales/datos.ts -> ../api/models
+ok  sistema    -> api          4  p. ej. sistema/esquema-form.ts -> ../api/models
+ok  sistema    -> senales      1  p. ej. sistema/sistema-page.ts -> ../senales/vocabulario
+
+16 pares de carpetas; sin camino en el dibujo: 0
+flechas dibujadas sin un import que las forme: 0
+imports entre pantallas: 0
+código de salida: 0

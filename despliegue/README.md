@@ -3,7 +3,8 @@
 Lo que se instala o se ejecuta **directamente en una máquina de despliegue**,
 fuera de toda imagen, y cómo se opera el día a día. Aquí está el cómo; el porqué
 de cada decisión está en el README principal, en las secciones de #164 (el
-compose), #181 (el túnel y `gpu-sesion`) y #193 (este procedimiento).
+compose), #165 y #213 (el certificado), #181 (el túnel y `gpu-sesion`) y #193
+(este procedimiento).
 
 | Fichero | Dónde se instala | Qué es |
 |---|---|---|
@@ -62,16 +63,23 @@ fichas de los modelos se rehace su capa, un par de minutos más. Se usa
 ssh vmuser@gongarcia.tfg.etsii.urjc.es 'cd ~/2026-ClickBaitAnalysis && git pull --ff-only && sudo docker compose up --build --wait'
 ```
 
+`--wait` espera al precalentado de la API, que no sirve hasta tener los
+modelos, pero no al del servidor MCP, que atiende mientras los carga (PR
+#295): una llamada que llegue antes espera a esa carga. En la máquina 1, las
+dos cargas tardaron unos 13 s, a la vez (14 nov 2026,
+`spikes/precalentado_maquina1.sh`).
+
 ⚠️ **El registro de la API es del contenedor y se pierde al recrearlo.** Lo que
 se quiera citar de una prueba se lee antes de desplegar, con
 `bash spikes/chat_registro.sh` desde WSL.
 
-Comprobarlo desde fuera (`-k` porque el certificado es autofirmado). Sin sesión
-de GPU, `availability.status` sale `unreachable`: el asistente está configurado
-y apagado.
+Comprobarlo desde fuera. Sin `-k`: desde #213 el certificado es de una
+autoridad, así que si `curl` lo rechaza, eso ya es un fallo, y `-S` hace que lo
+diga en vez de salir en silencio. Sin sesión de GPU, `availability.status` sale
+`unreachable`: el asistente está configurado y apagado.
 
 ```bash
-curl -sk --max-time 10 https://gongarcia.tfg.etsii.urjc.es/api/agent
+curl -sS --max-time 10 https://gongarcia.tfg.etsii.urjc.es/api/agent
 ```
 
 ### Máquina 1: pararla
@@ -151,6 +159,116 @@ ssh gongarcia@gserver2.tfg.etsii.urjc.es "pkill -u gongarcia -f '[o]llama serve'
 `gpu-sesion` escribe el registro de Ollama desde cero en cada sesión: lo que se
 quiera citar de una se lee antes de abrir la siguiente, con
 `bash spikes/ollama_registro.sh` desde WSL.
+
+### Máquina 1: el asistente con respuestas grabadas
+
+El plan B de la defensa (#265), cuando no se puede abrir la sesión de GPU. La
+API reproduce lo que escribió el modelo al grabar la conversación de la
+demostración (`docs/demostracion.md`), las herramientas se ejecutan de verdad, y
+la pantalla avisa siempre de que son respuestas grabadas. No hace falta la
+máquina 2.
+
+Se suma `compose.grabado.yaml`, que sólo cambia `LLM_BACKEND` de la API, y se
+recrea sólo la API: mientras arranca, unos segundos, tampoco responde el
+análisis. En la pila local, el cambio tardó de 19 a 20 s y la vuelta, de 18
+a 21 s, en las dos veces que se midió: con la grabación del 2B y con la del 27B
+(`spikes/grabado_pila_local.sh`, 13 nov 2026). En la máquina 1, de 13 a 14 s
+el cambio y 14 s la vuelta (`spikes/grabado_maquina1.sh`, dos veces el 13 nov
+2026, con `835568e`).
+
+```bash
+ssh vmuser@gongarcia.tfg.etsii.urjc.es 'cd ~/2026-ClickBaitAnalysis && sudo docker compose -f compose.yaml -f compose.grabado.yaml up -d --wait api'
+```
+
+`availability.status` pasa a `available`, y `recording` dice de qué modelo, de
+qué día y sobre qué commit es la grabación (la comprobación de «Máquina 1:
+desplegar»). Que se reproduce entera, sin modelo y como la vería la pantalla,
+desde WSL:
+
+```bash
+.venv/bin/python spikes/grabar_demostracion.py --reproducir-en https://gongarcia.tfg.etsii.urjc.es/api
+```
+
+Para volver al modelo de verdad, se recrea la API sin la variante. Un
+despliegue (`up --build`) también la devuelve a Ollama, porque no la lleva.
+
+```bash
+ssh vmuser@gongarcia.tfg.etsii.urjc.es 'cd ~/2026-ClickBaitAnalysis && sudo docker compose up -d --wait api'
+```
+
+## El certificado: dónde vive y cómo se renueva
+
+El sitio sirve un certificado de **HARICA** (lo firma su intermedio GEANT TLS
+RSA 1), emitido **a mano** el 10 nov 2026 (#213). Es la única autoridad que
+autoriza el registro CAA de `urjc.es`, y por eso no es Let's Encrypt (#165). Al
+ser a mano, **no se renueva solo**: caduca el **28 may 2027 a las 07:47 UTC**.
+
+| En la máquina 1 | Permisos | Qué es |
+|---|---|---|
+| `/etc/clickbait/tls/certificado.pem` | 644, de root | El certificado con la cadena entera: el del sitio, el intermedio y la raíz |
+| `/etc/clickbait/tls/clave.pem` | 600, de root | Su clave privada, sin frase de paso |
+| `/etc/clickbait/tls.autofirmado/` | | El autofirmado de #165, que se sirvió hasta el 10 nov 2026 |
+
+`compose.yaml` monta `/etc/clickbait/tls` en sólo lectura y el `Caddyfile` lee
+los dos ficheros por su nombre, así que renovar no cambia nada del repositorio.
+
+⚠️ **El autofirmado no sirve de repuesto si se olvida la renovación**: caduca el
+18 may 2027, diez días antes que el de HARICA. Sólo vale para volver atrás si
+el de HARICA diera problemas antes de esa fecha.
+
+### Pedir el nuevo
+
+Lo tramita la universidad. La primera vez, su administrador generó la clave y
+la petición de firma (CSR) en la propia máquina 1, el 9 nov, y al día siguiente
+dejó el certificado junto a ellas, en
+`/home/vmuser/gongarcia.tfg.etsii.urjc.es.{pem,key,csr}`, de root. Se pide con
+margen antes del 28 may 2027: entonces tardó un día, pero no depende de este
+proyecto.
+
+### Instalarlo
+
+En la máquina 1, con los ficheros nuevos donde los deje la universidad (aquí,
+`<nuevo>.pem` y `<nuevo>.key`). Primero, que la clave casa con el certificado:
+los dos comandos imprimen el hash de la clave **pública**, nunca la privada, y
+tienen que salir iguales.
+
+```bash
+sudo openssl x509 -noout -pubkey -in <nuevo>.pem | sha256sum
+sudo openssl pkey -pubout -in <nuevo>.key | sha256sum
+```
+
+Y que es el esperado: el nombre del sitio, el emisor de HARICA y la fecha nueva.
+
+```bash
+sudo openssl x509 -noout -subject -issuer -enddate -in <nuevo>.pem
+```
+
+Después, guardar el actual, poner el nuevo con los mismos permisos y recargar
+Caddy. Para volver atrás, lo mismo desde el directorio guardado.
+
+```bash
+sudo cp -a /etc/clickbait/tls /etc/clickbait/tls.hasta-2027-05-28
+sudo install -m 644 -o root -g root <nuevo>.pem /etc/clickbait/tls/certificado.pem
+sudo install -m 600 -o root -g root <nuevo>.key /etc/clickbait/tls/clave.pem
+cd ~/2026-ClickBaitAnalysis && sudo docker compose exec -T web caddy reload --config /etc/caddy/Caddyfile --force
+```
+
+⚠️ **Sin `--force` no cambia nada, y no avisa**: Caddy ve la misma
+configuración, no relee los ficheros y sigue sirviendo el viejo (medido en
+#165). No hace falta reiniciar el contenedor.
+
+### Comprobarlo
+
+Desde WSL, en la raíz del repositorio:
+
+```bash
+bash spikes/certificado_en_vivo.sh
+```
+
+Desde fuera, sin `-k`: el certificado servido —nombre, emisor, fechas y
+cadena—, que `curl` lo acepta, la redirección de `http://` y la API. Y por SSH,
+sin cambiar nada: los permisos de los dos ficheros y que la clave casa con el
+certificado.
 
 ## El túnel de Ollama
 

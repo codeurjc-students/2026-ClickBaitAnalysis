@@ -4,7 +4,7 @@ El modelo es falso —responde lo que dice el guion, vuelta a vuelta, y apunta l
 que recibe—, porque lo que se prueba es el bucle y no el modelo: contra la A40
 se prueba aparte, con un guion de `spikes/`.
 
-El MCP, en cambio, es real: un FastMCP diminuto con dos herramientas, servido
+El MCP, en cambio, es real: un FastMCP diminuto con cuatro herramientas, servido
 por `ASGITransport` como en `tests/api/test_catalog.py`. El protocolo se habla
 entero —saludo, catálogo y llamada— sin abrir puertos, así que se prueba
 también que el agente usa bien `core/mcp/`.
@@ -12,6 +12,10 @@ también que el agente usa bien `core/mcp/`.
 **El servidor se abre dentro de cada test**, con un gestor de contexto y no con
 una fixture asíncrona: el *lifespan* abre un ámbito de cancelación de anyio que
 tiene que cerrarse en la misma tarea que lo abrió (ver `test_catalog.py`).
+
+Al final, el mismo bucle con `ReproductorGrabado` (#265), que no es un doble:
+es el backend que se sirve en la demostración cuando no hay modelo. Allí se
+prueba que lo que pide una vuelta grabada se ejecuta de verdad.
 """
 
 import copy
@@ -24,7 +28,6 @@ import httpx
 import pytest
 from mcp.server.fastmcp import FastMCP
 from mcp.server.fastmcp.exceptions import ToolError
-from mcp.shared.exceptions import McpError
 from structlog.testing import capture_logs
 
 from backend.agent.agente import (
@@ -46,6 +49,7 @@ from backend.integrations.llm.base import (
     LLMBackend,
     Mensaje,
 )
+from backend.integrations.llm.grabado import HA_CAMBIADO, ReproductorGrabado
 
 # El Host lleva puerto: la protección anti DNS-rebinding de FastMCP acepta
 # `127.0.0.1:*` y rechazaría con 421 un Host sin él.
@@ -90,8 +94,8 @@ CIFRAS: Cifras = {
 
 
 def _servidor() -> FastMCP:
-    """Un servidor MCP con una herramienta que responde, otra que falla y otra
-    que devuelve cifras con todos sus decimales."""
+    """Un servidor MCP con una herramienta que responde, otra que falla, otra
+    que devuelve cifras con todos sus decimales y otra con un texto opcional."""
     mcp = FastMCP("servidor-de-prueba")
 
     @mcp.tool()
@@ -111,6 +115,16 @@ def _servidor() -> FastMCP:
     def cifras() -> Cifras:
         """Devuelve cifras con todos sus decimales."""
         return CIFRAS
+
+    @mcp.tool()
+    def busca(tema: str | None = None) -> Eco:
+        """Busca un tema; sin él, lo más reciente.
+
+        Su parámetro es un texto opcional, como el `topic` de las noticias: el
+        tipo cuya cadena JSON convierte FastMCP en lista u objeto (#301).
+        """
+        texto = tema or "lo más reciente"
+        return {"texto": texto, "longitud": len(texto)}
 
     return mcp
 
@@ -252,7 +266,7 @@ async def test_el_catalogo_llega_al_modelo_con_su_esquema(monkeypatch):
         await responder("Hola", [], _config(modelo))
 
     catalogo = {herramienta["name"]: herramienta for herramienta in modelo.catalogos[0]}
-    assert set(catalogo) == {"eco", "rota", "cifras"}
+    assert set(catalogo) == {"eco", "rota", "cifras", "busca"}
     # Sin la sangría del docstring, que FastMCP manda tal cual y el modelo
     # pagaría en cada petición.
     assert catalogo["eco"]["description"] == (
@@ -669,6 +683,29 @@ async def test_el_error_de_una_herramienta_vuelve_al_modelo(monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_el_error_de_pydantic_no_llega_al_modelo_ni_a_la_traza(monkeypatch):
+    """Un texto opcional que es JSON: FastMCP lo convierte en lista antes de
+    llamar a la herramienta, y su modelo de argumentos lo rechaza. Hasta #301,
+    el error de Pydantic llegaba entero al paso de la traza, que pinta la
+    pantalla, y al modelo."""
+    modelo = ModeloGuionado(
+        _pide(("busca", {"tema": "[1]"})), _responde("La búsqueda falló.")
+    )
+
+    async with mcp_en_proceso(monkeypatch):
+        resultado = await responder("Prueba", [], _config(modelo))
+
+    (paso,) = _herramientas(resultado)
+    assert paso["status"] == "error"
+    al_modelo = modelo.conversaciones[1][-1]["content"]
+    for publicado in (paso["error"] or "", al_modelo):
+        assert "validation error" not in publicado
+        assert "pydantic" not in publicado.lower()
+        assert "Arguments" not in publicado
+    assert "no previsto" in (paso["error"] or "")
+
+
+@pytest.mark.asyncio
 @pytest.mark.parametrize(
     ("llamada", "fragmento"),
     [
@@ -708,6 +745,25 @@ async def test_una_herramienta_que_tarda_demasiado_vuelve_al_modelo(monkeypatch)
 
     (paso,) = _herramientas(resultado)
     assert paso["error"] == "«eco» tardó demasiado en responder."
+
+
+@pytest.mark.asyncio
+async def test_un_servidor_que_deja_de_responder_lo_dice(monkeypatch):
+    """Si el servidor que publicó la herramienta cae entre el catálogo y la
+    llamada, `execute_tool` lanza `ServerUnavailable` desde #292 (R1.8). El
+    modelo y la traza tienen que leer eso, y no «un motivo no previsto»."""
+
+    async def no_responde(name, arguments, *, servers, timeout):
+        raise mcp_tools.ServerUnavailable(name)
+
+    modelo = ModeloGuionado(_pide(("eco", {"texto": "hola"})), _responde("Caído."))
+
+    async with mcp_en_proceso(monkeypatch):
+        monkeypatch.setattr(mcp_tools, "execute_tool", no_responde)
+        resultado = await responder("Prueba", [], _config(modelo))
+
+    (paso,) = _herramientas(resultado)
+    assert paso["error"] == "«eco»: el servidor que la publicó no responde."
 
 
 @pytest.mark.asyncio
@@ -765,19 +821,21 @@ async def test_un_servidor_caido_no_tumba_el_catalogo(monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_por_que_cada_herramienta_se_ejecuta_solo_en_su_servidor(monkeypatch):
-    """`execute_tool` recorre los servidores en orden, y uno caído delante lo
-    hace fallar antes de llegar al que tiene la herramienta. Por eso el agente
-    le pasa sólo la URL del servidor que la publicó."""
-    async with mcp_en_proceso(monkeypatch):
-        with pytest.raises(ExceptionGroup) as fallo:
-            await mcp_tools.execute_tool(
-                "eco", {"texto": "hola"}, servers=[_CAIDO, _URL], timeout=5.0
-            )
+async def test_execute_tool_ya_salta_el_servidor_caido(monkeypatch):
+    """Hasta #292, `execute_tool` recorría los servidores en orden y uno caído
+    delante lo hacía fallar —con el `McpError` del saludo dentro de dos grupos
+    de anyio— antes de llegar al que tiene la herramienta. Era el motivo por el
+    que el agente le pasa sólo la URL del servidor que la publicó.
 
-    # Dos grupos, uno por cada task group de anyio, con el fallo del saludo
-    # dentro: el servidor bueno ni se llega a consultar.
-    assert fallo.group_contains(McpError, depth=None)
+    Desde #292 lo salta (R1.8). El agente sigue pasándole una sola URL: ya sabe
+    dónde está cada herramienta, y preguntar a los demás costaría una conexión
+    por servidor en cada llamada."""
+    async with mcp_en_proceso(monkeypatch):
+        invocacion = await mcp_tools.execute_tool(
+            "eco", {"texto": "hola"}, servers=[_CAIDO, _URL], timeout=5.0
+        )
+
+    assert invocacion.result.success
 
 
 @pytest.mark.asyncio
@@ -790,3 +848,90 @@ async def test_sin_ninguna_herramienta_no_se_llama_al_modelo(monkeypatch):
     assert resultado["status"] == "failed"
     assert resultado["detail"] == SIN_HERRAMIENTAS
     assert modelo.conversaciones == []
+
+
+# ----- Con respuestas grabadas (#265) -----
+
+# El prompt de `_config`: la grabación lo compara letra a letra.
+PROMPT_DE_PRUEBA = _config(ModeloGuionado()).prompt
+
+
+def _grabado(tmp_path, consulta: str, *vueltas: dict) -> ReproductorGrabado:
+    """Un `ReproductorGrabado` de verdad, con una grabación de un turno."""
+    grabacion = {
+        "model": "qwen3.5:27b",
+        "model_digest": "7653528ba5cb",
+        "recorded_at": "2026-11-13",
+        "commit": "abc1234",
+        "prompt": {"name": "prueba", "text": PROMPT_DE_PRUEBA},
+        "takes": {"recorded": 1, "chosen": 1},
+        "conditions": {},
+        "turns": [{"query": consulta, "rounds": list(vueltas)}],
+    }
+    ruta = tmp_path / "grabacion.json"
+    ruta.write_text(json.dumps(grabacion, ensure_ascii=False), encoding="utf-8")
+    return ReproductorGrabado(ruta)
+
+
+def _grabada(vuelta: ToolResult, *resultados: tuple[str, dict]) -> dict:
+    """Una vuelta grabada: los resultados que leyó el modelo antes de darla,
+    escritos como los escribe el agente, y lo que respondió."""
+    return {
+        "tool_results": [
+            {"tool_name": nombre, "content": json.dumps(datos, ensure_ascii=False)}
+            for nombre, datos in resultados
+        ],
+        "response": vuelta.unwrap(),
+    }
+
+
+@pytest.mark.asyncio
+async def test_con_una_grabacion_las_herramientas_se_ejecutan_de_verdad(
+    monkeypatch, tmp_path
+):
+    """Lo grabado es lo que escribió el modelo; las herramientas, no: se
+    ejecutan ahora, por MCP, y la traza lleva su resultado de ahora."""
+    grabado = _grabado(
+        tmp_path,
+        "Repite hola",
+        _grabada(_pide(("eco", {"texto": "hola"}))),
+        _grabada(
+            _responde("El eco dice hola."), ("eco", {"texto": "hola", "longitud": 4})
+        ),
+    )
+
+    async with mcp_en_proceso(monkeypatch):
+        resultado = await responder("Repite hola", [], _config(grabado))
+
+    assert resultado["status"] == "answered"
+    assert resultado["answer"] == "El eco dice hola."
+    (paso,) = _herramientas(resultado)
+    assert paso["arguments"] == {"texto": "hola"}
+    assert paso["data"] == {"texto": "hola", "longitud": 4}
+    assert paso["server"] == "servidor-de-prueba"
+
+
+@pytest.mark.asyncio
+async def test_si_la_herramienta_devuelve_otra_cosa_no_se_narra_lo_grabado(
+    monkeypatch, tmp_path
+):
+    """R13.4: la narración grabada contaba una longitud de 5, y la herramienta
+    de ahora da 4, que es lo que pintan las tarjetas. La traza lleva el 4."""
+    grabado = _grabado(
+        tmp_path,
+        "Repite hola",
+        _grabada(_pide(("eco", {"texto": "hola"}))),
+        _grabada(
+            _responde("El eco dice hola, con 5 letras."),
+            ("eco", {"texto": "hola", "longitud": 5}),
+        ),
+    )
+
+    async with mcp_en_proceso(monkeypatch):
+        resultado = await responder("Repite hola", [], _config(grabado))
+
+    assert resultado["status"] == "answered"
+    assert resultado["answer"] == HA_CAMBIADO.format(fecha="13 de noviembre de 2026")
+    assert "5 letras" not in resultado["answer"]
+    (paso,) = _herramientas(resultado)
+    assert paso["data"] == {"texto": "hola", "longitud": 4}

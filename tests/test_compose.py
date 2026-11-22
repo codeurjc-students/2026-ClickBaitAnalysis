@@ -4,22 +4,64 @@ El CI no levanta contenedores, así que un error de configuración del despliegu
 sólo aparece desplegando. Estos dos ya costaron algo, y se fijan leyendo el
 fichero.
 
-PyYAML no está en `requirements.in`: llega al lockfile como dependencia de
-`fastmcp` y de `huggingface-hub`. Si un día desaparece, esto falla al importar —
-ruidoso, no en silencio.
+PyYAML está declarada en `requirements.in` porque este fichero la importa
+(#278). Hasta entonces llegaba de rebote, como dependencia de `fastmcp` y de
+`huggingface-hub`, y quitar `fastmcp` dependía de que la otra la siguiera
+trayendo.
 """
 
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 
 import yaml
 
+from backend.config.settings import Settings
+
 COMPOSE = Path(__file__).resolve().parents[1] / "compose.yaml"
+COMPOSE_LOCAL = COMPOSE.with_name("compose.local.yaml")
+COMPOSE_GRABADO = COMPOSE.with_name("compose.grabado.yaml")
+
+
+def _compose() -> dict:
+    # `safe_load` resuelve las anclas y los `<<:`, así que se lee lo mismo que
+    # lee compose, no lo que está escrito en cada servicio.
+    return yaml.safe_load(COMPOSE.read_text(encoding="utf-8"))
 
 
 def _servicios() -> dict:
-    # `safe_load` resuelve las anclas y los `<<:`, así que se lee lo mismo que
-    # lee compose, no lo que está escrito en cada servicio.
-    return yaml.safe_load(COMPOSE.read_text(encoding="utf-8"))["services"]
+    return _compose()["services"]
+
+
+class Sustituida(list):
+    """Una lista marcada con `!override`: compose la pone EN LUGAR de la de
+    `compose.yaml`, en vez de sumarla."""
+
+
+class _CargadorDeCompose(yaml.SafeLoader):
+    """`safe_load` rechaza las etiquetas propias de compose; éste lee
+    `!override` y la conserva como `Sustituida`, para poder exigirla."""
+
+
+def _sustituida(cargador: yaml.SafeLoader, nodo: yaml.Node) -> Sustituida:
+    # Hoy sólo se usa en listas. Sobre un diccionario, mejor fallar que adivinar.
+    if not isinstance(nodo, yaml.SequenceNode):
+        raise TypeError("`!override` sólo se lee aquí sobre una lista")
+    return Sustituida(cargador.construct_sequence(nodo))
+
+
+_CargadorDeCompose.add_constructor("!override", _sustituida)
+
+
+def _servicios_locales() -> dict:
+    texto = COMPOSE_LOCAL.read_text(encoding="utf-8")
+    return yaml.load(texto, Loader=_CargadorDeCompose)["services"]
+
+
+def _nombres_del_entorno(servicio: dict) -> set[str]:
+    """Las variables de un servicio, escritas como diccionario o como lista."""
+    entorno = servicio.get("environment", {})
+    if isinstance(entorno, dict):
+        return set(entorno)
+    return {variable.split("=", 1)[0] for variable in entorno}
 
 
 def test_todo_proceso_del_backend_ejecuta_las_senales_en_local():
@@ -38,6 +80,44 @@ def test_todo_proceso_del_backend_ejecuta_las_senales_en_local():
         assert servicio["environment"].get("NLP_BACKEND") == "local", nombre
 
 
+def test_todo_proceso_del_backend_precalienta_sus_modelos():
+    """Los dos cargan modelos, y los dos los cargan al arrancar. La API lo hacía
+    desde #125; el MCP, que es por donde llama el agente, no: su primer análisis
+    tras un despliegue cargaba los modelos dentro de la llamada (14 nov 2026).
+    El MCP precalienta mientras ya atiende (#267), así que el healthcheck no
+    espera a la carga."""
+    del_backend = {
+        nombre: servicio
+        for nombre, servicio in _servicios().items()
+        if servicio.get("image") == "clickbait-backend"
+    }
+
+    assert set(del_backend) == {"api", "mcp"}
+    for nombre, servicio in del_backend.items():
+        assert servicio["environment"].get("PREHEAT_MODELS") == "true", nombre
+
+
+def test_la_imagen_del_backend_la_construye_un_solo_servicio():
+    """El fallo de #251. Con `api` y `mcp` construyendo los dos
+    `clickbait-backend`, en una instalación nueva de Docker (29.1, Compose
+    2.40) las dos exportaciones compiten por el nombre en frío y la segunda
+    falla con «already exists»: `up --build` fallaba la primera vez que alguien
+    levantaba el sistema. La construye `api`, y el resto la usa sin buscarla
+    en Docker Hub, donde no existe."""
+    del_backend = {
+        nombre: servicio
+        for nombre, servicio in _servicios().items()
+        if servicio.get("image") == "clickbait-backend"
+    }
+
+    assert [
+        nombre for nombre, servicio in del_backend.items() if "build" in servicio
+    ] == ["api"]
+    for nombre, servicio in del_backend.items():
+        if nombre != "api":
+            assert servicio.get("pull_policy") == "never", nombre
+
+
 def test_la_api_no_publica_ningun_puerto():
     """La condición que sostiene el límite por cliente de #169.
 
@@ -49,6 +129,18 @@ def test_la_api_no_publica_ningun_puerto():
     cada petición.
     """
     assert "ports" not in _servicios()["api"]
+
+
+def test_el_mcp_no_publica_ningun_puerto():
+    """Lo que afirma el §10 de `docs/arquitectura.md`, que aquí sólo se
+    comprobaba para la API.
+
+    El servidor MCP no tiene autenticación: quien llegara a su puerto ejecutaría
+    las herramientas y gastaría las cuotas de las APIs de noticias sin pasar por
+    el límite de #169, que vive en la API. Sólo se llega a él desde la red de
+    compose.
+    """
+    assert "ports" not in _servicios()["mcp"]
 
 
 def test_la_api_se_fia_de_las_cabeceras_del_proxy():
@@ -77,3 +169,93 @@ def test_la_api_alcanza_el_tunel_del_agente():
     assert "host.docker.internal:host-gateway" in api.get("extra_hosts", [])
     assert api["environment"]["LLM_BACKEND"] == "ollama"
     assert api["environment"]["LLM_URL"].startswith("http://host.docker.internal:")
+
+
+def test_el_historial_vive_en_su_volumen():
+    """R7.6: lo que sostiene que el historial sobreviva a un despliegue.
+
+    `up --build` RECREA el contenedor, y recrear pierde lo que no esté en un
+    volumen (#163: el historial volvió a `total: 0`). Cualquiera de estas cosas
+    se rompe sin un error: el despliegue arranca igual, con el historial vacío.
+
+    Comprueba la configuración, no que los datos sobrevivan: eso se midió en
+    #164, con `down` y `up --build`, y el CI no levanta contenedores.
+    """
+    compose = _compose()
+    api = compose["services"]["api"]
+
+    assert "historial:/app/var" in api.get("volumes", [])
+    assert "historial" in compose.get("volumes", {})
+
+    # Sin nombre fijo, compose lo saca de la carpeta: en un clon con otro nombre
+    # el volumen sería otro, y el historial parecería borrado (#164).
+    assert compose.get("name") == "clickbait"
+
+    # Una ruta relativa se ancla en la raíz del repositorio, que en la imagen es
+    # `/app`. Se lee el valor POR DEFECTO de la clase: el de `settings` lo cambia
+    # `_historial_aislado` en cada prueba.
+    ruta_por_defecto = Settings.model_fields["history_db"].default
+    assert PurePosixPath("/app", ruta_por_defecto).is_relative_to("/app/var")
+    assert "HISTORY_DB" not in _nombres_del_entorno(api)
+
+
+# La variante para otra máquina (#251). Se SUMA a `compose.yaml` con `-f`, así
+# que puede deshacer en silencio lo que vigilan las pruebas de arriba.
+
+
+def test_la_variante_local_no_publica_la_api():
+    """`test_la_api_no_publica_ningun_puerto`, para la variante: unos `ports`
+    suyos se sumarían a los de `compose.yaml`, y la API quedaría publicada."""
+    assert "ports" not in _servicios_locales().get("api", {})
+
+
+def test_la_variante_local_no_publica_el_mcp():
+    """`test_el_mcp_no_publica_ningun_puerto`, para la variante, por el mismo
+    motivo que la prueba de arriba."""
+    assert "ports" not in _servicios_locales().get("mcp", {})
+
+
+def test_la_variante_local_no_cambia_donde_corren_las_senales():
+    """El fallo de #164, otra vez posible: un `NLP_BACKEND` aquí manda sobre el
+    de `compose.yaml`, servicio a servicio."""
+    for nombre, servicio in _servicios_locales().items():
+        assert "NLP_BACKEND" not in _nombres_del_entorno(servicio), nombre
+
+
+def test_la_variante_local_sustituye_los_puertos_y_el_certificado():
+    """Sin `!override`, compose SUMA los puertos: quedarían los de `compose.yaml`
+    en todas las interfaces más los de `127.0.0.1`. Y mezcla los volúmenes por
+    su ruta en el contenedor, así que el certificado de la máquina 1 se seguiría
+    montando aunque aquí no se nombre. Medido con `docker compose config` al
+    escribir la variante."""
+    web = _servicios_locales()["web"]
+
+    assert isinstance(web["ports"], Sustituida)
+    assert all(puerto.startswith("127.0.0.1:") for puerto in web["ports"])
+    assert isinstance(web["volumes"], Sustituida)
+    assert all("/certificados" not in volumen for volumen in web["volumes"])
+
+
+# La variante con respuestas grabadas (#265), el plan B de la defensa. También
+# se SUMA con `-f`, y además en la máquina 1, sobre el despliegue de verdad.
+
+
+def _servicios_grabados() -> dict:
+    return yaml.safe_load(COMPOSE_GRABADO.read_text(encoding="utf-8"))["services"]
+
+
+def test_la_variante_grabada_solo_cambia_quien_escribe_el_texto_del_asistente():
+    """Lo único que cambia es el backend del asistente. Con ella delante, el
+    despliegue tiene que seguir siendo el que vigilan las pruebas de arriba: la
+    API sin puertos, las señales en local, el historial en su volumen. Exigir
+    que no traiga nada más es lo que lo garantiza, sin repetirlas."""
+    assert _servicios_grabados() == {"api": {"environment": {"LLM_BACKEND": "grabado"}}}
+
+
+def test_la_variante_grabada_pide_un_backend_que_existe():
+    """Un valor que los ajustes no aceptan no falla aquí, sino al arrancar: la
+    API no levantaría, y con ella se caería también el análisis, en mitad de la
+    defensa."""
+    valor = _servicios_grabados()["api"]["environment"]["LLM_BACKEND"]
+
+    assert Settings(llm_backend=valor).llm_backend == valor

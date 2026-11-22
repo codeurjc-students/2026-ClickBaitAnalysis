@@ -5,6 +5,8 @@
 Escribe por **stderr** porque el transporte stdio de MCP usa stdout, y baja
 `httpx` a WARNING porque sus trazas de nivel INFO llevan la URL entera, con la
 clave de Guardian y de NYT dentro.
+
+`avisar_si_faltan_claves` la llaman los dos arranques justo después (#259).
 """
 
 import logging
@@ -44,3 +46,17 @@ def configure_logging():
         logger_factory=structlog.PrintLoggerFactory(file=sys.stderr),
         # imprimir por stderr ya que MCP imprime por stout tambien.
     )
+
+
+def avisar_si_faltan_claves() -> None:
+    """Un aviso en el registro con las claves de API sin configurar, si falta alguna.
+
+    Desde #259 ninguna es obligatoria: sin ellas el proceso arranca, que es lo
+    que se quería, y cada herramienta dice qué le falta. Pero quien despliega
+    tiene que verlo nada más arrancar, que es lo que antes hacía visible el
+    fallo. Lleva los NOMBRES de las variables, nunca los valores.
+    """
+    if claves := settings.claves_sin_configurar():
+        structlog.get_logger().warning(
+            "configuracion.claves_sin_configurar", claves=claves
+        )

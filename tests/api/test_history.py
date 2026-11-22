@@ -319,10 +319,12 @@ def analisis(monkeypatch):
 @pytest.fixture
 def ejecucion(monkeypatch):
     async def falso_execute(name, arguments):
+        # Los argumentos, como los pone la fachada desde #292 (R9.2).
         return ExecuteResponse(
             tool=name,
             server="http://127.0.0.1:8765/mcp",
             status=ExecuteStatus.OK,
+            arguments=arguments,
             data={"score": 2},
         )
 
@@ -400,6 +402,41 @@ def test_una_herramienta_sin_titular_lo_deja_vacio(ejecucion):
     entrada = client.get("/history").json()["items"][0]
     assert entrada["tool"] == "health_check"
     assert entrada["headline"] is None
+
+
+def test_una_ejecucion_suelta_guarda_sus_argumentos(ejecucion):
+    """R9.2 (#292): el historial guarda la respuesta, y la respuesta lleva los
+    argumentos. Hasta entonces sólo quedaba el titular, si lo había: una
+    búsqueda de noticias no decía qué se buscó."""
+    argumentos = {"topic": "climate", "days": 3}
+    client.post("/tools/get_nyt_news/execute", json={"arguments": argumentos})
+
+    identificador = client.get("/history").json()["items"][0]["id"]
+    entrada = client.get(f"/history/{identificador}").json()
+
+    assert entrada["payload"]["arguments"] == argumentos
+
+
+def test_una_ejecucion_guardada_sin_argumentos_se_sigue_leyendo():
+    """Lo guardado antes de #292 no los trae, y el historial guarda respuestas
+    de versiones antiguas: el `payload` sigue siendo un diccionario libre, y una
+    entrada sin `arguments` se devuelve tal cual, sin rellenarla ni rechazarla."""
+    identificador = _guardar(
+        kind=HistoryKind.TOOL,
+        tool="get_nyt_news",
+        payload={
+            "tool": "get_nyt_news",
+            "server": "tfg-mcp-server",
+            "status": "ok",
+            "data": {"result": []},
+            "detail": None,
+        },
+    )
+
+    respuesta = client.get(f"/history/{identificador}")
+
+    assert respuesta.status_code == 200
+    assert "arguments" not in respuesta.json()["payload"]
 
 
 def test_una_peticion_rechazada_no_se_registra(monkeypatch):

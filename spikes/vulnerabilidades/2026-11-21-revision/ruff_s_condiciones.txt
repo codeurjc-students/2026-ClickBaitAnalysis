@@ -1,0 +1,3 @@
+fecha: 2026-11-21T11:52:30+01:00
+commit: 3aea084 (dev)
+ruff 0.16.1, reglas S, --force-exclude

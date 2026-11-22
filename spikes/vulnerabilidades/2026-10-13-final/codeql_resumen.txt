@@ -1,0 +1,11 @@
+== codeql_javascript-typescript.sarif: 0 hallazgos
+== codeql_python.sarif: 8 hallazgos
+   no servido    alta          8
+      no servido    alta          py/request-without-cert-validation · spikes/chat_maquina1.py:121 · This request may run without certificate validation because [it is disabled](1).
+      no servido    alta          py/request-without-cert-validation · spikes/chat_maquina1.py:140 · This request may run without certificate validation because [it is disabled](1).
+      no servido    alta          py/request-without-cert-validation · spikes/chat_maquina1.py:209 · This request may run without certificate validation because [it is disabled](1).
+      no servido    alta          py/request-without-cert-validation · spikes/chat_maquina1.py:211 · This request may run without certificate validation because [it is disabled](1).
+      no servido    alta          py/request-without-cert-validation · spikes/chat_maquina1.py:230 · This request may run without certificate validation because [it is disabled](1).
+      no servido    alta          py/clear-text-logging-sensitive-data · spikes/noticias_es.py:87 · This expression logs [sensitive data (private)](1) as clear text.
+      no servido    alta          py/request-without-cert-validation · spikes/produccion_en_vivo.py:101 · This request may run without certificate validation because [it is disabled](1).
+      no servido    alta          py/request-without-cert-validation · spikes/produccion_en_vivo.py:94 · This request may run without certificate validation because [it is disabled](1).

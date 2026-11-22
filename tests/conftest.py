@@ -1,11 +1,16 @@
+import json
+
 import pytest
 import structlog
 from mcp.server.fastmcp import FastMCP
 
+from backend.analysis import tool as analysis_tool
 from backend.api import chat, ratelimit
 from backend.config.settings import settings
 from backend.core import health
 from backend.integrations.discovery import discover_and_register
+from backend.integrations.llm import factory as llm_factory
+from backend.integrations.llm import grabado
 
 
 @pytest.fixture(autouse=True)
@@ -84,12 +89,67 @@ def servidor_mcp() -> FastMCP:
     desaparece según qué tests se corran juntos.
 
     Se monta igual que `main.py` para que lo que se prueba sea el servidor real
-    y no una maqueta: descubrimiento de integraciones más el chequeo de salud.
+    y no una maqueta: descubrimiento de integraciones, el chequeo de salud y el
+    análisis completo. Hasta #269 faltaba este último —13 herramientas de 14—,
+    y ninguna prueba que usara la fixture veía `analyze_headline`.
     """
     mcp = FastMCP("tfg-mcp-server")
     discover_and_register(mcp)
     health.register(mcp)
+    analysis_tool.register(mcp)
     return mcp
+
+
+@pytest.fixture
+def grabacion_de_prueba(tmp_path, monkeypatch):
+    """El asistente configurado con respuestas grabadas (#265), y la grabación
+    en una carpeta temporal: las pruebas no escriben en `grabaciones/`.
+
+    La factoría guarda un reproductor por nombre de grabación, que lee su
+    fichero una sola vez: sin vaciar esa caché, una prueba recibiría el de la
+    anterior, con su carpeta ya borrada.
+    """
+    grabacion = {
+        "model": "qwen3.5:27b",
+        "model_digest": "7653528ba5cb",
+        "recorded_at": "2026-11-13",
+        "commit": "abc1234",
+        "prompt": {"name": "06-dato", "text": "Eres el asistente de prueba."},
+        "takes": {"recorded": 3, "chosen": 1},
+        "conditions": {},
+        "turns": [
+            {
+                "query": "Analiza el titular 'You Won't Believe This'",
+                "rounds": [
+                    {
+                        "tool_results": [],
+                        "response": {
+                            "content": "Sin herramientas.",
+                            "tool_calls": [],
+                            "metrics": {
+                                "prompt_tokens": 3100,
+                                "output_tokens": 12,
+                                "load_s": 0.1,
+                                "total_s": 2.0,
+                            },
+                            "cortada": False,
+                        },
+                    }
+                ],
+            }
+        ],
+    }
+    carpeta = tmp_path / "grabaciones"
+    carpeta.mkdir()
+    (carpeta / "prueba.json").write_text(
+        json.dumps(grabacion, ensure_ascii=False), encoding="utf-8"
+    )
+    monkeypatch.setattr(grabado, "CARPETA", carpeta)
+    monkeypatch.setattr(settings, "llm_backend", "grabado")
+    monkeypatch.setattr(settings, "llm_grabacion", "prueba")
+    llm_factory._grabado_para.cache_clear()
+    yield grabacion
+    llm_factory._grabado_para.cache_clear()
 
 
 # Encontrado fallo de aislamiento entre tests al usar capsys.

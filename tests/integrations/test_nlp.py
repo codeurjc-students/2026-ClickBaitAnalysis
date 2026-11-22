@@ -3,7 +3,10 @@ import builtins
 import importlib
 import json
 import sys
+import threading
+import time
 import types
+from functools import partial
 
 import pytest
 import respx  # Usamos en vez de htttp, ya que no hacemos llamadas de verdad, mockeamos
@@ -37,7 +40,45 @@ from backend.integrations.nlp.remote import HFClient
 MODELS_URL = "https://router.huggingface.co/hf-inference/models/"
 
 
+@pytest.fixture(autouse=True)
+def _token_de_prueba_si_no_hay(monkeypatch):
+    """Desde #259 `HF_TOKEN` es opcional y el CI no lo trae: sin él, la vía
+    remota no pide nada, así que las pruebas que hacen de Hugging Face con
+    `respx` reciben uno de prueba. Uno de verdad no se toca."""
+    if not HFClient.API_KEY:
+        monkeypatch.setattr(HFClient, "API_KEY", "token-hf-de-prueba-259")
+
+
 # -----HF CLIENT-----
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "llamar",
+    [
+        partial(HFClient.classify, text="titular", model="org/modelo"),
+        partial(
+            HFClient.zero_shot, text="titular", model="org/modelo", labels=["a", "b"]
+        ),
+    ],
+    ids=["classify", "zero_shot"],
+)
+async def test_la_via_remota_sin_token_no_pide_nada_y_dice_que_falta(
+    monkeypatch, llamar
+):
+    """#259: sin `HF_TOKEN` el sistema arranca, y la vía remota —de pago desde
+    #236— dice qué falta, en vez de mandar `Bearer None` y recibir un 401."""
+    monkeypatch.setattr(HFClient, "API_KEY", None)
+    # La ruta, en el enrutador de ESTE `with`: con argumentos, `respx.mock`
+    # crea uno nuevo, y `respx.post` la dejaría en el global, donde capturaría
+    # las peticiones de las pruebas siguientes.
+    with respx.mock(assert_all_called=False) as router:
+        ruta = router.post(url__startswith=MODELS_URL)
+        result = await llamar(HFClient())
+
+    assert not ruta.called
+    assert not result.success
+    assert "HF_TOKEN" in result.error
+
+
 # classify
 @pytest.mark.asyncio
 async def test_classify_returns_top_label():
@@ -105,6 +146,8 @@ async def test_una_respuesta_inesperada_de_hf_no_se_publica(llamar):
     fallo = next(linea for linea in registrado if linea["event"] == "nlp.remoto.fallo")
     assert fallo["modelo"] == modelo
     assert MARCA_DEL_PROVEEDOR in fallo["respuesta"]
+    # Con su traza (R10.2, #292): el tipo y el mensaje no dicen dónde falló.
+    assert "Traceback (most recent call last)" in fallo.get("traza", "")
 
 
 @pytest.mark.asyncio
@@ -214,7 +257,7 @@ async def test_request_sends_bearer_header():
 # ------ LocalNLPClient
 
 
-def fake_pipe_classify(text):
+def fake_pipe_classify(text, **opciones):
     return [{"label": "POSITIVE", "score": 0.99}]
 
 
@@ -238,6 +281,28 @@ async def test_classify_local(monkeypatch):
     result = await client.classify("great movie", model)
     assert result.success
     assert result.data == {"label": "POSITIVE", "score": 0.99}
+
+
+@pytest.mark.asyncio
+async def test_classify_recorta_lo_que_no_cabe_en_el_modelo(monkeypatch):
+    """La pipeline de text-classification no recorta por defecto, y un texto
+    de más de 512 piezas tumbaba la dedicada y el tono con «motivo no
+    previsto». `truncation=True` solo no basta: el tokenizador del tono inglés
+    declara un tope de 1e+30, y con él sigue fallando. Medido con los cuatro
+    modelos servidos en `spikes/recorte_512.py`."""
+    recibido = {}
+
+    def pipe_que_anota(texto, **opciones):
+        recibido.update(opciones)
+        return [{"label": "OK", "score": 1.0}]
+
+    client = LocalNLPClient()
+    monkeypatch.setattr(client, "_get_pipeline", lambda task, model: pipe_que_anota)
+
+    result = await client.classify("un texto largo", "modelo")
+
+    assert result.success
+    assert recibido == {"truncation": True, "max_length": 512}
 
 
 def fake_pipe_zero_shot(text, candidate_labels):
@@ -276,6 +341,25 @@ async def test_classify_error_returns_fail(monkeypatch):
 
     assert not result.success
     assert "modelo-malo" in result.error
+
+
+@pytest.mark.asyncio
+async def test_un_fallo_del_modelo_local_deja_su_traza(monkeypatch):
+    """R10.2 (#292): el fallo se devuelve como valor, saneado (#89), así que no
+    escapa de la herramienta y su traza no la registra nadie más. Hasta #292
+    quedaban el tipo y el mensaje, que no dicen dónde falló."""
+
+    def boom(task, model):
+        raise RuntimeError("modelo no encontrado")
+
+    client = LocalNLPClient()
+    monkeypatch.setattr(client, "_get_pipeline", boom)
+    with capture_logs() as registrado:
+        await client.classify("texto", "modelo-malo")
+
+    fallo = next(linea for linea in registrado if linea["event"] == "nlp.local.fallo")
+    assert "Traceback (most recent call last)" in fallo.get("traza", "")
+    assert "RuntimeError: modelo no encontrado" in fallo.get("traza", "")
 
 
 def test_get_pipeline_caches(monkeypatch):
@@ -492,6 +576,26 @@ async def test_detector_error_returns_fail(monkeypatch):
         == "La incoherencia falló por un motivo no previsto; el detalle técnico queda en el log del servidor."
     )
     assert "modelo no encontrado" not in result.error
+
+
+@pytest.mark.asyncio
+async def test_un_fallo_de_la_incoherencia_deja_su_traza(monkeypatch):
+    """R10.2 (#292), como el del modelo local: fuera sale la frase pública, y al
+    registro, la traza entera."""
+
+    def boom():
+        raise RuntimeError("modelo no encontrado")
+
+    detector = IncoherenceDetector()
+    monkeypatch.setattr(detector, "_get_model", boom)
+    with capture_logs() as registrado:
+        await detector.detect("error", "no movie")
+
+    fallo = next(
+        linea for linea in registrado if linea["event"] == "nlp.incoherencia.fallo"
+    )
+    assert "Traceback (most recent call last)" in fallo.get("traza", "")
+    assert "RuntimeError: modelo no encontrado" in fallo.get("traza", "")
 
 
 # --Léxico
@@ -998,7 +1102,7 @@ async def test_el_aviso_no_secuestra_a_quien_sustituye_el_cargador(monkeypatch):
     """
     _sin_paquete(monkeypatch, "torch")
 
-    def pipeline_falso(texto):
+    def pipeline_falso(texto, **opciones):
         return [{"label": "OK", "score": 1.0}]
 
     cliente = LocalNLPClient()
@@ -1111,6 +1215,75 @@ async def test_la_incoherencia_explica_el_modelo_sin_descargar(monkeypatch):
     assert result.error is not None
     assert "HF_HUB_OFFLINE=0" in result.error
     assert "Error inesperado" not in result.error
+
+
+# --La carga, una sola vez aunque se pida a la vez (#267)
+
+
+def _a_la_vez(funcion, veces: int = 2) -> list:
+    """Llama a `funcion` desde `veces` hilos que salen juntos, y devuelve lo que
+    devolvió cada uno."""
+    salida = threading.Barrier(veces)
+    resultados = [None] * veces
+
+    def llamar(posicion: int) -> None:
+        salida.wait()
+        resultados[posicion] = funcion()
+
+    hilos = [
+        threading.Thread(target=llamar, args=(posicion,)) for posicion in range(veces)
+    ]
+    for hilo in hilos:
+        hilo.start()
+    for hilo in hilos:
+        hilo.join(5)
+    return resultados
+
+
+def _carga_lenta(construidos: list):
+    """Un constructor de modelo falso que tarda: es el hueco en el que, sin
+    candado, el segundo hilo no encuentra el modelo y lo carga otra vez."""
+
+    def construir(*args, **kwargs):
+        construidos.append(args)
+        time.sleep(0.2)
+        return object()
+
+    return construir
+
+
+def test_dos_llamadas_a_la_vez_cargan_el_pipeline_una_sola_vez(monkeypatch):
+    """Desde #267 el servidor MCP precalienta en un hilo mientras ya atiende:
+    una llamada que llegue a mitad tiene que esperar a esa carga, no repetirla.
+    Y sin precalentar, dos primeras peticiones a la vez a la API cargaban
+    también el mismo modelo dos veces."""
+    construidos = []
+    _paquete_falso(monkeypatch, "transformers", pipeline=_carga_lenta(construidos))
+    cliente = LocalNLPClient()
+
+    primero, segundo = _a_la_vez(
+        lambda: cliente._get_pipeline("text-classification", "modelo")
+    )
+
+    assert len(construidos) == 1
+    assert primero is segundo
+
+
+def test_dos_llamadas_a_la_vez_cargan_el_modelo_de_la_incoherencia_una_sola_vez(
+    monkeypatch,
+):
+    construidos = []
+    _paquete_falso(
+        monkeypatch,
+        "sentence_transformers",
+        SentenceTransformer=_carga_lenta(construidos),
+    )
+    detector = IncoherenceDetector(model="modelo")
+
+    primero, segundo = _a_la_vez(detector._get_model)
+
+    assert len(construidos) == 1
+    assert primero is segundo
 
 
 # --Modelos configurables (R3.9)

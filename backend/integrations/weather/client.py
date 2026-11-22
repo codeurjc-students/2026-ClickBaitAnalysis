@@ -39,7 +39,12 @@ class WeatherAPI(BaseAPI):
         return ToolResult.ok("\n---\n".join(alerts))
 
     async def get_zone_by_points(self, latitude: float, longitude: float) -> ToolResult:
-        endpoint = f"/points/{latitude},{longitude}"
+        # Con más de cuatro decimales, NWS responde 301 hacia la coordenada
+        # redondeada, y `make_request` no sigue redirecciones: salía «Unable to
+        # find requested zone» con una zona que existe. Se pide ya redondeada
+        # (comprobado contra `api.weather.gov` en la revisión de antes de
+        # congelar, 21 nov 2026).
+        endpoint = f"/points/{round(latitude, 4)},{round(longitude, 4)}"
         points_json = await self.make_request(endpoint, "get")
 
         if not points_json.success or not points_json.has_content():

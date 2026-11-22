@@ -1,0 +1,57 @@
+{
+ "CVE-2026-112907": {
+  "cvss": "CVSS:3.1/AV:L/AC:H/PR:L/UI:N/S:U/C:N/I:N/A:L",
+  "ghsa": "GHSA-567q-5qvw-pf92",
+  "gravedad": "low"
+ },
+ "CVE-2026-112909": {
+  "cvss": "CVSS:3.1/AV:L/AC:L/PR:L/UI:N/S:U/C:L/I:H/A:N",
+  "ghsa": "GHSA-69hj-f68j-2879",
+  "gravedad": "moderate"
+ },
+ "CVE-2026-112910": {
+  "cvss": "CVSS:3.1/AV:L/AC:L/PR:L/UI:N/S:U/C:L/I:L/A:L",
+  "ghsa": "GHSA-8mx5-7m5m-r77g",
+  "gravedad": "moderate"
+ },
+ "CVE-2026-112913": {
+  "cvss": "CVSS:3.1/AV:L/AC:L/PR:L/UI:N/S:U/C:N/I:N/A:L",
+  "ghsa": "GHSA-9vhv-jxww-xfm5",
+  "gravedad": "low"
+ },
+ "CVE-2026-112915": {
+  "cvss": "CVSS:3.1/AV:L/AC:L/PR:L/UI:N/S:U/C:N/I:N/A:H",
+  "ghsa": "GHSA-cwqr-hh33-gh44",
+  "gravedad": "moderate"
+ },
+ "CVE-2026-112935": {
+  "cvss": "CVSS:3.1/AV:L/AC:H/PR:L/UI:N/S:U/C:N/I:H/A:N",
+  "ghsa": "GHSA-fq56-3cx3-fjxp",
+  "gravedad": "moderate"
+ },
+ "CVE-2026-112936": {
+  "cvss": "CVSS:3.1/AV:L/AC:L/PR:L/UI:N/S:U/C:N/I:H/A:L",
+  "ghsa": "GHSA-j8f7-rjxc-mr56",
+  "gravedad": "moderate"
+ },
+ "CVE-2026-112939": {
+  "cvss": "CVSS:3.1/AV:L/AC:H/PR:L/UI:N/S:U/C:N/I:H/A:N",
+  "ghsa": "GHSA-rfpc-qcw5-3pc4",
+  "gravedad": "moderate"
+ },
+ "CVE-2026-112940": {
+  "cvss": "CVSS:3.1/AV:L/AC:L/PR:L/UI:N/S:U/C:N/I:H/A:H",
+  "ghsa": "GHSA-v4x8-3wr5-3wq8",
+  "gravedad": "high"
+ },
+ "GHSA-xmj3-9gf7-h52w": {
+  "cvss": "CVSS:4.0/AV:L/AC:H/AT:P/PR:L/UI:A/VC:N/VI:L/VA:L/SC:N/SI:N/SA:N",
+  "ghsa": "GHSA-xmj3-9gf7-h52w",
+  "gravedad": "low"
+ },
+ "PYSEC-2026-4320": {
+  "cvss": "CVSS:4.0/AV:N/AC:H/AT:P/PR:N/UI:N/VC:H/VI:H/VA:N/SC:N/SI:N/SA:N",
+  "ghsa": "GHSA-6q48-6c7w-9gw2",
+  "gravedad": "critical"
+ }
+}

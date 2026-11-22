@@ -13,6 +13,8 @@
 # El MCP no precalienta: carga cada modelo la primera vez que se usa. Para
 # medirlo con todo cargado, ejecutar ANTES `spikes/produccion_en_vivo.py`, que
 # pasa por el MCP todas las señales con un titular en inglés y otro en español.
+# (Desde la PR #295, 14 nov 2026, sí precalienta, en un hilo mientras ya
+# atiende: lo mide al arrancar `spikes/precalentado_maquina1.sh`.)
 #
 # Ejecutar desde la raíz:
 #   bash spikes/memoria_maquina1.sh

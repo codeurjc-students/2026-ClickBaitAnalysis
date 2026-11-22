@@ -1,0 +1,538 @@
+# Guía de desarrollo
+
+Cómo se prepara un entorno para editar el código, ejecutarlo mientras se edita
+y pasar las mismas comprobaciones que el CI. Para levantar la aplicación entera
+con Docker, sin tocar el código, está [`ejecucion.md`](ejecucion.md).
+
+Para orientarse en el código:
+
+- [`estructura.md`](estructura.md): dónde vive cada cosa y con qué criterio.
+- [`arquitectura.md`](arquitectura.md): cómo está montado, con sus diagramas.
+- [`requisitos.md`](requisitos.md): lo que el sistema tiene que cumplir.
+- Las [convenciones de ramas, commits y versiones](#10--convenciones-de-desarrollo),
+  en la última sección de esta guía.
+
+## Lo que hace falta
+
+- **git**.
+- **Python 3.12**, con su módulo `venv`. En Ubuntu viene aparte, en el paquete
+  `python3.12-venv`. Aquí el parche no se fija: se ha desarrollado con el de
+  Ubuntu 24.04, el 3.12.3. La imagen del backend y el CI sí lo fijan, al
+  3.12.16 (#278).
+- **Node 22.23.2**, la que fija la imagen de la web y la que pide el CI. Con
+  [nvm](https://github.com/nvm-sh/nvm), `nvm install 22.23.2`.
+
+Se ha desarrollado y comprobado en Ubuntu 24.04 dentro de WSL. Los comandos son
+de bash y se ejecutan desde la raíz del repositorio, salvo los que empiezan con
+`cd frontend`.
+
+## 1 · El código
+
+```bash
+git clone https://github.com/codeurjc-students/2026-ClickBaitAnalysis.git
+cd 2026-ClickBaitAnalysis
+```
+
+## 2 · El backend
+
+Un entorno virtual en `.venv`, que es donde lo buscan `pyrightconfig.json` y
+los comandos de esta guía, con las dependencias de ejecución:
+
+```bash
+python3 -m venv .venv
+.venv/bin/python -m pip install -r requirements.txt
+```
+
+`requirements.txt` es un *lockfile*: lo genera `pip-compile` a partir de
+`requirements.in`, con cada versión fijada, y no se edita a mano (ver
+[«Cambiar una dependencia»](#8--cambiar-una-dependencia)).
+
+Y las dos herramientas que corre el CI, en las versiones que corre:
+
+```bash
+.venv/bin/python -m pip install ruff==0.16.1 pyright==1.1.411
+```
+
+Con esto ya pasan las comprobaciones del backend que hace el CI (paso 6): las
+pruebas no cargan ningún modelo ni salen a la red.
+
+### Las señales NLP en local (opcional)
+
+Con `requirements.txt` funcionan el léxico y el lineal, que son Python puro. La
+dedicada, el tono y la incoherencia cargan un modelo con `torch`, que no está en
+el lockfile porque pesa varios GB y depende del hardware; sin él, esas señales
+responden diciendo qué paquete falta. Para tenerlas, primero `torch` en su
+versión de CPU —si no, pip trae la de CUDA, mucho más grande— y después lo
+demás:
+
+```bash
+.venv/bin/python -m pip install torch==2.14.0 --index-url https://download.pytorch.org/whl/cpu
+.venv/bin/python -m pip install -r requirements-dev.txt
+```
+
+La versión de `torch` es la de la imagen (`docker/backend.Dockerfile`).
+`requirements-dev.txt` trae además `numpy`, `scipy` y `scikit-learn`, que usan
+los guiones de `backend/evaluation/` para entrenar y medir, fijados a las
+versiones con que se entrenó y se midió. La primera vez que una
+señal carga su modelo, lo descarga del Hub de Hugging Face a
+`~/.cache/huggingface`.
+
+## 3 · El frontend
+
+```bash
+cd frontend && npm ci
+```
+
+`npm ci` y no `npm install`: instala exactamente lo de `package-lock.json`, y
+falla si no coincide con `package.json`. Es lo que hacen el CI y la imagen.
+
+## 4 · La configuración
+
+```bash
+cp .env.example .env
+```
+
+**Es opcional**, y para desarrollar no hace falta rellenar ninguna clave:
+analizar un titular no usa ninguna, las pruebas no salen a la red, y sin `.env`
+todo arranca igual. Sin una clave sólo falla la herramienta de noticias de esa
+API, que dice qué falta. Qué es cada variable, en
+[`ejecucion.md`](ejecucion.md#la-configuración).
+
+## 5 · Arrancar en desarrollo
+
+Tres procesos, cada uno en su terminal:
+
+| Proceso | Comando | Dónde |
+|---|---|---|
+| La API | `.venv/bin/uvicorn backend.api.app:app --reload` | `http://127.0.0.1:8000`, con la documentación en `/docs`. `--reload` la reinicia al guardar un fichero |
+| El servidor MCP | `MCP_TRANSPORT=streamable-http .venv/bin/python -m backend.main` | `http://127.0.0.1:8765/mcp`, que es donde lo busca la API por defecto |
+| La web | `cd frontend && npm start` | `http://localhost:4200`. Reenvía `/api` a la API del 8000 (`frontend/proxy.conf.json`), como hace Caddy en el despliegue |
+
+Analizar un titular y el historial sólo necesitan la API. **El servidor MCP**
+hace falta para la pantalla de Sistema —que lista y ejecuta las herramientas— y
+para el asistente, que también las llama por MCP; sin él, Sistema lo enseña
+como inalcanzable. Por defecto el servidor MCP habla por `stdio`, que es lo que
+espera un cliente que lo lanza como subproceso, como Claude Desktop (más
+abajo); la variable lo pone en HTTP.
+
+**El asistente** necesita además un servidor [Ollama](https://ollama.com) con
+un modelo. Se enciende con tres variables en el `.env`:
+
+```bash
+LLM_BACKEND=ollama
+LLM_URL=http://127.0.0.1:11434
+LLM_MODEL=<un modelo descargado en ese Ollama>
+```
+
+Sin `LLM_BACKEND`, la pestaña del asistente no aparece, y quien entre en
+`/asistente` lee por qué. El modelo del despliegue y sus medidas están en
+`backend/integrations/llm/model_card.py`; cómo se enciende en las máquinas de la
+universidad, en [`despliegue/README.md`](../despliegue/README.md).
+
+### Desde Claude Desktop, con esta copia
+
+La guía de ejecución conecta Claude Desktop a la imagen de Docker
+([`ejecucion.md`](ejecucion.md#desde-claude-desktop)). Para probar las
+herramientas con el código que se está editando, Claude Desktop lanza el
+servidor desde el `.venv` de esta copia:
+
+```json
+{
+  "mcpServers": {
+    "tfg-mcp-server": {
+      "command": "wsl",
+      "args": [
+        "bash", "-c",
+        "cd /ruta/al/repositorio && PREHEAT_MODELS=true .venv/bin/python -m backend.main"
+      ]
+    }
+  }
+}
+```
+
+Ésa es la de Windows con el repositorio en WSL. En macOS, `"command": "/bin/sh"`
+y `"args": ["-c", "cd … && …"]`, con la misma línea.
+
+- **El `cd` es lo que importa**: el `.env` se lee de la carpeta en la que
+  arranca el proceso, y `backend` se importa desde ahí.
+- **`PREHEAT_MODELS` va en la línea de comandos**, y no en el campo `env` de la
+  configuración, porque ese campo no cruza a WSL.
+- Claude Desktop sólo relee la configuración al abrirse, y se edita con ella
+  cerrada ([`ejecucion.md`](ejecucion.md#desde-claude-desktop)). Y al cambiar
+  el código, para que el servidor lo cargue, se vuelve a abrir.
+- **Ejecuta lo que haya en la copia en ese momento**, también otra rama: al
+  cambiar de rama, el servidor de Claude Desktop cambia con ella la siguiente
+  vez que se abre. Para usarlo a diario, mejor la imagen.
+- **Tarda más que la imagen** (medido en #267, con WSL en un PC de
+  sobremesa). Con WSL en marcha, los modelos están listos entre 41 y 86 s
+  después de abrir Claude Desktop. Con WSL recién arrancado —y una vez con WSL
+  en marcha, sin causa conocida— el saludo tarda de 27 a 55 s y los modelos, de
+  146 a 183 s: la primera pregunta espera a que terminen (de 47 a 93 s), y una
+  que llegue antes del saludo la contesta Claude sin la herramienta, sin avisar
+  ([`ejecucion.md`](ejecucion.md#desde-claude-desktop)).
+
+Claude Code lo admite igual, con `claude mcp add tfg-mcp-server -- <comando>
+<argumentos…>`. Esto no se ha comprobado.
+
+## 6 · Lo que comprueba el CI
+
+Lo mismo que corre `.github/workflows/ci.yml` en cada pull request y en cada
+push a `dev` y a `main`. El backend:
+
+```bash
+.venv/bin/python -m pytest -m "not integration" --cov
+.venv/bin/python -m ruff check .
+.venv/bin/python -m ruff format --check .
+.venv/bin/pyright
+```
+
+Las pruebas marcadas `integration` llaman de verdad a las APIs externas: el CI
+no las corre, y en local piden las claves en el `.env` (`pytest -m
+integration`).
+
+El frontend, en `frontend/`:
+
+```bash
+cd frontend
+npm ci
+npm run gen:api && git diff --exit-code src/app/api/schema.d.ts
+npm run build
+npm test -- --watch=false
+npm run lint
+```
+
+La segunda línea comprueba que los tipos del cliente son los que salen del
+contrato commiteado (paso 7). `npm test` corre Vitest sobre jsdom, sin
+navegador; sin `--watch=false`, en una terminal se queda vigilando los ficheros.
+`npm run lint` es ESLint, con las reglas de accesibilidad de las plantillas.
+
+Por último, el CI construye las dos imágenes, sin publicarlas, sólo si todo lo
+anterior pasa. En local, con Docker, las construye el compose:
+
+```bash
+docker compose build
+```
+
+## 7 · Cambiar el contrato de la API
+
+La forma de lo que entra y sale de la API se declara una vez, en los modelos
+Pydantic de `backend/api/schemas.py` y `backend/analysis/domain.py`, y el
+frontend la deriva. Al cambiar uno:
+
+```bash
+.venv/bin/python -m backend.api.export_openapi
+cd frontend && npm run gen:api
+```
+
+El primero escribe `frontend/openapi.json`, y el segundo genera de él
+`frontend/src/app/api/schema.d.ts`. **Se commitean los dos**, para que la pull
+request enseñe qué cambió del contrato. El CI vigila las dos mitades: una prueba
+de Python exige que `openapi.json` sea el que sale de los modelos, y el job del
+frontend, que `schema.d.ts` sea el que sale de `openapi.json`. Cómo se usan esos
+tipos en el frontend, en [§8 de `arquitectura.md`](arquitectura.md#de-dónde-salen-sus-tipos).
+
+## 8 · Cambiar una dependencia
+
+**De Python**: se añade o se cambia en `requirements.in` y se regenera el
+lockfile. `pip-tools` no está en ningún fichero de requisitos: es la herramienta
+que los genera.
+
+```bash
+.venv/bin/python -m pip install pip-tools
+.venv/bin/pip-compile requirements.in
+.venv/bin/python -m pip install -r requirements.txt
+```
+
+Lo pesado y lo que sólo sirve para medir va a `requirements-dev.txt`, que el CI
+no instala. No tiene lockfile, así que cada línea lleva su `==`: lo que fija es
+con qué se entrenó y se midió. Las herramientas del CI (`ruff`, `pyright`) van
+fijadas allí y en `ci.yml`, y se cambian en los dos.
+
+**Las versiones de Python y Node** también están en dos sitios, y se cambian
+juntas: el parche de Python, en `docker/backend.Dockerfile` y en `ci.yml`; Node,
+en `docker/web.Dockerfile` y en `ci.yml`. En los Dockerfiles, por etiqueta y no
+por *digest*: el *digest* fijaría también los paquetes del sistema de debajo, y
+con ellos sus avisos.
+
+Pero la etiqueta sólo recibe las actualizaciones de esos paquetes mientras sea
+**el último parche**: Docker deja
+de reconstruir la de uno anterior, que desde entonces está tan congelada como un
+*digest*. Así que, cuando sale un parche nuevo de Python 3.12, se sube en los dos
+sitios. Con Node pasa lo mismo, pero en la imagen web sólo compila: lo que se
+sirve es Caddy, y su etiqueta congelada no llega a la imagen final. El último
+parche de Python se ve en el `PYTHON_VERSION` de la etiqueta `python:3.12-slim`:
+
+```bash
+docker pull -q python:3.12-slim && docker image inspect python:3.12-slim --format '{{range .Config.Env}}{{println .}}{{end}}' | grep PYTHON_VERSION
+```
+
+**La imagen del backend, además, aplica al construirse los arreglos de
+seguridad de Debian** que la etiqueta aún no trae: un `apt-get upgrade` en el
+paso 0 de su Dockerfile, desde #280. Entonces fue `zlib1g`: su arreglo ya
+estaba en `trixie-security`, y la etiqueta, del 8 de noviembre, no lo tenía.
+Docker guarda esa capa en su caché y sólo la rehace si cambia la base o la
+línea, así que para recoger un arreglo publicado después se reconstruye sin
+caché, que rehace también las demás capas, modelos incluidos:
+
+```bash
+docker compose build --no-cache api
+```
+
+**Del frontend**: `npm install <paquete>` en `frontend/`, que actualiza
+`package.json` y `package-lock.json`. Se commitean los dos, porque el CI y la
+imagen instalan con `npm ci`, que falla si no coinciden.
+
+## 9 · Comprobar las vulnerabilidades
+
+Cómo se repite el análisis de vulnerabilidades de #260: qué se ejecuta, en qué
+orden, dónde queda y cómo se tría. Por qué cada herramienta y lo que salió la
+primera vez, en la sección de #260 del [diario](diario.md).
+
+**Cuándo**: antes de cada release, al congelar el código (se hizo el 21 de
+noviembre de 2026), y cuando Dependabot abra una alerta (lo hace solo desde que el grafo
+de dependencias está activado, el 13 de octubre de 2026). Ninguna de estas
+pasadas va en el CI: un aviso publicado hoy pondría en rojo una pull request
+que no ha cambiado nada.
+
+### Lo que hace falta, una vez
+
+Docker, `gh` autenticado, y dos binarios en `~/.local/bin`, **bajados de su
+release y comprobados con su `checksums.txt`**. Nunca la imagen de Trivy de
+Docker Hub ni su acción de GitHub: en marzo de 2026 se publicaron versiones
+malignas de las dos (CVE-2026-33634). Los guiones exigen estas versiones:
+
+```bash
+mkdir -p ~/.local/bin && cd "$(mktemp -d)"
+base=https://github.com/aquasecurity/trivy/releases/download/v0.75.0
+curl -sSfLO $base/trivy_0.75.0_Linux-64bit.tar.gz
+curl -sSfLO $base/trivy_0.75.0_checksums.txt
+grep ' trivy_0.75.0_Linux-64bit.tar.gz$' trivy_0.75.0_checksums.txt | sha256sum -c -
+tar -xzf trivy_0.75.0_Linux-64bit.tar.gz trivy && install -m 0755 trivy ~/.local/bin/
+
+base=https://github.com/gitleaks/gitleaks/releases/download/v8.30.1
+curl -sSfLO $base/gitleaks_8.30.1_linux_x64.tar.gz
+curl -sSfLO $base/gitleaks_8.30.1_checksums.txt
+grep ' gitleaks_8.30.1_linux_x64.tar.gz$' gitleaks_8.30.1_checksums.txt | sha256sum -c -
+tar -xzf gitleaks_8.30.1_linux_x64.tar.gz gitleaks && install -m 0755 gitleaks ~/.local/bin/
+```
+
+`sha256sum -c` tiene que decir `OK`. `pip-audit` no hace falta instalarlo: lo
+pone el guion, en su versión, en un entorno aparte (`/tmp/venv-auditoria`).
+
+### Los pasos
+
+Todos llevan **la misma etiqueta**, y todo cae en una carpeta,
+`spikes/vulnerabilidades/<fecha>-<etiqueta>/`, que es la foto de ese momento.
+Cada guion se niega a pisar sus propios ficheros.
+
+```bash
+docker compose -f compose.yaml -f compose.local.yaml build
+bash spikes/vulnerabilidades.sh <etiqueta> --anterior spikes/vulnerabilidades/<la última>
+```
+
+El primero construye las imágenes con lo que hay en la copia de trabajo: si
+no, los guiones se niegan a medir una imagen que no es la del repositorio (lo
+comprueban por su contenido, no por su fecha). El segundo lanza en orden
+dependencias, su resumen, imágenes, código y secretos, y se para en el primero
+que falle. Docker, sin otra carga a la vez. Sin `--anterior`, el resumen no
+marca lo nuevo.
+
+Al terminar dice cómo lanzar **CodeQL**, que corre en GitHub y deja su informe
+como artefacto, sin crear alertas. `workflow_dispatch` sólo se puede lanzar si
+`codeql.yml` está en la rama por defecto (`dev`), y analiza la rama que se le
+diga:
+
+```bash
+gh workflow run codeql.yml --ref <rama>
+bash spikes/vulnerabilidades_codeql.sh <etiqueta>    # cuando la ejecución termine
+```
+
+### Lo que queda
+
+| Ficheros | De | Qué es |
+|---|---|---|
+| `condiciones.txt`, `pip_*.json`, `npm_*.json`, `imagen_freeze.txt` | `vulnerabilidades_dependencias.sh` | pip-audit (con OSV) sobre el lockfile, las dos líneas de fuera (`torch`, `sentence-transformers`) y el `pip freeze --all` de la imagen; npm audit con y sin `--omit=dev` |
+| `resumen.md`, `gravedades.json` | `vulnerabilidades_resumen.py` | **la tabla para triar**: cada aviso una vez, con su gravedad (la de GitHub), su arreglo, en qué pasadas sale y, con `--anterior`, si es nuevo |
+| `trivy_*` | `vulnerabilidades_imagenes.sh` | los críticos y altos con arreglo de cada imagen, que se trían, y el recuento de todo lo demás |
+| `ruff_s*` | `vulnerabilidades_codigo.sh` | las reglas S de ruff, separando lo que va en la imagen |
+| `gitleaks*` | `vulnerabilidades_secretos.sh` | los secretos de todo el historial, sin el secreto |
+| `codeql_*` | `vulnerabilidades_codeql.sh` | los dos SARIF de CodeQL y su resumen |
+
+### Cómo se tría
+
+Cada aviso **nuevo** acaba en una casilla: **arreglado**, **aceptado** (con su
+motivo escrito) o **no aplicable**. Primero, si llega a lo servido: lo que va
+en la imagen o en la web importa más que lo que sólo se usa para compilar o
+probar (`tests/`, `spikes/`, `backend/evaluation/`, las dependencias de
+desarrollo de npm). Un crítico o un alto que llegue a lo servido se arregla o
+se justifica por escrito.
+
+Lo ya aceptado, con su motivo, está en las secciones de #260, #280 y #289 del
+diario: el `pkg_resources` que pip lleva dentro (de setuptools 70.3.0, y sólo
+corre al construir), el `setuptools` 83 de la imagen (su aviso es sólo de
+Windows), los avisos de Debian sin arreglo publicado, el de `x/net/html` en
+Caddy 2.11.9, los dos S608 de `api/history.py`, lo de `spikes/` en CodeQL y, en
+npm, `minimatch` (su aviso sólo corre con `optimizationLevel >= 2`, que ni
+ESLint ni typescript-eslint activan). En gitleaks, lo ya
+triado está en `.gitleaksignore` (por su huella) y en `.gitleaks.toml` (la
+ruta de estos informes), y por eso una pasada limpia da 0.
+
+### Cómo se arregla
+
+**Python**: se sube cada paquete a lo mínimo que lo arregla, sin saltar de
+versión principal, con un `-P` por paquete, y después se comprueba todo lo del
+paso 6. Por ejemplo, `mcp` desde la versión que arregla su aviso y sin pasar a
+la 2:
+
+```bash
+.venv/bin/pip-compile requirements.in -P "mcp>=1.28.1,<2"
+.venv/bin/python -m pip install -r requirements.txt
+```
+
+Sin `-o`: con él, la cabecera del lockfile cambia. Si se sube `mcp`, que trae
+el FastMCP del servidor, el catálogo que lee el agente se vuelca antes y después
+(`spikes/catalogo_volcado.py`): si sale idéntico, no hace falta repetir el
+examen del agente.
+
+**npm**: `npm audit fix`, sin `--force`, y el paso 6. Si no mueve la familia
+`@angular` —sus paquetes se exigen la misma versión entre sí, y npm no mueve
+el grupo sobre el lockfile que ya tiene—, se quitan sus entradas del lockfile y
+se resuelven de nuevo, dentro de los rangos de `package.json`:
+
+```bash
+cd frontend
+python3 -c "import json; ruta = 'package-lock.json'; bloqueo = json.load(open(ruta)); [bloqueo['packages'].pop(clave) for clave in list(bloqueo['packages']) if 'node_modules/@angular/' in clave]; open(ruta, 'w').write(json.dumps(bloqueo, indent=2) + '\n')"
+rm -rf node_modules && npm install && npm audit fix
+```
+
+Si `npm audit fix` cae con `Cannot read properties of null (reading
+'edgesOut')` —un fallo de npm 10 al resolver los *peers* de `vitest` (#280),
+también en la 10.9.10 (#289)—, lo que tenga arreglo dentro de su rango se sube
+paquete a paquete con `npm update <paquete>`, que tampoco toca `package.json`.
+A `vitest` no lo mueve ni eso, y sí npm 11, usado una vez y sólo para escribir
+el lockfile: el proyecto sigue con el npm de `packageManager`, que lo instala
+(#289).
+
+```bash
+cd frontend
+npx -y npm@11.21.2 update vitest --package-lock-only --ignore-scripts
+npm ci
+```
+
+Después, el paso 6, y mirar en el diff que sólo cambie la familia de `vitest`.
+
+**La imagen base** (`pip` y `setuptools`, fijados en el paso 0 de
+`docker/backend.Dockerfile`) y **Caddy** (la etiqueta de `docker/web.Dockerfile`)
+se suben en su Dockerfile. Los paquetes de Debian con arreglo los trae el
+`apt-get upgrade` del mismo paso 0, al construir sin caché (§8).
+
+Después de cualquier cambio en lo servido, la pila entera en local y la prueba
+en vivo, que ejecuta cada herramienta con sus modelos cargados:
+
+```bash
+docker compose -f compose.yaml -f compose.local.yaml up --build --wait
+.venv/bin/python spikes/produccion_en_vivo.py --local
+docker compose -f compose.yaml -f compose.local.yaml down
+```
+
+**Un secreto** que gitleaks encuentre **se rota**: borrarlo del código no lo
+quita del historial, que es público. Si es un falso positivo, su huella va a
+`.gitleaksignore` con un comentario que diga por qué.
+
+## 10 · Convenciones de desarrollo
+
+Las reglas con las que se trabaja en el repositorio. Su historia —por qué
+cambiaron, como el paso de las épicas a los hitos o el primer *patch*— está en
+la sección del mismo nombre del [diario](diario.md#convenciones-de-desarrollo).
+
+### Hitos, issues y ramas
+
+| Nivel | Qué es | ¿Rama? | ¿Versión? |
+|---|---|---|---|
+| **Hito** (H1–H6) | Un punto de control con fecha y meta, que agrupa issues | no | **sí**, al cerrarlo |
+| **Issue** | La unidad de trabajo | **sí**: una rama, una *pull request* y un *squash merge* a `dev` | no |
+
+Un hito no es trabajo: no se ramifica ni se mergea.
+
+### Ramas
+
+Cada rama parte de `dev` recién actualizada (tras un *squash*, la rama anterior
+ya no sirve de base) y se llama `<tipo>/<nº de issue>-<descripción-corta>`:
+
+| Prefijo | Uso |
+|---|---|
+| `feat/` | Una funcionalidad nueva |
+| `fix/` | La corrección de un fallo |
+| `chore/` | Preparación, estructura, mantenimiento o medidas |
+| `docs/` | Documentación |
+| `test/` | Pruebas nuevas o más cobertura |
+
+El trabajo sin issue lleva la rama sin número.
+
+### Commits
+
+[Conventional Commits](https://www.conventionalcommits.org/), en castellano:
+`tipo(ámbito): descripción`.
+
+- **El tipo**: `feat`, `fix`, `chore`, `docs`, `test` o `refactor`.
+- **El ámbito**: la zona que toca, como `nlp`, `api`, `core`, `integrations`,
+  `frontend` o `spikes`. Se omite si toca varias.
+- **El cuerpo**: lo que entra, y `Refs #N` o `Closes #N`.
+
+El estilo lo comprueba el CI (§6).
+
+### `dev` y `main`
+
+- **`dev`, la integración**, es la rama por defecto. Recibe las *pull requests*
+  con *squash merge*. Una *pull request* lleva `Closes #N` si cierra la issue,
+  y `Refs #N` si la issue sigue: por ejemplo, porque incluye una release o
+  porque se cierra a mano.
+- **`main`, lo estable**, sólo recibe merges desde `dev`: la *pull request* de
+  cada release, con un merge normal, sin *squash*, para conservar la historia.
+  `protect-main.yml` rechaza cualquier otra.
+
+### Versiones y releases
+
+Al llevar `dev` a `main` se crea la etiqueta `vX.Y.Z`. Es **anotada** y se hace
+por consola, sobre el merge de la release:
+
+```bash
+git tag -a vX.Y.Z <merge> -F <fichero con el mensaje>
+```
+
+La release se publica después sobre esa etiqueta. Publicarla desde GitHub con
+una etiqueta nueva la crearía ligera, sin mensaje ni autor.
+
+**Una versión se etiqueta si cumple cuatro criterios:**
+
+1. **Un bloque funcional completo**: un hito cerrado, sin nada a medias. La
+   `v1.0.0` es la excepción: H6 sigue abierto por la memoria y la defensa, y lo
+   que se etiqueta es el código congelado.
+2. **El CI en verde** en `dev`.
+3. **La verificación en vivo**: las herramientas del servidor MCP responden en
+   producción (`spikes/produccion_en_vivo.py`).
+4. **La documentación al día**: el diario, los requisitos y el README reflejan lo
+   que entra.
+
+**El esquema**: la *minor* (`v0.X.0`) es un hito; el *patch* (`v0.X.Y`) cabe
+cuando lo publicado induce a error a quien despliegue o lea; y la *major*
+(`v1.0.0`) es la entrega final del TFG.
+
+**Las versiones son cortes en el tiempo**, no contenedores temáticos. Una mejora
+posterior va a la versión siguiente, aunque por su tema pertenezca a un hito ya
+etiquetado. Las etiquetas no se mueven, y una versión no se reabre.
+
+### El diario
+
+Cada *pull request* que cambia el comportamiento, mide algo o toma una decisión
+lleva su sección en el [diario](diario.md), al final de la Fase B y antes de las
+notas del autor. La sección lleva:
+
+- en el título, la issue y la fecha, o, si es trabajo suelto, la fecha y el
+  número de la *pull request*;
+- las condiciones de lo que se midió: la máquina, las versiones, los modelos y
+  el commit;
+- y cada cifra, con el guion de `spikes/` que la produce.
+
+Lo de antes no se reescribe: si algo lo corrige, se añade una nota en cursiva
+en la sección vieja, que remite a la nueva.

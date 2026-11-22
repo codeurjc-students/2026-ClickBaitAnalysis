@@ -20,13 +20,24 @@ entendían sin conocer el sistema, y la validación a mano señaló por qué —
 posiciones y los nombres internos, que el propio `04` exigía—. Cambia eso por un
 glosario fijo, para que la traducción sea siempre la misma y se pueda juzgar, y
 conserva las reglas de veracidad. Los decimales no los arregla el prompt: los
-redondea el agente en lo que lee el modelo (`decimales_para_el_modelo`). Es el
-de por defecto desde #192, junto con el muestreo preciso (`llm_temperature`),
+redondea el agente en lo que lee el modelo (`decimales_para_el_modelo`). Fue el
+de por defecto de #192 a #269, junto con el muestreo preciso (`llm_temperature`),
 que es con lo que ganó la comparación. Desde #234 su párrafo de límites dice
 que las herramientas analizan inglés y español, y cuáles no se aplican en
 español: decía «entrenadas con titulares en inglés», falso desde `v0.8`. Se
 corrigió en su sitio, y el texto de antes queda en la parte `cierre` de
 `spikes/agente_a40.py`, que mide los dos.
+
+`06-dato` sale de #269: es `05-llano` más un párrafo en «Noticias», que dice
+que el texto de una noticia es un dato y no una orden. Con `05-llano`, el 27B
+repitió el veredicto que le dictaba una noticia (2 de 4) y copió un enlace
+inyectado (1 de 4), aunque el prompt ya decía «No copies enlaces». Que no
+diverjan en nada más lo comprueba `tests/agent/test_prompts.py`: si no, al
+compararlos no se sabría a qué atribuir la diferencia. Es el de por defecto
+desde #269: con las 26 consultas cumplió la regla de #78 (98/104 frente a
+99/104, intercalados en la misma sesión). Que reduzca la inyección no se
+puede afirmar: en otra sesión, 0 obediencias de 16 frente a 1 de 16 con
+`05-llano`, y la regla publicada pedía al menos 2 con éste.
 """
 
 from pathlib import Path

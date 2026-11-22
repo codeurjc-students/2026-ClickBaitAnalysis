@@ -78,11 +78,17 @@ export function duracionLegible(milisegundos: number): string {
   return resto === 0 ? `${minutos} min` : `${minutos} min ${resto} s`;
 }
 
-/** Una noticia de `get_nyt_news` o `get_guardian_news`. */
+/** Una noticia de `get_nyt_news`, `get_guardian_news`, `get_gnews_news` o `get_newsdata_news`. */
 export interface Noticia {
   title: string;
   url: string | null;
   date: string | null;
+  /**
+   * El `lang` del titular (#263): el idioma que la fuente le pidió a su API.
+   * `''` si no lo dice —«desconocido» en HTML (#230)—, nunca inglés por
+   * defecto: una conversación guardada antes puede traer noticias en español.
+   */
+  language: string;
 }
 
 /**
@@ -148,8 +154,9 @@ export function vistaDePaso(paso: PasoDeLaTraza): VistaDePaso {
 
 /**
  * Las noticias de un resultado, si tiene su forma: `{result: [{title, url,
- * date}, …]}`, que es como llega por MCP una herramienta que devuelve una
- * lista.
+ * date, language}, …]}`, que es como llega por MCP una herramienta que
+ * devuelve una lista. Sólo `title` es obligatorio: lo demás puede faltar,
+ * también `language` en lo guardado antes de #263.
  *
  * Por la FORMA y no por el nombre de la herramienta, como los guardianes de
  * `senales/datos.ts`: una fuente de noticias nueva se pintaría igual, y una
@@ -163,12 +170,13 @@ export function comoNoticias(datos: unknown): Noticia[] | null {
   const noticias: Noticia[] = [];
   for (const elemento of result) {
     if (typeof elemento !== 'object' || elemento === null) return null;
-    const { title, url, date } = elemento as Record<string, unknown>;
+    const { title, url, date, language } = elemento as Record<string, unknown>;
     if (typeof title !== 'string') return null;
     noticias.push({
       title,
       url: typeof url === 'string' ? url : null,
       date: typeof date === 'string' ? date : null,
+      language: typeof language === 'string' ? language : '',
     });
   }
   return noticias;
@@ -246,6 +254,29 @@ export function trazaVisible(trabajo: ChatJob): boolean {
 /** Si la pregunta está todavía en marcha: ni ha terminado ni ha fallado. */
 export function aMedias(intercambio: Intercambio): boolean {
   return !intercambio.error && intercambio.trabajo?.status !== 'done';
+}
+
+/**
+ * La lectura nueva de una conversación, con los pasos que ya habían llegado.
+ *
+ * Cada sondeo trae un JSON nuevo, y la tarjeta de una señal (`abierta`, un
+ * `linkedSignal`) se resiembra cuando le llega otro objeto, aunque diga lo
+ * mismo: hasta la revisión de antes de congelar, cada 2 s una tarjeta opaca
+ * desplegada a mano se plegaba, y una interpretable plegada se desplegaba. La
+ * traza sólo crece, así que un paso que ya estaba se reutiliza si su contenido
+ * no ha cambiado, y la tarjeta recibe la misma referencia.
+ *
+ * Sólo dentro de la misma conversación: con otro `id`, la lectura sale tal
+ * cual. Y no toca la tarjeta: volver a analizar el mismo titular la resiembra,
+ * como decidió #127.
+ */
+export function conservarPasos(anterior: ChatJob | null, nuevo: ChatJob): ChatJob {
+  if (!anterior || anterior.id !== nuevo.id) return nuevo;
+  const pasos = nuevo.steps.map((paso, posicion) => {
+    const previo = anterior.steps[posicion];
+    return previo && JSON.stringify(previo) === JSON.stringify(paso) ? previo : paso;
+  });
+  return { ...nuevo, steps: pasos };
 }
 
 // ----- Lo que sobrevive a recargar (#209) -----

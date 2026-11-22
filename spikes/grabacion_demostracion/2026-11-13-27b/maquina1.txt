@@ -1,0 +1,60 @@
+== 2026-11-13T16:09:54+01:00 redespliegue de la maquina 1
+clon: rama dev, HEAD 147d1df, cambios: 0
+registro de antes: 505 lineas
+clon ahora: 835568e
+ .../integrations/llm/grabaciones/demostracion.json | 209 +++++++++++++++++++++
+ 1 file changed, 209 insertions(+)
+== up --build: codigo 0, 17 s
+ Container clickbait-web-1 Waiting 
+ Container clickbait-web-1 Healthy 
+ Container clickbait-mcp-1 Healthy 
+ Container clickbait-api-1 Healthy 
+clickbait-api-1 Up 11 seconds (healthy)
+clickbait-mcp-1 Up 11 seconds (healthy)
+clickbait-web-1 Up 3 hours (healthy)
+imagen: abb28fa257a7 5.99GB
+disco: /dev/vda1        58G   35G   23G  60% /
+== desde fuera
+agent: unreachable · prompt: 06-dato · recording: None
+== 2026-11-13T16:10:41+01:00 cambio a grabado
+  codigo 0, 14 s
+clickbait-api-1 Up 11 seconds (healthy)
+clickbait-mcp-1 Up 54 seconds (healthy)
+clickbait-web-1 Up 3 hours (healthy)
+  agent: available · recording: {'model': 'qwen3.5:27b', 'recorded_at': '2026-11-13', 'commit': '147d1df'}
+== 2026-11-13T16:10:57+01:00 reproducir-en
+== https://gongarcia.tfg.etsii.urjc.es/api: sirve la grabación de backend/integrations/llm/grabaciones/demostracion.json
+  turno 1: entero · 2 de 2 vueltas · answered · 8.1 s
+  turno 2: entero · 2 de 2 vueltas · answered · 2.1 s
+  turno 3: entero · 2 de 2 vueltas · answered · 2.1 s
+Se reproduce entera.
+   reproducir-en: 0
+== 2026-11-13T16:11:14+01:00 vuelta a Ollama
+  codigo 0, 14 s
+clickbait-api-1 Up 11 seconds (healthy)
+clickbait-mcp-1 Up About a minute (healthy)
+clickbait-web-1 Up 3 hours (healthy)
+  agent: unreachable · recording: None
+== 2026-11-13T16:11:28+01:00 FIN
+
+== segunda pasada, con el guion versionado: bash spikes/grabado_maquina1.sh 835568e-b
+== 2026-11-13T16:18:42+01:00 cambio a grabado
+  codigo 0, 13 s
+clickbait-api-1 Up 11 seconds (healthy)
+clickbait-mcp-1 Up 8 minutes (healthy)
+clickbait-web-1 Up 3 hours (healthy)
+  agent: available · recording: {'model': 'qwen3.5:27b', 'recorded_at': '2026-11-13', 'commit': '147d1df'}
+== 2026-11-13T16:18:57+01:00 reproducir-en
+== https://gongarcia.tfg.etsii.urjc.es/api: sirve la grabación de backend/integrations/llm/grabaciones/demostracion.json
+  turno 1: entero · 2 de 2 vueltas · answered · 2.1 s
+  turno 2: entero · 2 de 2 vueltas · answered · 2.1 s
+  turno 3: entero · 2 de 2 vueltas · answered · 2.2 s
+Se reproduce entera.
+   reproducir-en: 0
+== 2026-11-13T16:19:08+01:00 vuelta a Ollama
+  codigo 0, 14 s
+clickbait-api-1 Up 11 seconds (healthy)
+clickbait-mcp-1 Up 9 minutes (healthy)
+clickbait-web-1 Up 3 hours (healthy)
+  agent: unreachable · recording: None
+== 2026-11-13T16:19:22+01:00 FIN

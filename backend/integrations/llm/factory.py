@@ -8,12 +8,19 @@ que se prueba sin montar un entorno.
 `llm_backend` vale `None` por defecto, y entonces no hay agente: es el estado
 «sin configurar» de R6.10 y R6.14, distinto de «configurado pero apagado», que
 es lo normal cuando nadie tiene abierta una sesión en la máquina de la GPU.
+
+Con `grabado` (#265), el backend reproduce una grabación, y la ficha es la suya:
+el texto lo escribió el modelo que se grabó, no el de `llm_model`, que entonces
+no se usa. `grabacion()` dice, para la pantalla, que las respuestas son
+grabadas.
 """
 
 from functools import lru_cache
 
 from backend.config.settings import settings
+from backend.integrations.llm import grabado
 from backend.integrations.llm.base import Disponibilidad, LLMBackend
+from backend.integrations.llm.grabado import InfoGrabacion, ReproductorGrabado
 from backend.integrations.llm.model_card import FICHA, FichaLLM
 from backend.integrations.llm.ollama import OllamaClient
 
@@ -51,10 +58,22 @@ def _backend_para(
             raise ValueError(f"Backend de modelo de lenguaje desconocido: {backend}")
 
 
+@lru_cache(maxsize=4)
+def _grabado_para(nombre: str) -> ReproductorGrabado:
+    """Un reproductor por grabación, que lee su fichero una sola vez.
+
+    Aparte de `_backend_para` porque de la configuración sólo le importa el
+    nombre: con la clave entera, cambiar la URL de Ollama lo volvería a leer.
+    """
+    return ReproductorGrabado(grabado.CARPETA / f"{nombre}.json")
+
+
 def get_llm_backend() -> LLMBackend | None:
     """El backend que dice la configuración AHORA, o `None` si no hay agente."""
     if settings.llm_backend is None:
         return None
+    if settings.llm_backend == "grabado":
+        return _grabado_para(settings.llm_grabacion)
     return _backend_para(
         settings.llm_backend,
         settings.llm_url,
@@ -85,7 +104,13 @@ def ficha_efectiva() -> FichaLLM:
     Si el modelo configurado no es el de la ficha, se publica el configurado y
     las limitaciones medidas NO: eran de otro modelo (#119). Sobrevive lo que
     describe el hueco —la tarea y el tipo—, no a su ocupante.
+
+    Con `grabado`, la de la grabación (#265): dice de cuándo es, sobre qué
+    commit, y que sólo responde a lo grabado.
     """
+    if settings.llm_backend == "grabado":
+        return _grabado_para(settings.llm_grabacion).ficha()
+
     configurado = settings.llm_model
     if configurado == FICHA["model_id"]:
         return FICHA
@@ -98,3 +123,15 @@ def ficha_efectiva() -> FichaLLM:
             f"SIN EVALUAR EN ESTE PROYECTO. Este modelo se ha puesto por configuración en lugar de `{FICHA['model_id']}`, así que las limitaciones medidas de aquél no se publican aquí: eran suyas. Lo que sigue siendo cierto es lo que describe el hueco y no al modelo: es de tipo `{FICHA['type']}`, y el veredicto no es suyo.",
         ],
     }
+
+
+def grabacion() -> InfoGrabacion | None:
+    """Si las respuestas son grabadas: de qué modelo, de cuándo y sobre qué
+    commit (#265). La pantalla lo avisa siempre que no sea `None`.
+
+    También es `None` si la grabación no se puede leer: entonces el asistente
+    no está disponible, y lo explica `disponibilidad()`.
+    """
+    if settings.llm_backend != "grabado":
+        return None
+    return _grabado_para(settings.llm_grabacion).info()

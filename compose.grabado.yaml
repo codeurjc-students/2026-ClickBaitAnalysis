@@ -1,0 +1,26 @@
+# El asistente con respuestas grabadas (#265): el plan B de la defensa cuando
+# no se puede usar la máquina 2. Reproduce lo que escribió el modelo al grabar
+# la conversación del paso 6 de `docs/demostracion.md`; las herramientas se
+# ejecutan de verdad, y la pantalla avisa siempre de que son grabadas.
+#
+# Se suma a `compose.yaml`, y sólo recrea la API:
+#
+#   docker compose -f compose.yaml -f compose.grabado.yaml up -d api
+#
+# Se vuelve al modelo de verdad recreándola sin él:
+#
+#   docker compose up -d api
+#
+# En otra máquina, detrás de `compose.local.yaml`:
+# `-f compose.yaml -f compose.local.yaml -f compose.grabado.yaml`.
+#
+# Es un fichero y no una variable del `.env` por lo mismo que
+# `compose.local.yaml`: lo que define un despliegue va a la vista. Y porque no
+# bastaría: `LLM_BACKEND` está en el `environment` de `compose.yaml`, que manda
+# sobre el `.env`. Qué grabación se reproduce lo dice `LLM_GRABACION`; por
+# defecto, `demostracion`, que va dentro de la imagen.
+
+services:
+  api:
+    environment:
+      LLM_BACKEND: grabado

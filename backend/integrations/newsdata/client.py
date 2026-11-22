@@ -32,9 +32,15 @@ Lo que no se deduce de aquí, medido con `spikes/noticias_es.py` (9 oct 2026):
   de 60 peticiones cada 15 minutos (`retry-after` ~900 s). Un 422 no gastó
   crédito.
 - Una clave que no existe da 401, y el cuerpo no la repite.
+- El idioma de cada noticia es el que se pidió (`IDIOMA`, #263), no el
+  `language` que trae cada una, que es un nombre («spanish») y no un código: con
+  el filtro coinciden. De ahí sale el `lang` de cada titular en la pantalla del
+  asistente.
 
-La clave es opcional (`settings.newsdata_api_key`): sin ella no se hace ninguna
-petición, y el fallo dice qué falta. Como GNews, no tiene sonda en `/health`.
+La clave es opcional (`settings.newsdata_api_key`): sin ella, `make_request` no
+hace ninguna petición, y el fallo dice qué falta (desde #259 lo decide
+`BaseAPI`; hasta entonces, este cliente). Como GNews, no tiene sonda en
+`/health`.
 """
 
 from datetime import UTC, datetime
@@ -43,11 +49,8 @@ import httpx
 
 from backend.config.settings import settings
 from backend.core.base_api import BaseAPI
+from backend.core.idioma import ESPANOL
 from backend.core.models import ToolResult
-
-SIN_CLAVE = (
-    "NewsData.io no está configurado: falta NEWSDATA_API_KEY en la configuración."
-)
 
 
 def _fecha_iso(fecha: str | None, zona: str | None) -> str | None:
@@ -92,6 +95,11 @@ class NewsDataAPI(BaseAPI):
         else None
     )
     API_KEY_PARAM = "apikey"
+    CLAVE = "NEWSDATA_API_KEY"
+
+    # El idioma que se pide, y el que se dice de cada noticia (#263): una sola
+    # constante, para que no puedan divergir.
+    IDIOMA = ESPANOL
 
     # 60 peticiones cada 15 minutos, lo que publica `x-ratelimit-limit`.
     RATE_CALLS = 60
@@ -109,7 +117,7 @@ class NewsDataAPI(BaseAPI):
 
         Params enviados:
             - qInTitle: <topic> CONDICIONAL! (no `q`: ver arriba)
-            - language: es
+            - language: es (`IDIOMA`)
 
         Sin `size`: el defecto, 10, es el máximo del plan gratuito.
 
@@ -119,18 +127,16 @@ class NewsDataAPI(BaseAPI):
             results[].pubDate      → date (con `pubDateTZ`, en ISO 8601)
             results[].description  → content
             results[].source_name  → source (o `source_id` si falta)
+            (el `language` que se pidió) → language
 
         Returns:
-            ToolResult.ok([{title, url, date, content, source}, ...]) si hay
-                artículos, sin titulares repetidos.
+            ToolResult.ok([{title, url, date, content, source, language}, ...])
+                si hay artículos, sin titulares repetidos.
             ToolResult.fail("No articles found") si `results` está vacío o ausente.
-            ToolResult.fail(SIN_CLAVE) sin clave, sin llamar a la API.
-            El error de `make_request`, tal cual, si la petición falla.
+            El error de `make_request`, tal cual, si la petición falla o si
+                falta la clave (sin llamar a la API).
         """
-        if not self.API_KEY:
-            return ToolResult.fail(SIN_CLAVE)
-
-        params = {"language": "es"}
+        params = {"language": self.IDIOMA}
         if topic:
             params["qInTitle"] = topic
 
@@ -156,6 +162,7 @@ class NewsDataAPI(BaseAPI):
                 # Nunca `content`: en el plan gratuito es un aviso, no el texto.
                 "content": article.get("description"),
                 "source": article.get("source_name") or article.get("source_id"),
+                "language": self.IDIOMA,
             }
             for article in results
         ]

@@ -13,6 +13,7 @@ cae en ``failed`` se anuncia al arrancar como integración rota.
 import importlib
 import importlib.util
 import pkgutil
+import traceback
 from dataclasses import dataclass, field
 
 import structlog
@@ -95,7 +96,12 @@ def discover_and_register(mcp: FastMCP) -> DiscoveryResult:
             registrar(mcp)
         except Exception as exc:
             fallidos[nombre] = f"{type(exc).__name__}: {exc}"
-            log.error("integracion.fallo", integracion=nombre, motivo=str(exc))
+            log.error(
+                "integracion.fallo",
+                integracion=nombre,
+                motivo=str(exc),
+                traza="".join(traceback.format_exception(exc)),
+            )
             continue  # Saltamos, no se detiene
 
         registrados.append(nombre)

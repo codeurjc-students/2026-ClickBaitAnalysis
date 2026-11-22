@@ -1,0 +1,5 @@
+fecha: 2026-11-11T18:02:09+01:00
+commit: ef228e6 (chore/278-versiones-fijadas)
+gitleaks 8.30.1, configuración: .gitleaks.toml, --redact
+.gitleaksignore: 12 huellas ya triadas
+confirmaciones en todas las ramas: 276

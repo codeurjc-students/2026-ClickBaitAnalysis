@@ -20,6 +20,7 @@ function agente(status: Disponibilidad['status']): AgentInfo {
       type: 'opaque',
       limitations: [],
     },
+    recording: null,
     prompt: { name: '04-preciso', text: 'Eres el asistente…' },
     max_history_chars: 4000,
   };

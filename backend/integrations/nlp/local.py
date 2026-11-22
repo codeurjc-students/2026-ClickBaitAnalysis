@@ -1,7 +1,8 @@
 """Backend NLP local: `transformers` en el propio proceso (`LocalNLPClient`).
 
 Implementa `NLPBackend` con `pipeline()`, cacheado por `(tarea, modelo)` y
-cargado la primera vez que se pide, o al arrancar con `preheat_models` (#125).
+cargado la primera vez que se pide, o al arrancar con `preheat_models` (#125),
+y una sola vez aunque lo pidan dos hilos a la vez (#267).
 Corre en CPU: no pasa `device`, y la imagen lleva torch sin CUDA (#162).
 
 Lo que falla sin ser una avería se dice con claridad (#158, #162): que falte
@@ -10,6 +11,8 @@ se registra entero y sale con la frase pública de `core/errores.py` (#89).
 """
 
 import asyncio
+import threading
+import traceback
 from collections.abc import Callable
 from typing import Any
 
@@ -33,6 +36,17 @@ Pipeline = Callable[..., Any]
 
 log = structlog.get_logger()
 
+# Lo más largo que recibe un clasificador, en piezas de su tokenizador. La
+# pipeline de text-classification NO recorta por defecto, y un texto más largo
+# que las posiciones del modelo fallaba dentro de torch: la dedicada y el tono
+# salían en `error` con «motivo no previsto», y el veredicto, sólo del léxico y
+# del lineal. Lo vio la revisión de antes de congelar; el caso realista es el
+# agente pasándole al tono el cuerpo de una noticia. `truncation=True` solo no
+# basta, porque hay tokenizadores que no declaran su tope de verdad
+# (`spikes/recorte_512.py`). Los cuatro modelos que pasan por aquí admiten 512,
+# y con menos piezas la salida no cambia. El zero-shot recorta por su cuenta.
+MAX_PIEZAS = 512
+
 
 def _fallo(tarea: str, model: str, error: Exception) -> ToolResult:
     """Registra el fallo entero y devuelve lo único que puede salir fuera (#89).
@@ -48,6 +62,7 @@ def _fallo(tarea: str, model: str, error: Exception) -> ToolResult:
         modelo=model,
         tipo=type(error).__name__,
         detalle=str(error),
+        traza="".join(traceback.format_exception(error)),
     )
     return ToolResult.fail(f"El modelo `{model}` {mensaje_publico(error)}.")
 
@@ -57,6 +72,8 @@ class LocalNLPClient(NLPBackend):
     def __init__(self) -> None:
 
         self._pipelines: dict[tuple[str, str], Pipeline] = {}
+        # Uno por instancia, como la caché que protege (#267).
+        self._carga = threading.Lock()
 
     # Para devolver
 
@@ -72,23 +89,31 @@ class LocalNLPClient(NLPBackend):
             raise FaltaDependencia(motivo)
 
         key = (task, model)
-        if key not in self._pipelines:
-            from transformers import pipeline
+        if key in self._pipelines:
+            return self._pipelines[key]
 
-            # `task` llega como `str` y los stubs de transformers declaran una
-            # sobrecarga por cada tarea concreta, así que ninguna casa. No es un
-            # fallo nuestro: el valor sale de las dos llamadas de abajo y las dos
-            # pasan una tarea válida.
-            try:
-                pipe = pipeline(task, model=model)  # pyright: ignore[reportCallIssue, reportArgumentType]
-            except OSError as error:
-                # Un modelo que no se puede descargar porque la descarga está
-                # desactivada es un estado normal de la imagen (#162), no un
-                # fallo. Cualquier otro `OSError` sigue su camino.
-                if motivo := motivo_si_falta_modelo(model, error):
-                    raise FaltaDependencia(motivo) from error
-                raise
-            self._pipelines[key] = pipe
+        # Con el candado, y la comprobación otra vez dentro (#267): el servidor
+        # MCP precalienta en un hilo mientras ya atiende, y una llamada que
+        # llegue a mitad de una carga tiene que esperarla, no repetirla. Un
+        # modelo ya cargado se devuelve arriba, sin esperar a nadie.
+        with self._carga:
+            if key not in self._pipelines:
+                from transformers import pipeline
+
+                # `task` llega como `str` y los stubs de transformers declaran una
+                # sobrecarga por cada tarea concreta, así que ninguna casa. No es un
+                # fallo nuestro: el valor sale de las dos llamadas de abajo y las dos
+                # pasan una tarea válida.
+                try:
+                    pipe = pipeline(task, model=model)  # pyright: ignore[reportCallIssue, reportArgumentType]
+                except OSError as error:
+                    # Un modelo que no se puede descargar porque la descarga está
+                    # desactivada es un estado normal de la imagen (#162), no un
+                    # fallo. Cualquier otro `OSError` sigue su camino.
+                    if motivo := motivo_si_falta_modelo(model, error):
+                        raise FaltaDependencia(motivo) from error
+                    raise
+                self._pipelines[key] = pipe
 
         return self._pipelines[key]
 
@@ -100,7 +125,7 @@ class LocalNLPClient(NLPBackend):
         try:
             pipe = self._get_pipeline("text-classification", model)
             result = await asyncio.to_thread(
-                pipe, text
+                pipe, text, truncation=True, max_length=MAX_PIEZAS
             )  # Usamos thread ya que es una accion bloqueante
             # (func, *args)
 

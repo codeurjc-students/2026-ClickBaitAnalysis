@@ -1,0 +1,7 @@
+== clickbait-backend · debian 13.7 · 105 avisos distintos
+   lenguaje (python-pkg)        con arreglo  HIGH 1, MEDIUM 1, LOW 2
+   sistema                      sin arreglo  HIGH 50, MEDIUM 97, LOW 78, UNKNOWN 7
+== clickbait-web · alpine 3.24.4 · 14 avisos distintos
+   lenguaje (gobinary)          con arreglo  HIGH 1, MEDIUM 5, UNKNOWN 1
+   lenguaje (gobinary)          sin arreglo  HIGH 1, MEDIUM 2
+   sistema                      con arreglo  MEDIUM 7, LOW 4

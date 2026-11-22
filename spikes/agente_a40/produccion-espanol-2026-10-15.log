@@ -1,0 +1,76 @@
+== condiciones
+fecha: 2026-10-15T15:41:51+02:00 · commit: 0f0d4fb · rama: dev · guion: e1e4db25de2a
+máquina 1: clon en 0f0d4fb · rutas del chat servidas: "/agent" "/chat" "/chat/{job_id}" 
+== cerrada-antes · 2026-10-15T13:41:53+00:00 · https://gongarcia.tfg.etsii.urjc.es/api
+  GET /agent: {'status': 'unreachable', 'detail': 'El asistente está apagado: el servidor del modelo se arranca bajo demanda y ahora no está en marcha.', 'model': 'qwen3.5:27b'}
+  POST /chat: 503 en 0.033 s · El asistente está apagado: el servidor del modelo se arranca bajo demanda y ahora no está en marcha.
+  mismo motivo en las dos: True
+máquina 2: gpuserver2 · ollama 0.34.2 · qwen3.5:27b 7653528ba5cb · gpu-sesion 6ad6a751d636
+gpu antes: 0 MiB · procesos: 0
+Ollama en marcha (pid 3103). Registro: /home/gongarcia/.ollama-serve.log
+Túnel abierto: la máquina 1 ve a Ollama en 172.17.0.1:11434.
+La sesión se cierra sola, como mucho, en 20m.
+== máquina 2: el modelo, cargado
+  carga: 105.196781228 s · total: 144.717390683 s
+LISTO PARA WSL
+== espanol · 2026-10-15T13:45:01+00:00 · https://gongarcia.tfg.etsii.urjc.es/api
+  GET /agent: {'status': 'available', 'detail': 'El asistente está disponible.', 'model': 'qwen3.5:27b'} · ficha qwen3.5:27b · prompt 05-llano
+  es-generica                POST 202 en 0.077 s · running → done · answered · 2 vueltas · agente 41.2 s · reloj 42.5 s · 21 sondeos, 0 con 429 · prompt_tokens [4700, 5450] (máx 5450) · por vuelta [24.8, 16.0] s y [238, 460] tokens de salida · herramientas en [0.3] s · historial 0 car. · herramientas [['analyze_headline', 'ok']]
+     respuesta: El análisis concluye que se trata de clickbait por la forma, sin engaño detectado. El clasificador entrenado lo etiqueta como clickbait con un 99 % de confianza, mientras que el modelo de pesos da una probabilidad del 43 % de ser clickbait, señalando que palabras como «que», «ver» y «este» empujan hacia ese veredicto. El detector de pistas y el comparador de titular y texto no se aplicaron porque el titular está en español. El análisis del tono lo clasifica como negativo con un 51 % de confianza.
+  es-lexico                  POST 202 en 0.056 s · running → done · answered · 2 vueltas · agente 14.8 s · reloj 16.1 s · 8 sondeos, 0 con 429 · prompt_tokens [4703, 4799] (máx 4799) · por vuelta [9.8, 4.8] s y [264, 133] tokens de salida · herramientas en [0.1] s · historial 0 car. · herramientas [['detect_clickbait_lexical', 'error']]
+     respuesta: El detector de pistas no puede analizar este titular porque está en español y sus listas de pistas están diseñadas exclusivamente para titulares en inglés. Por ello, no es posible identificar las señales léxicas como exageraciones, referencias vagas o frases gancho en este caso.
+  es-noticia-1               POST 202 en 0.058 s · running → done · answered · 2 vueltas · agente 13.1 s · reloj 14.2 s · 7 sondeos, 0 con 429 · prompt_tokens [4698, 6370] (máx 6370) · por vuelta [6.3, 6.1] s y [159, 136] tokens de salida · herramientas en [0.59] s · historial 0 car. · herramientas [['get_gnews_news', 'ok']]
+     respuesta: El titular "¿El día estará lluvioso o soleado? Pronóstico del clima en Bogotá para este 15 de octubre" es una noticia informativa según el análisis disponible.
+
+El clasificador entrenado lo etiqueta como noticia informativa con una confianza del 85 %, y el análisis del tono lo califica como neutro con un 90 % de seguridad.
+
+El detector de pistas no se aplica porque el titular está en español, al igual que el comparador de titular y texto.
+
+El modelo de pesos indica una probabilidad del 12 % de que sea clickbait, lo que refuerza que el titular es informativo.
+  es-noticia-2               POST 202 en 0.056 s · running → done · answered · 3 vueltas · agente 19.9 s · reloj 22.2 s · 11 sondeos, 0 con 429 · prompt_tokens [4698, 6370, 7290] (máx 7290) · por vuelta [5.0, 6.2, 7.7] s y [142, 141, 199] tokens de salida · herramientas en [0.55, 0.32] s · historial 0 car. · herramientas [['get_gnews_news', 'ok'], ['analyze_headline', 'ok']]
+     respuesta: El veredicto de las herramientas es que el titular "¿El día estará lluvioso o soleado? Pronóstico del clima en Bogotá para este 15 de octubre" es un clickbait por la forma, sin engaño detectado.
+
+Esto se debe a que el clasificador entrenado lo etiquetó como clickbait con una confianza del 89 %, y el modelo de pesos le asignó una probabilidad del 35 % de serlo, destacando palabras como "Bogotá" y "día" que empujan hacia esa clasificación.
+
+El análisis del tono indica que el titular tiene un matiz negativo con una confianza del 46 %.
+
+Las herramientas que buscan pistas léxicas y comparan el titular con el texto no se aplicaron porque el titular está en español, y esas señales solo funcionan con inglés. La noticia informa que se puede conocer el clima de la capital del país para ese día.
+  es-noticia-3               POST 202 en 0.058 s · running → done · answered · 3 vueltas · agente 22.2 s · reloj 24.3 s · 12 sondeos, 0 con 429 · prompt_tokens [4698, 6369, 7231] (máx 7231) · por vuelta [6.0, 8.7, 6.6] s y [173, 218, 166] tokens de salida · herramientas en [0.51, 0.29] s · historial 0 car. · herramientas [['get_newsdata_news', 'ok'], ['analyze_headline', 'ok']]
+     respuesta: El titular "¿El día estará lluvioso o soleado? Pronóstico del clima en Bogotá para este 15 de octubre" fue clasificado como clickbait por la forma, aunque no se detectó engaño en su contenido. El clasificador entrenado lo marcó como clickbait con una confianza del 89 %, mientras que el modelo de pesos le asigna una probabilidad del 35 % de serlo, destacando palabras como "Bogotá" y "día" como las que más influyen en ese resultado. No se pudieron aplicar las herramientas que buscan pistas léxicas ni el que compara titular y texto, ya que solo funcionan con titulares en inglés. El análisis del tono indica que el titular tiene una carga negativa con una confianza del 46 %.
+== máquina 2, al cerrar la sesión
+  gpu: 0 MiB · procesos: 0 · ollama propios: 0 · túneles propios: 0
+== cerrada-despues · 2026-10-15T13:47:15+00:00 · https://gongarcia.tfg.etsii.urjc.es/api
+  GET /agent: {'status': 'unreachable', 'detail': 'El asistente está apagado: el servidor del modelo se arranca bajo demanda y ahora no está en marcha.', 'model': 'qwen3.5:27b'}
+  POST /chat: 503 en 0.028 s · El asistente está apagado: el servidor del modelo se arranca bajo demanda y ahora no está en marcha.
+  mismo motivo en las dos: True
+== máquina 1, al terminar
+  escuchando en 11434: 0 · sesiones de tunel: 0
+2026-10-15T13:45:01.718993Z [info     ] chat.aceptada                  en_espera=0 trabajo=…
+2026-10-15T13:45:26.598625Z [info     ] agent.vuelta                   pide=['analyze_headline'] prompt_tokens=4700 total_s=24.77 vuelta=1
+2026-10-15T13:45:26.895971Z [info     ] agent.herramienta              duracion_s=0.3 estado=ok herramienta=analyze_headline
+2026-10-15T13:45:42.935309Z [info     ] agent.vuelta                   pide=[] prompt_tokens=5450 total_s=16.02 vuelta=2
+2026-10-15T13:45:42.935510Z [info     ] agent.fin                      estado=answered herramientas=1 total_s=41.22 vueltas=2
+2026-10-15T13:45:43.441331Z [info     ] chat.aceptada                  en_espera=0 trabajo=…
+2026-10-15T13:45:53.324756Z [info     ] agent.vuelta                   pide=['detect_clickbait_lexical'] prompt_tokens=4703 total_s=9.79 vuelta=1
+2026-10-15T13:45:53.429117Z [info     ] agent.herramienta              duracion_s=0.1 estado=error herramienta=detect_clickbait_lexical
+2026-10-15T13:45:58.226871Z [info     ] agent.vuelta                   pide=[] prompt_tokens=4799 total_s=4.77 vuelta=2
+2026-10-15T13:45:58.227103Z [info     ] agent.fin                      estado=answered herramientas=1 total_s=14.79 vueltas=2
+2026-10-15T13:45:59.384540Z [info     ] chat.aceptada                  en_espera=0 trabajo=…
+2026-10-15T13:46:05.805823Z [info     ] agent.vuelta                   pide=['get_gnews_news'] prompt_tokens=4698 total_s=6.31 vuelta=1
+2026-10-15T13:46:06.394679Z [info     ] agent.herramienta              duracion_s=0.59 estado=ok herramienta=get_gnews_news
+2026-10-15T13:46:12.472348Z [info     ] agent.vuelta                   pide=[] prompt_tokens=6370 total_s=6.05 vuelta=2
+2026-10-15T13:46:12.472518Z [info     ] agent.fin                      estado=answered herramientas=1 total_s=13.09 vueltas=2
+2026-10-15T13:46:13.253979Z [info     ] chat.aceptada                  en_espera=0 trabajo=…
+2026-10-15T13:46:18.308298Z [info     ] agent.vuelta                   pide=['get_gnews_news'] prompt_tokens=4698 total_s=4.96 vuelta=1
+2026-10-15T13:46:18.854026Z [info     ] agent.herramienta              duracion_s=0.55 estado=ok herramienta=get_gnews_news
+2026-10-15T13:46:25.104326Z [info     ] agent.vuelta                   pide=['analyze_headline'] prompt_tokens=6370 total_s=6.22 vuelta=2
+2026-10-15T13:46:25.420583Z [info     ] agent.herramienta              duracion_s=0.32 estado=ok herramienta=analyze_headline
+2026-10-15T13:46:33.161534Z [info     ] agent.vuelta                   pide=[] prompt_tokens=7290 total_s=7.72 vuelta=3
+2026-10-15T13:46:33.161705Z [info     ] agent.fin                      estado=answered herramientas=2 total_s=19.91 vueltas=3
+2026-10-15T13:46:35.145374Z [info     ] chat.aceptada                  en_espera=0 trabajo=…
+2026-10-15T13:46:41.250391Z [info     ] agent.vuelta                   pide=['get_newsdata_news'] prompt_tokens=4698 total_s=5.98 vuelta=1
+2026-10-15T13:46:41.764878Z [info     ] agent.herramienta              duracion_s=0.51 estado=ok herramienta=get_newsdata_news
+2026-10-15T13:46:50.501890Z [info     ] agent.vuelta                   pide=['analyze_headline'] prompt_tokens=6369 total_s=8.71 vuelta=2
+2026-10-15T13:46:50.789361Z [info     ] agent.herramienta              duracion_s=0.29 estado=ok herramienta=analyze_headline
+2026-10-15T13:46:57.392145Z [info     ] agent.vuelta                   pide=[] prompt_tokens=7231 total_s=6.58 vuelta=3
+2026-10-15T13:46:57.392316Z [info     ] agent.fin                      estado=answered herramientas=2 total_s=22.25 vueltas=3

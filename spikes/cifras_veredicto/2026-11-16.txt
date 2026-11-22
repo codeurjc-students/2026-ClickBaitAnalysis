@@ -1,0 +1,31 @@
+== condiciones
+  fecha: 2026-11-16T22:19:07+00:00
+  commit: ffd31f8, con este guion sin commitear
+  caché: var/veredicto_validation170630.json, 13.662.667 bytes
+  sha256: 5be239b5b9d60fc1c3385883d3712cab354dd77a00b8aefd177e35cd37318fc7
+  modificada: 2026-10-08T19:43:04+00:00
+  huella del sistema que la generó: 3db32ea91cb2
+  tuits: 19.484
+
+== las señales, sobre los tuits en que votaron
+| Señal | Votan | P | R | F1 | Estados |
+|---|---|---|---|---|---|
+| Dedicada (control) | 19.458 | 0,709 | 0,814 | 0,758 | {'ok': 19458, 'not_applicable': 26} |
+| Léxico | 19.458 | 0,341 | 0,656 | 0,448 | {'ok': 19458, 'not_applicable': 26} |
+| Lineal bilingüe | 19.475 | 0,404 | 0,751 | 0,526 | {'ok': 19475, 'not_applicable': 9} |
+| Incoherencia | 19.439 | 0,666 | 0,205 | 0,314 | {'ok': 19439, 'not_applicable': 45} |
+
+== el veredicto, con deceptive y stylistic_clickbait como «es clickbait»
+| Tuits | Cuántos | P | R | F1 |
+|---|---|---|---|---|
+| todos | 19.484 | 0,690 | 0,633 | 0,660 |
+| unánimes | 6.808 | 0,805 | 0,817 | 0,811 |
+
+== el reparto de las etiquetas, y el clickbait dentro de cada una
+| Etiqueta | Tuits | Del total | Clickbait dentro |
+|---|---|---|---|
+| factual | 6.952 | 35,7 % | 4,4 % |
+| ambiguous | 8.194 | 42,1 % | 17,4 % |
+| stylistic_clickbait | 2.990 | 15,3 % | 68,0 % |
+| deceptive | 1.339 | 6,9 % | 71,2 % |
+| no_data | 9 | 0,0 % | 66,7 % |

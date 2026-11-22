@@ -6,20 +6,34 @@ etiqueta puede estar muerta: si no hay ninguna, o si la elegida no trae nada en
 la ventana, se busca como texto libre (#196, donde le pasaba a 5 de 8 temas).
 La clave va en la URL (`api-key`), y la cuota diaria que queda se lee de la
 cabecera `x-ratelimit-remaining-day`.
+
+La clave es opcional desde #259 (`settings.guardian_api_key`): sin ella,
+`make_request` no hace ninguna petición —tampoco la de `/tags`— y el fallo dice
+qué falta.
 """
 
 from datetime import UTC, datetime, timedelta
 
 from backend.config.settings import settings
 from backend.core.base_api import BaseAPI
+from backend.core.idioma import INGLES
 from backend.core.models import ToolResult
 
 
 class GuardianAPI(BaseAPI):
     BASE_URL = "https://content.guardianapis.com/"
 
-    API_KEY = settings.guardian_api_key.get_secret_value()  # Key ya validada
+    API_KEY = (
+        settings.guardian_api_key.get_secret_value()
+        if settings.guardian_api_key
+        else None
+    )
     API_KEY_PARAM = "api-key"
+    CLAVE = "GUARDIAN_API_KEY"
+
+    # El idioma que se dice de cada noticia (#263). No se pide: The Guardian
+    # publica en inglés, que es lo que la pantalla daba por hecho de todas.
+    IDIOMA = INGLES
 
     RATE_CALLS = 60
     RATE_PERIOD = 60
@@ -49,11 +63,13 @@ class GuardianAPI(BaseAPI):
             response.results[].webTitle  → title
             response.results[].webPublicationDate   → date
             response.results[].fields.trailText   → content
+            (`IDIOMA`, siempre inglés)  → language
 
         Returns:
-            ToolResult.ok([{title, url, date, content}, ...]) si hay artículos.
+            ToolResult.ok([{title, url, date, content, language}, ...]) si hay artículos.
             ToolResult.fail("No articles found") si results está vacío o ausente.
-            El error de `make_request`, tal cual, si la petición falla.
+            El error de `make_request`, tal cual, si la petición falla o si
+                falta la clave (sin llamar a la API).
         """
         # UTC explícito, no la zona de la máquina: en Docker el contenedor va en
         # UTC y el equipo de desarrollo no, así que `date.today()` desplazaría la
@@ -97,6 +113,7 @@ class GuardianAPI(BaseAPI):
                 "url": article.get("webUrl"),
                 "date": article.get("webPublicationDate"),
                 "content": article.get("fields", {}).get("trailText"),
+                "language": self.IDIOMA,
             }
             for article in results
         ]

@@ -1,0 +1,1317 @@
+{
+ "agente": {
+  "analyze_headline": {
+   "description": "Analiza un titular contrastando TODAS las señales disponibles.\n\nÚsala cuando se pida un veredicto sobre un titular. Ejecuta las cinco\nseñales, las agrupa por lo que miden —forma, engaño y tono— y declara las\ndiscrepancias en vez de promediarlas.\n\nPrefiérela a invocar las señales por separado: éstas devuelven cada una su\npropia medida, y combinarlas es lo que hace esta herramienta con una\njerarquía explícita: el engaño desempata cuando las señales de forma\ndiscrepan.\n\nArgs:\n    headline: El titular a analizar, en inglés o en español; en\n        español, el léxico y la incoherencia no se aplican.\n    content: Cuerpo o teaser de la noticia. Opcional; sin él no se puede\n        evaluar la dimensión de engaño y esa señal queda como\n        `not_applicable`.\n\nReturns:\n    El veredicto global, el resultado de cada señal con su naturaleza\n    (interpretable, híbrida u opaca) y el veredicto por dimensión.",
+   "name": "analyze_headline",
+   "parameters": {
+    "properties": {
+     "content": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Content"
+     },
+     "headline": {
+      "title": "Headline",
+      "type": "string"
+     }
+    },
+    "required": [
+     "headline"
+    ],
+    "title": "analyze_headlineArguments",
+    "type": "object"
+   }
+  },
+  "analyze_sentiment": {
+   "description": "Analiza el sentimiento de un texto (p.ej. un titular de noticia).\n\nClasifica en tres clases: positive, neutral o negative, con un modelo\npara el inglés y otro para el español. Útil para medir el tono.\n\nArgs:\n    text (str): texto a analizar (en inglés o en español).\n\nReturns:\n    La etiqueta ganadora y su confianza (0-1), p.ej.\n    {\"label\": \"neutral\", \"score\": 0.62}.\n\nRaises:\n    Si el modelo falla: no se puede cargar o, por la vía remota, no\n    responde (timeout, caída del proveedor o falta de crédito).",
+   "name": "analyze_sentiment",
+   "parameters": {
+    "properties": {
+     "text": {
+      "title": "Text",
+      "type": "string"
+     }
+    },
+    "required": [
+     "text"
+    ],
+    "title": "analyze_sentimentArguments",
+    "type": "object"
+   }
+  },
+  "describe_models": {
+   "description": "Divulga los modelos/señales que emplea el sistema (transparencia, R3.9).\n\nDevuelve, por cada señal y cada idioma que analiza, su nombre, tarea,\ntipo (interpretable / híbrido / opaco), dimensión que mide y\nlimitaciones conocidas. Sin argumentos. Útil para la transparencia de\nsistema y para decidir qué señal usar según su naturaleza (white-box vs\ncaja negra) y sus límites.\n\nReturns:\n    La lista de fichas de modelo (signal, language, model_id, revision,\n    name, task, type, dimension, limitations, backend).",
+   "name": "describe_models",
+   "parameters": {
+    "properties": {},
+    "title": "describe_modelsArguments",
+    "type": "object"
+   }
+  },
+  "detect_clickbait": {
+   "description": "Clasifica un titular como clickbait o noticia factual con un modelo de caja negra.\n\nPor defecto es un clasificador neuronal afinado para esta tarea sobre\ntitulares anotados por personas, uno por idioma (el inglés, fuera de\neste proyecto); por\nconfiguración puede ser otro, también un zero-shot que elige entre\netiquetas que se le dan (`describe_models` dice cuál). Devuelve una\netiqueta y la confianza del modelo en ESA etiqueta, sin explicar por\nqué: no es una probabilidad de\nclickbait (con \"factual news\" y 0.9, lo que afirma es que NO lo es).\nSi hace falta una probabilidad de clickbait o saber qué la explica, lo\nda `detect_clickbait_linear`; qué pistas aparecen y dónde,\n`detect_clickbait_lexical`. Analiza titulares en inglés y en español.\n\nArgs:\n    headline (str): titular a evaluar (en inglés o en español).\n\nReturns:\n    La etiqueta ganadora y su confianza (0-1), p.ej.\n    {\"label\": \"clickbait\", \"score\": 0.79}. Las etiquetas son siempre\n    \"clickbait\" o \"factual news\", con independencia del modelo que haya\n    detrás.\n\nRaises:\n    Si el modelo falla: no se puede cargar o, por la vía remota, no\n    responde (timeout, caída del proveedor o falta de crédito).",
+   "name": "detect_clickbait",
+   "parameters": {
+    "properties": {
+     "headline": {
+      "title": "Headline",
+      "type": "string"
+     }
+    },
+    "required": [
+     "headline"
+    ],
+    "title": "detect_clickbaitArguments",
+    "type": "object"
+   }
+  },
+  "detect_clickbait_incoherence": {
+   "description": "Detecta posible clickbait midiendo la (in)coherencia entre titular y cuerpo.\n\nGenera embeddings del titular y del contenido con un modelo de\nsentence-transformers y calcula su similitud del coseno. Una similitud\nbaja indica que el titular no se corresponde con lo que cuenta la\nnoticia → señal de clickbait. Es complementaria a las señales que sólo\nmiran el titular (`detect_clickbait`, `detect_clickbait_lexical` y\n`detect_clickbait_linear`): esta necesita además el cuerpo o teaser.\nSólo en inglés, titular y cuerpo: en español la similitud apenas\ndistingue el clickbait, y no se aplica.\n\nArgs:\n    headline (str): titular a evaluar (en inglés).\n    content (str): cuerpo o teaser de la noticia con el que contrastar.\n\nReturns:\n    La similitud (0-1), si se considera incoherente (`incoherent` a true\n    cuando está por debajo del umbral) y los textos comparados, p.ej.\n    {\"similarity\": 0.18, \"incoherent\": true, \"headline\": \"...\",\n    \"content\": \"...\"}.\n\nRaises:\n    Si el cálculo de los embeddings falla.",
+   "name": "detect_clickbait_incoherence",
+   "parameters": {
+    "properties": {
+     "content": {
+      "title": "Content",
+      "type": "string"
+     },
+     "headline": {
+      "title": "Headline",
+      "type": "string"
+     }
+    },
+    "required": [
+     "headline",
+     "content"
+    ],
+    "title": "detect_clickbait_incoherenceArguments",
+    "type": "object"
+   }
+  },
+  "detect_clickbait_lexical": {
+   "description": "Detecta clickbait por pistas léxicas y estructurales del titular (señal explicable).\n\nBusca marcas típicas de clickbait —hipérbole, referencias vagas (this/these),\nfrases gancho, número inicial (listicle), interrogación, mayúsculas, elipsis—\ny devuelve qué pistas dispararon y dónde. Señal white-box (la evidencia ES la\nexplicación), complementaria a `detect_clickbait` (caja negra), a\n`detect_clickbait_linear` (que pondera las palabras del titular) y a\n`detect_clickbait_incoherence`. Sólo inglés: sus listas de pistas son\ninglesas.\n\nArgs:\n    headline (str): titular a evaluar (en inglés).\n\nReturns:\n    `score` (nº de pistas), `is_clickbait` (score ≥ umbral), `matches`\n    (lista de {category, cue, span}) y `headline`.\n\nRaises:\n    Si el titular está vacío.",
+   "name": "detect_clickbait_lexical",
+   "parameters": {
+    "properties": {
+     "headline": {
+      "title": "Headline",
+      "type": "string"
+     }
+    },
+    "required": [
+     "headline"
+    ],
+    "title": "detect_clickbait_lexicalArguments",
+    "type": "object"
+   }
+  },
+  "detect_clickbait_linear": {
+   "description": "Da la probabilidad de que un titular sea clickbait y las pistas que la explican.\n\nEs el modelo entrenado en este proyecto: una regresión logística sobre\nlas palabras del titular y su estructura (número inicial,\ninterrogación…), en la que cada palabra tiene un peso visible. El\nveredicto se explica con las que más pesaron. Para la opinión de un\nmodelo sin pesos visibles, `detect_clickbait` (caja negra). Bilingüe:\nlos mismos pesos para el inglés y el español.\n\nArgs:\n    headline (str): titular a evaluar (en inglés o en español).\n\nReturns:\n    `is_clickbait`, `probability` (0-1, de que sea clickbait), `top_cues`\n    —las palabras que más empujaron el veredicto (peso × tf-idf), que\n    son su explicación intrínseca (R3.8)— y `headline`.\n\nRaises:\n    Si el titular está vacío.",
+   "name": "detect_clickbait_linear",
+   "parameters": {
+    "properties": {
+     "headline": {
+      "title": "Headline",
+      "type": "string"
+     }
+    },
+    "required": [
+     "headline"
+    ],
+    "title": "detect_clickbait_linearArguments",
+    "type": "object"
+   }
+  },
+  "get_alerts": {
+   "description": "Get weather alerts for a US state.\n\nArgs:\n    state: Two-letter US state code (e.g. CA, NY)\n\nReturns:\n    The active alerts as formatted text, or a note saying there are none.\n\nRaises:\n    If the weather API fails.",
+   "name": "get_alerts",
+   "parameters": {
+    "properties": {
+     "state": {
+      "title": "State",
+      "type": "string"
+     }
+    },
+    "required": [
+     "state"
+    ],
+    "title": "get_alertsArguments",
+    "type": "object"
+   }
+  },
+  "get_forecast": {
+   "description": "Get weather forecast for a location.\n\nArgs:\n    latitude: Latitude of the location\n    longitude: Longitude of the location\n\nReturns:\n    The next five forecast periods as formatted text.\n\nRaises:\n    If the location cannot be resolved or the weather API fails.",
+   "name": "get_forecast",
+   "parameters": {
+    "properties": {
+     "latitude": {
+      "title": "Latitude",
+      "type": "number"
+     },
+     "longitude": {
+      "title": "Longitude",
+      "type": "number"
+     }
+    },
+    "required": [
+     "latitude",
+     "longitude"
+    ],
+    "title": "get_forecastArguments",
+    "type": "object"
+   }
+  },
+  "get_gnews_news": {
+   "description": "Busca noticias en español, de medios de varios países, en GNews; a diferencia de `get_newsdata_news`, se puede indicar de hace cuántos días buscar (por defecto, la última semana; hasta 30).\n\nArgs:\n    topic (str, Optional): palabras clave en español sobre las que buscar (ej. \"inteligencia artificial\", \"elecciones\").\n    days (int, Optional): número de días que se incluyen en la búsqueda desde hoy (Default = 7)\n\nReturns:\n    Lista de noticias {title, url, date, content, source}, donde\n    `content` es la entradilla — lo que necesita\n    `detect_clickbait_incoherence` — y `source`, el medio.\n\nRaises:\n    Si no hay resultados, la API falla o GNews no está configurado.",
+   "name": "get_gnews_news",
+   "parameters": {
+    "properties": {
+     "days": {
+      "default": 7,
+      "description": "Días hacia atrás desde hoy (1-30).",
+      "maximum": 30,
+      "minimum": 1,
+      "title": "Days",
+      "type": "integer"
+     },
+     "topic": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "description": "Palabra(s) clave del tema a buscar, en español (ej. 'inteligencia artificial', 'elecciones'). Si se omite, devuelve los titulares destacados.",
+      "title": "Topic"
+     }
+    },
+    "title": "get_gnews_newsArguments",
+    "type": "object"
+   }
+  },
+  "get_guardian_news": {
+   "description": "Busca noticias de The Guardian. Se puede indicar de hace cuantos días buscar(por defecto, última semana)\n\nArgs:\n    topic (str, Optional): keyword(s) sobre los que buscar artículos (ej. \"AI\", \"elecciones\", \"climate change\").\n    days (int, Optional): número de días que se incluyen en la busqueda desde hoy (Default = 7)\n\nReturns:\n    Lista de artículos {title, url, date, content}, donde `content` es el\n    teaser — lo que necesita `detect_clickbait_incoherence`.\n\nRaises:\n    Si no hay resultados o la API falla.",
+   "name": "get_guardian_news",
+   "parameters": {
+    "properties": {
+     "days": {
+      "default": 7,
+      "description": "Días hacia atrás desde hoy (1-30).",
+      "maximum": 30,
+      "minimum": 1,
+      "title": "Days",
+      "type": "integer"
+     },
+     "topic": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "description": "Palabra(s) clave del tema a buscar, en inglés (ej. 'artificial intelligence', 'climate change'). Si se omite, devuelve las noticias más recientes.",
+      "title": "Topic"
+     }
+    },
+    "title": "get_guardian_newsArguments",
+    "type": "object"
+   }
+  },
+  "get_newsdata_news": {
+   "description": "Busca las noticias más recientes en español, de medios de varios países, en NewsData.io; no se puede elegir de hace cuántos días (para eso, `get_gnews_news`).\n\nArgs:\n    topic (str, Optional): palabras clave en español sobre las que buscar (ej. \"inteligencia artificial\", \"elecciones\").\n\nReturns:\n    Lista de noticias {title, url, date, content, source}, donde\n    `content` es la entradilla — lo que necesita\n    `detect_clickbait_incoherence` — y `source`, el medio.\n\nRaises:\n    Si no hay resultados, la API falla o NewsData.io no está configurado.",
+   "name": "get_newsdata_news",
+   "parameters": {
+    "properties": {
+     "topic": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "description": "Palabra(s) clave que deben aparecer en el titular, en español (ej. 'inteligencia artificial', 'elecciones'). Si se omite, devuelve las noticias más recientes.",
+      "title": "Topic"
+     }
+    },
+    "title": "get_newsdata_newsArguments",
+    "type": "object"
+   }
+  },
+  "get_nyt_news": {
+   "description": "Busca noticias del New York Times. Se puede indicar de hace cuantos días buscar(por defecto, última semana)\n\nArgs:\n    topic (str, Optional): keyword(s) sobre los que buscar artículos (ej. \"AI\", \"elecciones\", \"climate change\").\n    days (int, Optional): número de días que se incluyen en la busqueda desde hoy (Default = 7)\n\nReturns:\n    Lista de artículos {title, print_headline, url, date, content}, donde\n    `content` es el abstract — lo que necesita\n    `detect_clickbait_incoherence`.\n\nRaises:\n    Si no hay resultados o la API falla.",
+   "name": "get_nyt_news",
+   "parameters": {
+    "properties": {
+     "days": {
+      "default": 7,
+      "description": "Días hacia atrás desde hoy (1-30).",
+      "maximum": 30,
+      "minimum": 1,
+      "title": "Days",
+      "type": "integer"
+     },
+     "topic": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "description": "Palabra(s) clave del tema a buscar, en inglés (ej. 'artificial intelligence', 'climate change'). Si se omite, devuelve las noticias más recientes.",
+      "title": "Topic"
+     }
+    },
+    "title": "get_nyt_newsArguments",
+    "type": "object"
+   }
+  },
+  "health_check": {
+   "description": "Comprueba la salud de las apis haciendo una llamada a cada una\n\nReturns:\n    dict: Diccionario con estado, timestamp e integraciones",
+   "name": "health_check",
+   "parameters": {
+    "properties": {},
+    "title": "health_checkArguments",
+    "type": "object"
+   }
+  }
+ },
+ "resto": {
+  "analyze_headline": {
+   "annotations": null,
+   "outputSchema": {
+    "$defs": {
+     "Dimension": {
+      "description": "Qué mide una señal. Determina cómo se agrupan los veredictos.",
+      "enum": [
+       "form",
+       "deception",
+       "tone"
+      ],
+      "title": "Dimension",
+      "type": "string"
+     },
+     "DimensionVerdict": {
+      "description": "Veredicto agregado de las señales que miden lo mismo (principio 3).\n\nSolo aparecen las dimensiones en las que alguna señal llegó a emitir\nveredicto. Si ninguna lo hizo —fallaron, faltaba el cuerpo, o la dimensión\nno vota— la dimensión no se incluye, en vez de añadir un objeto vacío que la\ninterfaz tendría que aprender a ignorar. El motivo no se pierde: está en la\ntarjeta de cada señal, que es donde el usuario lo lee.",
+      "properties": {
+       "contributing": {
+        "description": "Señales que han contribuido a este veredicto.",
+        "items": {
+         "type": "string"
+        },
+        "title": "Contributing",
+        "type": "array"
+       },
+       "dimension": {
+        "$ref": "#/$defs/Dimension"
+       },
+       "is_clickbait": {
+        "anyOf": [
+         {
+          "type": "boolean"
+         },
+         {
+          "type": "null"
+         }
+        ],
+        "default": null,
+        "description": "None si las señales de esta dimensión se contradicen: no se promedian ni se resuelven por mayoría, se declara la discrepancia.",
+        "title": "Is Clickbait"
+       }
+      },
+      "required": [
+       "dimension"
+      ],
+      "title": "DimensionVerdict",
+      "type": "object"
+     },
+     "OverallVerdict": {
+      "description": "Etiqueta única, para listados compactos como el historial.\n\nSe deriva de las dimensiones con una jerarquía explícita —el engaño desempata\nuna forma dividida, pero no contradice a una forma unánime— en lugar de por\nmayoría de señales.",
+      "enum": [
+       "deceptive",
+       "stylistic_clickbait",
+       "factual",
+       "ambiguous",
+       "no_data"
+      ],
+      "title": "OverallVerdict",
+      "type": "string"
+     },
+     "SignalResult": {
+      "description": "Resultado de UNA señal, con el mismo envoltorio sea cual sea (principio 1).",
+      "properties": {
+       "data": {
+        "anyOf": [
+         {
+          "additionalProperties": true,
+          "type": "object"
+         },
+         {
+          "type": "null"
+         }
+        ],
+        "default": null,
+        "description": "JSON CRUDO devuelto por la herramienta, sin aplanar. Es lo que alimenta las tarjetas de explicabilidad (spans, top_cues, similitud...). No se transforma aquí para no perder información que la interfaz pueda necesitar.",
+        "title": "Data"
+       },
+       "detail": {
+        "anyOf": [
+         {
+          "type": "string"
+         },
+         {
+          "type": "null"
+         }
+        ],
+        "default": null,
+        "description": "Motivo legible cuando no hay resultado: «requiere el cuerpo de la noticia», «el proveedor no respondió». Permite pintar la tarjeta en gris explicando por qué, en vez de omitirla sin más.",
+        "title": "Detail"
+       },
+       "dimension": {
+        "$ref": "#/$defs/Dimension"
+       },
+       "is_clickbait": {
+        "anyOf": [
+         {
+          "type": "boolean"
+         },
+         {
+          "type": "null"
+         }
+        ],
+        "default": null,
+        "description": "Veredicto de esta señal, o None si no aporta ninguno: porque no pudo ejecutarse, o porque por naturaleza no lo emite (el tono). El agregado ignora los None en ambos casos; ``status`` distingue cuál de los dos ha sido.",
+        "title": "Is Clickbait"
+       },
+       "label": {
+        "description": "Etiqueta para personas, tomada de la ficha del modelo (R3.9). «Léxico por reglas (…)» frente al `name` de máquina `detect_clickbait_lexical`.",
+        "title": "Label",
+        "type": "string"
+       },
+       "name": {
+        "description": "Nombre de la herramienta MCP que la produjo.",
+        "title": "Name",
+        "type": "string"
+       },
+       "status": {
+        "$ref": "#/$defs/SignalStatus"
+       },
+       "type": {
+        "$ref": "#/$defs/SignalType",
+        "description": "Naturaleza del modelo, para el badge de la UI."
+       }
+      },
+      "required": [
+       "name",
+       "label",
+       "status",
+       "dimension",
+       "type"
+      ],
+      "title": "SignalResult",
+      "type": "object"
+     },
+     "SignalStatus": {
+      "description": "Por qué una señal tiene o no resultado.",
+      "enum": [
+       "ok",
+       "not_applicable",
+       "error"
+      ],
+      "title": "SignalStatus",
+      "type": "string"
+     },
+     "SignalType": {
+      "description": "Naturaleza del modelo. Se muestra como badge en la interfaz.\n\nNo mide cuán complejo es el modelo sino **dónde está la transparencia**:\n``hybrid`` es decisión transparente sobre un rasgo opaco — un umbral legible\naplicado a una similitud de embeddings, por ejemplo.",
+      "enum": [
+       "interpretable",
+       "hybrid",
+       "opaque"
+      ],
+      "title": "SignalType",
+      "type": "string"
+     }
+    },
+    "properties": {
+     "content": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Content"
+     },
+     "dimensions": {
+      "items": {
+       "$ref": "#/$defs/DimensionVerdict"
+      },
+      "title": "Dimensions",
+      "type": "array"
+     },
+     "headline": {
+      "title": "Headline",
+      "type": "string"
+     },
+     "language": {
+      "description": "Idioma detectado del titular: 'en', 'es' o 'und' (otro). Si las señales no analizan ese idioma, ninguna se ejecuta.",
+      "enum": [
+       "en",
+       "es",
+       "und"
+      ],
+      "title": "Language",
+      "type": "string"
+     },
+     "signals": {
+      "items": {
+       "$ref": "#/$defs/SignalResult"
+      },
+      "title": "Signals",
+      "type": "array"
+     },
+     "verdict": {
+      "$ref": "#/$defs/OverallVerdict"
+     }
+    },
+    "required": [
+     "headline",
+     "language",
+     "signals",
+     "dimensions",
+     "verdict"
+    ],
+    "title": "AnalyzeResponse",
+    "type": "object"
+   },
+   "title": null
+  },
+  "analyze_sentiment": {
+   "annotations": null,
+   "outputSchema": {
+    "properties": {
+     "label": {
+      "title": "Label",
+      "type": "string"
+     },
+     "language": {
+      "enum": [
+       "en",
+       "es",
+       "und"
+      ],
+      "title": "Language",
+      "type": "string"
+     },
+     "score": {
+      "title": "Score",
+      "type": "number"
+     }
+    },
+    "required": [
+     "label",
+     "score",
+     "language"
+    ],
+    "title": "Etiqueta",
+    "type": "object"
+   },
+   "title": null
+  },
+  "describe_models": {
+   "annotations": null,
+   "outputSchema": {
+    "$defs": {
+     "FichaModelo": {
+      "description": "Una entrada de la divulgación de modelos.\n\nTres campos parecen lo mismo y no lo son, así que conviene fijarlos aquí:\n``signal`` es el nombre de la tool MCP, ``model_id`` el identificador en\nHuggingFace y ``name`` la etiqueta que lee una persona. Cada uno lo consume\nalguien distinto —el orquestador, la llamada al backend y la interfaz—, y\ncuando eran un solo campo había que elegir a quién servir mal (#116).\n\n``model_id`` es ``None`` en las señales que no son un modelo descargable —el\nléxico y el lineal—, y ese ``None`` es información, no un hueco.\n\n``revision`` es el commit del Hub de esos pesos (#234), entero: las medidas\nde la ficha son de ellos, y la imagen hornea justo ése. Sin él, un autor\nque subiera pesos nuevos cambiaría el modelo servido en la siguiente\nconstrucción, con las medidas del anterior publicadas. ``None`` donde no\nhay modelo descargable, y en un modelo puesto por configuración, que no\nse fija.",
+      "properties": {
+       "backend": {
+        "title": "Backend",
+        "type": "string"
+       },
+       "dimension": {
+        "title": "Dimension",
+        "type": "string"
+       },
+       "language": {
+        "enum": [
+         "en",
+         "es",
+         "und"
+        ],
+        "title": "Language",
+        "type": "string"
+       },
+       "limitations": {
+        "items": {
+         "type": "string"
+        },
+        "title": "Limitations",
+        "type": "array"
+       },
+       "model_id": {
+        "anyOf": [
+         {
+          "type": "string"
+         },
+         {
+          "type": "null"
+         }
+        ],
+        "title": "Model Id"
+       },
+       "name": {
+        "title": "Name",
+        "type": "string"
+       },
+       "revision": {
+        "anyOf": [
+         {
+          "type": "string"
+         },
+         {
+          "type": "null"
+         }
+        ],
+        "title": "Revision"
+       },
+       "signal": {
+        "title": "Signal",
+        "type": "string"
+       },
+       "task": {
+        "title": "Task",
+        "type": "string"
+       },
+       "type": {
+        "title": "Type",
+        "type": "string"
+       }
+      },
+      "required": [
+       "signal",
+       "language",
+       "model_id",
+       "revision",
+       "name",
+       "task",
+       "type",
+       "dimension",
+       "limitations",
+       "backend"
+      ],
+      "title": "FichaModelo",
+      "type": "object"
+     }
+    },
+    "properties": {
+     "result": {
+      "items": {
+       "$ref": "#/$defs/FichaModelo"
+      },
+      "title": "Result",
+      "type": "array"
+     }
+    },
+    "required": [
+     "result"
+    ],
+    "title": "describe_modelsOutput",
+    "type": "object"
+   },
+   "title": null
+  },
+  "detect_clickbait": {
+   "annotations": null,
+   "outputSchema": {
+    "properties": {
+     "label": {
+      "title": "Label",
+      "type": "string"
+     },
+     "language": {
+      "enum": [
+       "en",
+       "es",
+       "und"
+      ],
+      "title": "Language",
+      "type": "string"
+     },
+     "score": {
+      "title": "Score",
+      "type": "number"
+     }
+    },
+    "required": [
+     "label",
+     "score",
+     "language"
+    ],
+    "title": "Etiqueta",
+    "type": "object"
+   },
+   "title": null
+  },
+  "detect_clickbait_incoherence": {
+   "annotations": null,
+   "outputSchema": {
+    "properties": {
+     "content": {
+      "title": "Content",
+      "type": "string"
+     },
+     "headline": {
+      "title": "Headline",
+      "type": "string"
+     },
+     "incoherent": {
+      "title": "Incoherent",
+      "type": "boolean"
+     },
+     "language": {
+      "enum": [
+       "en",
+       "es",
+       "und"
+      ],
+      "title": "Language",
+      "type": "string"
+     },
+     "similarity": {
+      "title": "Similarity",
+      "type": "number"
+     },
+     "threshold": {
+      "title": "Threshold",
+      "type": "number"
+     }
+    },
+    "required": [
+     "similarity",
+     "incoherent",
+     "threshold",
+     "headline",
+     "content",
+     "language"
+    ],
+    "title": "SalidaIncoherencia",
+    "type": "object"
+   },
+   "title": null
+  },
+  "detect_clickbait_lexical": {
+   "annotations": null,
+   "outputSchema": {
+    "$defs": {
+     "Pista": {
+      "description": "Una marca léxica encontrada en el titular, y dónde aparece.",
+      "properties": {
+       "category": {
+        "title": "Category",
+        "type": "string"
+       },
+       "cue": {
+        "title": "Cue",
+        "type": "string"
+       },
+       "span": {
+        "items": {
+         "type": "integer"
+        },
+        "title": "Span",
+        "type": "array"
+       }
+      },
+      "required": [
+       "category",
+       "cue",
+       "span"
+      ],
+      "title": "Pista",
+      "type": "object"
+     }
+    },
+    "properties": {
+     "headline": {
+      "title": "Headline",
+      "type": "string"
+     },
+     "is_clickbait": {
+      "title": "Is Clickbait",
+      "type": "boolean"
+     },
+     "language": {
+      "enum": [
+       "en",
+       "es",
+       "und"
+      ],
+      "title": "Language",
+      "type": "string"
+     },
+     "matches": {
+      "items": {
+       "$ref": "#/$defs/Pista"
+      },
+      "title": "Matches",
+      "type": "array"
+     },
+     "score": {
+      "title": "Score",
+      "type": "integer"
+     },
+     "threshold": {
+      "title": "Threshold",
+      "type": "number"
+     }
+    },
+    "required": [
+     "score",
+     "is_clickbait",
+     "threshold",
+     "matches",
+     "headline",
+     "language"
+    ],
+    "title": "SalidaLexica",
+    "type": "object"
+   },
+   "title": null
+  },
+  "detect_clickbait_linear": {
+   "annotations": null,
+   "outputSchema": {
+    "properties": {
+     "headline": {
+      "title": "Headline",
+      "type": "string"
+     },
+     "is_clickbait": {
+      "title": "Is Clickbait",
+      "type": "boolean"
+     },
+     "language": {
+      "enum": [
+       "en",
+       "es",
+       "und"
+      ],
+      "title": "Language",
+      "type": "string"
+     },
+     "probability": {
+      "title": "Probability",
+      "type": "number"
+     },
+     "threshold": {
+      "title": "Threshold",
+      "type": "number"
+     },
+     "top_cues": {
+      "items": {
+       "maxItems": 2,
+       "minItems": 2,
+       "prefixItems": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "number"
+        }
+       ],
+       "type": "array"
+      },
+      "title": "Top Cues",
+      "type": "array"
+     }
+    },
+    "required": [
+     "is_clickbait",
+     "probability",
+     "threshold",
+     "top_cues",
+     "headline",
+     "language"
+    ],
+    "title": "SalidaLineal",
+    "type": "object"
+   },
+   "title": null
+  },
+  "get_alerts": {
+   "annotations": null,
+   "outputSchema": {
+    "properties": {
+     "result": {
+      "title": "Result",
+      "type": "string"
+     }
+    },
+    "required": [
+     "result"
+    ],
+    "title": "get_alertsOutput",
+    "type": "object"
+   },
+   "title": null
+  },
+  "get_forecast": {
+   "annotations": null,
+   "outputSchema": {
+    "properties": {
+     "result": {
+      "title": "Result",
+      "type": "string"
+     }
+    },
+    "required": [
+     "result"
+    ],
+    "title": "get_forecastOutput",
+    "type": "object"
+   },
+   "title": null
+  },
+  "get_gnews_news": {
+   "annotations": null,
+   "outputSchema": {
+    "$defs": {
+     "Articulo": {
+      "description": "Una noticia de GNews.\n\nTodos los campos son opcionales porque el cliente los extrae con ``.get()``:\nla API no garantiza que estén.",
+      "properties": {
+       "content": {
+        "anyOf": [
+         {
+          "type": "string"
+         },
+         {
+          "type": "null"
+         }
+        ],
+        "title": "Content"
+       },
+       "date": {
+        "anyOf": [
+         {
+          "type": "string"
+         },
+         {
+          "type": "null"
+         }
+        ],
+        "title": "Date"
+       },
+       "source": {
+        "anyOf": [
+         {
+          "type": "string"
+         },
+         {
+          "type": "null"
+         }
+        ],
+        "title": "Source"
+       },
+       "title": {
+        "anyOf": [
+         {
+          "type": "string"
+         },
+         {
+          "type": "null"
+         }
+        ],
+        "title": "Title"
+       },
+       "url": {
+        "anyOf": [
+         {
+          "type": "string"
+         },
+         {
+          "type": "null"
+         }
+        ],
+        "title": "Url"
+       }
+      },
+      "required": [
+       "title",
+       "url",
+       "date",
+       "content",
+       "source"
+      ],
+      "title": "Articulo",
+      "type": "object"
+     }
+    },
+    "properties": {
+     "result": {
+      "items": {
+       "$ref": "#/$defs/Articulo"
+      },
+      "title": "Result",
+      "type": "array"
+     }
+    },
+    "required": [
+     "result"
+    ],
+    "title": "get_gnews_newsOutput",
+    "type": "object"
+   },
+   "title": null
+  },
+  "get_guardian_news": {
+   "annotations": null,
+   "outputSchema": {
+    "$defs": {
+     "Articulo": {
+      "description": "Un artículo de The Guardian.\n\nTodos los campos son opcionales porque el cliente los extrae con ``.get()``:\nla API no garantiza que estén, y declararlos obligatorios haría que el\nesquema publicado prometiera más de lo que se puede cumplir.",
+      "properties": {
+       "content": {
+        "anyOf": [
+         {
+          "type": "string"
+         },
+         {
+          "type": "null"
+         }
+        ],
+        "title": "Content"
+       },
+       "date": {
+        "anyOf": [
+         {
+          "type": "string"
+         },
+         {
+          "type": "null"
+         }
+        ],
+        "title": "Date"
+       },
+       "title": {
+        "anyOf": [
+         {
+          "type": "string"
+         },
+         {
+          "type": "null"
+         }
+        ],
+        "title": "Title"
+       },
+       "url": {
+        "anyOf": [
+         {
+          "type": "string"
+         },
+         {
+          "type": "null"
+         }
+        ],
+        "title": "Url"
+       }
+      },
+      "required": [
+       "title",
+       "url",
+       "date",
+       "content"
+      ],
+      "title": "Articulo",
+      "type": "object"
+     }
+    },
+    "properties": {
+     "result": {
+      "items": {
+       "$ref": "#/$defs/Articulo"
+      },
+      "title": "Result",
+      "type": "array"
+     }
+    },
+    "required": [
+     "result"
+    ],
+    "title": "get_guardian_newsOutput",
+    "type": "object"
+   },
+   "title": null
+  },
+  "get_newsdata_news": {
+   "annotations": null,
+   "outputSchema": {
+    "$defs": {
+     "Articulo": {
+      "description": "Una noticia de NewsData.io.\n\nTodos los campos son opcionales porque el cliente los extrae con ``.get()``:\nla API no garantiza que estén.",
+      "properties": {
+       "content": {
+        "anyOf": [
+         {
+          "type": "string"
+         },
+         {
+          "type": "null"
+         }
+        ],
+        "title": "Content"
+       },
+       "date": {
+        "anyOf": [
+         {
+          "type": "string"
+         },
+         {
+          "type": "null"
+         }
+        ],
+        "title": "Date"
+       },
+       "source": {
+        "anyOf": [
+         {
+          "type": "string"
+         },
+         {
+          "type": "null"
+         }
+        ],
+        "title": "Source"
+       },
+       "title": {
+        "anyOf": [
+         {
+          "type": "string"
+         },
+         {
+          "type": "null"
+         }
+        ],
+        "title": "Title"
+       },
+       "url": {
+        "anyOf": [
+         {
+          "type": "string"
+         },
+         {
+          "type": "null"
+         }
+        ],
+        "title": "Url"
+       }
+      },
+      "required": [
+       "title",
+       "url",
+       "date",
+       "content",
+       "source"
+      ],
+      "title": "Articulo",
+      "type": "object"
+     }
+    },
+    "properties": {
+     "result": {
+      "items": {
+       "$ref": "#/$defs/Articulo"
+      },
+      "title": "Result",
+      "type": "array"
+     }
+    },
+    "required": [
+     "result"
+    ],
+    "title": "get_newsdata_newsOutput",
+    "type": "object"
+   },
+   "title": null
+  },
+  "get_nyt_news": {
+   "annotations": null,
+   "outputSchema": {
+    "$defs": {
+     "Articulo": {
+      "description": "Un artículo del New York Times.\n\nTodos los campos son opcionales porque el cliente los extrae con ``.get()``.\n\n``print_headline`` es el titular de la edición impresa, y no siempre coincide\ncon el de web: esa discrepancia es material de análisis en sí misma, porque\nla versión impresa suele ser la sobria.",
+      "properties": {
+       "content": {
+        "anyOf": [
+         {
+          "type": "string"
+         },
+         {
+          "type": "null"
+         }
+        ],
+        "title": "Content"
+       },
+       "date": {
+        "anyOf": [
+         {
+          "type": "string"
+         },
+         {
+          "type": "null"
+         }
+        ],
+        "title": "Date"
+       },
+       "print_headline": {
+        "anyOf": [
+         {
+          "type": "string"
+         },
+         {
+          "type": "null"
+         }
+        ],
+        "title": "Print Headline"
+       },
+       "title": {
+        "anyOf": [
+         {
+          "type": "string"
+         },
+         {
+          "type": "null"
+         }
+        ],
+        "title": "Title"
+       },
+       "url": {
+        "anyOf": [
+         {
+          "type": "string"
+         },
+         {
+          "type": "null"
+         }
+        ],
+        "title": "Url"
+       }
+      },
+      "required": [
+       "title",
+       "print_headline",
+       "url",
+       "date",
+       "content"
+      ],
+      "title": "Articulo",
+      "type": "object"
+     }
+    },
+    "properties": {
+     "result": {
+      "items": {
+       "$ref": "#/$defs/Articulo"
+      },
+      "title": "Result",
+      "type": "array"
+     }
+    },
+    "required": [
+     "result"
+    ],
+    "title": "get_nyt_newsOutput",
+    "type": "object"
+   },
+   "title": null
+  },
+  "health_check": {
+   "annotations": null,
+   "outputSchema": {
+    "$defs": {
+     "Sonda": {
+      "description": "Resultado de sondear una integración.",
+      "properties": {
+       "error": {
+        "anyOf": [
+         {
+          "type": "string"
+         },
+         {
+          "type": "null"
+         }
+        ],
+        "title": "Error"
+       },
+       "reachable": {
+        "title": "Reachable",
+        "type": "boolean"
+       }
+      },
+      "required": [
+       "reachable",
+       "error"
+      ],
+      "title": "Sonda",
+      "type": "object"
+     }
+    },
+    "properties": {
+     "integrations": {
+      "additionalProperties": {
+       "$ref": "#/$defs/Sonda"
+      },
+      "title": "Integrations",
+      "type": "object"
+     },
+     "status": {
+      "enum": [
+       "ok",
+       "degraded",
+       "down"
+      ],
+      "title": "Status",
+      "type": "string"
+     },
+     "timestamp": {
+      "title": "Timestamp",
+      "type": "string"
+     }
+    },
+    "required": [
+     "status",
+     "timestamp",
+     "integrations"
+    ],
+    "title": "Salud",
+    "type": "object"
+   },
+   "title": null
+  }
+ },
+ "versiones": {
+  "fastmcp": "3.4.8",
+  "mcp": "1.30.0",
+  "starlette": "1.8.0"
+ }
+}

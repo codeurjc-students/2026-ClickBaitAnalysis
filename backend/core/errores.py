@@ -8,7 +8,11 @@ caída (#89)— y no dice ni nombres de clase ni nada de cómo está hecho el
 sistema por dentro: un `KeyError: 'is_clickbait'` le cuenta a un tercero cómo
 está estructurado el código. Entre las dos, `describir_respuesta_http` (#236)
 da el código de una respuesta de error y, si su nombre no lo dice, qué
-significa: lo usa `base_api.py`, cuyo mensaje lee los dos.
+significa: lo usa `base_api.py`, cuyo mensaje lee los dos. Y `falta_clave`
+(#259), el fallo de una API que pide una clave que no está configurada. Y
+`no_previsto` (#301), lo mismo que `mensaje_publico` para lo imprevisto, para
+quien no tiene una excepción que clasificar sino un texto que no se puede
+publicar.
 
 **La regla (#163): el texto de una excepción de librería no sale hacia fuera.**
 Un 401 de httpx lleva la URL entera en su mensaje, y Guardian y NYT llevan la
@@ -74,6 +78,17 @@ def describir_respuesta_http(error: httpx.HTTPStatusError) -> str:
     return f"{motivo}: {significado}" if significado else motivo
 
 
+def falta_clave(variable: str) -> str:
+    """El fallo de una API que pide una clave que no está configurada (#259).
+
+    Lo da `base_api.py` antes de salir a la red, para las cinco APIs con clave.
+    Nombra la VARIABLE, que es lo que tiene que añadir quien despliega, y nunca
+    un valor. Hasta #259 cada cliente tenía su frase; la de GNews y NewsData
+    (#235) decía lo mismo con otras palabras.
+    """
+    return f"La API externa no está configurada: falta {variable} en la configuración."
+
+
 # Predicados SIN SUJETO, a propósito: quien llama pone el suyo —«La señal…», «El
 # modelo `X`…», «La llamada a la API externa…»— y la frase se lee entera. Con el
 # sujeto dentro habría que elegir uno, y ninguno vale para los tres sitios.
@@ -105,4 +120,16 @@ def mensaje_publico(excepcion: BaseException) -> str:
         return f"recibió un {describir_error(excepcion)} del servicio externo"
     if isinstance(excepcion, httpx.TransportError):
         return _SIN_CONEXION
+    return _NO_PREVISTO
+
+
+def no_previsto() -> str:
+    """El predicado de un fallo imprevisto, cuando lo que hay es un texto (#301).
+
+    `mensaje_publico` clasifica una excepción. `core/mcp/tools.py` recibe en
+    cambio el texto de un fallo que llega de otro proceso, por MCP, y cuando no
+    es la frase que redactó la herramienta no hay nada que clasificar: sólo se
+    puede decir que no estaba previsto. Es la misma frase que da
+    `mensaje_publico`, para que quien lee vea lo mismo en los dos casos.
+    """
     return _NO_PREVISTO

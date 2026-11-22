@@ -23,11 +23,13 @@ integración —la salud, el análisis— se registra a mano.** Ya era así para
 """
 
 from mcp.server.fastmcp import FastMCP
+from mcp.server.fastmcp.exceptions import ToolError
 
 from backend.analysis.domain import AnalyzeRequest, AnalyzeResponse
 from backend.analysis.orchestrator import analyze
 from backend.core.observability import log_tool_invocation
-from backend.integrations.metadata import tool_meta
+from backend.core.texto import motivo_si_vacio
+from backend.integrations.metadata import SOLO_LECTURA, tool_meta
 
 
 def register(mcp: FastMCP):
@@ -37,7 +39,7 @@ def register(mcp: FastMCP):
     # La categoría NO es «Señales de análisis»: esta herramienta no es una señal
     # más, es la que las contrasta. Mezclarla con las cinco invitaría al modelo a
     # elegir entre ellas como si fueran alternativas del mismo tipo.
-    @mcp.tool(meta=tool_meta("Análisis completo", __name__))
+    @mcp.tool(meta=tool_meta("Análisis completo", __name__), annotations=SOLO_LECTURA)
     @log_tool_invocation
     async def analyze_headline(
         headline: str, content: str | None = None
@@ -64,4 +66,10 @@ def register(mcp: FastMCP):
             El veredicto global, el resultado de cada señal con su naturaleza
             (interpretable, híbrida u opaca) y el veredicto por dimensión.
         """
+        # `AnalyzeRequest` también rechaza el blanco (`NonBlankStr`), pero con
+        # el error de Pydantic, que no es una frase para nadie: desde #292 el
+        # decorador lo publicaría como «no previsto», y no lo es. Se dice aquí,
+        # con la frase de las señales (R3.5).
+        if motivo := motivo_si_vacio(headline, "El titular"):
+            raise ToolError(motivo)
         return await analyze(AnalyzeRequest(headline=headline, content=content))

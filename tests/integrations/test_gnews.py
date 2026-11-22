@@ -17,7 +17,7 @@ from structlog.testing import capture_logs
 
 from backend.core.models import ToolResult
 from backend.integrations.gnews import tool as gnews_tool
-from backend.integrations.gnews.client import SIN_CLAVE, GNewsAPI
+from backend.integrations.gnews.client import GNewsAPI
 
 CLAVE_DE_PRUEBA = "clave-gnews-de-prueba-235"
 BUSCAR = f"{GNewsAPI.BASE_URL}search"
@@ -104,6 +104,23 @@ async def test_sin_tema_pide_los_titulares_destacados(con_clave):
 
 
 @pytest.mark.asyncio
+async def test_cada_noticia_dice_el_idioma_que_se_pidio(con_clave):
+    """El `lang` de cada titular en la pantalla del asistente sale de aquí
+    (#263): es el idioma que se le pidió a GNews, el del parámetro `lang`."""
+    with respx.mock:
+        ruta = respx.get(BUSCAR).mock(
+            return_value=Response(
+                200, json={"articles": [noticia(), noticia("Otro titular")]}
+            )
+        )
+        result = await GNewsAPI().search_articles("inteligencia artificial")
+
+    pedido = ruta.calls.last.request.url.params["lang"]
+    assert pedido == "es"
+    assert [articulo["language"] for articulo in result.data] == [pedido, pedido]
+
+
+@pytest.mark.asyncio
 @pytest.mark.parametrize("dias", [1, 30])
 async def test_los_dias_fijan_desde_cuando_en_utc(con_clave, dias):
     with respx.mock:
@@ -168,13 +185,15 @@ async def test_sin_clave_no_pide_nada_y_dice_que_falta(monkeypatch):
     """La clave es opcional (`settings.gnews_api_key`): sin ella el sistema
     arranca, y esta herramienta dice qué falta sin gastar una petición."""
     monkeypatch.setattr(GNewsAPI, "API_KEY", None)
-    with respx.mock(assert_all_called=False):
-        ruta = respx.get(BUSCAR)
+    # La ruta, en el enrutador de ESTE `with` (#259): con argumentos,
+    # `respx.mock` crea uno nuevo, y con `respx.get` la ruta quedaba en el
+    # global, así que `ruta.called` era falso pidiera lo que pidiera el cliente.
+    with respx.mock(assert_all_called=False) as router:
+        ruta = router.get(BUSCAR)
         result = await GNewsAPI().search_articles("elecciones")
 
     assert not ruta.called
     assert not result.success
-    assert result.error == SIN_CLAVE
     assert "GNEWS_API_KEY" in result.error
 
 

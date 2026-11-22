@@ -30,6 +30,10 @@
       {{ senal().detail }}
     </p>
   } @else if (abierta()) {
+    <!--
+      Lo que su guardián rechaza se enseña en crudo, también en una señal
+      conocida: el `data` es libre y el historial guarda otras versiones.
+    -->
     @switch (senal().name) {
       @case ('detect_clickbait_lexical') {
         @if (lexico(); as datos) {
@@ -56,6 +60,8 @@
               pistas?».
             }
           </p>
+        } @else {
+          <pre class="crudo">{{ crudo() }}</pre>
         }
       }
       @case ('detect_clickbait_linear') {
@@ -101,6 +107,8 @@
               {{ numero(datos.threshold) }}.
             }
           </p>
+        } @else {
+          <pre class="crudo">{{ crudo() }}</pre>
         }
       }
       @case ('detect_clickbait_incoherence') {
@@ -115,6 +123,8 @@
               Umbral {{ numero(datos.threshold) }}.
             }
           </p>
+        } @else {
+          <pre class="crudo">{{ crudo() }}</pre>
         }
       }
       @default {

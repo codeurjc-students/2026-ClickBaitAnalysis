@@ -1,0 +1,53 @@
+{
+  "auditReportVersion": 2,
+  "vulnerabilities": {
+    "@angular/router": {
+      "name": "@angular/router",
+      "severity": "high",
+      "isDirect": true,
+      "via": [
+        {
+          "source": 1240619,
+          "name": "@angular/router",
+          "dependency": "@angular/router",
+          "title": "Angular Server-Side Rendering (SSR): Denial of Service via Numeric URL Matrix Parameters",
+          "url": "https://github.com/advisories/GHSA-ff3f-86qr-9cv3",
+          "severity": "high",
+          "cwe": [
+            "CWE-400",
+            "CWE-770"
+          ],
+          "cvss": {
+            "score": 0,
+            "vectorString": null
+          },
+          "range": ">=22.0.0 <22.2.0"
+        }
+      ],
+      "effects": [],
+      "range": ">=22.0.0 <22.2.0",
+      "nodes": [
+        "node_modules/@angular/router"
+      ],
+      "fixAvailable": true
+    }
+  },
+  "metadata": {
+    "vulnerabilities": {
+      "info": 0,
+      "low": 0,
+      "moderate": 0,
+      "high": 1,
+      "critical": 0,
+      "total": 1
+    },
+    "dependencies": {
+      "prod": 11,
+      "dev": 656,
+      "optional": 148,
+      "peer": 0,
+      "peerOptional": 0,
+      "total": 666
+    }
+  }
+}

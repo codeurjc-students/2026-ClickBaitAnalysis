@@ -1,0 +1,33 @@
+== fecha: 2026-11-21T16:13:35+01:00 · rama chore/215-medidas-congelacion en 79f029e
+== condiciones
+fecha: 2026-11-21T16:13:35+01:00 · OpenSSL 3.0.13 · curl 8.5.0 · guion: 490f035b0cdf
+== el certificado servido
+  subject=CN = gongarcia.tfg.etsii.urjc.es
+  issuer=C = GR, O = Hellenic Academic and Research Institutions CA, CN = GEANT TLS RSA 1
+  notBefore=Nov 10 07:47:13 2026 GMT
+  notAfter=May 28 07:47:12 2027 GMT
+  la cadena:
+    0 s:CN = gongarcia.tfg.etsii.urjc.es
+      i:C = GR, O = Hellenic Academic and Research Institutions CA, CN = GEANT TLS RSA 1
+    1 s:C = GR, O = Hellenic Academic and Research Institutions CA, CN = GEANT TLS RSA 1
+      i:C = GR, O = Hellenic Academic and Research Institutions CA, CN = HARICA TLS RSA Root CA 2021
+    2 s:C = GR, O = Hellenic Academic and Research Institutions CA, CN = HARICA TLS RSA Root CA 2021
+      i:C = GR, O = Hellenic Academic and Research Institutions CA, CN = HARICA TLS RSA Root CA 2021
+  openssl lo verifica: Verify return code: 0 (ok)
+  le quedan 187 días
+== desde fuera, sin -k
+  https://gongarcia.tfg.etsii.urjc.es/ -> 200 · ssl_verify_result 0
+  https://gongarcia.tfg.etsii.urjc.es/api/health -> 200 · ssl_verify_result 0
+  https://gongarcia.tfg.etsii.urjc.es/api/agent -> 200 · ssl_verify_result 0
+  con el curl.exe de Windows: 200
+  http://gongarcia.tfg.etsii.urjc.es/ -> 308 https://gongarcia.tfg.etsii.urjc.es/
+== en la máquina 1, sólo leyendo
+  644 root:root /etc/clickbait/tls/certificado.pem
+  600 root:root /etc/clickbait/tls/clave.pem
+  certificados en el .pem: 3
+  el autofirmado, en /etc/clickbait/tls.autofirmado: certificado.pem clave.pem 
+  la clave casa con el certificado (clave pública 0697a4f434b7)
+  el clon sirve 79f029e, en dev
+  caddy v2.11.9
+  servicios: api healthy mcp healthy web healthy 
+== cosas que no cuadran: 0
