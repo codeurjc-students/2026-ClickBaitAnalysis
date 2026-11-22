@@ -288,8 +288,8 @@ Cómo se repite el análisis de vulnerabilidades de #260: qué se ejecuta, en qu
 orden, dónde queda y cómo se tría. Por qué cada herramienta y lo que salió la
 primera vez, en la sección de #260 del [diario](diario.md).
 
-**Cuándo**: antes de cada release, antes de la congelación del 15 de
-diciembre, y cuando Dependabot abra una alerta (lo hace solo desde que el grafo
+**Cuándo**: antes de cada release, al congelar el código (se hizo el 21 de
+noviembre de 2026), y cuando Dependabot abra una alerta (lo hace solo desde que el grafo
 de dependencias está activado, el 13 de octubre de 2026). Ninguna de estas
 pasadas va en el CI: un aviso publicado hoy pondría en rojo una pull request
 que no ha cambiado nada.

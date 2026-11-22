@@ -1,18 +1,18 @@
 # Demostración
 
 El guion para enseñar el sistema en directo en la defensa, sobre la versión
-congelada el 15 de diciembre de 2026: qué se comprueba antes, qué se enseña y en
+congelada el 21 de noviembre de 2026 (`79f029e`): qué se comprueba antes, qué se enseña y en
 qué orden, y qué se hace si algo falla. Los comandos de las máquinas no se
 repiten aquí: están en
 [«El día a día»](../despliegue/README.md#el-día-a-día-desplegar-encender-el-asistente-y-apagarlo)
-de `despliegue/README.md`. El porqué de cada decisión está en el README
-principal, en la sección de #214.
+de `despliegue/README.md`. El porqué de cada decisión está en el
+[diario](diario.md), en la sección de #214.
 
 **Lo que falta**, y a qué espera:
 
 | Qué | Espera a |
 |---|---|
-| El plan C: la grabación en vídeo y las capturas | la congelación |
+| El plan C: la grabación en vídeo | nada: el código está congelado desde el 21 nov, y las capturas están hechas (#215) |
 
 ## Lo que se enseña
 
@@ -64,7 +64,9 @@ enseñado, y el análisis funciona sin ella.
      respuestas grabadas»). Si algún turno no se reproduce, alguna herramienta
      ya no da lo que se grabó y la grabación no vale para la versión
      congelada: hay que grabar otra (#265), y eso pide una sesión de GPU. Por
-     eso conviene comprobarlo ya al congelar, y no sólo la víspera.
+     eso conviene comprobarlo ya al congelar, y no sólo la víspera: sobre
+     `79f029e` se reproduce entera, en local y en la máquina 1 (22 nov 2026,
+     `spikes/congelacion/`).
    - **El plan C**: el vídeo y las capturas, en el equipo de la presentación y
      en una memoria USB.
 6. **Una segunda red**: el móvil, como punto de acceso. El 30 de septiembre la
@@ -359,8 +361,9 @@ Al terminar, se vuelve al modelo con el comando de la misma sección.
 
 ### Plan C: el vídeo
 
-**Pendiente de la congelación.** Una grabación de la versión congelada siguiendo
-este mismo guion, y capturas de cada paso. No depende de la red ni de ninguna de
+**Pendiente.** Una grabación de la versión congelada siguiendo este mismo
+guion. Las capturas de cada pantalla ya están en
+[`img/capturas/`](img/capturas/README.md) (#215). No depende de la red ni de ninguna de
 las dos máquinas. El enlace, aquí, cuando esté hecha.
 
 ## Al terminar
