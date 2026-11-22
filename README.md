@@ -10212,6 +10212,8 @@ setsid nohup bash spikes/coste_senales.sh > /tmp/coste_senales.log 2>&1 < /dev/n
 | Análisis entero, inglés | 1,48 | **124,69** | 137,66 | 2.167 | 745 + 1.422 |
 | Análisis entero, español | 1,50 | **84,19** | 130,25 | 2.160 | 727 + 1.433 |
 
+*(Repetido en #215, 21 nov, sobre la imagen congelada, `776657301546`: las medianas de los modelos se mueven como mucho un 5 %, y la del análisis entero, menos de un 1,3 %.)*
+
 La primera llamada es la carga del modelo y su primera inferencia; en el análisis entero, `precalentar()`, con los modelos de los dos idiomas. Aparte, importar el orquestador cuesta 0,45 s, y las librerías, 3,3 s con un modelo de `transformers` y 6,4 s si entra `sentence_transformers`.
 
 - **Lo interpretable cuesta unas 200 veces menos por titular** (0,2 ms frente a entre 29 y 54 ms) y unas 16 veces menos memoria (50 MiB frente a entre 590 y 850). Sin modelos, el proceso no importa torch.
@@ -10318,6 +10320,8 @@ No hacía falta volver a medir. `eval_veredicto` guarda el voto de cada señal p
 | Lineal bilingüe, 0,35 (control) | 3.894 | 0,410 | 0,770 | 0,535 | no se usa aquí |
 
 Las dos suben cinco milésimas, y ninguna conclusión cambia. Lo que se gana es que la tabla compare las tres en la misma partición. Los tuits que faltan hasta 3.896 son los que la puerta del idioma deja en `not_applicable` (#229): 5 en el léxico y la dedicada, y 2 en el lineal, que ya tenía ficha en español (la dedicada no la tuvo hasta #242, después de esta caché). Se cuentan sólo los que votan, como hace `eval_veredicto.comprobar`.
+
+*(Con la caché regenerada en #215, 21 nov, sobre `79f029e`: la dedicada vota 3.894 tuits, 3 más, porque ya analiza el español, y sigue en 0,763. El léxico no cambia.)*
 
 La comparación con el veredicto de 5.4 y la tabla de coste siguen sobre los 19.484, y lo dicen: el veredicto está medido en ese corpus, y sacarlo de él para compararlo con las señales no aportaría nada que esta tabla no diga ya.
 
@@ -11472,6 +11476,7 @@ Lo mismo pasaba con el 75 % de tuits cuyo texto difiere del titular del artícul
   - En ella, la dedicada no vota 26 tuits, los que el detector no toma por ingleses, y el léxico tampoco.
   - Lo que entró después en lo que decide un voto (el `git log` de `backend/integrations/nlp/`, `orchestrator.py` y `domain.py` desde el 8 oct) no cambia el de un tuit inglés: la dedicada y el tono en español, la revisión fijada de los modelos, el cerrojo de carga, las claves opcionales, las anotaciones de las herramientas, el texto vacío y textos de las fichas.
   - Así que hoy el resultado sólo puede ser otro en esos 26 tuits, de 19.484. Es una lectura del historial: no se ha comprobado regenerando la caché.
+  *(Comprobado en #215, 21 nov: con la caché regenerada sobre `79f029e`, la dedicada vota 17 de esos 26, los que el detector toma por españoles, y quedan 9 de idioma indeterminado. De las tablas de arriba cambian el veredicto en los unánimes, de 0,811 a 0,812, y las filas de `ambiguous` y `stylistic_clickbait`.)*
 - **Los 19.484 incluyen `webis_test`**, el 80 %, desde la partición de #78: no son cifras de un test reservado. La memoria lo dice así desde ese mismo repaso.
 - **El 0,525 de la ficha de la incoherencia** (#274) es otra cuenta del mismo lineal: sale de `eval_incoherencia`, que llama a `linear.predict` directamente.
   - Lectura mía, sin comprobar: así no pasa por la puerta del idioma y cuenta también los 9 tuits en que el análisis no deja votar al lineal.
@@ -11777,7 +11782,7 @@ La tarjeta de una señal guarda si está abierta en un `linkedSignal`, que se re
 
 #### El análisis de vulnerabilidades, de paso
 
-Antes de revisar el código se pasó `bash spikes/vulnerabilidades.sh 2026-11-21-revision --anterior spikes/vulnerabilidades/2026-11-13-289`, y CodeQL con el visto bueno del autor (la ejecución 44899982449, sobre `3aea084`). **No hay nada nuevo que triar.** Los resultados, en `spikes/vulnerabilidades/2026-11-21-revision/`, que es desde ahora la pasada de referencia.
+Antes de revisar el código se pasó `bash spikes/vulnerabilidades.sh 2026-11-21-revision --anterior spikes/vulnerabilidades/2026-11-13-289`, y CodeQL con el visto bueno del autor (la ejecución 44899982449, sobre `3aea084`). **No hay nada nuevo que triar.** Los resultados, en `spikes/vulnerabilidades/2026-11-21-revision/`, que es desde ahora la pasada de referencia. *(Desde #215 lo es `2026-11-21-congelacion-79f029e`, la primera sobre el código congelado y con las imágenes reconstruidas.)*
 
 - **Dependencias**: 0 avisos nuevos frente al 13 de noviembre. Siguen `minimatch` en npm, no aplicable (#289), y `setuptools` 83 en la imagen, no aplicable (#280).
 - **Imágenes**: no hay críticos, y los dos altos con arreglo son los mismos del 13 de noviembre, ya aceptados: `setuptools` 70.3.0 en la del backend (CVE-2025-47273) y `golang.org/x/net` 0.60.0 en Caddy (CVE-2026-78661). Crecen los que la regla de #260 no tría: altos de Debian sin arreglo, de 47 a 50; medios de Alpine con arreglo, de 1 a 7; y medios de Go en Caddy con arreglo, de 1 a 5. Se analizaron las imágenes locales del 14 de noviembre, que el guion aceptó porque llevan el mismo `requirements.txt` que `3aea084`: una construcción nueva podría traer otros paquetes del sistema.
@@ -11815,6 +11820,229 @@ El contrato publicaba la versión «0.3.0-dev» desde #88 (4 de agosto), en `/ap
 #### Comprobado
 
 - La suite del backend, ruff y pyright, sin cambios ni avisos; y `openapi.json` y `schema.d.ts`, los que salen de regenerarlos. El frontend no cambia.
+
+### Las medidas y capturas de la versión congelada (#215, 21 nov 2026)
+
+El código se congeló el 21 de noviembre en `79f029e`, el merge de la PR #306, y la máquina 1 lo sirve desde ese mismo día. La memoria presentaba como estado actual cifras de antes: las del veredicto inglés eran del sistema del 8 de octubre, y el coste por señal, de la imagen del 7 de noviembre. Además, no tenía ninguna captura. Esta issue repite sobre el commit congelado sólo lo que la memoria presenta como estado actual. La lista salió de leer la memoria entera; la leyó un subagente, y lo que afectaba al plan lo comprobé a mano.
+
+Salieron seis cosas:
+
+- el despliegue;
+- las cifras del veredicto inglés;
+- el coste por señal;
+- los recuentos que piden las notas `\alumno` del capítulo 4;
+- una conversación del asistente en producción;
+- y las capturas.
+
+#### Lo que entra
+
+- **`spikes/congelacion/`**: la salida de cada comprobación sobre `79f029e`.
+  - `despliegue.txt`: el redespliegue de la máquina 1, con `spikes/precalentado_maquina1.sh`.
+  - `produccion_en_vivo.txt` y `certificado.txt`.
+  - `imports.txt`: el diagrama de capas y el del cliente, contra los imports.
+  - `catalogo-79f029e.json` y `catalogo-df07f15.json`.
+  - `eval_veredicto.txt`, `senales_webis_dev.txt` y `ta1c-como-produccion.txt`.
+  - `recuentos.txt`.
+  - La conversación del asistente: `chat_registro.txt`, `ollama_registro.txt` y `maquina2.txt`.
+- **[`spikes/recuentos_congelacion.py`](spikes/recuentos_congelacion.py)**, nuevo. Cuenta lo que piden las notas de 4.6 y 4.7, con una regla escrita en su docstring:
+  - las pruebas y la cobertura (la del CI, de ramas);
+  - las líneas no vacías por zona y lenguaje, con lo generado y los lockfiles aparte;
+  - y los commits, las pull requests, las ramas y las issues.
+
+  Se para si `backend/`, `tests/` o `frontend/src/` difieren del commit que cuenta.
+- **[`spikes/capturas.mjs`](spikes/capturas.mjs)**, nuevo, y sus capturas en [`docs/img/capturas/`](docs/img/capturas/), con un índice que escribe el propio guion. Lo que hace está en «Las capturas», abajo.
+- **`spikes/cifras_veredicto.py` y `spikes/senales_webis_dev.py`** reciben la caché por argumento, y su control va por la huella de cada caché (`CONTROLES`). Con la del 8 de octubre, guardada en `var/veredicto_validation170630.antes-215.json`, reproducen exactamente sus salidas anteriores. La salida nueva está en `spikes/cifras_veredicto/2026-11-21.txt`.
+- **`spikes/precalentado_maquina1.sh`** acepta la carpeta de salida en `SALIDA`. Sin ella, escribe donde siempre: la medida de la PR #296 no se pisa.
+- **`spikes/coste_senales/2026-11-21-maquina1.*`**: el coste por señal en la imagen congelada.
+- **`spikes/vulnerabilidades/2026-11-21-congelacion-79f029e/`**: la pasada de vulnerabilidades y CodeQL.
+- **`docs/estructura.md`**: la fila de `docs/` dice qué es `img/capturas/`.
+
+#### El despliegue y lo que se sirve
+
+La máquina 1 pasó de `e19ba3a` a `79f029e`. `up --build --wait` tardó 249 s, porque la capa de modelos se rehizo: cambió `model_cards.py`. La imagen servida es `776657301546`.
+
+- **La API, sana a los 21 s**, frente a 16 s el 14 de noviembre.
+- **El precalentado**: 17,0 s la API y 17,6 s el servidor MCP, a la vez, frente a 13,0 y 12,9 s el 14 de noviembre. La dedicada inglesa se lleva 11,9 y 12,5 s de esos tiempos. Mi lectura, sin comprobar: sus ficheros, recién escritos con la capa nueva, aún no estaban en la caché de disco.
+- **Memoria de cada proceso** (VmRSS): 1.817.404 kB la API y 1.809.880 kB el servidor MCP. `free` daba 1.901 MiB usados de 15.613.
+- **El primer análisis por el servidor MCP, desde fuera**: 0,63 s en inglés, 0,36 s en español y 0,37 s en caliente. El titular en blanco recibe su frase (#292).
+
+Con `spikes/produccion_en_vivo.py`:
+
+- las 14 herramientas responden `ok`;
+- el caso de #124 sigue en `ambiguous`;
+- en español votan la dedicada (BETO), el lineal y el tono, y el léxico y la incoherencia se niegan con su frase;
+- `/analyze` en español da `stylistic_clickbait`;
+- el agente sale `unreachable`, porque no había sesión de GPU.
+
+`spikes/certificado_en_vivo.sh` encuentra 0 cosas que no cuadran: el certificado de HARICA caduca el 2027-05-28, dentro de 187 días, y Caddy es la 2.11.9.
+
+Los dos diagramas de la memoria siguen valiendo, según los guiones que los comparan con los imports:
+
+- **las capas del servidor** (`spikes/imports_entre_capas.py`): 21 pares de capas, y ninguno sin camino en el dibujo;
+- **el cliente** (`spikes/imports_cliente.py`): 16 pares de carpetas, ninguno sin camino, ninguna flecha dibujada sin un import detrás y ningún import entre pantallas.
+
+**La elección de herramienta de #269 sigue valiendo, y las 26 consultas no se repitieron.** Lo que recibe el modelo es idéntico al de entonces:
+
+- el catálogo de `79f029e` es el de `df07f15` byte a byte, volcado con `spikes/catalogo_volcado.py` sobre los dos commits;
+- `backend/agent/prompts/` no ha cambiado.
+
+En `agente.py` sólo cambió cómo se publica un fallo (#292, #301).
+
+#### El veredicto inglés, con la caché regenerada
+
+La caché de `eval_veredicto` se regeneró sobre `79f029e`, en CPU y sin red: unos 55 min para los 19.484 tuits, con huella `c5755af33a53`. Las comprobaciones del propio `eval_veredicto` salen como deben:
+
+- `_overall` coincide con el veredicto en todos los tuits;
+- la regla de #124 se queda (0,577 ≥ 0,5).
+
+Frente a la caché del 8 de octubre:
+
+| | 8 oct (`3db32ea91cb2`) | 21 nov (`c5755af33a53`) |
+|---|---|---|
+| Tuits que vota la dedicada | 19.458 | 19.475 |
+| F1 de la dedicada, del léxico, del lineal y de la incoherencia | 0,758 · 0,448 · 0,526 · 0,314 | igual |
+| Veredicto en los 19.484: P, R y F1 | 0,690 · 0,633 · 0,660 | igual |
+| Veredicto en los 6.808 unánimes: F1 | 0,811 | **0,812** |
+| `ambiguous`: tuits, y *clickbait* dentro | 8.194 · 17,4 % | **8.199 · 17,3 %** |
+| `stylistic_clickbait`: tuits, y *clickbait* dentro | 2.990 · 68,0 % | **2.985 · 68,1 %** |
+| `factual` y `deceptive`, *clickbait* dentro | 4,4 % · 71,2 % | igual |
+
+Los 17 tuits más son los que el detector toma por españoles, que desde #242 vota BETO. Quedan 9 sin voto, de idioma indeterminado, que hoy no analiza nadie. Es lo que preveía la sección de la PR #298 al leer el historial: sólo podían cambiar esos 26.
+
+En `webis_dev`, la dedicada vota 3 tuits más (3.894) y sigue en 0,763, y el léxico sigue en 0,453. En español, `eval_ta1c --como-produccion` sobre TA1C `validation` da el mismo F1 del veredicto que desde #242, **0,665** (P 0,938 y R 0,515). La dedicada da 0,803 y el lineal, 0,609.
+
+#### El coste por señal, en la imagen congelada
+
+`spikes/coste_senales.sh` en la máquina 1, sobre la imagen `776657301546`, en tres pasadas, con la mediana de cada cifra, como el 7 de noviembre:
+
+| Fila | Por titular (ms) | p95 (ms) | Memoria (MiB) | El 7 nov (ms) |
+|---|---|---|---|---|
+| Léxico | 0,15 | 0,18 | 51 | 0,15 |
+| Lineal, inglés y español | 0,22 · 0,19 | 0,26 · 0,24 | 54 · 53 | 0,23 · 0,19 |
+| Dedicada, inglés y español | 34,95 · 42,84 | 40,56 · 67,62 | 849 · 845 | 35,91 · 42,81 |
+| Tono, inglés y español | 34,94 · 27,69 | 40,34 · 46,45 | 829 · 857 | 34,57 · 29,15 |
+| Incoherencia | 52,39 | 63,89 | 594 | 54,23 |
+| Análisis entero, inglés y español | **124,98 · 83,13** | 136,85 · 130,96 | 2.174 · 2.157 | 124,69 · 84,19 |
+
+Las medianas de los modelos se mueven como mucho un 5 %; la que más, el tono en español, de 29,15 a 27,69 ms. Las del léxico y el lineal, una centésima de milisegundo, y la del análisis entero, menos de un 1,3 %.
+
+#### Los recuentos
+
+Con `spikes/recuentos_congelacion.py`, sobre `79f029e`:
+
+- **Pruebas**: 745 del servidor, de las que el CI ejecuta 729 (16 son de integración y tocan la red), y 221 del cliente, en 17 ficheros.
+- **Cobertura del servidor**: el 97 %, de ramas, con 2.615 sentencias (58 sin cubrir) y 542 ramas (36 a medias).
+- **Código servido**: 14.318 líneas no vacías de Python, TypeScript, HTML y SCSS, sin pruebas. Lo generado y los lockfiles, aparte: `openapi.json` 2.058, `schema.d.ts` 1.616, `package-lock.json` 9.229 y `requirements.txt` 189.
+- **El repositorio**:
+  - 274 commits hasta `79f029e` (233 sin merges), desde el 24 de febrero;
+  - 170 pull requests, todas mergeadas: 124 a `dev` y 46 a `main`;
+  - 163 ramas de las que salió alguna;
+  - 13 ramas que quedan en GitHub;
+  - 136 issues, de las que 12 siguen abiertas.
+
+  Lo de GitHub es del momento de contarlo, las 16:34 del 21 de noviembre, no del commit.
+
+#### Las vulnerabilidades, sobre el código congelado
+
+`bash spikes/vulnerabilidades.sh congelacion-79f029e --anterior spikes/vulnerabilidades/2026-11-21-revision`, con las dos imágenes reconstruidas desde `79f029e` en WSL, y CodeQL en `dev` (la ejecución 44954344630, CodeQL 2.27.5). **No hay nada nuevo que triar.**
+
+- **Dependencias**:
+  - en Python, sólo el aviso bajo de `setuptools` 83 en la imagen, no aplicable (#280);
+  - en npm, sólo `minimatch` en lo que no se sirve, no aplicable (#289);
+  - nada en lo servido.
+- **Trivy**, con las mismas cifras que la pasada anterior en las dos imágenes. Los dos altos con arreglo ya estaban aceptados: el `setuptools` 70.3.0 que Trivy ve en el SBOM de lo que pip lleva dentro (#260) y `x/net` en Caddy.
+- **gitleaks**: 0 hallazgos, en 325 confirmaciones.
+- **Las reglas `S` de ruff**: 1.472 avisos, 10 más que en la pasada anterior. Son todos `assert` en las pruebas de #305 y #306. En lo servido siguen los dos S608 de `history.py`, que son falsos positivos.
+- **CodeQL**: 0 hallazgos en JavaScript y TypeScript. En Python, 1: el de `spikes/noticias_es.py:87`, que no se sirve y ya estaba aceptado.
+
+Ésta es la primera pasada sobre el código congelado. La anterior, `2026-11-21-revision`, era de `3aea084` y analizó las imágenes locales del 14 de noviembre.
+
+#### Las capturas
+
+`spikes/capturas.mjs` abre producción en el Edge de Windows sin ventana y lo maneja por el protocolo de DevTools desde el Node de Windows, sin instalar nada. Hacía falta así: el navegador integrado de la app de Claude enseña la página pero no guarda la imagen, y en WSL no hay navegador.
+
+Antes de capturar:
+
+- pregunta por SSH en qué commit está el clon de la máquina 1, y se para si no es el que se le da;
+- lee la versión del contrato.
+
+Todas salen a 1280×800 píxeles CSS y escala 2 (2.560 de ancho), en tema claro. El guion tiene dos recorridos, porque no se pueden hacer a la vez:
+
+- **`pantallas`, con la GPU apagada**, diez capturas:
+  - el formulario;
+  - un resultado de *clickbait*, en la vista y entero;
+  - el caso ambiguo y el de español, enteros y con todas las tarjetas abiertas;
+  - la salud desplegada y el historial;
+  - Sistema, y una ejecución suelta de `analyze_sentiment`;
+  - el asistente apagado, que es su estado normal.
+
+  Deja en el historial de producción tres análisis y una ejecución.
+- **`asistente`, con una sesión de GPU abierta**:
+  - espera a que `/api/agent` diga `available`, preguntando a la API y nunca a la máquina 2;
+  - hace el paso 6 de [`docs/demostracion.md`](docs/demostracion.md) como lo pide la guía: las tres preguntas para calentar, «Empezar una conversación nueva» y las tres otra vez;
+  - las preguntas las lee de la propia guía, así que la captura la sigue si cambia;
+  - captura la segunda conversación entera, tal como queda y con las tarjetas plegadas abiertas.
+
+  El asistente no guarda nada en el historial, y así fue: entre las 22:18 y las 22:29 UTC no hay ninguna entrada.
+
+Cada recorrido guarda su lista en `docs/img/capturas/<recorrido>.json`, y el índice sale de las dos listas, así que lanzar uno no borra lo del otro. Las doce capturas ocupan 4,0 MB.
+
+#### La conversación del asistente en producción
+
+La A40 estaba ocupada: había dos procesos de otro usuario, con 13.528 MiB y la GPU al 100 % de uso. **El autor decidió compartirla.** Por eso los tiempos de abajo no se citan sueltos: varían, y con la GPU compartida van más lentos. Si se citan, como rango y con esa condición (decidido por el autor, 21 nov).
+
+El 27B cupo entero en la GPU (16.487 MiB, todo en VRAM, con 16.384 de contexto). Su carga tardó 24,3 s y la pagó el primer turno, según `ollama_registro.sh`. Las cifras son las de `chat_registro.sh`, del registro de la API:
+
+| Conversación | Turno 1 | Turno 2 | Turno 3 |
+|---|---|---|---|
+| 1, la de calentar | 387,8 s · `analyze_headline` · **`empty_answer`** | 49,4 s · `detect_clickbait_linear` | 85,7 s · el lineal, la dedicada y `analyze_headline` |
+| 2, la capturada | 64,6 s · `analyze_headline` | 48,6 s · `detect_clickbait_linear` | 44,5 s · `analyze_headline` |
+
+- **En caliente, cada turno tardó entre 44 y 65 s.** En el ensayo del 15 de noviembre, con la GPU libre, los tres turnos del paso 6 esperaron 34, 50 y 43 s.
+- **El primer turno se quedó sin respuesta escrita.** La primera vuelta pidió `analyze_headline` y la ejecutó en 0,31 s. Las dos siguientes duraron lo mismo, 164,8 y 164,7 s, sin escribir texto, y el turno acabó en `empty_answer`; la tarjeta del análisis sí se ve. Lectura, sin comprobar, porque el registro no da los tokens de salida: que duren igual apunta a que las dos llegaron al tope de 1.500 tokens de salida (#208), y saldrían unos 9 tokens por segundo.
+  - Es el modo de fallo del spike #82, y en el ensayo no salió.
+  - En la defensa se vería como un turno sin texto bajo su tarjeta.
+- **La misma pregunta no eligió las mismas herramientas.** El turno 3 pidió tres herramientas en la primera conversación y una en la segunda.
+- **Condiciones de la máquina 2**: Ollama 0.34.2 y `qwen3.5:27b` con id `7653528ba5cb`, el de #269. `gpu-sesion` es idéntico al versionado (`6ad6a751d636`). Tras cerrar la sesión, no quedaba ningún proceso nuestro ni nada nuestro en la GPU.
+
+#### Lo que hay que saber al citarlas
+
+- **Lo servido y lo analizado no son la misma imagen.** Trivy analizó imágenes construidas en WSL desde `79f029e` (`0ac3bbe2e888` y `2cdcdef2af7f`), y la máquina 1 sirve la que construyó ella (`776657301546`). Salen del mismo Dockerfile y de los mismos lockfiles, pero el `apt-get upgrade` del paso 0 recoge lo que Debian tenga ese día (#280).
+- **Las cifras del veredicto inglés son ya las del sistema congelado.** Las cuatro marcas «con el sistema del 8 de octubre» de la memoria sobran; las que cambian son el 0,812 y dos filas del reparto.
+- **Los tiempos del asistente van con la GPU compartida.**
+- **Las capturas escriben en producción**, y cada pasada de `pantallas` deja tres análisis y una ejecución en el historial.
+
+#### Lo que no entra
+
+- **Las 26 consultas de elección**: el catálogo y el prompt son los de #269.
+- **La fidelidad de `06-dato`**: medida en #299 el 20 de noviembre, con el mismo prompt.
+- **`--reproducir` de la grabación, el repaso final de #216 y el vídeo de #214**: van aparte, también sobre `79f029e`.
+- **La memoria**: se corrige en Overleaf (abajo).
+
+#### Lo que queda
+
+- **En la memoria**:
+  - quitar las cuatro marcas del 8 de octubre, y poner el 0,812 y las dos filas del reparto, si las cita;
+  - las dos frases de CodeQL que ya no son ciertas: «la única pasada, del 13 de octubre» (`descripcion-informatica.tex:589`) y «CodeQL 2.27.2» (l. 119);
+  - los recuentos, en las notas `\alumno` de 4.6 y 4.7;
+  - si la tabla de coste se pone al día: cambia un 5 % como mucho;
+  - las capturas del capítulo 3;
+  - los tiempos del asistente, como rango;
+  - las fechas que dicen «15 de diciembre».
+- **Las dos «capturas» que piden las notas de 4.6, la ejecución de las pruebas y el análisis de vulnerabilidades**: falta decidir su forma. Lo recomendado es el texto real de la salida como listado, que se lee y se busca, en vez de una imagen.
+- **Visto en la captura de Sistema, sin tocar porque el código está congelado**: el cuerpo del docstring de cada herramienta sale con la sangría del código Python. Es candidato a #217.
+
+| Condiciones | |
+|---|---|
+| Fecha | 21 nov 2026. El despliegue, de 14:52 a 14:57; las comprobaciones, el coste y los recuentos, por la tarde; la caché, de 16:10 a 17:05; las capturas, a las 23:13 (`pantallas`) y a las 23:29 (`asistente`); la conversación, de 23:18 a 23:29, hora de Madrid |
+| Código | `79f029e`, servido por la máquina 1 y en la rama, con los guiones de esta sección sin commitear |
+| Máquina 1 | La imagen `776657301546` (5,99 GB), con Python 3.12.16, torch 2.14.0+cpu y transformers 5.12.0, en un AMD EPYC-Milan de 8 núcleos; Caddy 2.11.9 |
+| WSL | El PC del autor: WSL2 con Ubuntu 24.04.4, Python 3.12.3 del `.venv` y Docker 29.1.3. Los modelos, en CPU (la GPU, oculta) y sin red. Las imágenes de la pasada, `0ac3bbe2e888` y `2cdcdef2af7f` |
+| Capturas | Edge 157.0.4341.60 sin ventana y Node v22.16.0, los dos de Windows; contrato 1.0.0 |
+| Máquina 2 | La A40, compartida. Ollama 0.34.2, `qwen3.5:27b` (`7653528ba5cb`), prompt `06-dato`, 16.384 de contexto y 1.500 de tope de salida |
+| Modelos de las señales | Los de las fichas, con sus revisiones: los cinco que lista `produccion_en_vivo.txt` |
+| Vulnerabilidades | pip-audit 2.10.1 (OSV), npm 10.9.8, Trivy 0.75.0 (base del 21 nov), gitleaks 8.30.1, ruff 0.16.1 y CodeQL 2.27.5 |
+| Guiones | `spikes/precalentado_maquina1.sh`, `produccion_en_vivo.py`, `certificado_en_vivo.sh`, `imports_entre_capas.py`, `imports_cliente.py` y `catalogo_volcado.py`; `eval_veredicto`, `cifras_veredicto.py`, `senales_webis_dev.py` y `eval_ta1c --como-produccion`; `coste_senales.sh`; `recuentos_congelacion.py`; `vulnerabilidades.sh` y `vulnerabilidades_codeql.sh`; `capturas.mjs`, `chat_registro.sh` y `ollama_registro.sh`. Sus salidas, en `spikes/congelacion/` y en las carpetas de cada uno |
 
 
 "Aplico Rudin donde puedo —incoherencia(A MEDIAS, YA QUE EL MODELO NO) y léxico son intrínsecamente interpretables— y reservo lo post-hoc (LIME/SHAP), con sus límites de fidelidad, solo para la parte que depende de un transformer preentrenado que no puedo abrir de otro modo." !!!IMPORTANTE (NO MODIFICAR, RECORDAR POSTURA DEFINIDA)

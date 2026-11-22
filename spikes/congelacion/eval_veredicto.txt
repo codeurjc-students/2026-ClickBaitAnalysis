@@ -1,0 +1,122 @@
+== 2026-11-21, en WSL (CPU, sin red) sobre 79f029e: CUDA_VISIBLE_DEVICES= HF_HUB_OFFLINE=1 .venv/bin/python -m backend.evaluation.eval_veredicto
+== condiciones
+  fecha: 2026-11-21T16:10:31+01:00
+  commit: 79f029e
+  huella: c5755af33a53
+  detect_clickbait: {"id":"Stremie/roberta-base-clickbait","task":"text-classification","labels":null}
+  detect_clickbait (es): {"id":"ggcastle/beto-clickbait-es","task":"text-classification","labels":null}
+  analyze_sentiment: cardiffnlp/twitter-roberta-base-sentiment-latest
+  analyze_sentiment (es): lxyuan/distilbert-base-multilingual-cased-sentiments-student
+  detect_clickbait_incoherence: sentence-transformers/all-MiniLM-L6-v2
+  umbrales: detect_clickbait_lexical 1 · detect_clickbait_incoherence 0.3
+  pares titular–cuerpo de Webis-17 (validation170630): 19484
+  torch 2.12.1+cu130 · GPU disponible: False
+  (la caché es de otro sistema o de otros pares: se empieza de cero)
+
+  500/19484 · 0.267 s por par · quedan ~84 min
+  1000/19484 · 0.228 s por par · quedan ~70 min
+  1500/19484 · 0.207 s por par · quedan ~62 min
+  2000/19484 · 0.199 s por par · quedan ~58 min
+  2500/19484 · 0.194 s por par · quedan ~55 min
+  3000/19484 · 0.190 s por par · quedan ~52 min
+  3500/19484 · 0.190 s por par · quedan ~51 min
+  4000/19484 · 0.199 s por par · quedan ~51 min
+  4500/19484 · 0.199 s por par · quedan ~50 min
+  5000/19484 · 0.197 s por par · quedan ~47 min
+  5500/19484 · 0.197 s por par · quedan ~46 min
+  6000/19484 · 0.194 s por par · quedan ~44 min
+  6500/19484 · 0.193 s por par · quedan ~42 min
+  7000/19484 · 0.193 s por par · quedan ~40 min
+  7500/19484 · 0.191 s por par · quedan ~38 min
+  8000/19484 · 0.190 s por par · quedan ~36 min
+  8500/19484 · 0.189 s por par · quedan ~35 min
+  9000/19484 · 0.187 s por par · quedan ~33 min
+  9500/19484 · 0.185 s por par · quedan ~31 min
+  10000/19484 · 0.183 s por par · quedan ~29 min
+  10500/19484 · 0.183 s por par · quedan ~27 min
+  11000/19484 · 0.182 s por par · quedan ~26 min
+  11500/19484 · 0.180 s por par · quedan ~24 min
+  12000/19484 · 0.180 s por par · quedan ~22 min
+  12500/19484 · 0.179 s por par · quedan ~21 min
+  13000/19484 · 0.178 s por par · quedan ~19 min
+  13500/19484 · 0.177 s por par · quedan ~18 min
+  14000/19484 · 0.176 s por par · quedan ~16 min
+  14500/19484 · 0.175 s por par · quedan ~15 min
+  15000/19484 · 0.174 s por par · quedan ~13 min
+  15500/19484 · 0.173 s por par · quedan ~12 min
+  16000/19484 · 0.173 s por par · quedan ~10 min
+  16500/19484 · 0.172 s por par · quedan ~9 min
+  17000/19484 · 0.171 s por par · quedan ~7 min
+  17500/19484 · 0.171 s por par · quedan ~6 min
+  18000/19484 · 0.170 s por par · quedan ~4 min
+  18500/19484 · 0.169 s por par · quedan ~3 min
+  19000/19484 · 0.169 s por par · quedan ~1 min
+  19484/19484 · 0.168 s por par · quedan ~0 min
+  rechazados por la API (titular en blanco): 0
+
+==============================================================================
+1 · COMPROBACIÓN: CADA SEÑAL POR SEPARADO
+==============================================================================
+  detect_clickbait               P 0.709 · R 0.814 · F1 0.758 · {'ok': 19475, 'not_applicable': 9}
+  detect_clickbait_lexical       P 0.341 · R 0.656 · F1 0.448 · {'ok': 19458, 'not_applicable': 26}
+  detect_clickbait_linear        P 0.404 · R 0.751 · F1 0.526 · {'ok': 19475, 'not_applicable': 9}
+  detect_clickbait_incoherence   P 0.666 · R 0.205 · F1 0.314 · {'ok': 19439, 'not_applicable': 45}
+  Para cotejar: #124 da F1 0,758 a la dedicada en este split, y #92, P 0,649
+  a la incoherencia en su mitad de test (aquí es el corpus entero).
+
+  `_overall` frente al veredicto que dio `analyze()`: 0 distintos (tiene que ser 0)
+  `_overall` frente a «veto si discrepa»: 0 distintos (desde #124, tiene que ser 0)
+
+==============================================================================
+2 · LA REGLA: PRECISIÓN DE `deceptive` DONDE LA FORMA NO LO APOYA
+==============================================================================
+  forma «no»                109 pares · clickbait según los anotadores:    12 · precisión 11.0 %
+  forma en discrepancia     830 pares · clickbait según los anotadores:   530 · precisión 63.9 %
+  las dos                   939 pares · clickbait según los anotadores:   542 · precisión 57.7 %
+
+  en juego: 4.8 % de los pares
+  -> 0.577 ≥ 0.5: SE QUEDA la regla de antes de #124
+
+==============================================================================
+3 · PARA ELEGIR: LO QUE CAMBIA CON CADA REGLA
+==============================================================================
+
+  Cuántos titulares caen en cada etiqueta:
+                                deceptive    stylistic_clickbait                factual              ambiguous                no_data
+  antes de #124             1448 ( 7.4 %)          2985 (15.3 %)          6952 (35.7 %)          8090 (41.5 %)             9 ( 0.0 %)
+  sin veto                   509 ( 2.6 %)          2985 (15.3 %)          6952 (35.7 %)          9029 (46.3 %)             9 ( 0.0 %)
+  cascada                    509 ( 2.6 %)          2985 (15.3 %)          7061 (36.2 %)          8920 (45.8 %)             9 ( 0.0 %)
+  veto si discrepa          1339 ( 6.9 %)          2985 (15.3 %)          6952 (35.7 %)          8199 (42.1 %)             9 ( 0.0 %)
+
+  «Es clickbait» (`deceptive` o `stylistic_clickbait`) frente a la etiqueta humana:
+  antes de #124    todo: P 0.676 · R 0.635 · F1 0.655   ·   unánimes (6808): P 0.778 · R 0.818 · F1 0.798
+  sin veto         todo: P 0.703 · R 0.521 · F1 0.598   ·   unánimes (6808): P 0.861 · R 0.613 · F1 0.716
+  cascada          todo: P 0.703 · R 0.521 · F1 0.598   ·   unánimes (6808): P 0.861 · R 0.613 · F1 0.716
+  veto si discrepa todo: P 0.690 · R 0.633 · F1 0.660   ·   unánimes (6808): P 0.806 · R 0.817 · F1 0.812
+
+  Dentro de cada etiqueta, cuántos son clickbait según los anotadores:
+  antes de #124    deceptive 66.6 % · ambiguous 17.4 % · factual 4.4 %
+  sin veto         deceptive 83.1 % · ambiguous 21.6 % · factual 4.4 %
+  cascada          deceptive 83.1 % · ambiguous 21.7 % · factual 4.5 %
+  veto si discrepa deceptive 71.2 % · ambiguous 17.3 % · factual 4.4 %
+
+  Lo que cambia respecto a la regla de antes de #124:
+  sin veto         deceptive → ambiguous: 939 pares, 57.7 % clickbait según los anotadores
+  cascada          deceptive → ambiguous: 830 pares, 63.9 % clickbait según los anotadores
+  cascada          deceptive → factual: 109 pares, 11.0 % clickbait según los anotadores
+  veto si discrepa deceptive → ambiguous: 109 pares, 11.0 % clickbait según los anotadores
+
+==============================================================================
+4 · LA REGLA ELEGIDA AL VER LOS DATOS, VALIDADA EN DOS MITADES
+==============================================================================
+  elección: 9742 pares · comprobación: 9742 (el reparto de #92)
+
+  precisión de `deceptive`             en la elección       en la comprobación
+  forma «no»                 10.0 % de   50  → sin veto       11.9 % de   59  mismo lado del corte
+  forma en discrepancia      65.4 % de  433      → veto       62.2 % de  397  mismo lado del corte
+
+  regla elegida en la primera mitad: veto en ['forma en discrepancia'] — es «veto si discrepa»
+
+  En la mitad de comprobación, «es clickbait» frente a la etiqueta humana:
+  antes de #124    todo: P 0.672 · R 0.633 · F1 0.652   ·   unánimes (3394): P 0.757 · R 0.794 · F1 0.775
+  elegida          todo: P 0.687 · R 0.630 · F1 0.657   ·   unánimes (3394): P 0.779 · R 0.791 · F1 0.785

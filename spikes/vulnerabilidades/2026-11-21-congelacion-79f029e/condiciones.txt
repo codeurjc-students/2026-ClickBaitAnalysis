@@ -1,0 +1,7 @@
+fecha: 2026-11-21T22:58:48+01:00
+commit: 79f029e (chore/215-medidas-congelacion)
+pip-audit 2.10.1, servicio de avisos: osv
+node: v22.23.2, npm: 10.9.8
+imagen: clickbait-backend sha256:0ac3bbe2e888e09ffc67e68520273f86128eef7d2cf5db61ab9027d4837f1cdb creada 2026-11-21T21:59:03.831689065+01:00
+fuera del lockfile (de docker/backend.Dockerfile): torch==2.14.0 sentence-transformers==5.6.0
+en el freeze de la imagen: torch==2.14.0+cpu (se audita sin el sufijo local)

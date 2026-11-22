@@ -1,0 +1,4 @@
+fecha: 2026-11-21T23:01:59+01:00
+commit: 79f029e (chore/215-medidas-congelacion)
+  ⚠️ con cambios sin commitear en ficheros .py
+ruff 0.16.1, reglas S, --force-exclude

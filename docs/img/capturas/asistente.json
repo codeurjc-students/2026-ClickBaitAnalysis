@@ -1,0 +1,26 @@
+{
+  "recorrido": "asistente",
+  "fecha": "2026-11-21 23:29",
+  "commit": "79f029ee9c8038075539be76e63939f04a2e4f4f",
+  "cambios": 0,
+  "contrato": "1.0.0",
+  "navegador": "Edg/157.0.4341.60",
+  "modelo": "qwen3.5:27b",
+  "prompt": "06-dato",
+  "capturas": [
+    {
+      "nombre": "11-asistente-conversacion",
+      "descripcion": "La segunda conversación del paso 6 de `docs/demostracion.md`, ya en caliente, tal como queda: las tres preguntas, lo que consultó el asistente en cada turno y su respuesta. Turnos: 1, `analyze_headline` (respondió); 2, `detect_clickbait_linear` (respondió); 3, `analyze_headline` (respondió).",
+      "ancho": 2560,
+      "alto": 7416,
+      "bytes": 883716
+    },
+    {
+      "nombre": "12-asistente-conversacion-tarjetas",
+      "descripcion": "La misma conversación, con las 4 tarjetas de señal que estaban plegadas abiertas.",
+      "ancho": 2560,
+      "alto": 8122,
+      "bytes": 943374
+    }
+  ]
+}

@@ -1,0 +1,80 @@
+{
+  "recorrido": "pantallas",
+  "fecha": "2026-11-21 23:13",
+  "commit": "79f029ee9c8038075539be76e63939f04a2e4f4f",
+  "cambios": 0,
+  "contrato": "1.0.0",
+  "navegador": "Edg/157.0.4341.60",
+  "capturas": [
+    {
+      "nombre": "01-formulario",
+      "descripcion": "La pantalla de análisis (`/analizar`) antes de analizar: el formulario y los cuatro titulares de ejemplo.",
+      "ancho": 2560,
+      "alto": 1600,
+      "bytes": 104205
+    },
+    {
+      "nombre": "02-clickbait",
+      "descripcion": "El resultado del ejemplo «clickbait claro», tal como se abre: lo que cabe sin desplazar. Veredicto: «Clickbait de forma».",
+      "ancho": 2560,
+      "alto": 1600,
+      "bytes": 217018
+    },
+    {
+      "nombre": "03-clickbait-entero",
+      "descripcion": "El mismo resultado, la página entera, con todas las tarjetas de señal abiertas.",
+      "ancho": 2560,
+      "alto": 2960,
+      "bytes": 352719
+    },
+    {
+      "nombre": "04-ambiguo-entero",
+      "descripcion": "El resultado del ejemplo «caso ambiguo», la página entera, con todas las tarjetas abiertas. Veredicto: «Ambiguo».",
+      "ancho": 2560,
+      "alto": 3000,
+      "bytes": 337189
+    },
+    {
+      "nombre": "05-espanol-entero",
+      "descripcion": "El resultado del ejemplo «en español», la página entera, con todas las tarjetas abiertas. Veredicto: «Clickbait de forma».",
+      "ancho": 2560,
+      "alto": 2892,
+      "bytes": 335738
+    },
+    {
+      "nombre": "06-salud",
+      "descripcion": "El indicador de salud de la cabecera, desplegado: las APIs externas que se sondean y su estado.",
+      "ancho": 2560,
+      "alto": 1600,
+      "bytes": 248866
+    },
+    {
+      "nombre": "07-historial",
+      "descripcion": "El historial (`/historial`): las entradas más recientes, de análisis y de ejecuciones sueltas.",
+      "ancho": 2560,
+      "alto": 1600,
+      "bytes": 225960
+    },
+    {
+      "nombre": "08-sistema",
+      "descripcion": "Sistema (`/sistema`): el servidor MCP conectado y el principio del catálogo de herramientas.",
+      "ancho": 2560,
+      "alto": 1600,
+      "bytes": 169891
+    },
+    {
+      "nombre": "09-sistema-ejecucion",
+      "descripcion": "Una ejecución suelta desde Sistema: `analyze_sentiment` con «10 Amazing Things You Won't Believe», el formulario que sale de su esquema y la respuesta.",
+      "ancho": 2560,
+      "alto": 1600,
+      "bytes": 161127
+    },
+    {
+      "nombre": "10-asistente-apagado",
+      "descripcion": "El asistente (`/asistente`) sin el modelo en marcha (sin sesión de GPU): explica por qué no se puede usar, en vez de ofrecer un chat que fallaría.",
+      "ancho": 2560,
+      "alto": 1600,
+      "bytes": 101435
+    }
+  ]
+}

@@ -1,0 +1,5 @@
+fecha: 2026-11-21T23:02:02+01:00
+commit: 79f029e (chore/215-medidas-congelacion)
+gitleaks 8.30.1, configuración: .gitleaks.toml, --redact
+.gitleaksignore: 13 huellas ya triadas
+confirmaciones en todas las ramas: 325
