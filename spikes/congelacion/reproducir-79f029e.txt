@@ -1,0 +1,9 @@
+== 2026-11-22T10:38:44+01:00 · chore/215-medidas-congelacion · 338c9fe · backend igual que 79f029e: si
+== CUDA_VISIBLE_DEVICES= .venv/bin/python spikes/grabar_demostracion.py --reproducir   (WSL, CPU, sin red)
+== backend/integrations/llm/grabaciones/demostracion.json: qwen3.5:27b, 2026-11-13, commit 147d1df
+  turno 1: entero · 2 de 2 vueltas · answered · 62.0 s
+  turno 2: entero · 2 de 2 vueltas · answered · 0.0 s
+  turno 3: entero · 2 de 2 vueltas · answered · 10.3 s
+Se reproduce entera.
+== codigo 0 · 2026-11-22T10:40:08+01:00
+(Los tiempos incluyen la carga de los modelos de las señales en la CPU del PC: no se citan.)
