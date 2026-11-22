@@ -12221,6 +12221,62 @@ Lo decidió el autor el 22 de noviembre, con la recomendación de Claude:
 | Memoria | El clon de Overleaf en `fb2d603`, para los resúmenes de los capítulos 1 y 2 |
 | Guiones | `tests/test_documentacion.py`, para los enlaces; el diff de la PR, para las 107 líneas y la nota |
 
+### La arquitectura, al día con `v1.0` (22 nov 2026, PR #310)
+
+`docs/arquitectura.md` reflejaba `v0.8.0`. El plan de la congelación del 20 de noviembre pedía ponerlo al día con `v1.0` antes de la etiqueta, aparte y como la PR #250 lo hizo con `v0.8`. Es trabajo suelto, sin issue: sólo cambia `docs/arquitectura.md`, y no toca lo servido.
+
+#### Qué había cambiado, y qué no
+
+Se comparó `v0.8.0` con el código congelado, `79f029e`:
+
+- **Las capas, no.** `spikes/imports_entre_capas.py` da los mismos 21 pares de capas en los dos, ninguno sin camino en el dibujo. Los tres ficheros nuevos del backend viven dentro de capas que ya estaban: el prompt `06-dato`, `integrations/llm/grabado.py` y su grabación.
+- **§3, §5, §6, §8, §9 y §11 siguen valiendo.** `/analyze` y el dominio del análisis no han cambiado: lo nuevo del contrato está fuera de él (`arguments` en `ExecuteResponse`, `recording` en `AgentInfo`). El orquestador sólo cambió en cómo registra el precalentado (#305).
+- **§4, la ejecución de una herramienta**, se había quedado en el 5 de septiembre (#143), y ya no valía desde #292 y #301:
+  - un servidor que no responde se salta, y si la herramienta podía estar en él, la API da un 503;
+  - la respuesta lleva sus argumentos, y el historial la guarda entera;
+  - de un fallo sólo se publica la frase de la herramienta;
+  - el 422 tiene la forma del contrato (#305).
+- **§10, el despliegue**:
+  - Caddy es la 2.11.9 (#260 y #280); el diagrama de `v0.8` decía 2.11.4, que era cierto el 11 de octubre;
+  - el servidor MCP precalienta sus modelos al arrancar (#267, #295), en vez de cargarlos al primer uso;
+  - y existe el plan B de la demostración, `compose.grabado.yaml` (#265).
+- **§12, el agente**:
+  - el prompt es `06-dato` (#269), no `05-llano`;
+  - `GET /agent` dice si las respuestas son grabadas;
+  - el resultado de una herramienta que falla trae su frase pública, también con el servidor MCP caído (#292, #301).
+- **§1**: le faltaba que, desde #267, Claude Desktop usa el mismo servidor MCP por stdio, sin pasar por la API.
+
+#### Cómo se puso al día
+
+Con la regla de #193, como en `v0.8`: un diagrama que se quedó viejo porque el código cambió después se conserva, y al lado va otro, «Hoy, en `v1.0`», con lo nuevo en verde.
+
+- **§4 lleva su primer «Hoy»**, delante, y el del 5 de septiembre pasa al final de la sección con una nota de lo que ha quedado viejo. Los párrafos que explican la sección, al día: son cinco salidas y no cuatro, con el 503.
+- **§10 lleva el «Hoy» delante, y §12 al final**, que va en orden cronológico. Los de `v0.8` pasan a titularse «En `v0.8` (11 oct 2026)».
+- **§1, §3, §6 y §7 llevan una nota**, sin tocar sus diagramas.
+- **La cabecera** refleja `v1.0.0`, el código congelado.
+- **Las cifras de §10 son las del despliegue de `79f029e`** (`spikes/congelacion/despliegue.txt`):
+  - la imagen ocupa 5,99 GB;
+  - cada proceso del backend, unos 1,7 GiB residentes;
+  - y el precalentado, 17,0 s la API y 17,6 s el servidor MCP.
+
+  El cambio al modo grabado, 13 o 14 s, es de `spikes/congelacion/grabado-maquina1-79f029e.txt`.
+
+#### Lo comprobado
+
+- **Los tres diagramas nuevos se dibujan sin errores**, con Mermaid 11, en una columna de 846 px, el ancho al que GitHub encoge un diagrama. Se comprobó en una página de prueba, en el navegador integrado.
+- **Y se leen como los de antes.** Quedan encogidos al 44 % (§4), al 43 % (§10) y al 44 % (§12). Los anteriores, al 48 % el del 5 de septiembre de §4, y al 43 % y al 42 % los de `v0.8` de §10 y §12.
+  - Para llegar ahí se partieron las etiquetas largas.
+  - En §10 la grabación va dentro del nodo del agente: con un nodo y una flecha propios, el diagrama bajaba al 38 %.
+- **Los enlaces y las anclas del documento**, con la prueba de #302: renombrar «Hoy, en `v0.8`» a «En `v0.8`» no rompió ninguna.
+
+| Condiciones | |
+|---|---|
+| Fecha | 22 nov 2026 |
+| Código | `79f029e` (lo servido) y `dev` en `08b4f15`; para comparar, `v0.8.0` |
+| Guiones | `spikes/imports_entre_capas.py`, sobre la copia de trabajo y, con `git archive v0.8.0 backend` y `--raiz`, sobre `v0.8.0`; `tests/test_documentacion.py`, para los enlaces |
+| Cifras | `spikes/congelacion/despliegue.txt` y `spikes/congelacion/grabado-maquina1-79f029e.txt` |
+| Dibujo | Mermaid 11, de jsDelivr, en una columna de 846 px, en el navegador integrado de la app de Claude, el 22 nov 2026 |
+
 
 "Aplico Rudin donde puedo —incoherencia(A MEDIAS, YA QUE EL MODELO NO) y léxico son intrínsecamente interpretables— y reservo lo post-hoc (LIME/SHAP), con sus límites de fidelidad, solo para la parte que depende de un transformer preentrenado que no puedo abrir de otro modo." !!!IMPORTANTE (NO MODIFICAR, RECORDAR POSTURA DEFINIDA)
 
