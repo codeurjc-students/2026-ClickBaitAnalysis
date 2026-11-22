@@ -12173,7 +12173,7 @@ El autor decidió el 11 de noviembre sustituir el README al final. Con la congel
   - un índice de `docs/` que dice a qué capítulo o anexo de la memoria corresponde cada documento.
 - **Tres documentos nuevos**:
   - [`objetivos.md`](objetivos.md) y [`metodologia.md`](metodologia.md), resumidos de los capítulos 1 y 2 de la memoria (Overleaf, `fb2d603`);
-  - [`funcionalidades.md`](funcionalidades.md): cada pantalla con sus capturas de la versión congelada (#215). De él saldrá el capítulo 3.
+  - [`funcionalidades.md`](funcionalidades.md): cada pantalla con sus capturas de la versión congelada (#215). De él saldrá el capítulo 3. *(Cotejado con el código al escribir el capítulo, y corregido en siete frases: PR #313.)*
 - **§10 de [`desarrollo.md`](desarrollo.md), «Convenciones de desarrollo»**, con las reglas vigentes de ramas, commits, versiones, releases y secciones del diario. Su historia se queda aquí, en la sección del mismo nombre.
 - **Las referencias vivas al README** pasan a decir «el diario»:
   - en `requisitos.md`, la cabecera y siete «Justificado en el README», no los seis que contaba la issue;
@@ -12276,6 +12276,45 @@ Con la regla de #193, como en `v0.8`: un diagrama que se quedó viejo porque el 
 | Guiones | `spikes/imports_entre_capas.py`, sobre la copia de trabajo y, con `git archive v0.8.0 backend` y `--raiz`, sobre `v0.8.0`; `tests/test_documentacion.py`, para los enlaces |
 | Cifras | `spikes/congelacion/despliegue.txt` y `spikes/congelacion/grabado-maquina1-79f029e.txt` |
 | Dibujo | Mermaid 11, de jsDelivr, en una columna de 846 px, en el navegador integrado de la app de Claude, el 22 nov 2026 |
+
+### `funcionalidades.md`, cotejado con el código al escribir el capítulo 3 (22 nov 2026, PR #313)
+
+[`funcionalidades.md`](funcionalidades.md) nació en #302 como borrador del capítulo 3 de la memoria, que según su plantilla tiene el mismo contenido. Antes de pasarlo a la memoria se cotejó con el código de `v1.0.0`, afirmación a afirmación. Es trabajo suelto, sin issue: sólo cambia documentación, y no toca lo servido.
+
+#### El cotejo
+
+Se sacaron del documento 21 afirmaciones sobre lo que hace cada pantalla, y cada una se buscó en el código que la implementa y en la prueba que la sostiene. Lo hizo un subagente de Claude Code que sólo leía, y lo que marcó como impreciso se comprobó después en el código, como en el repaso de los requisitos (#216). Salieron 17 exactas y 4 imprecisas, ninguna falsa. El mapa completo, con el fichero, la prueba y el requisito de cada funcionalidad, está en el [comentario 7079730540 de #254](https://github.com/codeurjc-students/2026-ClickBaitAnalysis/issues/254#issuecomment-7079730540).
+
+#### Lo que se corrige
+
+Siete frases: las cuatro imprecisas, una de las cuales salía dos veces, y dos matices.
+
+- **El desacuerdo.** Decía que, cuando las señales no coinciden, el veredicto es «Ambiguo». No siempre. Con la forma dividida y la incoherencia detectando engaño, el engaño desempata y sale «Engañoso» (#124); y con la forma unánime en «sí» y el engaño en «no», sale «Clickbait de forma». Es lo que hace `_overall`, en `backend/analysis/orchestrator.py`.
+- **La salud.** Decía «las APIs de noticias», en dos sitios. Se sondean tres APIs externas, y una es la del tiempo; GNews y NewsData.io no se sondean, por su cuota (#235).
+- **Las marcas del titular.** Decía «las palabras que han pesado». Son las pistas del léxico, y en español, donde el léxico no se aplica, el titular sale sin marcas.
+- **Las tarjetas del asistente.** Decía «la tarjeta del resultado de cada herramienta». Sólo llevan tarjeta las señales y el análisis completo; las noticias salen como una lista de enlaces, y lo demás, tal cual.
+- **El lineal** no enseña «el peso de cada palabra», sino cuánto empuja cada palabra en ese titular: su peso por lo que cuenta en él.
+- **Un titular en otro idioma** no se queda sin veredicto: su veredicto es «Sin datos».
+
+#### Lo que se vio y no se arregla
+
+El código está congelado, así que son observaciones para el trabajo futuro (#217):
+
+- **La nota de la propia pantalla de salud** dice «Sólo las APIs de noticias» (`frontend/src/app/salud/indicador-salud.html`), y se sondea también la del tiempo.
+- **Cinco comentarios del cliente** siguen diciendo «doce» herramientas, y son catorce (`sistema/campos.ts` y `sistema/sistema-page.ts`). No es texto de la interfaz.
+- **El aviso de «no se apoya en ninguna herramienta»** da por apoyo cualquier llamada, también una que falló (`usoHerramientas`, en `asistente/conversacion.ts`). Que no salte tras traer noticias ya estaba anotado.
+- **Ninguna prueba pide `/docs`**: se comprueban las rutas del documento OpenAPI, no la página.
+
+#### El capítulo 3
+
+Se escribió el mismo día, a partir de este documento ya corregido: la aplicación pantalla a pantalla, con seis de las doce capturas, recortadas, y un párrafo sobre el prototipo de #73, al que ya remitían los capítulos 2 y 4. Usa los nombres de la pantalla, y dice que «Factual» es el veredicto que los capítulos 4 y 5 llaman informativo. Las diez preguntas con las que se preparó, con sus respuestas, están en otro comentario de #254.
+
+| Condiciones | |
+|---|---|
+| Fecha | 22 nov 2026 |
+| Código | `v1.0.0` (`04b4760`), cuyo backend y cuyo frontend son los del código congelado, `79f029e` |
+| Cotejo | Un subagente de Claude Code, sólo de lectura; las cuatro imprecisas y los dos matices, comprobados después en el código |
+| Guiones | `tests/test_documentacion.py`, para los enlaces |
 
 
 "Aplico Rudin donde puedo —incoherencia(A MEDIAS, YA QUE EL MODELO NO) y léxico son intrínsecamente interpretables— y reservo lo post-hoc (LIME/SHAP), con sus límites de fidelidad, solo para la parte que depende de un transformer preentrenado que no puedo abrir de otro modo." !!!IMPORTANTE (NO MODIFICAR, RECORDAR POSTURA DEFINIDA)
