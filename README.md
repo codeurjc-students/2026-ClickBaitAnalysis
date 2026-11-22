@@ -11103,7 +11103,7 @@ Las tomó el autor el 14 de noviembre, con la recomendación de Claude. Las dos 
 **El despliegue continuo.** Ningún criterio lo pide; lo pide la historia de usuario de R8 («desplegado automáticamente»), y es ahí donde va el matiz. El despliegue es manual, a propósito, por tres motivos:
 
 - **La clave.** Desplegar desde GitHub obligaría a guardar allí una clave SSH de la máquina 1, que está en internet y tiene `sudo` sin contraseña.
-- **La rama.** La máquina 1 sirve `dev`, no `main`: «desplegar al hacer push a `main`» no describe lo que se hace.
+- **La rama.** La máquina 1 sirve `dev`, no `main`: «desplegar al hacer push a `main`» no describe lo que se hace. *(Revisado en el repaso final: desde `v1.0.0` la máquina 1 sirve `main`, así que este motivo ya no vale; quedan los otros dos.)*
 - **La vigilancia.** Antes de cada despliegue se guarda el registro de la API, que muere con el contenedor (#191), y después se mira el primer arranque: en #280, el de la pila local tras construir falló una vez sin explicación, y al desplegar `147d1df` en la máquina 1 se miró por eso.
 
 Desplegar ya es una sola orden, escrita en `despliegue/README.md`.
@@ -11163,9 +11163,9 @@ Estos 29 se cumplen leyendo el criterio de una manera concreta, y la lectura que
 | R3.6 | «Razonable» es lo medido en la máquina 1: 84 y 125 ms por análisis, en español y en inglés, con los modelos cargados (#256). No hay tope de tiempo |
 | R3.9 | Se divulgan todos los modelos; por configuración se cambian los tres que se descargan. El léxico son reglas, y los pesos del lineal, un fichero |
 | R4.4 | El historial guarda análisis y ejecuciones sueltas, no cada herramienta invocada: lo que ejecuta el agente no se guarda, como decidió H5 (R9.4) |
-| R4.6 | Las respuestas buenas tienen tipo en el contrato. Los errores no tienen una sola forma: el `detail` de un 422 es texto al ejecutar y una lista en el de FastAPI, y un 500 imprevisto sale en texto plano (el de R1.8 lo quita #292) |
+| R4.6 | Las respuestas buenas tienen tipo en el contrato. Los errores no tienen una sola forma: el `detail` de un 422 es texto al ejecutar y una lista en el de FastAPI, y un 500 imprevisto sale en texto plano (el de R1.8 lo quita #292). *(Desde #305, el 422 de `/execute` también lleva la forma de FastAPI; ver el repaso final.)* |
 | R5.4, R5.6 | PODRÁ, y hechos en la pantalla de Sistema, no en `GET /tools` |
-| R6.8 | Un diseño fluido, sin `@media`, medido a 768 y 1.024 px en #130 y #147. La pantalla del asistente y la cabecera con cuatro pestañas no se han medido: se miden en el repaso final |
+| R6.8 | Un diseño fluido, sin `@media`, medido a 768 y 1.024 px en #130 y #147. La pantalla del asistente y la cabecera con cuatro pestañas no se han medido: se miden en el repaso final. *(Medidas en él, sobre `79f029e`: no se sale nada a 768 ni a 1.024 px.)* |
 | R6.13 | «Ilegible» es una respuesta cortada. Un texto que no está vacío pero no tiene sentido no se detecta; las tarjetas se ven igual |
 | R6.14 | Se cumple en los dos casos que enumera. El de las claves, a #217 (arriba) |
 | R7.2 | Dos contenedores, `api` y `mcp`, de la misma imagen, en vez de uno compartido |
@@ -11197,7 +11197,7 @@ Los rulesets del repositorio no exigen que el CI esté en verde para mergear: el
 #### Lo que queda para la congelación
 
 - **#292**, antes del 15 de diciembre.
-- **El repaso final**, sobre el commit congelado: qué ha cambiado desde `f8a9eb5`, y medir R6.8 en la pantalla del asistente. Con él, #216 se cierra, y sale el anexo A.
+- **El repaso final**, sobre el commit congelado: qué ha cambiado desde `f8a9eb5`, y medir R6.8 en la pantalla del asistente. Con él, #216 se cierra, y sale el anexo A. *(Hecho el 22 nov, sobre `79f029e`: «El repaso final de los requisitos, sobre la versión congelada».)*
 
 | Condiciones | |
 |---|---|
@@ -12043,6 +12043,115 @@ El 27B cupo entero en la GPU (16.487 MiB, todo en VRAM, con 16.384 de contexto).
 | Modelos de las señales | Los de las fichas, con sus revisiones: los cinco que lista `produccion_en_vivo.txt` |
 | Vulnerabilidades | pip-audit 2.10.1 (OSV), npm 10.9.8, Trivy 0.75.0 (base del 21 nov), gitleaks 8.30.1, ruff 0.16.1 y CodeQL 2.27.5 |
 | Guiones | `spikes/precalentado_maquina1.sh`, `produccion_en_vivo.py`, `certificado_en_vivo.sh`, `imports_entre_capas.py`, `imports_cliente.py` y `catalogo_volcado.py`; `eval_veredicto`, `cifras_veredicto.py`, `senales_webis_dev.py` y `eval_ta1c --como-produccion`; `coste_senales.sh`; `recuentos_congelacion.py`; `vulnerabilidades.sh` y `vulnerabilidades_codeql.sh`; `capturas.mjs`, `chat_registro.sh` y `ollama_registro.sh`. Sus salidas, en `spikes/congelacion/` y en las carpetas de cada uno |
+
+### El repaso final de los requisitos, sobre la versión congelada (#216, 22 nov 2026)
+
+El repaso preliminar del 14 de noviembre, sobre `f8a9eb5`, dejó tres cosas para cuando se congelara el código:
+
+- comprobar lo que cambiara desde entonces;
+- medir R6.8 en la pantalla del asistente y en la cabecera con sus cuatro pestañas;
+- y corregir el motivo de la rama en la historia de R8.
+
+Lo que faltaba en el código lo arreglaron #292 y #301. El anexo A de la memoria se escribió el 20 de noviembre sobre `99d6589`, con este recuento:
+
+| Veredicto | Criterios |
+|---|---|
+| Se cumple | 57 |
+| Se cumple con su matiz | 15 |
+| Se cumple con una lectura | 33 |
+| No se cumple | 0 |
+| PODRÁ, sin hacer | 3 |
+
+Los matices se cuentan con una regla que aprobó el autor al escribir el anexo: cuenta la nota que matiza, corrige o amplía el criterio, y no la que sólo da su motivo, la redacción anterior o una dependencia. Por eso salen 15, y no los 14 de la sección del preliminar.
+
+El repaso final compara ese estado con la versión congelada, `79f029e`. Entre los dos commits sólo cambiaron 18 ficheros de lo servido, los de las PR #304, #305 y #306. **Ningún veredicto cambia, y el recuento se queda como está.**
+
+#### Lo que cambió, criterio a criterio
+
+| Cambio | PR | Criterio | Efecto |
+|---|---|---|---|
+| El 422 de `/tools/{name}/execute` sale con la forma de FastAPI, la que publica el contrato, y no como una cadena | #305 | R4.6, R12.2 | **La lectura de R4.6 se estrecha.** El 422 tiene ya una sola forma. Los demás errores de la API (404, 503 y 504) llevan una frase en `detail`, y un 500 imprevisto sigue saliendo en texto plano. R12.2 gana los detalles en `/execute` |
+| `classify` recorta el texto a 512 piezas, con una limitación nueva en las cuatro fichas que pasan por ella | #305 | R3.9, R3.6 | La ficha divulga un límite más, y un titular muy largo ya no tumba la señal |
+| El precalentado registra `preheat.failed` cuando un modelo no carga | #305 | R10 | Un fallo más que queda en el registro |
+| `get_forecast` pide la coordenada redondeada a cuatro decimales | #305 | R2 | Una zona que existe ya no sale como no encontrada. La lectura de R2.3 (ante un 500, «no encuentra la zona») no cambia |
+| En el frontend: los segmentos del titular, por puntos de código; las tarjetas de la traza del asistente ya no se pliegan ni se despliegan solas en cada sondeo; y el historial cancela la carga anterior al pedir otra página | #305 | R3.8, R13.3, R9 | Tres arreglos de algo que ya se cumplía |
+| La ficha del lineal en español cita el 0,69 | #304 | R3.9 | Más contexto en una ficha |
+| `rel="noopener noreferrer"` en las noticias del asistente | #304 | Ninguno | Es privacidad (#210, #260), no un criterio |
+| La versión del contrato pasa a ser la 1.0.0 | #306 | R4.8 | La documentación OpenAPI dice la versión que se publica |
+
+#### R6.8, medido en todas las pantallas
+
+R6.8 pide que la interfaz sea receptiva y funcione en escritorio y en tabletas. #130 y #147 lo midieron a mano a 768 y 1.024 px, en cuatro rutas y sin guion. [`spikes/anchos_r68.mjs`](spikes/anchos_r68.mjs) lo repite con una regla escrita, en el Edge de Windows sin ventana, como `capturas.mjs`:
+
+- **Lo que se sale**: cada elemento visible cuya caja pasa del borde de la ventana, contando sólo el más externo de cada rama. Lo que está dentro de un contenedor con desplazamiento propio que sí cabe se cuenta aparte.
+- **La cabecera**: su alto, y en cuántas filas salen sus pestañas.
+- **La página**: su alto.
+
+Mide tres ventanas: 768×1024 (tableta en vertical), 1024×768 (en horizontal) y 1280×800 (escritorio, de control). Su salida está en `spikes/congelacion/anchos_r68.txt`.
+
+- **Las rutas**: `/analizar`, el último análisis del historial en `/analisis/:id`, `/historial`, `/sistema` (con la salud desplegada y sin ella) y `/asistente` apagado. Este recorrido no escribe nada en producción.
+- **La conversación del asistente**: las tres preguntas del paso 6 de la guía de la demostración, con producción en respuestas grabadas (`compose.grabado.yaml`), medida con las tarjetas plegadas y abiertas.
+
+**A 768 y a 1.024 px no se sale nada, en ninguna pantalla**, y ninguna tiene un contenedor con desplazamiento propio. Las cuatro pestañas caben en una sola fila a los tres anchos.
+
+Lo que cambia con el ancho es la altura. A 768 px la cabecera pasa de 61 a 80 px, porque «ClickBait Analysis» y el texto de la salud bajan a dos líneas (visto en el navegador integrado). Las páginas largas crecen:
+
+| Pantalla | 768 px | 1.024 px | 1.280 px |
+|---|---|---|---|
+| `/historial` | 1.958 | 1.633 | 1.633 |
+| `/sistema` | 4.532 | 4.132 | 4.089 |
+| La conversación del asistente | 4.205 | 3.831 | 3.786 |
+| La conversación, con las tarjetas abiertas | 4.559 | 4.185 | 4.140 |
+
+R6.8 se queda como **se cumple con una lectura**, con otra lectura: un diseño fluido, sin `@media`, en el que nada se sale a los anchos de una tableta, medido en todas las pantallas. No se ha probado en una tableta de verdad, ni al tacto.
+
+#### La historia de R8
+
+El preliminar matizó el despliegue continuo con tres motivos para hacerlo a mano: la clave, la rama y la vigilancia. El de la rama decía que la máquina 1 sigue `dev` y no `main`, y que por eso «desplegar al hacer push a `main`» no describía lo que se hace.
+
+Eso dejó de valer con el plan de la congelación del 20 de noviembre: desde la release `v1.0.0`, la máquina 1 sirve `main`, que sólo se mueve con las releases. **Quedan los otros dos motivos, que bastan**:
+
+- desplegar desde GitHub obligaría a guardar allí una clave SSH de una máquina que está en internet;
+- y cada despliegue se vigila, porque el registro de la API muere con el contenedor y el primer arranque se mira.
+
+En `docs/requisitos.md` la historia de R8 lleva una nota de revisión, y el matiz sigue siendo cierto.
+
+#### Producción, por el camino
+
+Para la conversación, producción pasó dos veces a respuestas grabadas y volvió a Ollama:
+
+- a las 10:41, para comprobar la grabación del plan B con `spikes/grabado_maquina1.sh 79f029e`;
+- y a las 10:51, para medir.
+
+Cada cambio recrea sólo la API y tardó entre 13 y 14 s. Antes de cada uno se guardó su registro en la máquina 1, porque muere con el contenedor. Después, `/api/agent` volvió a `unreachable`, sin grabación, y `/api/health` respondió `ok`.
+
+**La grabación del plan B se reproduce entera sobre `79f029e`**, en local (`--reproducir`) y en la máquina 1 (`--reproducir-en`). Las herramientas siguen dando lo que se grabó, así que no hace falta regrabar con la A40. Las dos salidas están en `spikes/congelacion/`.
+
+#### Lo que cambia
+
+- **`spikes/anchos_r68.mjs`**, nuevo, y en `spikes/congelacion/`: `anchos_r68.txt`, `reproducir-79f029e.txt` y `grabado-maquina1-79f029e.txt`.
+- **`docs/requisitos.md`**: la nota de revisión en la historia de R8.
+- **`docs/arquitectura.md`**: la línea de la tabla de estado dice que el repaso final se hizo sobre `79f029e`, y la fila de R6, que R6.8 está medido en todas las pantallas.
+- **Notas en la sección del preliminar**: en el motivo de la rama y en las lecturas de R4.6 y R6.8.
+
+#### Lo que queda
+
+- **Cerrar #216 a mano**, después del merge, con un comentario.
+- **En el anexo A de la memoria**:
+  - la nota `\alumno` del repaso final;
+  - las lecturas de R4.6 y R6.8;
+  - y la historia de R8, que es una copia de `docs/requisitos.md`.
+
+  El recuento no cambia.
+
+| Condiciones | |
+|---|---|
+| Fecha | 22 nov 2026: las rutas a las 10:50, y la conversación a las 10:52, hora de Madrid |
+| Código | `79f029e`, servido por la máquina 1, comparado con `99d6589` (el anexo A) en lo servido: `backend/`, `frontend/`, `docker/`, `compose.yaml` y `requirements.txt` |
+| Cómo | La lectura del diff, criterio a criterio, la hizo Claude, sin subagentes. Las anchuras, con `spikes/anchos_r68.mjs`; la cabecera, también en el navegador integrado |
+| Navegador | Edge 157.0.4341.60 sin ventana y Node v22.16.0, los dos de Windows; escala 1, tema claro |
+| Asistente | Las respuestas grabadas de `demostracion.json` (`qwen3.5:27b`, 13 nov, `147d1df`), con las herramientas de verdad |
+| Guiones | `spikes/anchos_r68.mjs`, `spikes/grabar_demostracion.py --reproducir` y `spikes/grabado_maquina1.sh`; las salidas, en `spikes/congelacion/` |
 
 
 "Aplico Rudin donde puedo —incoherencia(A MEDIAS, YA QUE EL MODELO NO) y léxico son intrínsecamente interpretables— y reservo lo post-hoc (LIME/SHAP), con sus límites de fidelidad, solo para la parte que depende de un transformer preentrenado que no puedo abrir de otro modo." !!!IMPORTANTE (NO MODIFICAR, RECORDAR POSTURA DEFINIDA)

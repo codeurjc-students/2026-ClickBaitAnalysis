@@ -140,7 +140,7 @@ Este documento define los requisitos para un Trabajo de Fin de Grado (TFG) que i
 
 ### Requisito 8: Pipeline de integración continua y despliegue continuo
 
-**Historia de usuario:** Como desarrollador del sistema, quiero un pipeline de CI/CD automatizado, para que el código sea validado y desplegado automáticamente. _(Matizado en #216: el despliegue es manual, a propósito, y ningún criterio de abajo pide automatizarlo. Desplegar desde GitHub obligaría a guardar allí una clave SSH de la máquina de despliegue, que está en internet; esa máquina sigue `dev`, no `main`; y cada despliegue se vigila: antes se guarda el registro de la API, que muere con el contenedor, y después se mira el primer arranque. Desplegar es un solo comando, escrito en `despliegue/README.md`. Justificado en el README.)_
+**Historia de usuario:** Como desarrollador del sistema, quiero un pipeline de CI/CD automatizado, para que el código sea validado y desplegado automáticamente. _(Matizado en #216: el despliegue es manual, a propósito, y ningún criterio de abajo pide automatizarlo. Desplegar desde GitHub obligaría a guardar allí una clave SSH de la máquina de despliegue, que está en internet; esa máquina sigue `dev`, no `main`; y cada despliegue se vigila: antes se guarda el registro de la API, que muere con el contenedor, y después se mira el primer arranque. Desplegar es un solo comando, escrito en `despliegue/README.md`. Justificado en el README.)_ _(Revisado en el repaso final de #216: hasta la congelación esa máquina siguió `dev`; desde `v1.0.0` sirve `main`, que sólo se mueve con las releases, así que el motivo de la rama ya no vale. Quedan la clave y la vigilancia, que bastan.)_
 
 **Criterios de aceptación:**
 
