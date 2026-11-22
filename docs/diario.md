@@ -12182,7 +12182,7 @@ El autor decidió el 11 de noviembre sustituir el README al final. Con la congel
   - cinco comentarios de `ci.yml`, `codeql.yml` y `medir-imagenes.yml`;
   - y uno de `sistema-page.ts`.
 
-  Las de `spikes/` no se tocan: son guiones y datos fechados, y la primera línea del README lleva aquí.
+  Las de `spikes/` no se tocan: son guiones y datos fechados, y la primera línea del README lleva aquí. *(Se escapó una, en `demostracion.md`: estaba en una línea que nombraba también `despliegue/README.md`, y la búsqueda descartó la línea entera. La corrige la PR #311, con la fecha de la congelación de esa guía y de `desarrollo.md`, que decían 15 de diciembre.)*
 - **Tres pruebas nuevas en `tests/test_documentacion.py`**, para el README y todo `docs/`:
   - que la expresión regular encuentre enlaces;
   - que cada enlace relativo lleve a un fichero que existe;
