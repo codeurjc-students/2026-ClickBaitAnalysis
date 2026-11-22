@@ -9,8 +9,8 @@ Para orientarse en el código:
 - [`estructura.md`](estructura.md): dónde vive cada cosa y con qué criterio.
 - [`arquitectura.md`](arquitectura.md): cómo está montado, con sus diagramas.
 - [`requisitos.md`](requisitos.md): lo que el sistema tiene que cumplir.
-- Las [convenciones de ramas, commits y versiones](../README.md#convenciones-de-desarrollo),
-  en el README.
+- Las [convenciones de ramas, commits y versiones](#10--convenciones-de-desarrollo),
+  en la última sección de esta guía.
 
 ## Lo que hace falta
 
@@ -286,7 +286,7 @@ imagen instalan con `npm ci`, que falla si no coinciden.
 
 Cómo se repite el análisis de vulnerabilidades de #260: qué se ejecuta, en qué
 orden, dónde queda y cómo se tría. Por qué cada herramienta y lo que salió la
-primera vez, en la sección de #260 del README.
+primera vez, en la sección de #260 del [diario](diario.md).
 
 **Cuándo**: antes de cada release, antes de la congelación del 15 de
 diciembre, y cuando Dependabot abra una alerta (lo hace solo desde que el grafo
@@ -368,7 +368,7 @@ desarrollo de npm). Un crítico o un alto que llegue a lo servido se arregla o
 se justifica por escrito.
 
 Lo ya aceptado, con su motivo, está en las secciones de #260, #280 y #289 del
-README: el `pkg_resources` que pip lleva dentro (de setuptools 70.3.0, y sólo
+diario: el `pkg_resources` que pip lleva dentro (de setuptools 70.3.0, y sólo
 corre al construir), el `setuptools` 83 de la imagen (su aviso es sólo de
 Windows), los avisos de Debian sin arreglo publicado, el de `x/net/html` en
 Caddy 2.11.9, los dos S608 de `api/history.py`, lo de `spikes/` en CodeQL y, en
@@ -438,3 +438,101 @@ docker compose -f compose.yaml -f compose.local.yaml down
 **Un secreto** que gitleaks encuentre **se rota**: borrarlo del código no lo
 quita del historial, que es público. Si es un falso positivo, su huella va a
 `.gitleaksignore` con un comentario que diga por qué.
+
+## 10 · Convenciones de desarrollo
+
+Las reglas con las que se trabaja en el repositorio. Su historia —por qué
+cambiaron, como el paso de las épicas a los hitos o el primer *patch*— está en
+la sección del mismo nombre del [diario](diario.md#convenciones-de-desarrollo).
+
+### Hitos, issues y ramas
+
+| Nivel | Qué es | ¿Rama? | ¿Versión? |
+|---|---|---|---|
+| **Hito** (H1–H6) | Un punto de control con fecha y meta, que agrupa issues | no | **sí**, al cerrarlo |
+| **Issue** | La unidad de trabajo | **sí**: una rama, una *pull request* y un *squash merge* a `dev` | no |
+
+Un hito no es trabajo: no se ramifica ni se mergea.
+
+### Ramas
+
+Cada rama parte de `dev` recién actualizada (tras un *squash*, la rama anterior
+ya no sirve de base) y se llama `<tipo>/<nº de issue>-<descripción-corta>`:
+
+| Prefijo | Uso |
+|---|---|
+| `feat/` | Una funcionalidad nueva |
+| `fix/` | La corrección de un fallo |
+| `chore/` | Preparación, estructura, mantenimiento o medidas |
+| `docs/` | Documentación |
+| `test/` | Pruebas nuevas o más cobertura |
+
+El trabajo sin issue lleva la rama sin número.
+
+### Commits
+
+[Conventional Commits](https://www.conventionalcommits.org/), en castellano:
+`tipo(ámbito): descripción`.
+
+- **El tipo**: `feat`, `fix`, `chore`, `docs`, `test` o `refactor`.
+- **El ámbito**: la zona que toca, como `nlp`, `api`, `core`, `integrations`,
+  `frontend` o `spikes`. Se omite si toca varias.
+- **El cuerpo**: lo que entra, y `Refs #N` o `Closes #N`.
+
+El estilo lo comprueba el CI (§6).
+
+### `dev` y `main`
+
+- **`dev`, la integración**, es la rama por defecto. Recibe las *pull requests*
+  con *squash merge*. Una *pull request* lleva `Closes #N` si cierra la issue,
+  y `Refs #N` si la issue sigue: por ejemplo, porque incluye una release o
+  porque se cierra a mano.
+- **`main`, lo estable**, sólo recibe merges desde `dev`: la *pull request* de
+  cada release, con un merge normal, sin *squash*, para conservar la historia.
+  `protect-main.yml` rechaza cualquier otra.
+
+### Versiones y releases
+
+Al llevar `dev` a `main` se crea la etiqueta `vX.Y.Z`. Es **anotada** y se hace
+por consola, sobre el merge de la release:
+
+```bash
+git tag -a vX.Y.Z <merge> -F <fichero con el mensaje>
+```
+
+La release se publica después sobre esa etiqueta. Publicarla desde GitHub con
+una etiqueta nueva la crearía ligera, sin mensaje ni autor.
+
+**Una versión se etiqueta si cumple cuatro criterios:**
+
+1. **Un bloque funcional completo**: un hito cerrado, sin nada a medias. La
+   `v1.0.0` es la excepción: H6 sigue abierto por la memoria y la defensa, y lo
+   que se etiqueta es el código congelado.
+2. **El CI en verde** en `dev`.
+3. **La verificación en vivo**: las herramientas del servidor MCP responden en
+   producción (`spikes/produccion_en_vivo.py`).
+4. **La documentación al día**: el diario, los requisitos y el README reflejan lo
+   que entra.
+
+**El esquema**: la *minor* (`v0.X.0`) es un hito; el *patch* (`v0.X.Y`) cabe
+cuando lo publicado induce a error a quien despliegue o lea; y la *major*
+(`v1.0.0`) es la entrega final del TFG.
+
+**Las versiones son cortes en el tiempo**, no contenedores temáticos. Una mejora
+posterior va a la versión siguiente, aunque por su tema pertenezca a un hito ya
+etiquetado. Las etiquetas no se mueven, y una versión no se reabre.
+
+### El diario
+
+Cada *pull request* que cambia el comportamiento, mide algo o toma una decisión
+lleva su sección en el [diario](diario.md), al final de la Fase B y antes de las
+notas del autor. La sección lleva:
+
+- en el título, la issue y la fecha, o, si es trabajo suelto, la fecha y el
+  número de la *pull request*;
+- las condiciones de lo que se midió: la máquina, las versiones, los modelos y
+  el commit;
+- y cada cifra, con el guion de `spikes/` que la produce.
+
+Lo de antes no se reescribe: si algo lo corrige, se añade una nota en cursiva
+en la sección vieja, que remite a la nueva.

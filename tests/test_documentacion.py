@@ -12,6 +12,7 @@ Prueba el repositorio en sí, no un módulo, como `test_arquitectura.py` y
 
 import re
 from pathlib import Path
+from urllib.parse import unquote
 
 from backend.config.settings import Settings
 
@@ -50,3 +51,101 @@ def test_env_example_solo_trae_ajustes_que_existen():
 
     assert variables, "no se leyó ninguna variable de .env.example"
     assert sorted(variables - _variables_de_settings()) == []
+
+
+# --- Los enlaces de la documentación (#302) ---------------------------------
+#
+# Al pasar el README a `docs/diario.md` se reescribieron sus 130 enlaces
+# relativos, y el README nuevo y los documentos de `docs/` enlazan entre sí y
+# a secciones concretas. Un fichero que se renombra o un título que cambia
+# dejan el enlace roto sin que nada falle: aquí se comprueba que cada enlace
+# relativo lleva a un fichero que existe y, si lleva ancla, a un título que
+# existe, con la regla con la que GitHub hace las anclas.
+
+DOCUMENTOS = [RAIZ / "README.md", *sorted((RAIZ / "docs").rglob("*.md"))]
+ENLACE = re.compile(r"\]\(([^)\s]+)\)")
+EXTERNO = re.compile(r"(https?:|mailto:)")
+CODIGO_EN_LINEA = re.compile(r"`[^`]*`")
+TITULO = re.compile(r"^(#{1,6})\s+(.*?)\s*#*\s*$")
+
+
+def _fuera_de_codigo(texto: str) -> list[str]:
+    """Las líneas del texto que no están en un bloque de código."""
+    lineas = []
+    en_codigo = False
+    for linea in texto.splitlines():
+        if linea.lstrip().startswith("```"):
+            en_codigo = not en_codigo
+            continue
+        if not en_codigo:
+            lineas.append(linea)
+    return lineas
+
+
+def _enlaces(documento: Path) -> list[str]:
+    texto = documento.read_text(encoding="utf-8")
+    return [
+        destino
+        for linea in _fuera_de_codigo(texto)
+        for destino in ENLACE.findall(CODIGO_EN_LINEA.sub("", linea))
+        if not EXTERNO.match(destino)
+    ]
+
+
+def _ancla(titulo: str) -> str:
+    """El ancla que GitHub da a un título: el texto que se ve, en minúsculas,
+    sin signos (salvo el guion y el guion bajo) y con un guion por espacio."""
+    texto = re.sub(r"\[([^\]]*)\]\([^)]*\)", r"\1", titulo)
+    texto = texto.replace("`", "").replace("*", "").lower()
+    texto = re.sub(r"[^\w\- ]", "", texto)
+    return texto.replace(" ", "-")
+
+
+def _anclas(documento: Path) -> set[str]:
+    """Las anclas de los títulos de un documento, con el sufijo `-1`, `-2`…
+    que GitHub añade a los repetidos."""
+    vistas: dict[str, int] = {}
+    anclas = set()
+    for linea in _fuera_de_codigo(documento.read_text(encoding="utf-8")):
+        titulo = TITULO.match(linea)
+        if not titulo:
+            continue
+        base = _ancla(titulo.group(2))
+        repeticiones = vistas.get(base, 0)
+        anclas.add(base if repeticiones == 0 else f"{base}-{repeticiones}")
+        vistas[base] = repeticiones + 1
+    return anclas
+
+
+def test_hay_enlaces_que_comprobar():
+    # Que la expresión regular siga encontrando algo: sin esto, las dos de
+    # abajo pasarían igual con una que no encontrara nada.
+    assert sum(len(_enlaces(documento)) for documento in DOCUMENTOS) > 100
+
+
+def test_cada_enlace_relativo_lleva_a_un_fichero_que_existe():
+    rotos = [
+        f"{documento.relative_to(RAIZ)}: {destino}"
+        for documento in DOCUMENTOS
+        for destino in _enlaces(documento)
+        if not destino.startswith("#")
+        and not (documento.parent / unquote(destino.partition("#")[0])).exists()
+    ]
+
+    assert rotos == []
+
+
+def test_cada_ancla_lleva_a_un_titulo_que_existe():
+    rotas = []
+    for documento in DOCUMENTOS:
+        for destino in _enlaces(documento):
+            ruta, almohadilla, ancla = destino.partition("#")
+            if not almohadilla:
+                continue
+            objetivo = (documento.parent / unquote(ruta)) if ruta else documento
+            if objetivo.suffix != ".md" or not objetivo.is_file():
+                continue
+            if unquote(ancla) not in _anclas(objetivo):
+                rotas.append(f"{documento.relative_to(RAIZ)}: {destino}")
+
+    assert rotas == []

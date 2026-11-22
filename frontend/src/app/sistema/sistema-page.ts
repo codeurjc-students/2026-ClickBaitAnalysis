@@ -251,7 +251,7 @@ export class SistemaPage {
   }
 
   /** El commit de los pesos, con los 12 primeros caracteres, como lo cita el
-   *  README (#234). Entero sólo sirve a una máquina. */
+   *  diario (#234). Entero sólo sirve a una máquina. */
   revisionCorta(revision: string): string {
     return revision.slice(0, 12);
   }

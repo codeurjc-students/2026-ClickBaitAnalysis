@@ -30,7 +30,7 @@
 #
 # Cómo se lanza y se lee, con el resto del análisis: `docs/desarrollo.md`, §9.
 #
-# Ejecuciones de las que salen las cifras del README (GitHub borra los registros
+# Ejecuciones de las que salen las cifras del diario (`docs/diario.md`) (GitHub borra los registros
 # a los 90 días; los SARIF están en `spikes/vulnerabilidades/2026-10-13-final/`):
 #   - 38407160235, 2026-10-13, commit 6329213, CodeQL 2.27.2: la primera, con
 #     un disparador `push` temporal a la rama de #260, quitado antes de la PR.

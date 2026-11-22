@@ -147,7 +147,7 @@ jobs:
   # publicarlas. Hasta #173 un Dockerfile roto sólo se habría notado al
   # desplegar; ahora se ve en la PR.
   #
-  # SIN caché, a propósito, y decidido con números (#173, ver el README). La
+  # SIN caché, a propósito, y decidido con números (#173, ver el diario). La
   # primera ejecución real se hizo con la caché de GitHub Actions y tardó
   # 4 min 31 s en el backend: ~75 s construyendo y 175 s SUBIENDO la caché. Con
   # la caché caliente, una PR se ahorra unos 30 s; a cambio, cada vez que hay que
