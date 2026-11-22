@@ -8,7 +8,7 @@
 #
 # SÓLO construye. No publica nada en ningún registro.
 #
-# Historia del instrumento, porque las cifras del README salen de más de una
+# Historia del instrumento, porque las cifras del diario (`docs/diario.md`) salen de más de una
 # versión:
 #
 #   1. Commit 4676904: dos trabajos fijos, con `load: true` para poder medir el
@@ -24,7 +24,7 @@
 #      creyendo medir en caliente, sin que nada avisara.
 #   4. Esta versión (#178): la misma, con `setup-buildx-action@v4` y
 #      `build-push-action@v7` en vez de v3 y v6, que corrían sobre Node 20,
-#      deprecado en los runners. Las cifras del README son de las versiones
+#      deprecado en los runners. Las cifras del diario son de las versiones
 #      1 a 3: una ejecución nueva no se compara con ellas sin decirlo.
 #
 # Cada escenario simula su cambio DENTRO del runner, añadiendo una línea a un
@@ -54,7 +54,7 @@
 # repetible sin gastar minutos por su cuenta. Lo que corre en cada PR es el
 # trabajo `imagenes` de `ci.yml`, que salió de estas medidas.
 #
-# Ejecuciones de las que salen las cifras del README (GitHub borra los registros
+# Ejecuciones de las que salen las cifras del diario (GitHub borra los registros
 # a los 90 días, por eso las cifras están escritas allí y no sólo enlazadas):
 #   - 35875658283, intentos 1 (frío) y 2 (caché caliente), commit 4676904;
 #   - 35889059568, los cuatro escenarios, commit 833ed15;

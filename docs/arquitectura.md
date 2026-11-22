@@ -1368,7 +1368,7 @@ como componente aunque ya no sea el sistema entero.
 
 ## Estado de los requisitos
 
-*Repasada criterio a criterio contra el código de `dev` (`f8a9eb5`) en #216, el 14 nov 2026, un mes antes de congelar, para que lo que faltara se viera con margen. Lo que se cumple con una lectura y los matices, con su porqué, en la sección de #216 del README; lo que faltaba en el código lo arregló #292. El repaso final se hizo sobre la versión congelada (`79f029e`), el 22 nov, y no cambió ningún veredicto (en el README, «El repaso final de los requisitos, sobre la versión congelada»).*
+*Repasada criterio a criterio contra el código de `dev` (`f8a9eb5`) en #216, el 14 nov 2026, un mes antes de congelar, para que lo que faltara se viera con margen. Lo que se cumple con una lectura y los matices, con su porqué, en la sección de #216 del diario; lo que faltaba en el código lo arregló #292. El repaso final se hizo sobre la versión congelada (`79f029e`), el 22 nov, y no cambió ningún veredicto (en el diario, «El repaso final de los requisitos, sobre la versión congelada»).*
 
 | Requisito | Estado |
 | :--- | :--- |
